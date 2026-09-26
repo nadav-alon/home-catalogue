@@ -1,5 +1,5 @@
 # Publishes the built app to GitHub Pages on every push to main, at the
-# /home-catalogue/ base path baked into vite.config.ts.
+# base path configured in vite.config.ts.
 name: Deploy to GitHub Pages
 
 on:
