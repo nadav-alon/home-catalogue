@@ -13,4 +13,10 @@ describe('manifest', () => {
     expect(sizes).toContain('192x192')
     expect(sizes).toContain('512x512')
   })
+
+  it('carries a maskable icon so Android adaptive masks have a safe zone', () => {
+    const maskable = manifest.icons?.some((icon) => icon.purpose === 'maskable')
+
+    expect(maskable).toBe(true)
+  })
 })
