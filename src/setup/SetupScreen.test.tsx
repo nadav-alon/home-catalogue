@@ -1,0 +1,60 @@
+import { fireEvent, render, screen } from '@testing-library/preact'
+import { describe, expect, it, vi } from 'vitest'
+import { SetupScreen } from './SetupScreen.tsx'
+
+const validConfig = {
+  apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',
+  authDomain: 'household.firebaseapp.com',
+  projectId: 'household',
+  storageBucket: 'household.appspot.com',
+  messagingSenderId: '123456789',
+  appId: '1:123456789:web:abcdef',
+}
+
+describe('SetupScreen', () => {
+  it('rejects invalid JSON with a message, without calling onConfigured', () => {
+    const onConfigured = vi.fn()
+    render(<SetupScreen onConfigured={onConfigured} />)
+
+    fireEvent.input(screen.getByLabelText('Firebase web config'), { target: { value: 'not json' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(onConfigured).not.toHaveBeenCalled()
+  })
+
+  it('rejects an incomplete config with a message, without calling onConfigured', () => {
+    const onConfigured = vi.fn()
+    render(<SetupScreen onConfigured={onConfigured} />)
+
+    fireEvent.input(screen.getByLabelText('Firebase web config'), {
+      target: { value: JSON.stringify({ apiKey: 'only-this-field' }) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(onConfigured).not.toHaveBeenCalled()
+  })
+
+  it('calls onConfigured with the parsed config once it is valid', () => {
+    const onConfigured = vi.fn()
+    render(<SetupScreen onConfigured={onConfigured} />)
+
+    fireEvent.input(screen.getByLabelText('Firebase web config'), {
+      target: { value: JSON.stringify(validConfig) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onConfigured).toHaveBeenCalledWith(validConfig)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('links to the platform household setup doc', () => {
+    render(<SetupScreen onConfigured={vi.fn()} />)
+
+    expect(screen.getByRole('link', { name: 'household setup guide' })).toHaveAttribute(
+      'href',
+      'https://github.com/nadav-alon/data-platform/blob/main/docs/household-setup.md',
+    )
+  })
+})
