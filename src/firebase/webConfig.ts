@@ -30,7 +30,7 @@ function missingFields(value: unknown): readonly string[] {
 export function firebaseWebConfig(value: unknown): FirebaseWebConfig {
   if (!isFirebaseWebConfig(value)) {
     throw new InvalidFirebaseWebConfigError(
-      `Firebase config is missing or has an empty: ${missingFields(value).join(', ')}`,
+      `Firebase config is missing or has empty fields: ${missingFields(value).join(', ')}`,
     )
   }
   return value
