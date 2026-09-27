@@ -18,8 +18,7 @@ export class InvalidFirebaseWebConfigError extends Error {}
 
 export function isFirebaseWebConfig(value: unknown): value is FirebaseWebConfig {
   if (typeof value !== 'object' || value === null) return false
-  const record = value as Record<string, unknown>
-  return REQUIRED_FIELDS.every((field) => typeof record[field] === 'string' && record[field] !== '')
+  return missingFields(value).length === 0
 }
 
 function missingFields(value: unknown): readonly string[] {
