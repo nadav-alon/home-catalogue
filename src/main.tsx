@@ -1,4 +1,4 @@
 import { render } from 'preact'
-import { App } from './app'
+import { Root } from './root.tsx'
 
-render(<App />, document.getElementById('app')!)
+render(<Root />, document.getElementById('app')!)

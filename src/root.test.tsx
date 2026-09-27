@@ -1,0 +1,64 @@
+import { fireEvent, render, screen } from '@testing-library/preact'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Root } from './root.tsx'
+import { storeFirebaseConfig } from './firebase/configStore.ts'
+import { firebaseWebConfig } from './firebase/webConfig.ts'
+
+const initFirebase = vi.fn()
+vi.mock('./firebase/client.ts', () => ({
+  initFirebase: (config: unknown) => initFirebase(config),
+}))
+
+const validConfig = firebaseWebConfig({
+  apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',
+  authDomain: 'household.firebaseapp.com',
+  projectId: 'household',
+  storageBucket: 'household.appspot.com',
+  messagingSenderId: '123456789',
+  appId: '1:123456789:web:abcdef',
+})
+
+beforeEach(() => {
+  localStorage.clear()
+  initFirebase.mockClear()
+})
+
+describe('Root', () => {
+  it('shows the setup screen when no config is stored', () => {
+    render(<Root />)
+
+    expect(screen.getByRole('heading', { name: 'Set up Home Catalogue' })).toBeInTheDocument()
+    expect(initFirebase).not.toHaveBeenCalled()
+  })
+
+  it('initialises Firebase and shows the app once config is stored', () => {
+    storeFirebaseConfig(validConfig)
+
+    render(<Root />)
+
+    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(screen.getByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+  })
+
+  it('shows the app after the setup screen submits a valid config', () => {
+    render(<Root />)
+
+    fireEvent.input(screen.getByLabelText('Firebase web config'), {
+      target: { value: JSON.stringify(validConfig) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+  })
+
+  it('returns to the setup screen and clears storage when reset', () => {
+    storeFirebaseConfig(validConfig)
+    render(<Root />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
+
+    expect(screen.getByRole('heading', { name: 'Set up Home Catalogue' })).toBeInTheDocument()
+    expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
+  })
+})
