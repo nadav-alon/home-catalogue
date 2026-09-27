@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Root } from './root.tsx'
-import { storeFirebaseConfig } from './firebase/configStore.ts'
+import { saveFirebaseConfig } from './firebase/configStorage.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 
 const initFirebase = vi.fn()
@@ -39,7 +39,7 @@ describe('Root', () => {
   })
 
   it('initialises Firebase and shows the app once config is stored', () => {
-    storeFirebaseConfig(validConfig)
+    saveFirebaseConfig(validConfig)
 
     render(<Root />)
 
@@ -60,7 +60,7 @@ describe('Root', () => {
   })
 
   it('returns to the setup screen and clears storage when reset', async () => {
-    storeFirebaseConfig(validConfig)
+    saveFirebaseConfig(validConfig)
     render(<Root />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
@@ -71,7 +71,7 @@ describe('Root', () => {
   })
 
   it('tears down the previous client before initialising a new one after reset', async () => {
-    storeFirebaseConfig(validConfig)
+    saveFirebaseConfig(validConfig)
     render(<Root />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset Firebase configuration' }))

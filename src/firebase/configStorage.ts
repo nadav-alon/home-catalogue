@@ -13,7 +13,7 @@ export function getStoredFirebaseConfig(): FirebaseWebConfig | null {
   }
 }
 
-export function storeFirebaseConfig(config: FirebaseWebConfig): void {
+export function saveFirebaseConfig(config: FirebaseWebConfig): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
 }
 

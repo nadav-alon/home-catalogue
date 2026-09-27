@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { App } from './app.tsx'
 import { SetupScreen } from './setup/SetupScreen.tsx'
-import { clearFirebaseConfig, getStoredFirebaseConfig, storeFirebaseConfig } from './firebase/configStore.ts'
+import { clearFirebaseConfig, getStoredFirebaseConfig, saveFirebaseConfig } from './firebase/configStorage.ts'
 import { initFirebase, terminateFirebase, type FirebaseClient } from './firebase/client.ts'
 import type { FirebaseWebConfig } from './firebase/webConfig.ts'
 
@@ -12,7 +12,7 @@ export function Root() {
     return (
       <SetupScreen
         onConfigured={(newConfig) => {
-          storeFirebaseConfig(newConfig)
+          saveFirebaseConfig(newConfig)
           setConfig(newConfig)
         }}
       />
