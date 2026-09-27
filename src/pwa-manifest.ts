@@ -20,5 +20,11 @@ export const manifest: Partial<ManifestOptions> = {
       sizes: '512x512',
       type: 'image/png',
     },
+    {
+      src: 'pwa-512x512.png',
+      sizes: '512x512',
+      type: 'image/png',
+      purpose: 'maskable',
+    },
   ],
 }
