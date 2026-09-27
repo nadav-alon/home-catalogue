@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { App } from './app.tsx'
 import { SetupScreen } from './setup/SetupScreen.tsx'
 import { clearFirebaseConfig, getStoredFirebaseConfig, storeFirebaseConfig } from './firebase/configStore.ts'
-import { initFirebase } from './firebase/client.ts'
+import { initFirebase, terminateFirebase, type FirebaseClient } from './firebase/client.ts'
 import type { FirebaseWebConfig } from './firebase/webConfig.ts'
 
 export function Root() {
@@ -23,14 +23,19 @@ export function Root() {
 }
 
 function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: () => void }) {
-  useMemo(() => initFirebase(config), [config])
+  const clientRef = useRef<FirebaseClient | null>(null)
+
+  useEffect(() => {
+    clientRef.current = initFirebase(config)
+  }, [config])
 
   return (
     <>
       <App />
       <button
         type="button"
-        onClick={() => {
+        onClick={async () => {
+          if (clientRef.current) await terminateFirebase(clientRef.current)
           clearFirebaseConfig()
           onReset()
         }}

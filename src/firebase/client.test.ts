@@ -2,16 +2,20 @@ import { describe, expect, it, vi } from 'vitest'
 import { firebaseWebConfig } from './webConfig.ts'
 
 const initializeApp = vi.fn((_config: unknown) => ({ name: 'fake-app' }))
+const deleteApp = vi.fn((_app: unknown) => Promise.resolve())
 const initializeFirestore = vi.fn((_app: unknown, _settings: unknown) => ({ type: 'fake-firestore' }))
 const persistentLocalCache = vi.fn(() => ({ kind: 'persistent' }))
+const terminate = vi.fn((_db: unknown) => Promise.resolve())
 
 vi.mock('firebase/app', () => ({
   initializeApp: (config: unknown) => initializeApp(config),
+  deleteApp: (app: unknown) => deleteApp(app),
 }))
 
 vi.mock('firebase/firestore', () => ({
   initializeFirestore: (app: unknown, settings: unknown) => initializeFirestore(app, settings),
   persistentLocalCache: () => persistentLocalCache(),
+  terminate: (db: unknown) => terminate(db),
 }))
 
 const config = firebaseWebConfig({
@@ -52,5 +56,25 @@ describe('initFirebase', () => {
     initializeFirestore.mockReturnValueOnce(fakeDb)
 
     expect(initFirebase(config)).toEqual({ app: fakeApp, db: fakeDb })
+  })
+})
+
+describe('terminateFirebase', () => {
+  it('terminates Firestore before deleting the app', async () => {
+    const { initFirebase, terminateFirebase } = await import('./client.ts')
+    const client = initFirebase(config)
+    const calls: string[] = []
+    terminate.mockImplementationOnce(async (_db: unknown) => {
+      calls.push('terminate')
+    })
+    deleteApp.mockImplementationOnce(async (_app: unknown) => {
+      calls.push('deleteApp')
+    })
+
+    await terminateFirebase(client)
+
+    expect(terminate).toHaveBeenCalledWith(client.db)
+    expect(deleteApp).toHaveBeenCalledWith(client.app)
+    expect(calls).toEqual(['terminate', 'deleteApp'])
   })
 })
