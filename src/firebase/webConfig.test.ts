@@ -56,6 +56,21 @@ describe('parseFirebaseWebConfigSnippet', () => {
     expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
   })
 
+  it('parses the JavaScript snippet the Firebase console hands out, unquoted keys and all', () => {
+    const snippet = `
+      // Import the functions you need from the SDKs you need
+      const firebaseConfig = {
+        apiKey: "${validConfig.apiKey}",
+        authDomain: "${validConfig.authDomain}",
+        projectId: "${validConfig.projectId}",
+        storageBucket: "${validConfig.storageBucket}",
+        messagingSenderId: "${validConfig.messagingSenderId}",
+        appId: "${validConfig.appId}"
+      };
+    `
+    expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
+  })
+
   it('rejects text with no object literal', () => {
     expect(() => parseFirebaseWebConfigSnippet('not json')).toThrow(InvalidFirebaseWebConfigError)
   })

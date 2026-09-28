@@ -60,10 +60,39 @@ function extractObjectLiteral(text: string): string | null {
   return null
 }
 
+/** Quotes bare identifier keys (`apiKey:`) so the object literal parses as JSON. */
+function quoteBareKeys(objectLiteral: string): string {
+  let result = ''
+  let inString: '"' | "'" | null = null
+  for (let i = 0; i < objectLiteral.length; i++) {
+    const char = objectLiteral[i]
+    if (inString !== null) {
+      result += char
+      if (char === '\\') result += objectLiteral[++i] ?? ''
+      else if (char === inString) inString = null
+      continue
+    }
+    if (char === '"' || char === "'") {
+      inString = char
+      result += char
+      continue
+    }
+    // Only preceded by `{` or `,` (ignoring whitespace) so a value's own text is never touched.
+    const bareKey = /^[{,](\s*)([A-Za-z_$][\w$]*)(\s*):/.exec(objectLiteral.slice(i - 1))
+    if (i > 0 && bareKey) {
+      result += `${bareKey[1]}"${bareKey[2]}"${bareKey[3]}:`
+      i += bareKey[0].length - 2
+      continue
+    }
+    result += char
+  }
+  return result
+}
+
 /**
  * Parses a pasted Firebase config into a validated config, or throws
  * {@link InvalidFirebaseWebConfigError}. Accepts both a bare JSON object and the JavaScript
- * snippet the Firebase console hands out (`const firebaseConfig = {...};`).
+ * snippet the Firebase console hands out (`const firebaseConfig = { apiKey: "...", ... };`).
  */
 export function parseFirebaseWebConfigSnippet(snippet: string): FirebaseWebConfig {
   const objectLiteral = extractObjectLiteral(snippet)
@@ -73,7 +102,7 @@ export function parseFirebaseWebConfigSnippet(snippet: string): FirebaseWebConfi
 
   let parsed: unknown
   try {
-    parsed = JSON.parse(objectLiteral)
+    parsed = JSON.parse(quoteBareKeys(objectLiteral))
   } catch {
     throw new InvalidFirebaseWebConfigError('That is not a Firebase config.')
   }
