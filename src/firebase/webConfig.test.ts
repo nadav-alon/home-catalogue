@@ -111,8 +111,18 @@ describe('parseFirebaseWebConfigSnippet', () => {
     expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
   })
 
-  it('rejects text with no object literal', () => {
-    expect(() => parseFirebaseWebConfigSnippet('not json')).toThrow(InvalidFirebaseWebConfigError)
+  it.each([
+    { input: 'not json', description: 'text with no object literal' },
+    { input: 'const firebaseConfig = { apiKey: };', description: 'an object literal that fails to parse' },
+  ])('rejects $description, naming what to paste instead', ({ input }) => {
+    let error: unknown
+    try {
+      parseFirebaseWebConfigSnippet(input)
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toBeInstanceOf(InvalidFirebaseWebConfigError)
+    expect((error as Error).message).toMatch(/firebaseConfig|Firebase console/)
   })
 
   it('rejects an object literal that is missing required fields', () => {

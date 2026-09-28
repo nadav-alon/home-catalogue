@@ -16,6 +16,14 @@ const REQUIRED_FIELDS = [
 
 export class InvalidFirebaseWebConfigError extends Error {}
 
+/** Thrown by {@link parseFirebaseWebConfigSnippet} when no `{...}` object literal is found at all. */
+const NO_OBJECT_LITERAL_MESSAGE =
+  "That doesn't look like a Firebase config. Paste the firebaseConfig block from the Firebase console."
+
+/** Thrown by {@link parseFirebaseWebConfigSnippet} when an extracted object literal still fails to parse. */
+const UNPARSEABLE_OBJECT_LITERAL_MESSAGE =
+  "Found a firebaseConfig block but couldn't read it. Paste it unedited from the Firebase console."
+
 export function isFirebaseWebConfig(value: unknown): value is FirebaseWebConfig {
   if (typeof value !== 'object' || value === null) return false
   return missingFields(value).length === 0
@@ -104,14 +112,14 @@ function quoteBareKeys(objectLiteral: string): string {
 export function parseFirebaseWebConfigSnippet(snippet: string): FirebaseWebConfig {
   const objectLiteral = extractObjectLiteral(snippet)
   if (objectLiteral === null) {
-    throw new InvalidFirebaseWebConfigError('That is not a Firebase config.')
+    throw new InvalidFirebaseWebConfigError(NO_OBJECT_LITERAL_MESSAGE)
   }
 
   let parsed: unknown
   try {
     parsed = JSON.parse(quoteBareKeys(objectLiteral))
   } catch {
-    throw new InvalidFirebaseWebConfigError('That is not a Firebase config.')
+    throw new InvalidFirebaseWebConfigError(UNPARSEABLE_OBJECT_LITERAL_MESSAGE)
   }
   return firebaseWebConfig(parsed)
 }
