@@ -3,7 +3,7 @@ import {
   firebaseWebConfig,
   InvalidFirebaseWebConfigError,
   isFirebaseWebConfig,
-  parseFirebaseWebConfigJson,
+  parseFirebaseWebConfigSnippet,
 } from './webConfig.ts'
 
 const validConfig = {
@@ -46,16 +46,76 @@ describe('firebaseWebConfig', () => {
   })
 })
 
-describe('parseFirebaseWebConfigJson', () => {
-  it('parses valid JSON into a validated config', () => {
-    expect(parseFirebaseWebConfigJson(JSON.stringify(validConfig))).toEqual(validConfig)
+describe('parseFirebaseWebConfigSnippet', () => {
+  it('parses a bare JSON object into a validated config', () => {
+    expect(parseFirebaseWebConfigSnippet(JSON.stringify(validConfig))).toEqual(validConfig)
   })
 
-  it('rejects text that is not valid JSON', () => {
-    expect(() => parseFirebaseWebConfigJson('not json')).toThrow(InvalidFirebaseWebConfigError)
+  it('parses a JSON object wrapped in a const declaration', () => {
+    const snippet = `const firebaseConfig = ${JSON.stringify(validConfig)};`
+    expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
   })
 
-  it('rejects valid JSON that is missing required fields', () => {
-    expect(() => parseFirebaseWebConfigJson('{"apiKey": "x"}')).toThrow(InvalidFirebaseWebConfigError)
+  it('parses the JavaScript snippet the Firebase console hands out, unquoted keys and all', () => {
+    const snippet = `
+      // Import the functions you need from the SDKs you need
+      const firebaseConfig = {
+        apiKey: "${validConfig.apiKey}",
+        authDomain: "${validConfig.authDomain}",
+        projectId: "${validConfig.projectId}",
+        storageBucket: "${validConfig.storageBucket}",
+        messagingSenderId: "${validConfig.messagingSenderId}",
+        appId: "${validConfig.appId}"
+      };
+    `
+    expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
+  })
+
+  it('parses the full npm block the console hands out, import line and all', () => {
+    const snippet = `
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "firebase/app";
+      // TODO: Add SDKs for Firebase products that you want to use
+      // https://firebase.google.com/docs/web/setup#available-libraries
+
+      // Your web app's Firebase configuration
+      const firebaseConfig = {
+        apiKey: "${validConfig.apiKey}",
+        authDomain: "${validConfig.authDomain}",
+        projectId: "${validConfig.projectId}",
+        storageBucket: "${validConfig.storageBucket}",
+        messagingSenderId: "${validConfig.messagingSenderId}",
+        appId: "${validConfig.appId}"
+      };
+
+      const app = initializeApp(firebaseConfig);
+    `
+    expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
+  })
+
+  it('parses the CDN block the console hands out, import line and all', () => {
+    const snippet = `
+      <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+        const firebaseConfig = {
+          apiKey: "${validConfig.apiKey}",
+          authDomain: "${validConfig.authDomain}",
+          projectId: "${validConfig.projectId}",
+          storageBucket: "${validConfig.storageBucket}",
+          messagingSenderId: "${validConfig.messagingSenderId}",
+          appId: "${validConfig.appId}"
+        };
+        const app = initializeApp(firebaseConfig);
+      </script>
+    `
+    expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
+  })
+
+  it('rejects text with no object literal', () => {
+    expect(() => parseFirebaseWebConfigSnippet('not json')).toThrow(InvalidFirebaseWebConfigError)
+  })
+
+  it('rejects an object literal that is missing required fields', () => {
+    expect(() => parseFirebaseWebConfigSnippet('{"apiKey": "x"}')).toThrow(InvalidFirebaseWebConfigError)
   })
 })
