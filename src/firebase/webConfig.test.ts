@@ -3,7 +3,7 @@ import {
   firebaseWebConfig,
   InvalidFirebaseWebConfigError,
   isFirebaseWebConfig,
-  parseFirebaseWebConfigJson,
+  parseFirebaseWebConfigSnippet,
 } from './webConfig.ts'
 
 const validConfig = {
@@ -46,16 +46,21 @@ describe('firebaseWebConfig', () => {
   })
 })
 
-describe('parseFirebaseWebConfigJson', () => {
-  it('parses valid JSON into a validated config', () => {
-    expect(parseFirebaseWebConfigJson(JSON.stringify(validConfig))).toEqual(validConfig)
+describe('parseFirebaseWebConfigSnippet', () => {
+  it('parses a bare JSON object into a validated config', () => {
+    expect(parseFirebaseWebConfigSnippet(JSON.stringify(validConfig))).toEqual(validConfig)
   })
 
-  it('rejects text that is not valid JSON', () => {
-    expect(() => parseFirebaseWebConfigJson('not json')).toThrow(InvalidFirebaseWebConfigError)
+  it('parses a JSON object wrapped in a const declaration', () => {
+    const snippet = `const firebaseConfig = ${JSON.stringify(validConfig)};`
+    expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
   })
 
-  it('rejects valid JSON that is missing required fields', () => {
-    expect(() => parseFirebaseWebConfigJson('{"apiKey": "x"}')).toThrow(InvalidFirebaseWebConfigError)
+  it('rejects text with no object literal', () => {
+    expect(() => parseFirebaseWebConfigSnippet('not json')).toThrow(InvalidFirebaseWebConfigError)
+  })
+
+  it('rejects an object literal that is missing required fields', () => {
+    expect(() => parseFirebaseWebConfigSnippet('{"apiKey": "x"}')).toThrow(InvalidFirebaseWebConfigError)
   })
 })
