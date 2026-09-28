@@ -12,7 +12,7 @@ const validConfig = {
 }
 
 describe('SetupScreen', () => {
-  it('rejects invalid JSON with a message, without calling onConfigured', () => {
+  it('rejects text with no config in it, with a message, without calling onConfigured', () => {
     const onConfigured = vi.fn()
     render(<SetupScreen onConfigured={onConfigured} />)
 
@@ -43,6 +43,27 @@ describe('SetupScreen', () => {
     fireEvent.input(screen.getByLabelText('Firebase web config'), {
       target: { value: JSON.stringify(validConfig) },
     })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onConfigured).toHaveBeenCalledWith(validConfig)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('calls onConfigured with the parsed config from the Firebase console snippet', () => {
+    const onConfigured = vi.fn()
+    render(<SetupScreen onConfigured={onConfigured} />)
+
+    const snippet = `
+      const firebaseConfig = {
+        apiKey: "${validConfig.apiKey}",
+        authDomain: "${validConfig.authDomain}",
+        projectId: "${validConfig.projectId}",
+        storageBucket: "${validConfig.storageBucket}",
+        messagingSenderId: "${validConfig.messagingSenderId}",
+        appId: "${validConfig.appId}"
+      };
+    `
+    fireEvent.input(screen.getByLabelText('Firebase web config'), { target: { value: snippet } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onConfigured).toHaveBeenCalledWith(validConfig)
