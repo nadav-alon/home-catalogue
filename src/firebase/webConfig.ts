@@ -36,9 +36,16 @@ export function firebaseWebConfig(value: unknown): FirebaseWebConfig {
   return value
 }
 
-/** Finds the `{...}` object literal span in text such as `const firebaseConfig = {...};`. */
+/**
+ * Finds the `{...}` object literal span in text such as `const firebaseConfig = {...};`. Anchors
+ * on the `firebaseConfig =` assignment when present, so a `{` earlier in the snippet — the
+ * console's own `import { initializeApp } from "…";` line, say — isn't mistaken for the start of
+ * the config.
+ */
 function extractObjectLiteral(text: string): string | null {
-  const start = text.indexOf('{')
+  const assignment = /firebaseConfig\s*=\s*/.exec(text)
+  const searchFrom = assignment ? assignment.index + assignment[0].length : 0
+  const start = text.indexOf('{', searchFrom)
   if (start === -1) return null
 
   let depth = 0

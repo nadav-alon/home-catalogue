@@ -71,6 +71,46 @@ describe('parseFirebaseWebConfigSnippet', () => {
     expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
   })
 
+  it('parses the full npm block the console hands out, import line and all', () => {
+    const snippet = `
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "firebase/app";
+      // TODO: Add SDKs for Firebase products that you want to use
+      // https://firebase.google.com/docs/web/setup#available-libraries
+
+      // Your web app's Firebase configuration
+      const firebaseConfig = {
+        apiKey: "${validConfig.apiKey}",
+        authDomain: "${validConfig.authDomain}",
+        projectId: "${validConfig.projectId}",
+        storageBucket: "${validConfig.storageBucket}",
+        messagingSenderId: "${validConfig.messagingSenderId}",
+        appId: "${validConfig.appId}"
+      };
+
+      const app = initializeApp(firebaseConfig);
+    `
+    expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
+  })
+
+  it('parses the CDN block the console hands out, import line and all', () => {
+    const snippet = `
+      <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js";
+        const firebaseConfig = {
+          apiKey: "${validConfig.apiKey}",
+          authDomain: "${validConfig.authDomain}",
+          projectId: "${validConfig.projectId}",
+          storageBucket: "${validConfig.storageBucket}",
+          messagingSenderId: "${validConfig.messagingSenderId}",
+          appId: "${validConfig.appId}"
+        };
+        const app = initializeApp(firebaseConfig);
+      </script>
+    `
+    expect(parseFirebaseWebConfigSnippet(snippet)).toEqual(validConfig)
+  })
+
   it('rejects text with no object literal', () => {
     expect(() => parseFirebaseWebConfigSnippet('not json')).toThrow(InvalidFirebaseWebConfigError)
   })

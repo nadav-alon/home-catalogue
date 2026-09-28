@@ -54,6 +54,9 @@ describe('SetupScreen', () => {
     render(<SetupScreen onConfigured={onConfigured} />)
 
     const snippet = `
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "firebase/app";
+      // Your web app's Firebase configuration
       const firebaseConfig = {
         apiKey: "${validConfig.apiKey}",
         authDomain: "${validConfig.authDomain}",
@@ -62,6 +65,8 @@ describe('SetupScreen', () => {
         messagingSenderId: "${validConfig.messagingSenderId}",
         appId: "${validConfig.appId}"
       };
+
+      const app = initializeApp(firebaseConfig);
     `
     fireEvent.input(screen.getByLabelText('Firebase web config'), { target: { value: snippet } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
