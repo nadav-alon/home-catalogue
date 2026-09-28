@@ -16,6 +16,10 @@ const REQUIRED_FIELDS = [
 
 export class InvalidFirebaseWebConfigError extends Error {}
 
+/** Shared by both {@link parseFirebaseWebConfigSnippet} failure modes: neither found a usable config. */
+const NOT_A_FIREBASE_CONFIG_MESSAGE =
+  "That doesn't look like a Firebase config. Paste the firebaseConfig block from the Firebase console (Project settings → General → Your apps → SDK setup and configuration)."
+
 export function isFirebaseWebConfig(value: unknown): value is FirebaseWebConfig {
   if (typeof value !== 'object' || value === null) return false
   return missingFields(value).length === 0
@@ -104,14 +108,14 @@ function quoteBareKeys(objectLiteral: string): string {
 export function parseFirebaseWebConfigSnippet(snippet: string): FirebaseWebConfig {
   const objectLiteral = extractObjectLiteral(snippet)
   if (objectLiteral === null) {
-    throw new InvalidFirebaseWebConfigError('That is not a Firebase config.')
+    throw new InvalidFirebaseWebConfigError(NOT_A_FIREBASE_CONFIG_MESSAGE)
   }
 
   let parsed: unknown
   try {
     parsed = JSON.parse(quoteBareKeys(objectLiteral))
   } catch {
-    throw new InvalidFirebaseWebConfigError('That is not a Firebase config.')
+    throw new InvalidFirebaseWebConfigError(NOT_A_FIREBASE_CONFIG_MESSAGE)
   }
   return firebaseWebConfig(parsed)
 }
