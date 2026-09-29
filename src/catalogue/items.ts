@@ -1,4 +1,5 @@
 import {
+  arrayUnion,
   collection,
   deleteField,
   doc,
@@ -8,6 +9,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   where,
   writeBatch,
   type Firestore,
@@ -226,4 +228,23 @@ export async function findItemsByBarcode(
     }
     return [{ id: core.itemId(snapshotDoc.id), ...parsed.data }]
   })
+}
+
+/**
+ * Validates `barcode` against {@link core.barcodeSchema} before adding it to the Item's
+ * `barcodes` with `arrayUnion`, so attaching one the Item already carries changes nothing.
+ * Resolves once the write is queued, see {@link createItem}.
+ */
+export async function attachBarcode(
+  db: Firestore,
+  item: Pick<ItemRecord, 'id' | 'name'>,
+  barcode: string,
+): Promise<void> {
+  const validBarcode = core.barcodeSchema.parse(barcode)
+
+  void updateDoc(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) }).catch(
+    (err: unknown) => {
+      reportWriteRejection(`barcode for ${item.name}`, err)
+    },
+  )
 }

@@ -25,6 +25,8 @@ const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
 const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
 const where = vi.fn((field: string, op: string, value: unknown) => ({ kind: 'where', field, op, value }))
 const getDocs = vi.fn()
+const updateDoc = vi.fn()
+const arrayUnion = vi.fn((...values: unknown[]) => ({ kind: 'arrayUnion', values }))
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
@@ -38,6 +40,8 @@ vi.mock('firebase/firestore', () => ({
   increment: (n: number) => increment(n),
   where: (field: string, op: string, value: unknown) => where(field, op, value),
   getDocs: (q: unknown) => getDocs(q),
+  updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
+  arrayUnion: (...values: unknown[]) => arrayUnion(...values),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -57,6 +61,8 @@ beforeEach(() => {
   increment.mockClear()
   where.mockClear()
   getDocs.mockReset()
+  updateDoc.mockReset()
+  arrayUnion.mockClear()
 })
 
 describe('watchItems', () => {
@@ -580,5 +586,38 @@ describe('findItemsByBarcode', () => {
     getDocs.mockResolvedValueOnce({ docs: [{ id: 'broken', data: () => ({ name: '', state: 'nonsense' }) }] })
 
     expect(await findItemsByBarcode(fakeDb, core.barcode('12345678'))).toEqual([])
+  })
+})
+
+describe('attachBarcode', () => {
+  const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
+
+  it('adds the barcode to the Item with arrayUnion, so it is never duplicated', async () => {
+    const { attachBarcode } = await import('./items.ts')
+    updateDoc.mockResolvedValueOnce(undefined)
+
+    await attachBarcode(fakeDb, dishSoap, '12345678')
+
+    expect(arrayUnion).toHaveBeenCalledWith('12345678')
+    expect(updateDoc).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
+      { barcodes: { kind: 'arrayUnion', values: ['12345678'] } },
+    )
+  })
+
+  it('rejects a non-GTIN before writing', async () => {
+    const { attachBarcode } = await import('./items.ts')
+
+    await expect(attachBarcode(fakeDb, dishSoap, '12345')).rejects.toThrow()
+    await expect(attachBarcode(fakeDb, dishSoap, '1234567A')).rejects.toThrow()
+
+    expect(updateDoc).not.toHaveBeenCalled()
+  })
+
+  it('does not wait for the server, so a caller offline is not left waiting', async () => {
+    const { attachBarcode } = await import('./items.ts')
+    updateDoc.mockReturnValueOnce(new Promise(() => {}))
+
+    await attachBarcode(fakeDb, dishSoap, '12345678')
   })
 })
