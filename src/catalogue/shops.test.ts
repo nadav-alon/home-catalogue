@@ -179,3 +179,18 @@ describe('deleteShop', () => {
     expect(deleteDoc).not.toHaveBeenCalled()
   })
 })
+
+describe('shopName', () => {
+  it("returns the Shop's name when it is in the list", async () => {
+    const { shopName } = await import('./shops.ts')
+    const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy' }
+
+    expect(shopName([pharmacy], pharmacy.id)).toBe('Pharmacy')
+  })
+
+  it('falls back to "Unknown Shop" instead of the raw id when the Shop is missing', async () => {
+    const { shopName } = await import('./shops.ts')
+
+    expect(shopName([], catalogue.shopId('pharmacy'))).toBe('Unknown Shop')
+  })
+})

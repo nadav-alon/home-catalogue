@@ -18,6 +18,13 @@ export interface ShopRecord extends catalogue.Shop {
   id: catalogue.ShopId
 }
 
+export const UNKNOWN_SHOP_NAME = 'Unknown Shop'
+
+/** The Shop's display name, or {@link UNKNOWN_SHOP_NAME} when `shops` has no record for it: deleted, not yet synced, or invalid. */
+export function shopName(shops: ShopRecord[], shopId: catalogue.ShopId): string {
+  return shops.find((shop) => shop.id === shopId)?.name ?? UNKNOWN_SHOP_NAME
+}
+
 /** Thrown by {@link deleteShop} while a Category still defaults to the Shop, or an Item still overrides to it. */
 export class ShopInUseError extends Error {}
 

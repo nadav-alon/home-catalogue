@@ -24,7 +24,8 @@ vi.mock('./categories.ts', () => ({
 }))
 
 const watchShops = vi.fn()
-vi.mock('./shops.ts', () => ({
+vi.mock('./shops.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./shops.ts')>()),
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
 }))
 
@@ -64,6 +65,12 @@ describe('CategoriesManager', () => {
 
     expect(screen.getByText('Delete Medicine')).toBeInTheDocument()
     expect(screen.getByText('Default: Pharmacy')).toBeInTheDocument()
+  })
+
+  it("falls back to 'Unknown Shop' instead of the raw id when the default Shop is missing", () => {
+    renderWith([medicine], [])
+
+    expect(screen.getByText('Default: Unknown Shop')).toBeInTheDocument()
   })
 
   it('offers every Shop as a default Shop choice', () => {
