@@ -109,7 +109,7 @@ describe('AuthGate', () => {
     expect(signOutUser).toHaveBeenCalledWith('fake-app')
   })
 
-  it('shows the app, with no sign-out button of its own, for a member', async () => {
+  it('shows the app for a member, without a sign-out button', async () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
