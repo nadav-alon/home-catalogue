@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/preact'
+import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
@@ -8,8 +8,10 @@ import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 
 const watchItems = vi.fn()
+const setItemState = vi.fn()
 vi.mock('./items.ts', () => ({
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
+  setItemState: (db: unknown, id: unknown, state: unknown) => setItemState(db, id, state),
 }))
 
 const watchCategories = vi.fn()
@@ -32,6 +34,7 @@ const cleaning: CategoryRecord = { id: catalogue.categoryId('cleaning'), name: '
 
 beforeEach(() => {
   watchItems.mockReset()
+  setItemState.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
 })
@@ -165,5 +168,40 @@ describe('ShoppingList', () => {
     act(() => itemsCallback?.([bandages]))
 
     expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+})
+
+describe('ticking an Item', () => {
+  it('sets the Item to enough', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Bandages' }))
+
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages.id, 'enough')
+  })
+
+  it('reports an error instead of throwing when the update fails', async () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    setItemState.mockRejectedValueOnce(new Error('Could not update State'))
+    renderWith([bandages], [medicine], [pharmacy])
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Bandages' }))
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not update State')
   })
 })
