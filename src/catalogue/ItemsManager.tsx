@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
-import { createItem, watchItems, type ItemRecord } from './items.ts'
+import { createItem, updateItem, watchItems, type ItemInput, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { watchShops, type ShopRecord } from './shops.ts'
 
@@ -11,6 +11,38 @@ export interface ItemsManagerProps {
 }
 
 const NO_SHOP_OVERRIDE = ''
+
+interface ItemFormValues {
+  name: string
+  brandNote: string
+  categoryId: string
+  necessity: string
+  shopId: string
+}
+
+function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { error: string } {
+  const trimmedName = values.name.trim()
+  if (trimmedName.length === 0) {
+    return { error: 'An Item needs a name.' }
+  }
+  if (!catalogue.isCategoryId(values.categoryId)) {
+    return { error: 'Choose a Category.' }
+  }
+  const necessity = catalogue.necessitySchema.safeParse(values.necessity)
+  if (!necessity.success) {
+    return { error: 'Choose a Necessity.' }
+  }
+  const trimmedBrandNote = values.brandNote.trim()
+  return {
+    input: {
+      name: trimmedName,
+      brandNote: trimmedBrandNote.length === 0 ? undefined : trimmedBrandNote,
+      categoryId: values.categoryId,
+      necessity: necessity.data,
+      shopId: catalogue.isShopId(values.shopId) ? values.shopId : undefined,
+    },
+  }
+}
 
 export function ItemsManager({ db }: ItemsManagerProps) {
   const [items, setItems] = useState<ItemRecord[]>([])
@@ -37,29 +69,19 @@ export function ItemsManager({ db }: ItemsManagerProps) {
 
   async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
-    const trimmedName = newName.trim()
-    if (trimmedName.length === 0) {
-      setError('An Item needs a name.')
+    const result = parseItemFormValues({
+      name: newName,
+      brandNote: newBrandNote,
+      categoryId: newCategoryId,
+      necessity: newNecessity,
+      shopId: newShopId,
+    })
+    if ('error' in result) {
+      setError(result.error)
       return
     }
-    if (!catalogue.isCategoryId(newCategoryId)) {
-      setError('Choose a Category.')
-      return
-    }
-    const necessity = catalogue.necessitySchema.safeParse(newNecessity)
-    if (!necessity.success) {
-      setError('Choose a Necessity.')
-      return
-    }
-    const trimmedBrandNote = newBrandNote.trim()
     try {
-      await createItem(db, {
-        name: trimmedName,
-        brandNote: trimmedBrandNote.length === 0 ? undefined : trimmedBrandNote,
-        categoryId: newCategoryId,
-        necessity: necessity.data,
-        shopId: catalogue.isShopId(newShopId) ? newShopId : undefined,
-      })
+      await createItem(db, result.input)
       setNewName('')
       setNewBrandNote('')
       setNewCategoryId('')
@@ -68,6 +90,20 @@ export function ItemsManager({ db }: ItemsManagerProps) {
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add Item')
+    }
+  }
+
+  async function handleUpdate(item: ItemRecord, values: ItemFormValues) {
+    const result = parseItemFormValues(values)
+    if ('error' in result) {
+      setError(result.error)
+      return
+    }
+    try {
+      await updateItem(db, item.id, result.input)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update Item')
     }
   }
 
@@ -84,7 +120,14 @@ export function ItemsManager({ db }: ItemsManagerProps) {
           <h3>{category.name}</h3>
           <ul>
             {categoryItems.map((item) => (
-              <ItemRow key={item.id} item={item} resolvedShopName={resolvedShopName(item, category)} />
+              <ItemRow
+                key={item.id}
+                item={item}
+                categories={categories}
+                shops={shops}
+                resolvedShopName={resolvedShopName(item, category)}
+                onUpdate={(values) => void handleUpdate(item, values)}
+              />
             ))}
           </ul>
         </div>
@@ -146,16 +189,87 @@ export function ItemsManager({ db }: ItemsManagerProps) {
 
 interface ItemRowProps {
   item: ItemRecord
+  categories: CategoryRecord[]
+  shops: ShopRecord[]
   resolvedShopName: string
+  onUpdate: (values: ItemFormValues) => void
 }
 
-function ItemRow({ item, resolvedShopName }: ItemRowProps) {
+function ItemRow({ item, categories, shops, resolvedShopName, onUpdate }: ItemRowProps) {
+  const [name, setName] = useState(item.name)
+  const [brandNote, setBrandNote] = useState(item.brandNote ?? '')
+  const [categoryId, setCategoryId] = useState<string>(item.categoryId)
+  const [necessity, setNecessity] = useState<string>(item.necessity)
+  const [shopId, setShopId] = useState<string>(item.shopId ?? NO_SHOP_OVERRIDE)
+
+  useEffect(() => {
+    setName(item.name)
+    setBrandNote(item.brandNote ?? '')
+    setCategoryId(item.categoryId)
+    setNecessity(item.necessity)
+    setShopId(item.shopId ?? NO_SHOP_OVERRIDE)
+  }, [item])
+
   return (
     <li>
       <span>{item.name}</span>
       {item.brandNote !== undefined && <span>{item.brandNote}</span>}
       <span>{item.necessity}</span>
       <span>Shop: {resolvedShopName}</span>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          onUpdate({ name, brandNote, categoryId, necessity, shopId })
+        }}
+      >
+        <label htmlFor={`item-name-${item.id}`}>Edit {item.name}</label>
+        <input id={`item-name-${item.id}`} value={name} onInput={(event) => setName(event.currentTarget.value)} />
+
+        <label htmlFor={`item-brand-note-${item.id}`}>Brand note for {item.name}</label>
+        <input
+          id={`item-brand-note-${item.id}`}
+          value={brandNote}
+          onInput={(event) => setBrandNote(event.currentTarget.value)}
+        />
+
+        <label htmlFor={`item-category-${item.id}`}>Category for {item.name}</label>
+        <select
+          id={`item-category-${item.id}`}
+          value={categoryId}
+          onChange={(event) => setCategoryId(event.currentTarget.value)}
+        >
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+
+        <label htmlFor={`item-necessity-${item.id}`}>Necessity for {item.name}</label>
+        <select
+          id={`item-necessity-${item.id}`}
+          value={necessity}
+          onChange={(event) => setNecessity(event.currentTarget.value)}
+        >
+          {catalogue.necessitySchema.options.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+
+        <label htmlFor={`item-shop-${item.id}`}>Shop override for {item.name}</label>
+        <select id={`item-shop-${item.id}`} value={shopId} onChange={(event) => setShopId(event.currentTarget.value)}>
+          <option value={NO_SHOP_OVERRIDE}>Use Category default</option>
+          {shops.map((shop) => (
+            <option key={shop.id} value={shop.id}>
+              {shop.name}
+            </option>
+          ))}
+        </select>
+
+        <button type="submit">Save {item.name}</button>
+      </form>
     </li>
   )
 }

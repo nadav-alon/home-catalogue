@@ -9,9 +9,11 @@ import type { ShopRecord } from './shops.ts'
 
 const watchItems = vi.fn()
 const createItem = vi.fn()
+const updateItem = vi.fn()
 vi.mock('./items.ts', () => ({
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
+  updateItem: (db: unknown, id: unknown, input: unknown) => updateItem(db, id, input),
 }))
 
 const watchCategories = vi.fn()
@@ -34,6 +36,7 @@ const cleaning: CategoryRecord = { id: catalogue.categoryId('cleaning'), name: '
 beforeEach(() => {
   watchItems.mockReset()
   createItem.mockReset().mockResolvedValue(undefined)
+  updateItem.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
 })
@@ -190,5 +193,69 @@ describe('adding an Item', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a Necessity.')
     expect(createItem).not.toHaveBeenCalled()
+  })
+})
+
+describe('editing an Item', () => {
+  const bandages: ItemRecord = {
+    id: core.itemId('bandages'),
+    name: 'Bandages',
+    brandNote: 'the waterproof ones',
+    state: 'enough',
+    categoryId: medicine.id,
+    necessity: 'essential',
+  }
+
+  it('saves the edited fields', () => {
+    renderWith([bandages], [medicine, cleaning], [pharmacy, grocery])
+
+    fireEvent.input(screen.getByLabelText('Edit Bandages'), { target: { value: 'Large bandages' } })
+    fireEvent.change(screen.getByLabelText('Category for Bandages'), { target: { value: cleaning.id } })
+    fireEvent.change(screen.getByLabelText('Necessity for Bandages'), { target: { value: 'optional' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Bandages' }))
+
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, bandages.id, {
+      name: 'Large bandages',
+      brandNote: 'the waterproof ones',
+      categoryId: cleaning.id,
+      necessity: 'optional',
+      shopId: undefined,
+    })
+  })
+
+  it('adds a Shop override', () => {
+    renderWith([bandages], [medicine], [pharmacy, grocery])
+
+    fireEvent.change(screen.getByLabelText('Shop override for Bandages'), { target: { value: grocery.id } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Bandages' }))
+
+    expect(updateItem).toHaveBeenCalledWith(
+      fakeDb,
+      bandages.id,
+      expect.objectContaining({ shopId: grocery.id }),
+    )
+  })
+
+  it('clears the brand note when edited blank', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.input(screen.getByLabelText('Brand note for Bandages'), { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Bandages' }))
+
+    expect(updateItem).toHaveBeenCalledWith(
+      fakeDb,
+      bandages.id,
+      expect.objectContaining({ brandNote: undefined }),
+    )
+  })
+
+  it('refuses to save a blank name, without calling updateItem', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.input(screen.getByLabelText('Edit Bandages'), { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Bandages' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('An Item needs a name.')
+    expect(updateItem).not.toHaveBeenCalled()
   })
 })
