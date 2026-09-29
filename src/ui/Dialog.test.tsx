@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/preact'
+import { cleanup, fireEvent, render, screen } from '@testing-library/preact'
 import { Dialog } from './Dialog.tsx'
 import { readFileSync } from 'node:fs'
 import { tokenUsage } from './cssTokens.ts'
@@ -15,7 +15,9 @@ beforeEach(() => {
   })
 })
 
-afterEach(() => {
+afterEach(async () => {
+  cleanup()
+  await new Promise((resolve) => setTimeout(resolve, 20))
   history.replaceState(null, '')
 })
 
@@ -76,13 +78,12 @@ describe('Dialog', () => {
 
   it('asks to close on browser back, which drops the entry opening pushed', () => {
     const onClose = vi.fn()
-    const before = history.length
     render(
       <Dialog open title="New item" onClose={onClose}>
         x
       </Dialog>,
     )
-    expect(history.length).toBe(before + 1)
+    expect(history.state).toMatchObject({ 'ui-dialog': expect.any(String) })
     fireEvent(window, new PopStateEvent('popstate', { state: null }))
     expect(onClose).toHaveBeenCalledOnce()
   })
@@ -101,6 +102,70 @@ describe('Dialog', () => {
     )
     expect(back).toHaveBeenCalledOnce()
     back.mockRestore()
+    fireEvent(window, new PopStateEvent('popstate', { state: null }))
+  })
+
+  it('asks to close when the browser closes the dialog itself', () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog open title="New item" onClose={onClose}>
+        x
+      </Dialog>,
+    )
+    fireEvent(screen.getByRole('dialog'), new Event('close'))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('does not ask to close when the caller closed it', () => {
+    const onClose = vi.fn()
+    const { rerender } = render(
+      <Dialog open title="New item" onClose={onClose}>
+        x
+      </Dialog>,
+    )
+    rerender(
+      <Dialog open={false} title="New item" onClose={onClose}>
+        x
+      </Dialog>,
+    )
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('leaves a history entry pushed by someone else in place when closed', () => {
+    const back = vi.spyOn(history, 'back').mockImplementation(() => {})
+    const { rerender } = render(
+      <Dialog open title="New item" onClose={() => {}}>
+        x
+      </Dialog>,
+    )
+    history.pushState({ other: true }, '')
+    rerender(
+      <Dialog open={false} title="New item" onClose={() => {}}>
+        x
+      </Dialog>,
+    )
+    expect(back).not.toHaveBeenCalled()
+    back.mockRestore()
+  })
+
+  it('keeps a dialog opened in the same tick as another closes open', async () => {
+    const onCloseSecond = vi.fn()
+    const pair = (first: boolean, second: boolean) => (
+      <>
+        <Dialog open={first} title="Edit" onClose={() => {}}>
+          x
+        </Dialog>
+        <Dialog open={second} title="Confirm" onClose={onCloseSecond}>
+          y
+        </Dialog>
+      </>
+    )
+    const { rerender } = render(pair(true, false))
+    rerender(pair(false, true))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(onCloseSecond).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Confirm' })).toHaveAttribute('open')
+    expect(history.state).toMatchObject({ 'ui-dialog': expect.any(String) })
   })
 
   it('is full-screen below 600px and centred from 600px up', () => {
