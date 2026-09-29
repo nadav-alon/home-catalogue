@@ -36,7 +36,10 @@ const config = firebaseWebConfig({
   appId: '1:123456789:web:abcdef',
 })
 
-afterEach(resetHash)
+afterEach(() => {
+  resetHash()
+  vi.unstubAllGlobals()
+})
 
 async function goTo(hash: string) {
   await act(async () => {
@@ -61,6 +64,21 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Items' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Export to Calendar' })).toBeNull()
+  })
+
+  it('puts the scan icon in the top app bar on the Items screen when BarcodeDetector exists', () => {
+    vi.stubGlobal('BarcodeDetector', class {})
+    window.location.hash = '#/items'
+    render(<App db={fakeDb} config={config} />)
+
+    expect(within(screen.getByRole('banner')).getByRole('button', { name: 'Scan barcode' })).toBeInTheDocument()
+  })
+
+  it('has no scan icon on the Items screen without BarcodeDetector', () => {
+    window.location.hash = '#/items'
+    render(<App db={fakeDb} config={config} />)
+
+    expect(screen.queryByRole('button', { name: 'Scan barcode' })).toBeNull()
   })
 
   it('shows the Settings screen with device transfer, Shops and Categories, and follows the route', async () => {
