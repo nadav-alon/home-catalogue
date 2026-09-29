@@ -192,6 +192,7 @@ function ItemGroup({ heading, items, onSetState }: ItemGroupProps) {
       <h3>{heading}</h3>
       <ul>
         {items.map((item) => (
+          // TODO[#137]: open the Item dialog on row tap.
           <ListRow
             key={item.id}
             headline={item.name}
