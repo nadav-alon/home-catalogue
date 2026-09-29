@@ -1,4 +1,13 @@
-import { collection, doc, onSnapshot, orderBy, query, writeBatch, type Firestore } from 'firebase/firestore'
+import {
+  collection,
+  deleteField,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  writeBatch,
+  type Firestore,
+} from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 
 export interface ItemRecord extends core.Item, catalogue.CatalogueItem {
@@ -103,5 +112,31 @@ export async function createItem(db: Firestore, input: ItemInput): Promise<void>
   batch.set(catalogueItemRef, catalogueItem)
   void batch.commit().catch((err: unknown) => {
     console.error('Failed to sync new Item', err)
+  })
+}
+
+/**
+ * Validates the new fields against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema}
+ * before updating an Item's two docs as one batch. State is untouched — this editor never changes
+ * it. Omitting `brandNote` or `shopId` clears that field rather than leaving it stale. Resolves
+ * once the batch is queued, see {@link createItem}.
+ */
+export async function updateItem(db: Firestore, id: core.ItemId, input: ItemInput): Promise<void> {
+  const name = core.itemSchema.shape.name.parse(input.name)
+  const brandNote = input.brandNote === undefined ? undefined : core.itemSchema.shape.brandNote.parse(input.brandNote)
+  const categoryId = catalogue.catalogueItemSchema.shape.categoryId.parse(input.categoryId)
+  const necessity = catalogue.catalogueItemSchema.shape.necessity.parse(input.necessity)
+  const shopId =
+    input.shopId === undefined ? undefined : catalogue.catalogueItemSchema.shape.shopId.parse(input.shopId)
+
+  const batch = writeBatch(db)
+  batch.update(doc(db, core.ITEMS_COLLECTION, id), { name, brandNote: brandNote ?? deleteField() })
+  batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, id), {
+    categoryId,
+    necessity,
+    shopId: shopId ?? deleteField(),
+  })
+  void batch.commit().catch((err: unknown) => {
+    console.error(`Failed to sync updated Item ${id}`, err)
   })
 }

@@ -16,8 +16,10 @@ const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constra
 const orderBy = vi.fn((field: string) => ({ kind: 'orderBy', field }))
 const onSnapshot = vi.fn()
 const batchSet = vi.fn()
+const batchUpdate = vi.fn()
 const batchCommit = vi.fn()
-const writeBatch = vi.fn((_db: unknown) => ({ set: batchSet, commit: batchCommit }))
+const writeBatch = vi.fn((_db: unknown) => ({ set: batchSet, update: batchUpdate, commit: batchCommit }))
+const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
@@ -26,6 +28,7 @@ vi.mock('firebase/firestore', () => ({
   orderBy: (field: string) => orderBy(field),
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
   writeBatch: (db: unknown) => writeBatch(db),
+  deleteField: () => deleteField(),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -37,8 +40,10 @@ beforeEach(() => {
   orderBy.mockClear()
   onSnapshot.mockReset()
   batchSet.mockReset()
+  batchUpdate.mockReset()
   batchCommit.mockReset()
   writeBatch.mockClear()
+  deleteField.mockClear()
 })
 
 describe('watchItems', () => {
@@ -225,6 +230,78 @@ describe('createItem', () => {
 
     await expect(
       createItem(fakeDb, {
+        name: 'Dish soap',
+        categoryId: catalogue.categoryId('cleaning'),
+        necessity: catalogue.necessitySchema.parse('essential'),
+      }),
+    ).resolves.toBeUndefined()
+  })
+})
+
+describe('updateItem', () => {
+  it('updates the core Item and catalogue CatalogueItem docs as one batch, leaving State untouched', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await updateItem(fakeDb, core.itemId('dish-soap'), {
+      name: 'Dish soap',
+      brandNote: 'the green one',
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+      shopId: catalogue.shopId('grocery'),
+    })
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
+      { name: 'Dish soap', brandNote: 'the green one' },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' },
+      { categoryId: 'cleaning', necessity: 'essential', shopId: 'grocery' },
+    )
+    expect(batchCommit).toHaveBeenCalled()
+  })
+
+  it('clears the brand note and Shop override when they are omitted', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await updateItem(fakeDb, core.itemId('dish-soap'), {
+      name: 'Dish soap',
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+    })
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
+      { name: 'Dish soap', brandNote: { kind: 'deleteField' } },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' },
+      { categoryId: 'cleaning', necessity: 'essential', shopId: { kind: 'deleteField' } },
+    )
+  })
+
+  it('rejects an empty name without writing', async () => {
+    const { updateItem } = await import('./items.ts')
+
+    await expect(
+      updateItem(fakeDb, core.itemId('dish-soap'), {
+        name: '',
+        categoryId: catalogue.categoryId('cleaning'),
+        necessity: catalogue.necessitySchema.parse('essential'),
+      }),
+    ).rejects.toThrow()
+    expect(batchUpdate).not.toHaveBeenCalled()
+    expect(batchCommit).not.toHaveBeenCalled()
+  })
+
+  it('resolves once the batch is queued, without waiting for Firestore to acknowledge it', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockReturnValueOnce(new Promise(() => {}))
+
+    await expect(
+      updateItem(fakeDb, core.itemId('dish-soap'), {
         name: 'Dish soap',
         categoryId: catalogue.categoryId('cleaning'),
         necessity: catalogue.necessitySchema.parse('essential'),
