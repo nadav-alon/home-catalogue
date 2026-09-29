@@ -328,6 +328,21 @@ describe('the empty state', () => {
     expect(screen.queryByText('No Items yet.')).not.toBeInTheDocument()
   })
 
+  it('is not shown before the first Items snapshot arrives', () => {
+    watchItems.mockImplementation(() => vi.fn())
+    watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
+      cb([medicine])
+      return vi.fn()
+    })
+    watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
+      cb([pharmacy])
+      return vi.fn()
+    })
+    render(<ItemsManager db={fakeDb} />)
+
+    expect(screen.queryByText(/^No Items/)).not.toBeInTheDocument()
+  })
+
   it('is not shown while Items are listed', () => {
     const bandages: ItemRecord = {
       id: core.itemId('bandages'),

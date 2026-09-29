@@ -49,7 +49,7 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 }
 
 export function ItemsManager({ db }: ItemsManagerProps) {
-  const [items, setItems] = useState<ItemRecord[]>([])
+  const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [newName, setNewName] = useState('')
@@ -100,7 +100,8 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   }
 
   const needle = search.trim().toLowerCase()
-  const visibleItems = items.filter((item) => item.name.toLowerCase().includes(needle))
+  const loadedItems = items ?? []
+  const visibleItems = loadedItems.filter((item) => item.name.toLowerCase().includes(needle))
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
@@ -115,7 +116,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
       <ScanEntry onScan={() => {}} />
       {error !== null && <p role="alert">{error}</p>}
       <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
-      {visibleItems.length === 0 && (
+      {items !== undefined && visibleItems.length === 0 && (
         <p>{items.length === 0 ? 'No Items yet.' : 'No Items match your search.'}</p>
       )}
       {groups.map(({ category, items: categoryItems }) => (
