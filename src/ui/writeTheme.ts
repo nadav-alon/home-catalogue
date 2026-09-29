@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { themeColor } from '../theme.ts'
-import { colourRolesCss, seedColour } from './colourRoles.ts'
+import { colourRolesCss } from './colourRoles.ts'
 
-export const themeCssPath = new URL('./theme.css', import.meta.url)
+const themeCssPath = new URL('./theme.css', import.meta.url)
 
-writeFileSync(themeCssPath, colourRolesCss(seedColour(themeColor)))
+writeFileSync(themeCssPath, colourRolesCss(themeColor))

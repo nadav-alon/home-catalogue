@@ -1,1 +1,3 @@
-export const themeColor = '#2563eb'
+import { seedColour } from './ui/colourRoles.ts'
+
+export const themeColor = seedColour('#2563eb')

@@ -42,6 +42,6 @@ describe('colourRolesCss', () => {
 describe('theme.css', () => {
   it('is the output for themeColor, so changing the seed is one edit plus `npm run theme`', () => {
     const committed = readFileSync('src/ui/theme.css', 'utf8')
-    expect(committed).toBe(colourRolesCss(seedColour(themeColor)))
+    expect(committed).toBe(colourRolesCss(themeColor))
   })
 })
