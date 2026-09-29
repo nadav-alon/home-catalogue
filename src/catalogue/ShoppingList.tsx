@@ -51,7 +51,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
       {groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
       {groups.map(({ key, name, items: groupItems }) => (
         <div key={key}>
-          <h3>{name}</h3>
+          <h2>{name}</h2>
           <ul>
             {groupItems.map((item) => (
               <ShoppingListRow key={item.id} item={item} onTick={() => void handleTick(item)} />

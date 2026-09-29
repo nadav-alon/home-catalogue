@@ -80,6 +80,19 @@ describe('ShoppingList', () => {
     expect(within(groceryGroup).queryByText('Bandages')).not.toBeInTheDocument()
   })
 
+  it('titles each Shop group with a level 2 heading, under the top app bar title', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Pharmacy' })).toBeInTheDocument()
+  })
+
   it('groups an Item under its own Shop override instead of its Category default', () => {
     const bandages: ItemRecord = {
       id: core.itemId('bandages'),
