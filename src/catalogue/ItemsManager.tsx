@@ -108,7 +108,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
 
   async function handleSetState(item: ItemRecord, state: core.State) {
     try {
-      await setItemState(db, item.id, state)
+      await setItemState(db, item, state)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update State')

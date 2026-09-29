@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
+import { reportWriteRejection } from './writeRejections.ts'
 
 export interface CategoryRecord extends catalogue.Category {
   id: catalogue.CategoryId
@@ -51,7 +52,7 @@ export function watchCategories(
  * Validates against {@link catalogue.categorySchema} before writing a new Category, starting at
  * referenceCount 0 and bumping its default Shop's referenceCount in the same batch, matching the
  * platform's create rule. Resolves once the batch is queued, not once Firestore acknowledges it,
- * so a caller offline is not left waiting; a batch that later fails to sync is only logged.
+ * so a caller offline is not left waiting; a batch the server later rejects is reported through {@link reportWriteRejection}.
  */
 export async function createCategory(
   db: Firestore,
@@ -64,19 +65,19 @@ export async function createCategory(
   batch.set(categoryRef, data)
   batch.update(doc(db, catalogue.SHOPS_COLLECTION, defaultShopId), { referenceCount: increment(1) })
   void batch.commit().catch((err: unknown) => {
-    console.error('Failed to sync new Category', err)
+    reportWriteRejection(`new Category ${data.name}`, err)
   })
 }
 
 /** Validates the new name against {@link catalogue.categorySchema} before writing it. Resolves once queued, see {@link createCategory}. */
 export async function renameCategory(
   db: Firestore,
-  id: catalogue.CategoryId,
+  category: CategoryRecord,
   name: string,
 ): Promise<void> {
   const validName = catalogue.categorySchema.shape.name.parse(name)
-  void updateDoc(doc(db, catalogue.CATEGORIES_COLLECTION, id), { name: validName }).catch((err: unknown) => {
-    console.error(`Failed to sync renamed Category ${id}`, err)
+  void updateDoc(doc(db, catalogue.CATEGORIES_COLLECTION, category.id), { name: validName }).catch((err: unknown) => {
+    reportWriteRejection(`rename of Category ${category.name} to ${validName}`, err)
   })
 }
 
@@ -96,6 +97,6 @@ export async function deleteCategory(db: Firestore, category: CategoryRecord): P
     if (isRulesRefusal(err)) {
       throw new CategoryInUseError('This Category is still used by an Item, and cannot be deleted.')
     }
-    console.error(`Failed to sync deleted Category ${category.id}`, err)
+    reportWriteRejection(`deleted Category ${category.name}`, err)
   }
 }

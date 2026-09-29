@@ -37,7 +37,7 @@ export function ShopsManager({ db }: ShopsManagerProps) {
       return
     }
     try {
-      await renameShop(db, shop.id, trimmedName)
+      await renameShop(db, shop, trimmedName)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not rename Shop')
@@ -46,7 +46,7 @@ export function ShopsManager({ db }: ShopsManagerProps) {
 
   async function handleDelete(shop: ShopRecord) {
     try {
-      await deleteShop(db, shop.id)
+      await deleteShop(db, shop)
       setError(null)
     } catch (err) {
       setError(err instanceof ShopInUseError ? err.message : 'Could not delete Shop')

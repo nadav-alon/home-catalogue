@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { AlertBanner } from './catalogue/AlertBanner.tsx'
+import { WriteRejectionBanner } from './catalogue/WriteRejectionBanner.tsx'
 import { CategoriesManager } from './catalogue/CategoriesManager.tsx'
 import { ShopsManager } from './catalogue/ShopsManager.tsx'
 import { ItemsManager } from './catalogue/ItemsManager.tsx'
@@ -23,6 +24,7 @@ export function App({ db, config }: AppProps) {
   return (
     <main>
       <h1>Home Catalogue</h1>
+      <WriteRejectionBanner />
       <AlertBanner items={items} />
       <AddDeviceQrCode config={config} />
       <ShoppingList db={db} />

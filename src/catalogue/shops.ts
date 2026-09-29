@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
+import { reportWriteRejection } from './writeRejections.ts'
 
 export interface ShopRecord extends catalogue.Shop {
   id: catalogue.ShopId
@@ -54,20 +55,20 @@ export function watchShops(db: Firestore, callback: (shops: ShopRecord[]) => voi
 /**
  * Validates against {@link catalogue.shopSchema} before writing a new Shop. Resolves once the
  * write is queued, not once Firestore acknowledges it, so a caller offline is not left waiting;
- * a write that later fails to sync is only logged.
+ * a write the server later rejects is reported through {@link reportWriteRejection}.
  */
 export async function createShop(db: Firestore, name: string): Promise<void> {
   const data = catalogue.shopSchema.parse({ name, referenceCount: 0 })
   void addDoc(collection(db, catalogue.SHOPS_COLLECTION), data).catch((err: unknown) => {
-    console.error('Failed to sync new Shop', err)
+    reportWriteRejection(`new Shop ${data.name}`, err)
   })
 }
 
 /** Validates the new name against {@link catalogue.shopSchema} before writing it. Resolves once queued, see {@link createShop}. */
-export async function renameShop(db: Firestore, id: catalogue.ShopId, name: string): Promise<void> {
+export async function renameShop(db: Firestore, shop: ShopRecord, name: string): Promise<void> {
   const validName = catalogue.shopSchema.shape.name.parse(name)
-  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, id), { name: validName }).catch((err: unknown) => {
-    console.error(`Failed to sync renamed Shop ${id}`, err)
+  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id), { name: validName }).catch((err: unknown) => {
+    reportWriteRejection(`rename of Shop ${shop.name} to ${validName}`, err)
   })
 }
 
@@ -76,13 +77,13 @@ export async function renameShop(db: Firestore, id: catalogue.ShopId, name: stri
  * overrides to it. Enforced by the platform's Firestore rules against the Shop's own
  * `referenceCount`, so the refusal holds regardless of what this device has cached.
  */
-export async function deleteShop(db: Firestore, id: catalogue.ShopId): Promise<void> {
+export async function deleteShop(db: Firestore, shop: ShopRecord): Promise<void> {
   try {
-    await deleteDoc(doc(db, catalogue.SHOPS_COLLECTION, id))
+    await deleteDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id))
   } catch (err) {
     if (isRulesRefusal(err)) {
       throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
     }
-    console.error(`Failed to sync deleted Shop ${id}`, err)
+    reportWriteRejection(`deleted Shop ${shop.name}`, err)
   }
 }

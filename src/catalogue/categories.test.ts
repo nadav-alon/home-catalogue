@@ -44,7 +44,19 @@ vi.mock('firebase/firestore', () => ({
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
+/** Starts from an empty banner state and returns the messages currently shown. */
+async function rejections() {
+  const { resetWriteRejections, watchWriteRejections } = await import('./writeRejections.ts')
+  resetWriteRejections()
+  let latest: string[] = []
+  watchWriteRejections((list) => {
+    latest = list.map((rejection) => rejection.message)
+  })
+  return () => latest
+}
+
 beforeEach(() => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
   collection.mockClear()
   doc.mockClear()
   query.mockClear()
@@ -152,11 +164,18 @@ describe('createCategory', () => {
 })
 
 describe('renameCategory', () => {
+  const medicine = {
+    id: catalogue.categoryId('medicine'),
+    name: 'Medicine',
+    defaultShopId: catalogue.shopId('pharmacy'),
+    referenceCount: 0,
+  }
+
   it('validates the new name and updates it', async () => {
     const { renameCategory } = await import('./categories.ts')
     updateDoc.mockResolvedValueOnce(undefined)
 
-    await renameCategory(fakeDb, catalogue.categoryId('medicine'), 'Medicine & First aid')
+    await renameCategory(fakeDb, medicine, 'Medicine & First aid')
 
     expect(doc).toHaveBeenCalledWith(fakeDb, catalogue.CATEGORIES_COLLECTION, 'medicine')
     expect(updateDoc).toHaveBeenCalledWith(
@@ -168,7 +187,7 @@ describe('renameCategory', () => {
   it('rejects an empty name without writing', async () => {
     const { renameCategory } = await import('./categories.ts')
 
-    await expect(renameCategory(fakeDb, catalogue.categoryId('medicine'), '')).rejects.toThrow()
+    await expect(renameCategory(fakeDb, medicine, '')).rejects.toThrow()
     expect(updateDoc).not.toHaveBeenCalled()
   })
 
@@ -177,7 +196,7 @@ describe('renameCategory', () => {
     updateDoc.mockReturnValueOnce(new Promise(() => {}))
 
     await expect(
-      renameCategory(fakeDb, catalogue.categoryId('medicine'), 'Medicine & First aid'),
+      renameCategory(fakeDb, medicine, 'Medicine & First aid'),
     ).resolves.toBeUndefined()
   })
 })
@@ -211,13 +230,42 @@ describe('deleteCategory', () => {
     await expect(deleteCategory(fakeDb, medicine)).rejects.toBeInstanceOf(CategoryInUseError)
   })
 
-  it('logs and resolves instead of throwing when the delete fails to sync for another reason', async () => {
+  it('reports to the write-rejection banner and resolves when the delete fails to sync for another reason', async () => {
     const { deleteCategory } = await import('./categories.ts')
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const latest = await rejections()
     batchCommit.mockRejectedValueOnce(new Error('offline'))
 
     await expect(deleteCategory(fakeDb, medicine)).resolves.toBeUndefined()
-    expect(consoleError).toHaveBeenCalled()
-    consoleError.mockRestore()
+    expect(latest()).toEqual(['Could not save deleted Category Medicine'])
+  })
+})
+
+describe('a queued Category write the server rejects', () => {
+  it('reports a new Category by name', async () => {
+    const { createCategory } = await import('./categories.ts')
+    const latest = await rejections()
+    batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await createCategory(fakeDb, 'Medicine', catalogue.shopId('pharmacy'))
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save new Category Medicine'])
+  })
+
+  it('reports a rename by its old and new name', async () => {
+    const { renameCategory } = await import('./categories.ts')
+    const latest = await rejections()
+    const medicine = {
+      id: catalogue.categoryId('medicine'),
+      name: 'Medicine',
+      defaultShopId: catalogue.shopId('pharmacy'),
+      referenceCount: 0,
+    }
+    updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await renameCategory(fakeDb, medicine, 'Meds')
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save rename of Category Medicine to Meds'])
   })
 })

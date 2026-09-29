@@ -25,7 +25,19 @@ vi.mock('firebase/firestore', () => ({
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
+/** Starts from an empty banner state and returns the messages currently shown. */
+async function rejections() {
+  const { resetWriteRejections, watchWriteRejections } = await import('./writeRejections.ts')
+  resetWriteRejections()
+  let latest: string[] = []
+  watchWriteRejections((list) => {
+    latest = list.map((rejection) => rejection.message)
+  })
+  return () => latest
+}
+
 beforeEach(() => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
   collection.mockClear()
   doc.mockClear()
   query.mockClear()
@@ -103,11 +115,13 @@ describe('createShop', () => {
 })
 
 describe('renameShop', () => {
+  const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
+
   it('validates the new name and updates it', async () => {
     const { renameShop } = await import('./shops.ts')
     updateDoc.mockResolvedValueOnce(undefined)
 
-    await renameShop(fakeDb, catalogue.shopId('pharmacy'), 'Pharmacy & Health')
+    await renameShop(fakeDb, pharmacy, 'Pharmacy & Health')
 
     expect(doc).toHaveBeenCalledWith(fakeDb, catalogue.SHOPS_COLLECTION, 'pharmacy')
     expect(updateDoc).toHaveBeenCalledWith(
@@ -119,7 +133,7 @@ describe('renameShop', () => {
   it('rejects an empty name without writing', async () => {
     const { renameShop } = await import('./shops.ts')
 
-    await expect(renameShop(fakeDb, catalogue.shopId('pharmacy'), '')).rejects.toThrow()
+    await expect(renameShop(fakeDb, pharmacy, '')).rejects.toThrow()
     expect(updateDoc).not.toHaveBeenCalled()
   })
 
@@ -127,16 +141,18 @@ describe('renameShop', () => {
     const { renameShop } = await import('./shops.ts')
     updateDoc.mockReturnValueOnce(new Promise(() => {}))
 
-    await expect(renameShop(fakeDb, catalogue.shopId('pharmacy'), 'Pharmacy & Health')).resolves.toBeUndefined()
+    await expect(renameShop(fakeDb, pharmacy, 'Pharmacy & Health')).resolves.toBeUndefined()
   })
 })
 
 describe('deleteShop', () => {
+  const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
+
   it('deletes a Shop once Firestore accepts the write', async () => {
     const { deleteShop } = await import('./shops.ts')
     deleteDoc.mockResolvedValueOnce(undefined)
 
-    await deleteShop(fakeDb, catalogue.shopId('pharmacy'))
+    await deleteShop(fakeDb, pharmacy)
 
     expect(deleteDoc).toHaveBeenCalledWith({ path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' })
   })
@@ -145,17 +161,41 @@ describe('deleteShop', () => {
     const { deleteShop, ShopInUseError } = await import('./shops.ts')
     deleteDoc.mockRejectedValueOnce(new FirebaseError('permission-denied', 'Missing or insufficient permissions.'))
 
-    await expect(deleteShop(fakeDb, catalogue.shopId('pharmacy'))).rejects.toBeInstanceOf(ShopInUseError)
+    await expect(deleteShop(fakeDb, pharmacy)).rejects.toBeInstanceOf(ShopInUseError)
   })
 
-  it('logs and resolves instead of throwing when the delete fails to sync for another reason', async () => {
+  it('reports to the write-rejection banner and resolves when the delete fails to sync for another reason', async () => {
     const { deleteShop } = await import('./shops.ts')
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const latest = await rejections()
     deleteDoc.mockRejectedValueOnce(new Error('offline'))
 
-    await expect(deleteShop(fakeDb, catalogue.shopId('pharmacy'))).resolves.toBeUndefined()
-    expect(consoleError).toHaveBeenCalled()
-    consoleError.mockRestore()
+    await expect(deleteShop(fakeDb, pharmacy)).resolves.toBeUndefined()
+    expect(latest()).toEqual(['Could not save deleted Shop Pharmacy'])
+  })
+})
+
+describe('a queued Shop write the server rejects', () => {
+  it('reports a new Shop by name', async () => {
+    const { createShop } = await import('./shops.ts')
+    const latest = await rejections()
+    addDoc.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await createShop(fakeDb, 'Pharmacy')
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save new Shop Pharmacy'])
+  })
+
+  it('reports a rename by its old and new name', async () => {
+    const { renameShop } = await import('./shops.ts')
+    const latest = await rejections()
+    const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
+    updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await renameShop(fakeDb, pharmacy, 'Chemist')
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save rename of Shop Pharmacy to Chemist'])
   })
 })
 
