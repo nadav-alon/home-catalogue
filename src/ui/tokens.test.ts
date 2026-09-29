@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { colourRoleNames, colourRoleProperty } from './colourRoles.ts'
+import { colourRoleProperty } from './colourRoles.ts'
 
 const read = (name: string) => readFileSync(`src/ui/${name}`, 'utf8')
 const defined = new Set(
@@ -18,12 +18,12 @@ describe('design tokens', () => {
     const base = read('base.css')
     expect(base).toMatch(/body\s*{[^}]*background: var\(--md-sys-color-background\)/)
     expect(base).toMatch(/:focus-visible\s*{[^}]*outline:/)
-    for (const [, property] of read('base.css').matchAll(/var\((--[\w-]+)\)/g)) {
+    for (const [, property] of base.matchAll(/var\((--[\w-]+)\)/g)) {
       expect(defined, property).toContain(property)
     }
   })
 
   it('elevation shadows use a defined colour role', () => {
-    expect(defined).toContain(colourRoleProperty(colourRoleNames.find((r) => r === 'shadow')!))
+    expect(defined).toContain(colourRoleProperty('shadow'))
   })
 })
