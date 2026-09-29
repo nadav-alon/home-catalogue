@@ -8,6 +8,8 @@ export interface DialogProps {
   title: string
   /** Called on Escape, on browser back, and if the browser closes the dialog itself; the caller decides by setting `open`. */
   onClose: () => void
+  /** Extra class for the `<dialog>`, for a dialog that departs from the shared layout. */
+  class?: string
   children: ComponentChildren
 }
 
@@ -37,7 +39,7 @@ function popEntry() {
  * Each dialog tags its entry with its own id and only pops an entry it still owns, and a dialog
  * opening while another's pop is in flight waits for that pop to land before pushing its own entry.
  */
-export function Dialog({ open, title, onClose, children }: DialogProps) {
+export function Dialog({ open, title, onClose, class: className, children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
   const entryId = useId()
@@ -77,7 +79,7 @@ export function Dialog({ open, title, onClose, children }: DialogProps) {
   return (
     <dialog
       ref={ref}
-      class="ui-dialog"
+      class={className ? `ui-dialog ${className}` : 'ui-dialog'}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()

@@ -28,7 +28,7 @@ const DETECT_INTERVAL_MS = 150
  */
 export function ScannerDialog({ open, onScan, onDenied, onClose }: ScannerDialogProps) {
   return (
-    <Dialog open={open} title="Scan barcode" onClose={onClose}>
+    <Dialog open={open} title="Scan barcode" class="scan-dialog" onClose={onClose}>
       <IconButton symbol={CloseIcon} label="Close" onClick={onClose} />
       {open && <CameraReader onScan={onScan} onDenied={onDenied} />}
     </Dialog>
