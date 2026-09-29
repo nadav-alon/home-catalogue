@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import type { CategoryRecord } from './categories.ts'
+import { reportWriteRejection } from './writeRejections.ts'
 
 export interface ItemRecord extends core.Item, catalogue.CatalogueItem {
   id: core.ItemId
@@ -105,7 +106,7 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
  * generated id, as one batch. A new Item always starts at State `enough`. The batch also bumps
  * the referenced Category's referenceCount, and the Shop override's when set, matching the
  * platform's create rule. Resolves once the batch is queued, not once Firestore acknowledges it,
- * so a caller offline is not left waiting; a batch that later fails to sync is only logged.
+ * so a caller offline is not left waiting; a batch the server later rejects is reported through {@link reportWriteRejection}.
  */
 export async function createItem(db: Firestore, input: ItemInput): Promise<void> {
   const item = core.itemSchema.parse({
@@ -131,7 +132,7 @@ export async function createItem(db: Firestore, input: ItemInput): Promise<void>
     batch.update(doc(db, catalogue.SHOPS_COLLECTION, catalogueItem.shopId), { referenceCount: increment(1) })
   }
   void batch.commit().catch((err: unknown) => {
-    console.error('Failed to sync new Item', err)
+    reportWriteRejection(`new Item ${input.name}`, err)
   })
 }
 
@@ -176,7 +177,7 @@ export async function updateItem(db: Firestore, previous: ItemRecord, input: Ite
     }
   }
   void batch.commit().catch((err: unknown) => {
-    console.error(`Failed to sync updated Item ${previous.id}`, err)
+    reportWriteRejection(`changes to ${previous.name}`, err)
   })
 }
 
@@ -185,16 +186,20 @@ export async function updateItem(db: Firestore, previous: ItemRecord, input: Ite
  * and appending a `stateHistory` entry timestamped with {@link serverTimestamp}, as one batch.
  * Resolves once the batch is queued, see {@link createItem}.
  */
-export async function setItemState(db: Firestore, id: core.ItemId, state: core.State): Promise<void> {
+export async function setItemState(
+  db: Firestore,
+  item: Pick<ItemRecord, 'id' | 'name'>,
+  state: core.State,
+): Promise<void> {
   const validState = core.stateSchema.parse(state)
 
   const batch = writeBatch(db)
-  batch.update(doc(db, core.ITEMS_COLLECTION, id), { state: validState })
-  batch.set(doc(collection(db, core.stateHistoryCollectionPath(id))), {
+  batch.update(doc(db, core.ITEMS_COLLECTION, item.id), { state: validState })
+  batch.set(doc(collection(db, core.stateHistoryCollectionPath(item.id))), {
     state: validState,
     at: serverTimestamp(),
   })
   void batch.commit().catch((err: unknown) => {
-    console.error(`Failed to sync State change for Item ${id}`, err)
+    reportWriteRejection(`State change for ${item.name}`, err)
   })
 }

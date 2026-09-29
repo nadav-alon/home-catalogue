@@ -28,7 +28,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
 
   async function handleTick(item: ItemRecord) {
     try {
-      await setItemState(db, item.id, 'enough')
+      await setItemState(db, item, 'enough')
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update State')

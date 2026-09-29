@@ -13,7 +13,7 @@ const setItemState = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
-  setItemState: (db: unknown, id: unknown, state: unknown) => setItemState(db, id, state),
+  setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
 }))
 
 const watchCategories = vi.fn()
@@ -224,7 +224,7 @@ describe('ticking an Item', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Bandages' }))
 
-    expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages.id, 'enough')
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'enough')
   })
 
   it('reports an error instead of throwing when the update fails', async () => {

@@ -447,7 +447,7 @@ describe('setItemState', () => {
     const { setItemState } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
-    await setItemState(fakeDb, core.itemId('dish-soap'), 'out')
+    await setItemState(fakeDb, { id: core.itemId('dish-soap'), name: 'Dish soap' }, 'out')
 
     expect(collection).toHaveBeenCalledWith(fakeDb, 'items/dish-soap/stateHistory')
     expect(batchUpdate).toHaveBeenCalledWith({ path: core.ITEMS_COLLECTION, id: 'dish-soap' }, { state: 'out' })
@@ -462,7 +462,7 @@ describe('setItemState', () => {
     const { setItemState } = await import('./items.ts')
     const invalidState = 'almost gone' as unknown as core.State
 
-    await expect(setItemState(fakeDb, core.itemId('dish-soap'), invalidState)).rejects.toThrow()
+    await expect(setItemState(fakeDb, { id: core.itemId('dish-soap'), name: 'Dish soap' }, invalidState)).rejects.toThrow()
     expect(batchUpdate).not.toHaveBeenCalled()
     expect(batchCommit).not.toHaveBeenCalled()
   })
@@ -471,6 +471,72 @@ describe('setItemState', () => {
     const { setItemState } = await import('./items.ts')
     batchCommit.mockReturnValueOnce(new Promise(() => {}))
 
-    await expect(setItemState(fakeDb, core.itemId('dish-soap'), 'out')).resolves.toBeUndefined()
+    await expect(setItemState(fakeDb, { id: core.itemId('dish-soap'), name: 'Dish soap' }, 'out')).resolves.toBeUndefined()
+  })
+})
+
+describe('a queued Item write the server rejects', () => {
+  const dishSoap: ItemRecord = {
+    id: core.itemId('dish-soap'),
+    name: 'Dish soap',
+    state: 'enough',
+    categoryId: catalogue.categoryId('cleaning'),
+    necessity: 'essential',
+  }
+
+  async function rejections() {
+    const { watchWriteRejections } = await import('./writeRejections.ts')
+    let latest: string[] = []
+    watchWriteRejections((list) => {
+      latest = list.map((rejection) => rejection.message)
+    })
+    return () => latest
+  }
+
+  beforeEach(async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { resetWriteRejections } = await import('./writeRejections.ts')
+    resetWriteRejections()
+  })
+
+  it('reports the State change by Item name', async () => {
+    const { setItemState } = await import('./items.ts')
+    const latest = await rejections()
+    batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await setItemState(fakeDb, dishSoap, 'out')
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save State change for Dish soap'])
+  })
+
+  it('reports a new Item by name', async () => {
+    const { createItem } = await import('./items.ts')
+    const latest = await rejections()
+    batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await createItem(fakeDb, {
+      name: 'Dish soap',
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+    })
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save new Item Dish soap'])
+  })
+
+  it('reports an edit by the Item name it started from', async () => {
+    const { updateItem } = await import('./items.ts')
+    const latest = await rejections()
+    batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await updateItem(fakeDb, dishSoap, {
+      name: 'Washing-up liquid',
+      categoryId: dishSoap.categoryId,
+      necessity: dishSoap.necessity,
+    })
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save changes to Dish soap'])
   })
 })

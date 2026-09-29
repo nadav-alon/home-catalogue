@@ -16,7 +16,7 @@ vi.mock('./items.ts', async (importOriginal) => ({
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
-  setItemState: (db: unknown, id: unknown, state: unknown) => setItemState(db, id, state),
+  setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
 }))
 
 const watchCategories = vi.fn()
@@ -383,7 +383,7 @@ describe("changing an Item's State", () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'running low' }))
 
-    expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages.id, 'running low')
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'running low')
   })
 
   it("marks the Item's current State as pressed, without taking it out of the tab order", () => {
