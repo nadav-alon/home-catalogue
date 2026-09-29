@@ -1,0 +1,10 @@
+{
+  "firestore": {
+    "rules": "node_modules/data-platform/firestore.rules"
+  },
+  "emulators": {
+    "firestore": {
+      "port": 8090
+    }
+  }
+}

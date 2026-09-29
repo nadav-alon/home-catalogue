@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite'
+import { configDefaults } from 'vitest/config'
 import preact from '@preact/preset-vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { manifest } from './src/pwa-manifest.ts'
@@ -33,5 +34,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    /** `test/rules` runs separately, against the Firestore emulator — see `npm run test:rules`. */
+    exclude: [...configDefaults.exclude, 'test/rules/**'],
   },
 })
