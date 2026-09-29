@@ -58,6 +58,14 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { name: 'Items', level: 2 })).toBeNull()
   })
 
+  it('puts Calendar Export in the top app bar on the Shopping list screen', () => {
+    render(<App db={fakeDb} config={config} />)
+
+    const bar = screen.getByRole('banner')
+    expect(within(bar).getByRole('button', { name: 'Export to Calendar' })).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).queryByRole('button', { name: 'Export to Calendar' })).toBeNull()
+  })
+
   it('shows the Items screen on #/items', () => {
     window.location.hash = '#/items'
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)

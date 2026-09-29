@@ -10,7 +10,7 @@ import { watchItems, type ItemRecord } from './catalogue/items.ts'
 import { CalendarExport } from './export/CalendarExport.tsx'
 import { SettingsScreen } from './settings/SettingsScreen.tsx'
 import { NavBar } from './shell/NavBar.tsx'
-import { TopAppBar } from './shell/TopAppBar.tsx'
+import { TopAppBar, TopAppBarActions } from './shell/TopAppBar.tsx'
 import { titleOf } from './shell/titles.ts'
 import type { Route } from './ui/route.ts'
 import { useRoute } from './ui/useRoute.ts'
@@ -56,12 +56,13 @@ function Screen({
 }: { route: Route; items: ItemRecord[] } & AppProps) {
   switch (current) {
     case '/list':
-      // TODO[#135]: the Shopping list screen.
       return (
         <>
           <AlertBanner items={items} />
           <ShoppingList db={db} />
-          <CalendarExport db={db} />
+          <TopAppBarActions>
+            <CalendarExport db={db} />
+          </TopAppBarActions>
         </>
       )
     case '/items':
