@@ -4,6 +4,7 @@ import {
   InvalidFirebaseWebConfigError,
   isFirebaseWebConfig,
   parseFirebaseWebConfigSnippet,
+  sameFirebaseWebConfig,
 } from './webConfig.ts'
 
 const validConfig = {
@@ -127,5 +128,23 @@ describe('parseFirebaseWebConfigSnippet', () => {
 
   it('rejects an object literal that is missing required fields', () => {
     expect(() => parseFirebaseWebConfigSnippet('{"apiKey": "x"}')).toThrow(InvalidFirebaseWebConfigError)
+  })
+})
+
+describe('sameFirebaseWebConfig', () => {
+  const config = firebaseWebConfig(validConfig)
+
+  it('is true for an identical config', () => {
+    expect(sameFirebaseWebConfig(config, config)).toBe(true)
+  })
+
+  it('is true regardless of key order', () => {
+    const reordered = firebaseWebConfig(Object.fromEntries(Object.entries(config).reverse()))
+    expect(sameFirebaseWebConfig(config, reordered)).toBe(true)
+  })
+
+  it('is false when a field differs', () => {
+    const other = firebaseWebConfig({ ...config, projectId: 'other-household' })
+    expect(sameFirebaseWebConfig(config, other)).toBe(false)
   })
 })

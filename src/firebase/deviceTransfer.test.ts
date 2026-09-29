@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { firebaseWebConfig } from './webConfig.ts'
-import { deviceTransferUrl, parseConfigFragment, sameFirebaseConfig } from './deviceTransfer.ts'
+import { deviceTransferUrl, parseConfigFragment } from './deviceTransfer.ts'
 
 const config = firebaseWebConfig({
   apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',
@@ -56,25 +56,5 @@ describe('parseConfigFragment', () => {
       .replace(/=+$/, '')
 
     expect(() => parseConfigFragment(`#config=${incomplete}`)).toThrow(/missing or has empty fields/)
-  })
-})
-
-describe('sameFirebaseConfig', () => {
-  it('is true for an identical config', () => {
-    expect(sameFirebaseConfig(config, config)).toBe(true)
-  })
-
-  it('is true regardless of key order', () => {
-    const reordered = firebaseWebConfig(
-      Object.fromEntries(Object.entries(config).reverse()) as unknown as Record<string, string>,
-    )
-
-    expect(sameFirebaseConfig(config, reordered)).toBe(true)
-  })
-
-  it('is false when a field differs', () => {
-    const other = firebaseWebConfig({ ...config, projectId: 'other-household' })
-
-    expect(sameFirebaseConfig(config, other)).toBe(false)
   })
 })

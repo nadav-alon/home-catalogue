@@ -41,9 +41,3 @@ export function parseConfigFragment(hash: string): FirebaseWebConfig | null {
   }
   return firebaseWebConfig(parsed)
 }
-
-/** Whether `a` and `b` carry the same fields, regardless of key order. */
-export function sameFirebaseConfig(a: FirebaseWebConfig, b: FirebaseWebConfig): boolean {
-  const normalize = (config: FirebaseWebConfig) => JSON.stringify(config, Object.keys(config).sort())
-  return normalize(a) === normalize(b)
-}

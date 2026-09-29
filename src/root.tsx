@@ -5,8 +5,8 @@ import { AuthGate } from './auth/AuthGate.tsx'
 import { SetupScreen } from './setup/SetupScreen.tsx'
 import { clearFirebaseConfig, getStoredFirebaseConfig, saveFirebaseConfig } from './firebase/configStorage.ts'
 import { initFirebase, terminateFirebase, type FirebaseClient } from './firebase/client.ts'
-import { parseConfigFragment, sameFirebaseConfig } from './firebase/deviceTransfer.ts'
-import { InvalidFirebaseWebConfigError, type FirebaseWebConfig } from './firebase/webConfig.ts'
+import { parseConfigFragment } from './firebase/deviceTransfer.ts'
+import { InvalidFirebaseWebConfigError, sameFirebaseWebConfig, type FirebaseWebConfig } from './firebase/webConfig.ts'
 import { readDeployedPlatformVersion } from './platform/readDeployedPlatformVersion.ts'
 import { PlatformBanner } from './platform/PlatformBanner.tsx'
 
@@ -36,7 +36,7 @@ function resolveInitialState(): InitialState {
   history.replaceState(null, '', location.pathname + location.search)
 
   if (stored !== null) {
-    if (sameFirebaseConfig(stored, incoming)) return { config: stored, setupError: null }
+    if (sameFirebaseWebConfig(stored, incoming)) return { config: stored, setupError: null }
     if (!confirm('Replace the stored Firebase configuration with the scanned one?')) {
       return { config: stored, setupError: null }
     }
