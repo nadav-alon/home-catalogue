@@ -10,7 +10,7 @@ import { InvalidFirebaseWebConfigError, sameFirebaseWebConfig, type FirebaseWebC
 import { readDeployedPlatformVersion } from './platform/readDeployedPlatformVersion.ts'
 import { PlatformBanner } from './platform/PlatformBanner.tsx'
 
-interface InitialState {
+interface RootState {
   config: FirebaseWebConfig | null
   setupError: string | null
 }
@@ -20,7 +20,7 @@ interface InitialState {
  * already stored: saves it and strips the fragment, asking first when it would replace a
  * different stored config. Runs once, synchronously, before the first paint.
  */
-function resolveInitialState(): InitialState {
+function resolveInitialState(): RootState {
   const stored = getStoredFirebaseConfig()
 
   let incoming: FirebaseWebConfig | null
@@ -47,7 +47,7 @@ function resolveInitialState(): InitialState {
 }
 
 export function Root() {
-  const [{ config, setupError }, setState] = useState<InitialState>(resolveInitialState)
+  const [{ config, setupError }, setState] = useState<RootState>(resolveInitialState)
 
   if (config === null) {
     return (
