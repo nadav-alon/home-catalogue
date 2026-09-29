@@ -10,8 +10,12 @@ export interface ScannerDialogProps {
   open: boolean
   /** Called once with the first detected value that is a Barcode; the camera is already released. */
   onScan: (barcode: core.Barcode) => void
+  /** Called instead of `onScan` when the Member refuses camera access; the caller closes the dialog. */
+  onDenied: () => void
   onClose: () => void
 }
+
+export const CAMERA_DENIED_MESSAGE = 'Camera access needed to scan'
 
 /** The symbologies a GTIN is printed in: EAN-8, UPC-A, EAN-13 and ITF-14. */
 const GTIN_FORMATS = ['ean_8', 'upc_a', 'ean_13', 'itf']
@@ -22,19 +26,21 @@ const DETECT_INTERVAL_MS = 150
  * A full-screen dialog showing the rear camera until it reads one Barcode. The camera is released
  * when a Barcode is read and whenever the dialog closes, whichever comes first.
  */
-export function ScannerDialog({ open, onScan, onClose }: ScannerDialogProps) {
+export function ScannerDialog({ open, onScan, onDenied, onClose }: ScannerDialogProps) {
   return (
     <Dialog open={open} title="Scan barcode" onClose={onClose}>
       <IconButton symbol={CloseIcon} label="Close" onClick={onClose} />
-      {open && <CameraReader onScan={onScan} />}
+      {open && <CameraReader onScan={onScan} onDenied={onDenied} />}
     </Dialog>
   )
 }
 
-function CameraReader({ onScan }: Pick<ScannerDialogProps, 'onScan'>) {
+function CameraReader({ onScan, onDenied }: Pick<ScannerDialogProps, 'onScan' | 'onDenied'>) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const onScanRef = useRef(onScan)
   onScanRef.current = onScan
+  const onDeniedRef = useRef(onDenied)
+  onDeniedRef.current = onDenied
 
   useEffect(() => {
     let stopped = false
@@ -45,7 +51,13 @@ function CameraReader({ onScan }: Pick<ScannerDialogProps, 'onScan'>) {
       const Detector = nativeBarcodeDetector()
       const video = videoRef.current
       if (Detector === undefined || video === null) return
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === 'NotAllowedError')) throw err
+        if (!stopped) onDeniedRef.current()
+        return
+      }
       if (stopped) return release()
       video.srcObject = stream
       void video.play()

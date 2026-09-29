@@ -37,7 +37,7 @@ afterEach(async () => {
 
 describe('ScannerDialog', () => {
   it('opens the rear camera', async () => {
-    render(<ScannerDialog open onScan={() => {}} onClose={() => {}} />)
+    render(<ScannerDialog open onScan={() => {}} onDenied={() => {}} onClose={() => {}} />)
     await waitFor(() =>
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ video: { facingMode: 'environment' } }),
     )
@@ -46,7 +46,7 @@ describe('ScannerDialog', () => {
   it('returns the first value that is a Barcode, then releases the camera', async () => {
     detected = [[], ['not a gtin', '12345'], ['4006381333931', '12345678']]
     const onScan = vi.fn()
-    render(<ScannerDialog open onScan={onScan} onClose={() => {}} />)
+    render(<ScannerDialog open onScan={onScan} onDenied={() => {}} onClose={() => {}} />)
     await waitFor(() => expect(onScan).toHaveBeenCalledWith('4006381333931'))
     expect(onScan).toHaveBeenCalledOnce()
     expect(track.stop).toHaveBeenCalled()
@@ -55,11 +55,11 @@ describe('ScannerDialog', () => {
   it('closes from ✕ without returning anything, and releases the camera once closed', async () => {
     const onScan = vi.fn()
     const onClose = vi.fn()
-    const { rerender } = render(<ScannerDialog open onScan={onScan} onClose={onClose} />)
+    const { rerender } = render(<ScannerDialog open onScan={onScan} onDenied={() => {}} onClose={onClose} />)
     await waitFor(() => expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled())
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(onClose).toHaveBeenCalledOnce()
-    rerender(<ScannerDialog open={false} onScan={onScan} onClose={onClose} />)
+    rerender(<ScannerDialog open={false} onScan={onScan} onDenied={() => {}} onClose={onClose} />)
     expect(track.stop).toHaveBeenCalled()
     expect(onScan).not.toHaveBeenCalled()
   })
@@ -67,7 +67,7 @@ describe('ScannerDialog', () => {
   it('closes on browser back without returning anything', async () => {
     const onScan = vi.fn()
     const onClose = vi.fn()
-    render(<ScannerDialog open onScan={onScan} onClose={onClose} />)
+    render(<ScannerDialog open onScan={onScan} onDenied={() => {}} onClose={onClose} />)
     await waitFor(() => expect(history.state).not.toBeNull())
     history.back()
     await waitFor(() => expect(onClose).toHaveBeenCalled())
@@ -80,10 +80,21 @@ describe('ScannerDialog', () => {
       new Promise((resolve) => (grant = resolve)),
     )
     const onScan = vi.fn()
-    const { rerender } = render(<ScannerDialog open onScan={onScan} onClose={() => {}} />)
-    rerender(<ScannerDialog open={false} onScan={onScan} onClose={() => {}} />)
+    const { rerender } = render(<ScannerDialog open onScan={onScan} onDenied={() => {}} onClose={() => {}} />)
+    rerender(<ScannerDialog open={false} onScan={onScan} onDenied={() => {}} onClose={() => {}} />)
     grant(stream)
     await waitFor(() => expect(track.stop).toHaveBeenCalled())
+    expect(onScan).not.toHaveBeenCalled()
+  })
+
+  it('reports denied camera access instead of scanning', async () => {
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(
+      new DOMException('Permission denied', 'NotAllowedError'),
+    )
+    const onScan = vi.fn()
+    const onDenied = vi.fn()
+    render(<ScannerDialog open onScan={onScan} onDenied={onDenied} onClose={() => {}} />)
+    await waitFor(() => expect(onDenied).toHaveBeenCalledOnce())
     expect(onScan).not.toHaveBeenCalled()
   })
 })
