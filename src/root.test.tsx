@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Root } from './root.tsx'
 import { saveFirebaseConfig } from './firebase/configStorage.ts'
+import { deviceTransferUrl } from './firebase/deviceTransfer.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 import type { AuthUser } from './auth/authClient.ts'
 
@@ -36,6 +37,9 @@ vi.mock('./catalogue/shops.ts', () => ({
 vi.mock('./catalogue/categories.ts', () => ({
   watchCategories: () => vi.fn(),
 }))
+vi.mock('./catalogue/items.ts', () => ({
+  watchItems: () => vi.fn(),
+}))
 
 const readDeployedPlatformVersion = vi.fn()
 vi.mock('./platform/readDeployedPlatformVersion.ts', () => ({
@@ -43,9 +47,13 @@ vi.mock('./platform/readDeployedPlatformVersion.ts', () => ({
 }))
 
 const checkPlatform = vi.fn()
-vi.mock('data-platform', () => ({
-  core: { checkPlatform: (deployed: unknown) => checkPlatform(deployed) },
-}))
+vi.mock('data-platform', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('data-platform')>()
+  return {
+    ...actual,
+    core: { ...actual.core, checkPlatform: (deployed: unknown) => checkPlatform(deployed) },
+  }
+})
 
 const validConfig = firebaseWebConfig({
   apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',
@@ -58,8 +66,13 @@ const validConfig = firebaseWebConfig({
 
 const fakeClient = { app: 'fake-app', db: 'fake-db' }
 
+function hashOf(url: string): string {
+  return url.slice(url.indexOf('#'))
+}
+
 beforeEach(() => {
   localStorage.clear()
+  history.replaceState(null, '', '/')
   initFirebase.mockClear()
   initFirebase.mockReturnValue(fakeClient)
   terminateFirebase.mockClear()
@@ -183,5 +196,76 @@ describe('Root', () => {
     render(<Root />)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('update your platform deploy')
+  })
+})
+
+describe('Root with a device transfer fragment in the URL', () => {
+  it('saves a valid fragment, strips it from the URL, and proceeds to sign-in', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(null)
+      return vi.fn()
+    })
+    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(validConfig)))
+
+    render(<Root />)
+
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(validConfig)
+    expect(location.hash).toBe('')
+  })
+
+  it('ignores a truncated fragment, showing the error on the setup screen, without saving', () => {
+    const truncated = hashOf(deviceTransferUrl(validConfig)).slice(0, -10)
+    history.replaceState(null, '', '/' + truncated)
+
+    render(<Root />)
+
+    expect(screen.getByRole('heading', { name: 'Set up Home Catalogue' })).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(/truncated or corrupted/)
+    expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
+    expect(location.hash).toBe('')
+  })
+
+  it('asks before replacing a different stored config, and keeps the old one when declined', async () => {
+    saveFirebaseConfig(validConfig)
+    const otherConfig = firebaseWebConfig({ ...validConfig, projectId: 'other-household' })
+    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(otherConfig)))
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<Root />)
+
+    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(confirmSpy).toHaveBeenCalled()
+    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(validConfig)
+    expect(location.hash).toBe('')
+  })
+
+  it('replaces the stored config when the user confirms', async () => {
+    saveFirebaseConfig(validConfig)
+    const otherConfig = firebaseWebConfig({ ...validConfig, projectId: 'other-household' })
+    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(otherConfig)))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<Root />)
+
+    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(initFirebase).toHaveBeenCalledWith(otherConfig)
+    expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(otherConfig)
+  })
+
+  it('treats a fragment matching the already-stored config as a no-op, without asking', async () => {
+    saveFirebaseConfig(validConfig)
+    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(validConfig)))
+    const confirmSpy = vi.spyOn(window, 'confirm')
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+
+    render(<Root />)
+
+    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(setItemSpy).not.toHaveBeenCalled()
+    expect(location.hash).toBe('')
   })
 })

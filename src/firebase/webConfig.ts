@@ -24,6 +24,12 @@ const NO_OBJECT_LITERAL_MESSAGE =
 const UNPARSEABLE_OBJECT_LITERAL_MESSAGE =
   "Found a firebaseConfig block but couldn't read it. Paste it unedited from the Firebase console."
 
+/** Whether `a` and `b` carry the same fields, regardless of key order. */
+export function sameFirebaseWebConfig(a: FirebaseWebConfig, b: FirebaseWebConfig): boolean {
+  const normalize = (config: FirebaseWebConfig) => JSON.stringify(config, Object.keys(config).sort())
+  return normalize(a) === normalize(b)
+}
+
 export function isFirebaseWebConfig(value: unknown): value is FirebaseWebConfig {
   if (typeof value !== 'object' || value === null) return false
   return missingFields(value).length === 0
