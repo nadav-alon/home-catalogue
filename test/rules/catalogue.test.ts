@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs'
-import { doc, getDoc, setDoc, type Firestore } from 'firebase/firestore'
+import { doc, getDoc, increment, setDoc, writeBatch, type Firestore } from 'firebase/firestore'
 import {
   assertFails,
   assertSucceeds,
@@ -11,6 +11,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { deleteShop, ShopInUseError } from '../../src/catalogue/shops.ts'
+import { CategoryInUseError, deleteCategory, type CategoryRecord } from '../../src/catalogue/categories.ts'
 
 const alice = core.uid('alice')
 
@@ -108,5 +109,94 @@ describe('deleteShop against the real rules', () => {
     await expect(deleteShop(db, catalogue.shopId('pharmacy'))).rejects.toBeInstanceOf(ShopInUseError)
     const snapshot = await getDoc(doc(db, catalogue.SHOPS_COLLECTION, 'pharmacy'))
     expect(snapshot.exists()).toBe(true)
+  })
+})
+
+describe('Category writes against the real rules', () => {
+  it('accepts a new Category that starts unreferenced and bumps its default Shop in the same batch', async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
+        name: 'Pharmacy',
+        referenceCount: 0,
+      })
+    })
+
+    const batch = writeBatch(db)
+    batch.set(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'), {
+      name: 'Medicine',
+      defaultShopId: 'pharmacy',
+      referenceCount: 0,
+    })
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, 'pharmacy'), { referenceCount: increment(1) })
+
+    await assertSucceeds(batch.commit())
+  })
+
+  it('denies a new Category that skips bumping its default Shop in the same batch', async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
+        name: 'Pharmacy',
+        referenceCount: 0,
+      })
+    })
+
+    await assertFails(
+      setDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'), {
+        name: 'Medicine',
+        defaultShopId: 'pharmacy',
+        referenceCount: 0,
+      }),
+    )
+  })
+})
+
+describe('deleteCategory against the real rules', () => {
+  const medicine: CategoryRecord = {
+    id: catalogue.categoryId('medicine'),
+    name: 'Medicine',
+    defaultShopId: catalogue.shopId('pharmacy'),
+    referenceCount: 0,
+  }
+
+  it("deletes a Category with no dependents and drops its default Shop's reference", async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
+        name: 'Pharmacy',
+        referenceCount: 1,
+      })
+      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
+        name: 'Medicine',
+        defaultShopId: 'pharmacy',
+        referenceCount: 0,
+      })
+    })
+
+    await expect(deleteCategory(db, medicine)).resolves.toBeUndefined()
+    const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
+    expect(categorySnapshot.exists()).toBe(false)
+    const shopSnapshot = await getDoc(doc(db, catalogue.SHOPS_COLLECTION, 'pharmacy'))
+    expect(shopSnapshot.data()?.referenceCount).toBe(0)
+  })
+
+  it('refuses with CategoryInUseError while a catalogue Item still belongs to it, independent of the local cache', async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
+        name: 'Pharmacy',
+        referenceCount: 1,
+      })
+      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
+        name: 'Medicine',
+        defaultShopId: 'pharmacy',
+        referenceCount: 1,
+      })
+    })
+
+    await expect(deleteCategory(db, medicine)).rejects.toBeInstanceOf(CategoryInUseError)
+    const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
+    expect(categorySnapshot.exists()).toBe(true)
   })
 })

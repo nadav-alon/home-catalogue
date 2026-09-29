@@ -18,7 +18,7 @@ const { FakeCategoryInUseError } = vi.hoisted(() => ({
 vi.mock('./categories.ts', () => ({
   createCategory: (db: unknown, name: string, shopId: unknown) => createCategory(db, name, shopId),
   renameCategory: (db: unknown, id: unknown, name: string) => renameCategory(db, id, name),
-  deleteCategory: (db: unknown, id: unknown) => deleteCategory(db, id),
+  deleteCategory: (db: unknown, category: unknown) => deleteCategory(db, category),
   watchCategories: (db: unknown, cb: unknown) => watchCategories(db, cb),
   CategoryInUseError: FakeCategoryInUseError,
 }))
@@ -142,7 +142,7 @@ describe('CategoriesManager', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete Medicine' }))
 
-    expect(deleteCategory).toHaveBeenCalledWith(fakeDb, medicine.id)
+    expect(deleteCategory).toHaveBeenCalledWith(fakeDb, medicine)
   })
 
   it('shows the CategoryInUseError message when deletion is refused', async () => {

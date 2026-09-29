@@ -1,18 +1,16 @@
 import {
-  addDoc,
   collection,
-  deleteDoc,
   doc,
-  getDocs,
-  limit,
+  increment,
   onSnapshot,
   orderBy,
   query,
   updateDoc,
-  where,
+  writeBatch,
   type Firestore,
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
+import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 
 export interface CategoryRecord extends catalogue.Category {
   id: catalogue.CategoryId
@@ -50,17 +48,22 @@ export function watchCategories(
 }
 
 /**
- * Validates against {@link catalogue.categorySchema} before writing a new Category. Resolves once
- * the write is queued, not once Firestore acknowledges it, so a caller offline is not left
- * waiting; a write that later fails to sync is only logged.
+ * Validates against {@link catalogue.categorySchema} before writing a new Category, starting at
+ * referenceCount 0 and bumping its default Shop's referenceCount in the same batch, matching the
+ * platform's create rule. Resolves once the batch is queued, not once Firestore acknowledges it,
+ * so a caller offline is not left waiting; a batch that later fails to sync is only logged.
  */
 export async function createCategory(
   db: Firestore,
   name: string,
   defaultShopId: catalogue.ShopId,
 ): Promise<void> {
-  const data = catalogue.categorySchema.parse({ name, defaultShopId })
-  void addDoc(collection(db, catalogue.CATEGORIES_COLLECTION), data).catch((err: unknown) => {
+  const data = catalogue.categorySchema.parse({ name, defaultShopId, referenceCount: 0 })
+  const categoryRef = doc(collection(db, catalogue.CATEGORIES_COLLECTION))
+  const batch = writeBatch(db)
+  batch.set(categoryRef, data)
+  batch.update(doc(db, catalogue.SHOPS_COLLECTION, defaultShopId), { referenceCount: increment(1) })
+  void batch.commit().catch((err: unknown) => {
     console.error('Failed to sync new Category', err)
   })
 }
@@ -79,19 +82,20 @@ export async function renameCategory(
 
 /**
  * Refuses with {@link CategoryInUseError} while any catalogue Item still belongs to this Category.
- * Resolves once the delete is queued, see {@link createCategory}.
- *
- * The check only sees Items this device has already synced: one written on another member's
- * device but not yet cached here counts as "not in use".
+ * Enforced by the platform's Firestore rules against the Category's own `referenceCount`, so the
+ * refusal holds regardless of what this device has cached. Drops the Category's own reference to
+ * its default Shop in the same batch.
  */
-export async function deleteCategory(db: Firestore, id: catalogue.CategoryId): Promise<void> {
-  const dependents = await getDocs(
-    query(collection(db, catalogue.CATALOGUE_ITEMS_COLLECTION), where('categoryId', '==', id), limit(1)),
-  )
-  if (!dependents.empty) {
-    throw new CategoryInUseError('This Category is still used by an Item, and cannot be deleted.')
+export async function deleteCategory(db: Firestore, category: CategoryRecord): Promise<void> {
+  const batch = writeBatch(db)
+  batch.delete(doc(db, catalogue.CATEGORIES_COLLECTION, category.id))
+  batch.update(doc(db, catalogue.SHOPS_COLLECTION, category.defaultShopId), { referenceCount: increment(-1) })
+  try {
+    await batch.commit()
+  } catch (err) {
+    if (isRulesRefusal(err)) {
+      throw new CategoryInUseError('This Category is still used by an Item, and cannot be deleted.')
+    }
+    console.error(`Failed to sync deleted Category ${category.id}`, err)
   }
-  void deleteDoc(doc(db, catalogue.CATEGORIES_COLLECTION, id)).catch((err: unknown) => {
-    console.error(`Failed to sync deleted Category ${id}`, err)
-  })
 }

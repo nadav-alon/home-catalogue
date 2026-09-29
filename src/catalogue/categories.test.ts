@@ -1,31 +1,45 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
+import { FirebaseError } from 'firebase/app'
 import { catalogue } from 'data-platform'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
-const doc = vi.fn((_db: unknown, path: string, id: string) => ({ path, id }))
+/** Mirrors both overloads used in categories.ts: `doc(collectionRef)` generates an id; `doc(db, path, id)` targets one. */
+const doc = vi.fn((...args: unknown[]) => {
+  if (args.length === 1) {
+    const ref = args[0] as { path: string }
+    return { path: ref.path, id: 'generated-id' }
+  }
+  const [, path, id] = args as [unknown, string, string]
+  return { path, id }
+})
 const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constraints }))
 const orderBy = vi.fn((field: string) => ({ kind: 'orderBy', field }))
-const where = vi.fn((field: string, op: string, value: unknown) => ({ kind: 'where', field, op, value }))
-const limit = vi.fn((count: number) => ({ kind: 'limit', count }))
 const onSnapshot = vi.fn()
-const addDoc = vi.fn()
 const updateDoc = vi.fn()
 const deleteDoc = vi.fn()
-const getDocs = vi.fn()
+const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
+const batchSet = vi.fn()
+const batchUpdate = vi.fn()
+const batchDelete = vi.fn()
+const batchCommit = vi.fn()
+const writeBatch = vi.fn((_db: unknown) => ({
+  set: batchSet,
+  update: batchUpdate,
+  delete: batchDelete,
+  commit: batchCommit,
+}))
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
-  doc: (db: unknown, path: string, id: string) => doc(db, path, id),
+  doc: (...args: unknown[]) => doc(...args),
   query: (ref: unknown, ...constraints: unknown[]) => query(ref, ...constraints),
   orderBy: (field: string) => orderBy(field),
-  where: (field: string, op: string, value: unknown) => where(field, op, value),
-  limit: (count: number) => limit(count),
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
-  addDoc: (ref: unknown, data: unknown) => addDoc(ref, data),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
   deleteDoc: (ref: unknown) => deleteDoc(ref),
-  getDocs: (q: unknown) => getDocs(q),
+  increment: (n: number) => increment(n),
+  writeBatch: (db: unknown) => writeBatch(db),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -35,13 +49,15 @@ beforeEach(() => {
   doc.mockClear()
   query.mockClear()
   orderBy.mockClear()
-  where.mockClear()
-  limit.mockClear()
   onSnapshot.mockReset()
-  addDoc.mockReset()
   updateDoc.mockReset()
   deleteDoc.mockReset()
-  getDocs.mockReset()
+  increment.mockClear()
+  batchSet.mockReset()
+  batchUpdate.mockReset()
+  batchDelete.mockReset()
+  batchCommit.mockReset()
+  writeBatch.mockClear()
 })
 
 describe('watchCategories', () => {
@@ -50,7 +66,11 @@ describe('watchCategories', () => {
     const callback = vi.fn()
     const unsubscribe = vi.fn()
     onSnapshot.mockImplementation((_snapshotQuery: unknown, cb: (snapshot: unknown) => void) => {
-      cb({ docs: [{ id: 'medicine', data: () => ({ name: 'Medicine', defaultShopId: 'pharmacy' }) }] })
+      cb({
+        docs: [
+          { id: 'medicine', data: () => ({ name: 'Medicine', defaultShopId: 'pharmacy', referenceCount: 0 }) },
+        ],
+      })
       return unsubscribe
     })
 
@@ -58,7 +78,9 @@ describe('watchCategories', () => {
 
     expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATEGORIES_COLLECTION)
     expect(orderBy).toHaveBeenCalledWith('name')
-    expect(callback).toHaveBeenCalledWith([{ id: 'medicine', name: 'Medicine', defaultShopId: 'pharmacy' }])
+    expect(callback).toHaveBeenCalledWith([
+      { id: 'medicine', name: 'Medicine', defaultShopId: 'pharmacy', referenceCount: 0 },
+    ])
     expect(unsub).toBe(unsubscribe)
   })
 
@@ -69,7 +91,10 @@ describe('watchCategories', () => {
       cb({
         docs: [
           { id: 'invalid', data: () => ({ name: 'Medicine', defaultShopId: '' }) },
-          { id: 'medicine', data: () => ({ name: 'Medicine', defaultShopId: 'pharmacy' }) },
+          {
+            id: 'medicine',
+            data: () => ({ name: 'Medicine', defaultShopId: 'pharmacy', referenceCount: 0 }),
+          },
         ],
       })
       return vi.fn()
@@ -77,29 +102,37 @@ describe('watchCategories', () => {
 
     watchCategories(fakeDb, callback)
 
-    expect(callback).toHaveBeenCalledWith([{ id: 'medicine', name: 'Medicine', defaultShopId: 'pharmacy' }])
+    expect(callback).toHaveBeenCalledWith([
+      { id: 'medicine', name: 'Medicine', defaultShopId: 'pharmacy', referenceCount: 0 },
+    ])
   })
 })
 
 describe('createCategory', () => {
-  it('validates the name and default Shop, and writes a new Category', async () => {
+  it('validates the name and default Shop, and writes a new Category that starts unreferenced', async () => {
     const { createCategory } = await import('./categories.ts')
-    addDoc.mockResolvedValueOnce({ id: 'new-id' })
+    batchCommit.mockResolvedValueOnce(undefined)
 
     await createCategory(fakeDb, 'Medicine', catalogue.shopId('pharmacy'))
 
-    expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATEGORIES_COLLECTION)
-    expect(addDoc).toHaveBeenCalledWith(
-      { path: catalogue.CATEGORIES_COLLECTION },
-      { name: 'Medicine', defaultShopId: 'pharmacy' },
+    expect(doc).toHaveBeenCalledWith({ path: catalogue.CATEGORIES_COLLECTION })
+    expect(batchSet).toHaveBeenCalledWith(
+      { path: catalogue.CATEGORIES_COLLECTION, id: 'generated-id' },
+      { name: 'Medicine', defaultShopId: 'pharmacy', referenceCount: 0 },
     )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
+      { referenceCount: { kind: 'increment', delta: 1 } },
+    )
+    expect(batchCommit).toHaveBeenCalled()
   })
 
   it('rejects an empty name without writing', async () => {
     const { createCategory } = await import('./categories.ts')
 
     await expect(createCategory(fakeDb, '', catalogue.shopId('pharmacy'))).rejects.toThrow()
-    expect(addDoc).not.toHaveBeenCalled()
+    expect(batchSet).not.toHaveBeenCalled()
+    expect(batchCommit).not.toHaveBeenCalled()
   })
 
   it('rejects an empty default Shop id without writing', async () => {
@@ -107,12 +140,12 @@ describe('createCategory', () => {
     const emptyShopId = '' as unknown as catalogue.ShopId
 
     await expect(createCategory(fakeDb, 'Medicine', emptyShopId)).rejects.toThrow()
-    expect(addDoc).not.toHaveBeenCalled()
+    expect(batchSet).not.toHaveBeenCalled()
   })
 
-  it('resolves once the write is queued, without waiting for Firestore to acknowledge it', async () => {
+  it('resolves once the batch is queued, without waiting for Firestore to acknowledge it', async () => {
     const { createCategory } = await import('./categories.ts')
-    addDoc.mockReturnValueOnce(new Promise(() => {}))
+    batchCommit.mockReturnValueOnce(new Promise(() => {}))
 
     await expect(createCategory(fakeDb, 'Medicine', catalogue.shopId('pharmacy'))).resolves.toBeUndefined()
   })
@@ -150,33 +183,41 @@ describe('renameCategory', () => {
 })
 
 describe('deleteCategory', () => {
-  it('deletes a Category no Item belongs to', async () => {
+  const medicine = {
+    id: catalogue.categoryId('medicine'),
+    name: 'Medicine',
+    defaultShopId: catalogue.shopId('pharmacy'),
+    referenceCount: 0,
+  }
+
+  it("deletes a Category and drops its default Shop's reference, once Firestore accepts the batch", async () => {
     const { deleteCategory } = await import('./categories.ts')
-    getDocs.mockResolvedValueOnce({ empty: true })
-    deleteDoc.mockResolvedValueOnce(undefined)
+    batchCommit.mockResolvedValueOnce(undefined)
 
-    await deleteCategory(fakeDb, catalogue.categoryId('medicine'))
+    await deleteCategory(fakeDb, medicine)
 
-    expect(where).toHaveBeenCalledWith('categoryId', '==', 'medicine')
-    expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATALOGUE_ITEMS_COLLECTION)
-    expect(deleteDoc).toHaveBeenCalledWith({ path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' })
-  })
-
-  it('resolves once the delete is queued, without waiting for Firestore to acknowledge it', async () => {
-    const { deleteCategory } = await import('./categories.ts')
-    getDocs.mockResolvedValueOnce({ empty: true })
-    deleteDoc.mockReturnValueOnce(new Promise(() => {}))
-
-    await expect(deleteCategory(fakeDb, catalogue.categoryId('medicine'))).resolves.toBeUndefined()
-  })
-
-  it('refuses with CategoryInUseError while an Item still belongs to it, without deleting', async () => {
-    const { deleteCategory, CategoryInUseError } = await import('./categories.ts')
-    getDocs.mockResolvedValueOnce({ empty: false })
-
-    await expect(deleteCategory(fakeDb, catalogue.categoryId('medicine'))).rejects.toBeInstanceOf(
-      CategoryInUseError,
+    expect(batchDelete).toHaveBeenCalledWith({ path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' })
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
+      { referenceCount: { kind: 'increment', delta: -1 } },
     )
-    expect(deleteDoc).not.toHaveBeenCalled()
+    expect(batchCommit).toHaveBeenCalled()
+  })
+
+  it("refuses with CategoryInUseError when the platform's rules deny the delete", async () => {
+    const { deleteCategory, CategoryInUseError } = await import('./categories.ts')
+    batchCommit.mockRejectedValueOnce(new FirebaseError('permission-denied', 'Missing or insufficient permissions.'))
+
+    await expect(deleteCategory(fakeDb, medicine)).rejects.toBeInstanceOf(CategoryInUseError)
+  })
+
+  it('logs and resolves instead of throwing when the delete fails to sync for another reason', async () => {
+    const { deleteCategory } = await import('./categories.ts')
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    batchCommit.mockRejectedValueOnce(new Error('offline'))
+
+    await expect(deleteCategory(fakeDb, medicine)).resolves.toBeUndefined()
+    expect(consoleError).toHaveBeenCalled()
+    consoleError.mockRestore()
   })
 })
