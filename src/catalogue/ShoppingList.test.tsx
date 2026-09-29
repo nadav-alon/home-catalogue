@@ -304,6 +304,6 @@ describe('ticking an Item', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: 'Bandages' }))
     })
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Could not update State')
+    expect(screen.getByText('Could not update State')).toHaveAttribute('role', 'alert')
   })
 })
