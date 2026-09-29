@@ -39,6 +39,8 @@ vi.mock('./catalogue/categories.ts', () => ({
 }))
 vi.mock('./catalogue/items.ts', () => ({
   watchItems: () => vi.fn(),
+  createItem: vi.fn(),
+  updateItem: vi.fn(),
 }))
 
 const readDeployedPlatformVersion = vi.fn()
