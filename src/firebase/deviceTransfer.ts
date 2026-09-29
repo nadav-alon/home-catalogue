@@ -33,16 +33,9 @@ export function parseConfigFragment(hash: string): FirebaseWebConfig | null {
   if (!hash.startsWith(FRAGMENT_PREFIX)) return null
 
   const payload = hash.slice(FRAGMENT_PREFIX.length)
-  let json: string
-  try {
-    json = fromBase64Url(payload)
-  } catch {
-    throw new InvalidFirebaseWebConfigError('That device transfer link is truncated or corrupted.')
-  }
-
   let parsed: unknown
   try {
-    parsed = JSON.parse(json)
+    parsed = JSON.parse(fromBase64Url(payload))
   } catch {
     throw new InvalidFirebaseWebConfigError('That device transfer link is truncated or corrupted.')
   }

@@ -22,19 +22,18 @@ interface InitialState {
  */
 function resolveInitialState(): InitialState {
   const stored = getStoredFirebaseConfig()
-  const hash = location.hash
-  if (!hash.startsWith('#config=')) return { config: stored, setupError: null }
-
-  history.replaceState(null, '', location.pathname + location.search)
 
   let incoming: FirebaseWebConfig | null
   try {
-    incoming = parseConfigFragment(hash)
+    incoming = parseConfigFragment(location.hash)
   } catch (err) {
+    history.replaceState(null, '', location.pathname + location.search)
     const message = err instanceof InvalidFirebaseWebConfigError ? err.message : 'Invalid device transfer link.'
     return { config: stored, setupError: message }
   }
   if (incoming === null) return { config: stored, setupError: null }
+
+  history.replaceState(null, '', location.pathname + location.search)
 
   if (stored !== null) {
     if (sameFirebaseConfig(stored, incoming)) return { config: stored, setupError: null }
