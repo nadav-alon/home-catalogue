@@ -70,7 +70,7 @@ describe('isHouseholdMember against the real rules', () => {
   it("is true once the caller's own member doc exists", async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await context.firestore().doc(core.memberDocPath(alice)).set({
-        email: 'alice@example.com',
+        email: core.email('alice@example.com'),
         addedAt: new Date(),
       })
     })
