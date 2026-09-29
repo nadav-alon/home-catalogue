@@ -63,6 +63,6 @@ describe('App', () => {
     act(() => watchItemsCallbacks.forEach((cb) => cb(items)))
 
     expect(screen.getByRole('alert')).toHaveTextContent('1')
-    expect(screen.getByRole('link', { name: /shopping list/ })).toHaveAttribute('href', '#shopping-list')
+    expect(screen.getByRole('link', { name: /shopping list/i })).toHaveAttribute('href', '#shopping-list')
   })
 })

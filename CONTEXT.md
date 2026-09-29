@@ -31,8 +31,8 @@ Every State change, timestamped, append-only.
 _Avoid_: priority
 
 **Alert**:
-A level from Necessity × State: **now** (red banner, same-day reminder on the exported event) or
-**soon** (yellow banner).
+A level from Necessity × State: **now** ("urgent" in banner copy; red banner, same-day reminder on
+the exported event) or **soon** (yellow banner).
 
 | Necessity \ State | enough | running low | out     |
 | ----------------- | ------ | ----------- | ------- |

@@ -1,6 +1,6 @@
 import type { JSX } from 'preact'
 import { catalogue, core } from 'data-platform'
-import { alertLevel } from './alerts.ts'
+import { alertLevel, type AlertLevel } from './alerts.ts'
 import { SHOPPING_LIST_ANCHOR } from '../links.ts'
 
 export interface AlertBannerItem {
@@ -12,17 +12,37 @@ export interface AlertBannerProps {
   items: AlertBannerItem[]
 }
 
-const BANNERS: Record<'now' | 'soon', { role: 'alert' | 'status'; style: JSX.CSSProperties; verb: string }> = {
-  now: { role: 'alert', style: { backgroundColor: '#fee2e2', color: '#991b1b' }, verb: 'to buy now' },
-  soon: { role: 'status', style: { backgroundColor: '#fef9c3', color: '#854d0e' }, verb: 'to buy soon' },
+function itemNoun(count: number): string {
+  return `Item${count === 1 ? '' : 's'}`
 }
 
-function banner(level: 'now' | 'soon', count: number) {
-  const { role, style, verb } = BANNERS[level]
+const BANNERS: Record<
+  Exclude<AlertLevel, 'none'>,
+  { role: 'alert' | 'status'; style: JSX.CSSProperties; text: (count: number) => string }
+> = {
+  now: {
+    role: 'alert',
+    style: { backgroundColor: '#fee2e2', color: '#991b1b' },
+    text: (count) => `${count} urgent ${itemNoun(count)}`,
+  },
+  soon: {
+    role: 'status',
+    style: { backgroundColor: '#fef9c3', color: '#854d0e' },
+    text: (count) => `${count} ${itemNoun(count)} to buy soon (not urgent)`,
+  },
+}
+
+/**
+ * Names only the count of Items at this Alert level, not the Shopping list's count — the Shopping
+ * list is every Item at `running low` or `out`, whatever its Alert level, so the two counts can
+ * differ.
+ */
+function banner(level: Exclude<AlertLevel, 'none'>, count: number) {
+  const { role, style, text } = BANNERS[level]
   return (
     <div role={role} style={style}>
       <p>
-        {count} Item{count === 1 ? '' : 's'} {verb} — see the <a href={SHOPPING_LIST_ANCHOR}>shopping list</a>.
+        {text(count)} — see the <a href={SHOPPING_LIST_ANCHOR}>Shopping list</a>.
       </p>
     </div>
   )
