@@ -1,8 +1,16 @@
-import { collection, onSnapshot, orderBy, query, type Firestore } from 'firebase/firestore'
+import { collection, doc, onSnapshot, orderBy, query, writeBatch, type Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 
 export interface ItemRecord extends core.Item, catalogue.CatalogueItem {
   id: core.ItemId
+}
+
+export interface ItemInput {
+  name: string
+  brandNote?: string
+  categoryId: catalogue.CategoryId
+  necessity: catalogue.Necessity
+  shopId?: catalogue.ShopId
 }
 
 function toItemRecord(id: core.ItemId, item: core.Item, catalogueItem: catalogue.CatalogueItem): ItemRecord {
@@ -67,4 +75,33 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
     unsubscribeItems()
     unsubscribeCatalogueItems()
   }
+}
+
+/**
+ * Validates against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema} before
+ * writing a new Item's two docs, core `items` plus catalogue `catalogueItems`, keyed by the same
+ * generated id, as one batch. A new Item always starts at State `enough`. Resolves once the batch
+ * is queued, not once Firestore acknowledges it, so a caller offline is not left waiting; a batch
+ * that later fails to sync is only logged.
+ */
+export async function createItem(db: Firestore, input: ItemInput): Promise<void> {
+  const item = core.itemSchema.parse({
+    name: input.name,
+    state: 'enough',
+    ...(input.brandNote !== undefined ? { brandNote: input.brandNote } : {}),
+  })
+  const catalogueItem = catalogue.catalogueItemSchema.parse({
+    categoryId: input.categoryId,
+    necessity: input.necessity,
+    ...(input.shopId !== undefined ? { shopId: input.shopId } : {}),
+  })
+
+  const itemRef = doc(collection(db, core.ITEMS_COLLECTION))
+  const catalogueItemRef = doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, itemRef.id)
+  const batch = writeBatch(db)
+  batch.set(itemRef, item)
+  batch.set(catalogueItemRef, catalogueItem)
+  void batch.commit().catch((err: unknown) => {
+    console.error('Failed to sync new Item', err)
+  })
 }
