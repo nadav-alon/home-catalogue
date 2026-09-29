@@ -28,6 +28,12 @@ describe('AlertBanner', () => {
     expect(screen.getByRole('link', { name: /shopping list/i })).toHaveAttribute('href', '#shopping-list')
   })
 
+  it('shows a yellow banner in the singular for one soon Item', () => {
+    render(<AlertBanner items={[item('important', 'running low')]} />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('1 Item to buy soon (not urgent)')
+  })
+
   it('shows a red banner naming the count and linking the shopping list when any Item is now', () => {
     render(
       <AlertBanner
@@ -44,6 +50,12 @@ describe('AlertBanner', () => {
     expect(banner).toHaveTextContent('2 urgent Items')
     expect(banner).toHaveStyle({ backgroundColor: '#fee2e2' })
     expect(screen.getByRole('link', { name: /shopping list/i })).toHaveAttribute('href', '#shopping-list')
+  })
+
+  it('shows a red banner in the singular for one now Item', () => {
+    render(<AlertBanner items={[item('essential', 'out')]} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('1 urgent Item')
   })
 
   it('shows only the red banner when both now and soon Items exist', () => {
