@@ -9,7 +9,6 @@ import { titleOf } from '../shell/titles.ts'
 const SHOPS = route('/settings/shops')
 const CATEGORIES = route('/settings/categories')
 
-/** The Settings screen: a list of rows, each opening a sub-page or running a device-level action. */
 export interface SettingsScreenProps {
   config: FirebaseWebConfig
   /** Forgets the stored Firebase configuration; called once the user has confirmed. */
@@ -17,6 +16,7 @@ export interface SettingsScreenProps {
   onSignOut: () => void | Promise<void>
 }
 
+/** The Settings screen: a list of rows, each opening a sub-page or running a device-level action. */
 export function SettingsScreen({ config, onResetConfig, onSignOut }: SettingsScreenProps) {
   return (
     <ul>
