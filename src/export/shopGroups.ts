@@ -1,12 +1,9 @@
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import { resolvedShopId, type ItemRecord } from '../catalogue/items.ts'
-import { groupPendingItemsByShop } from '../catalogue/pendingItemsByShop.ts'
+import { groupPendingItemsByShop, type PendingShopGroup } from '../catalogue/pendingItemsByShop.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
 
-export interface ShopGroup {
-  shop: ShopRecord
-  items: ItemRecord[]
-}
+export type ShopGroup = PendingShopGroup
 
 export interface PendingItemGroups {
   groups: ShopGroup[]
