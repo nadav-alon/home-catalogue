@@ -23,6 +23,8 @@ describe('deviceTransferUrl / parseConfigFragment round trip', () => {
   })
 
   it('carries the current page URL, minus any prior fragment', () => {
+    history.replaceState(null, '', '/#stale')
+
     const url = deviceTransferUrl(config)
 
     expect(url).toMatch(/^http:\/\/localhost:3000\/#config=/)
