@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs'
 import type { Firestore } from 'firebase/firestore'
 import {
+  assertFails,
   initializeTestEnvironment,
   type RulesTestContext,
   type RulesTestEnvironment,
@@ -96,6 +97,6 @@ describe('claimHousehold against the real rules', () => {
     })
 
     const db = dbFor(testEnv.authenticatedContext(mallory))
-    await expect(claimHousehold(db, mallory, core.email('mallory@example.com'))).rejects.toThrow()
+    await assertFails(claimHousehold(db, mallory, core.email('mallory@example.com')))
   })
 })
