@@ -9,6 +9,12 @@ interface GisTokenResponse {
   error?: string
 }
 
+/** Reported through `error_callback`, not `callback`, for failures that never reach Google: `popup_closed`, `popup_failed_to_open`, … */
+interface GisTokenErrorResponse {
+  type: string
+  message?: string
+}
+
 interface GisTokenClient {
   requestAccessToken(): void
 }
@@ -18,6 +24,7 @@ interface GoogleAccountsOAuth2 {
     client_id: string
     scope: string
     callback: (response: GisTokenResponse) => void
+    error_callback: (error: GisTokenErrorResponse) => void
   }): GisTokenClient
 }
 
@@ -46,6 +53,9 @@ export function requestCalendarAccessToken(): Promise<string> {
       callback: (response) => {
         if (response.access_token !== undefined) resolve(response.access_token)
         else reject(new Error(response.error ?? 'Google did not grant a Calendar access token.'))
+      },
+      error_callback: (error) => {
+        reject(new Error(error.message ?? `Google Identity Services failed: ${error.type}`))
       },
     })
     client.requestAccessToken()

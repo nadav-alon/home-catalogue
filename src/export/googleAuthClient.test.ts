@@ -81,4 +81,18 @@ describe('requestCalendarAccessToken', () => {
 
     await expect(requestCalendarAccessToken()).rejects.toThrow('access_denied')
   })
+
+  it('rejects when the user closes the popup, via error_callback rather than callback', async () => {
+    window.google = {
+      accounts: {
+        oauth2: {
+          initTokenClient: (config) => ({
+            requestAccessToken: () => config.error_callback({ type: 'popup_closed' }),
+          }),
+        },
+      },
+    }
+
+    await expect(requestCalendarAccessToken()).rejects.toThrow('popup_closed')
+  })
 })
