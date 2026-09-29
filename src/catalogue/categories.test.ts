@@ -114,3 +114,27 @@ describe('renameCategory', () => {
     expect(updateDoc).not.toHaveBeenCalled()
   })
 })
+
+describe('deleteCategory', () => {
+  it('deletes a Category no Item belongs to', async () => {
+    const { deleteCategory } = await import('./categories.ts')
+    getDocs.mockResolvedValueOnce({ empty: true })
+    deleteDoc.mockResolvedValueOnce(undefined)
+
+    await deleteCategory(fakeDb, catalogue.categoryId('medicine'))
+
+    expect(where).toHaveBeenCalledWith('categoryId', '==', 'medicine')
+    expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATALOGUE_ITEMS_COLLECTION)
+    expect(deleteDoc).toHaveBeenCalledWith({ path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' })
+  })
+
+  it('refuses with CategoryInUseError while an Item still belongs to it, without deleting', async () => {
+    const { deleteCategory, CategoryInUseError } = await import('./categories.ts')
+    getDocs.mockResolvedValueOnce({ empty: false })
+
+    await expect(deleteCategory(fakeDb, catalogue.categoryId('medicine'))).rejects.toBeInstanceOf(
+      CategoryInUseError,
+    )
+    expect(deleteDoc).not.toHaveBeenCalled()
+  })
+})

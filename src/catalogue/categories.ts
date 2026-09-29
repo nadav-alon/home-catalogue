@@ -1,11 +1,15 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
+  getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
   updateDoc,
+  where,
   type Firestore,
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
@@ -13,6 +17,9 @@ import { catalogue } from 'data-platform'
 export interface CategoryRecord extends catalogue.Category {
   id: catalogue.CategoryId
 }
+
+/** Thrown by {@link deleteCategory} while a catalogue Item still belongs to the Category. */
+export class CategoryInUseError extends Error {}
 
 function toCategoryRecord(id: string, data: catalogue.Category): CategoryRecord {
   return { id: catalogue.categoryId(id), ...data }
@@ -49,4 +56,15 @@ export async function renameCategory(
 ): Promise<void> {
   const validName = catalogue.categorySchema.shape.name.parse(name)
   await updateDoc(doc(db, catalogue.CATEGORIES_COLLECTION, id), { name: validName })
+}
+
+/** Refuses with {@link CategoryInUseError} while any catalogue Item still belongs to this Category. */
+export async function deleteCategory(db: Firestore, id: catalogue.CategoryId): Promise<void> {
+  const dependents = await getDocs(
+    query(collection(db, catalogue.CATALOGUE_ITEMS_COLLECTION), where('categoryId', '==', id), limit(1)),
+  )
+  if (!dependents.empty) {
+    throw new CategoryInUseError('This Category is still used by an Item, and cannot be deleted.')
+  }
+  await deleteDoc(doc(db, catalogue.CATEGORIES_COLLECTION, id))
 }
