@@ -1,6 +1,6 @@
 import type { JSX } from 'preact'
 import { useId } from 'preact/hooks'
-import './TextField.css'
+import './Field.css'
 
 export interface SelectProps extends Omit<JSX.SelectHTMLAttributes<HTMLSelectElement>, 'class' | 'className'> {
   label: string

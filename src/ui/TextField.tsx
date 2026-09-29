@@ -1,6 +1,6 @@
 import type { JSX } from 'preact'
 import { useId } from 'preact/hooks'
-import './TextField.css'
+import './Field.css'
 
 export interface TextFieldProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'class' | 'className'> {
   label: string
