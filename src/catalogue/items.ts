@@ -1,14 +1,20 @@
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   deleteField,
   doc,
+  getDocs,
   increment,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
+  where,
   writeBatch,
   type Firestore,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import type { CategoryRecord } from './categories.ts'
@@ -28,6 +34,18 @@ export interface ItemInput {
 
 function toItemRecord(id: core.ItemId, item: core.Item, catalogueItem: catalogue.CatalogueItem): ItemRecord {
   return { id, ...item, ...catalogueItem }
+}
+
+/** The Items among core `items` docs, each with its id; a document failing its schema is logged and left out. */
+function parseCoreItemDocs(docs: readonly QueryDocumentSnapshot[]): (core.Item & { id: core.ItemId })[] {
+  return docs.flatMap((snapshotDoc) => {
+    const parsed = core.itemSchema.safeParse(snapshotDoc.data())
+    if (!parsed.success) {
+      console.error(`Skipping invalid Item document ${snapshotDoc.id}`, parsed.error)
+      return []
+    }
+    return [{ id: core.itemId(snapshotDoc.id), ...parsed.data }]
+  })
 }
 
 /** The Item's own Shop, else its Category's default; the Item's own Shop alone when its Category isn't loaded. */
@@ -65,16 +83,7 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
   }
 
   const unsubscribeItems = onSnapshot(query(collection(db, core.ITEMS_COLLECTION), orderBy('name')), (snapshot) => {
-    coreItems = new Map(
-      snapshot.docs.flatMap((snapshotDoc) => {
-        const parsed = core.itemSchema.safeParse(snapshotDoc.data())
-        if (!parsed.success) {
-          console.error(`Skipping invalid Item document ${snapshotDoc.id}`, parsed.error)
-          return []
-        }
-        return [[core.itemId(snapshotDoc.id), parsed.data] as const]
-      }),
-    )
+    coreItems = new Map(parseCoreItemDocs(snapshot.docs).map((item) => [item.id, item] as const))
     coreLoaded = true
     emit()
   })
@@ -202,4 +211,55 @@ export async function setItemState(
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`State change for ${item.name}`, err)
   })
+}
+
+/**
+ * Every Item whose core `items` doc carries `barcode` in its `barcodes`, answered from the local
+ * cache when offline. Empty when none does. Only the core half is returned, so an Item whose
+ * catalogue half has not synced yet is found here though {@link watchItems} does not emit it; a
+ * document failing its schema is left out.
+ */
+export async function findItemsByBarcode(
+  db: Firestore,
+  barcode: core.Barcode,
+): Promise<(core.Item & { id: core.ItemId })[]> {
+  const snapshot = await getDocs(
+    query(collection(db, core.ITEMS_COLLECTION), where('barcodes', 'array-contains', barcode)),
+  )
+  return parseCoreItemDocs(snapshot.docs)
+}
+
+/**
+ * Validates `barcode` with {@link core.barcode}, which throws naming it, before adding it to the Item's
+ * `barcodes` with `arrayUnion`, so attaching one the Item already carries changes nothing.
+ * Resolves once the write is queued, see {@link createItem}.
+ */
+export async function attachBarcode(
+  db: Firestore,
+  item: Pick<ItemRecord, 'id' | 'name'>,
+  barcode: string,
+): Promise<void> {
+  const validBarcode = core.barcode(barcode)
+
+  void updateDoc(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) }).catch(
+    (err: unknown) => {
+      reportWriteRejection(`barcode change for ${item.name}`, err)
+    },
+  )
+}
+
+/**
+ * Removes `barcode` from the Item's `barcodes` with `arrayRemove`, leaving its other barcodes.
+ * Resolves once the write is queued, see {@link createItem}.
+ */
+export async function removeBarcode(
+  db: Firestore,
+  item: Pick<ItemRecord, 'id' | 'name'>,
+  barcode: core.Barcode,
+): Promise<void> {
+  void updateDoc(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayRemove(barcode) }).catch(
+    (err: unknown) => {
+      reportWriteRejection(`barcode removal for ${item.name}`, err)
+    },
+  )
 }

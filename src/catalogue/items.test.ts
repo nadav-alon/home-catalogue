@@ -23,6 +23,11 @@ const writeBatch = vi.fn((_db: unknown) => ({ set: batchSet, update: batchUpdate
 const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
 const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
 const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
+const where = vi.fn((field: string, op: string, value: unknown) => ({ kind: 'where', field, op, value }))
+const getDocs = vi.fn()
+const updateDoc = vi.fn()
+const arrayRemove = vi.fn((...values: unknown[]) => ({ kind: 'arrayRemove', values }))
+const arrayUnion = vi.fn((...values: unknown[]) => ({ kind: 'arrayUnion', values }))
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
@@ -34,6 +39,11 @@ vi.mock('firebase/firestore', () => ({
   deleteField: () => deleteField(),
   serverTimestamp: () => serverTimestamp(),
   increment: (n: number) => increment(n),
+  where: (field: string, op: string, value: unknown) => where(field, op, value),
+  getDocs: (q: unknown) => getDocs(q),
+  updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
+  arrayUnion: (...values: unknown[]) => arrayUnion(...values),
+  arrayRemove: (...values: unknown[]) => arrayRemove(...values),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -51,6 +61,11 @@ beforeEach(() => {
   deleteField.mockClear()
   serverTimestamp.mockClear()
   increment.mockClear()
+  where.mockClear()
+  getDocs.mockReset()
+  updateDoc.mockReset()
+  arrayUnion.mockClear()
+  arrayRemove.mockClear()
 })
 
 describe('watchItems', () => {
@@ -538,5 +553,132 @@ describe('a queued Item write the server rejects', () => {
     await Promise.resolve()
 
     expect(latest()).toEqual(['Could not save changes to Dish soap'])
+  })
+})
+
+describe('findItemsByBarcode', () => {
+  it('returns every core Item whose barcodes contain the barcode', async () => {
+    const { findItemsByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        { id: 'dish-soap', data: () => ({ name: 'Dish soap', state: 'enough', barcodes: ['12345678'] }) },
+        { id: 'sponge', data: () => ({ name: 'Sponge', state: 'out', barcodes: ['12345678', '1234567890123'] }) },
+      ],
+    })
+
+    const found = await findItemsByBarcode(fakeDb, core.barcode('12345678'))
+
+    expect(collection).toHaveBeenCalledWith(fakeDb, core.ITEMS_COLLECTION)
+    expect(where).toHaveBeenCalledWith('barcodes', 'array-contains', '12345678')
+    expect(found).toEqual([
+      { id: 'dish-soap', name: 'Dish soap', state: 'enough', barcodes: ['12345678'] },
+      { id: 'sponge', name: 'Sponge', state: 'out', barcodes: ['12345678', '1234567890123'] },
+    ])
+  })
+
+  it('returns an empty list when no Item carries the barcode', async () => {
+    const { findItemsByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({ docs: [] })
+
+    expect(await findItemsByBarcode(fakeDb, core.barcode('12345678'))).toEqual([])
+  })
+
+  it('skips a document that fails its schema', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { findItemsByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 'broken', data: () => ({ name: '', state: 'nonsense' }) }] })
+
+    expect(await findItemsByBarcode(fakeDb, core.barcode('12345678'))).toEqual([])
+  })
+})
+
+describe('attachBarcode', () => {
+  const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
+
+  it('writes the barcode to the Item with arrayUnion', async () => {
+    const { attachBarcode } = await import('./items.ts')
+    updateDoc.mockResolvedValueOnce(undefined)
+
+    await attachBarcode(fakeDb, dishSoap, '12345678')
+
+    expect(arrayUnion).toHaveBeenCalledWith('12345678')
+    expect(updateDoc).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
+      { barcodes: { kind: 'arrayUnion', values: ['12345678'] } },
+    )
+  })
+
+  it('rejects a non-GTIN before writing', async () => {
+    const { attachBarcode } = await import('./items.ts')
+
+    await expect(attachBarcode(fakeDb, dishSoap, '12345')).rejects.toThrow('Not a Barcode: "12345"')
+    await expect(attachBarcode(fakeDb, dishSoap, '1234567A')).rejects.toThrow('Not a Barcode: "1234567A"')
+
+    expect(updateDoc).not.toHaveBeenCalled()
+  })
+
+  it('does not wait for the server, so a caller offline is not left waiting', async () => {
+    const { attachBarcode } = await import('./items.ts')
+    updateDoc.mockReturnValueOnce(new Promise(() => {}))
+
+    await attachBarcode(fakeDb, dishSoap, '12345678')
+  })
+})
+
+describe('removeBarcode', () => {
+  const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
+
+  it('writes the removal of that barcode to the Item with arrayRemove', async () => {
+    const { removeBarcode } = await import('./items.ts')
+    updateDoc.mockResolvedValueOnce(undefined)
+
+    await removeBarcode(fakeDb, dishSoap, core.barcode('12345678'))
+
+    expect(arrayRemove).toHaveBeenCalledWith('12345678')
+    expect(updateDoc).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
+      { barcodes: { kind: 'arrayRemove', values: ['12345678'] } },
+    )
+  })
+})
+
+describe('barcode write rejections', () => {
+  const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
+
+  async function rejections() {
+    const { watchWriteRejections } = await import('./writeRejections.ts')
+    let latest: string[] = []
+    watchWriteRejections((list) => {
+      latest = list.map((rejection) => rejection.message)
+    })
+    return () => latest
+  }
+
+  beforeEach(async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { resetWriteRejections } = await import('./writeRejections.ts')
+    resetWriteRejections()
+  })
+
+  it('reports an attach the server rejects', async () => {
+    const { attachBarcode } = await import('./items.ts')
+    const latest = await rejections()
+    updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await attachBarcode(fakeDb, dishSoap, '12345678')
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save barcode change for Dish soap'])
+  })
+
+  it('reports a removal the server rejects', async () => {
+    const { removeBarcode } = await import('./items.ts')
+    const latest = await rejections()
+    updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await removeBarcode(fakeDb, dishSoap, core.barcode('12345678'))
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save barcode removal for Dish soap'])
   })
 })
