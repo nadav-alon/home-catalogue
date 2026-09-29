@@ -12,6 +12,7 @@ import {
   type ItemRecord,
 } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
+import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { shopName, UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 
 export interface ItemsManagerProps {
@@ -139,6 +140,8 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   return (
     <section>
       <h2>Items</h2>
+      {/* TODO[#169]: route the scanned barcode to its Items, or attach it. */}
+      <ScanEntry onScan={() => {}} />
       {error !== null && <p role="alert">{error}</p>}
       {groups.map(({ category, items: categoryItems }) => (
         <div key={category.id}>

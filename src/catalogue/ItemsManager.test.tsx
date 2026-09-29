@@ -42,6 +42,15 @@ beforeEach(() => {
   watchShops.mockReset()
 })
 
+/**
+ * Picks an option the way a browser does. Once `preact/compat` is loaded (the top app bar's portal
+ * pulls it in), Testing Library's `fireEvent.change` no longer reaches a `<select>`'s `onChange`.
+ */
+function choose(select: HTMLElement, value: string) {
+  ;(select as HTMLSelectElement).value = value
+  fireEvent(select, new Event('change', { bubbles: true }))
+}
+
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
     cb(items)
@@ -193,8 +202,8 @@ describe('adding an Item', () => {
 
     fireEvent.input(screen.getByLabelText('New Item name'), { target: { value: 'Bandages' } })
     fireEvent.input(screen.getByLabelText('Brand note'), { target: { value: 'the waterproof ones' } })
-    fireEvent.change(screen.getByLabelText('Category'), { target: { value: medicine.id } })
-    fireEvent.change(screen.getByLabelText('Necessity'), { target: { value: 'essential' } })
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
 
     expect(createItem).toHaveBeenCalledWith(fakeDb, {
@@ -210,9 +219,9 @@ describe('adding an Item', () => {
     renderWith([], [medicine, cleaning], [pharmacy, grocery])
 
     fireEvent.input(screen.getByLabelText('New Item name'), { target: { value: 'Bandages' } })
-    fireEvent.change(screen.getByLabelText('Category'), { target: { value: medicine.id } })
-    fireEvent.change(screen.getByLabelText('Necessity'), { target: { value: 'essential' } })
-    fireEvent.change(screen.getByLabelText('Shop override'), { target: { value: grocery.id } })
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
+    choose(screen.getByLabelText('Shop override'), grocery.id)
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
 
     expect(createItem).toHaveBeenCalledWith(fakeDb, {
@@ -227,8 +236,8 @@ describe('adding an Item', () => {
   it('refuses to add an Item with a blank name, without calling createItem', () => {
     renderWith([], [medicine], [pharmacy])
 
-    fireEvent.change(screen.getByLabelText('Category'), { target: { value: medicine.id } })
-    fireEvent.change(screen.getByLabelText('Necessity'), { target: { value: 'essential' } })
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('An Item needs a name.')
@@ -239,7 +248,7 @@ describe('adding an Item', () => {
     renderWith([], [medicine], [pharmacy])
 
     fireEvent.input(screen.getByLabelText('New Item name'), { target: { value: 'Bandages' } })
-    fireEvent.change(screen.getByLabelText('Necessity'), { target: { value: 'essential' } })
+    choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a Category.')
@@ -250,7 +259,7 @@ describe('adding an Item', () => {
     renderWith([], [medicine], [pharmacy])
 
     fireEvent.input(screen.getByLabelText('New Item name'), { target: { value: 'Bandages' } })
-    fireEvent.change(screen.getByLabelText('Category'), { target: { value: medicine.id } })
+    choose(screen.getByLabelText('Category'), medicine.id)
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a Necessity.')
@@ -272,8 +281,8 @@ describe('editing an Item', () => {
     renderWith([bandages], [medicine, cleaning], [pharmacy, grocery])
 
     fireEvent.input(screen.getByLabelText('Edit Bandages'), { target: { value: 'Large bandages' } })
-    fireEvent.change(screen.getByLabelText('Category for Bandages'), { target: { value: cleaning.id } })
-    fireEvent.change(screen.getByLabelText('Necessity for Bandages'), { target: { value: 'optional' } })
+    choose(screen.getByLabelText('Category for Bandages'), cleaning.id)
+    choose(screen.getByLabelText('Necessity for Bandages'), 'optional')
     fireEvent.click(screen.getByRole('button', { name: 'Save Bandages' }))
 
     expect(updateItem).toHaveBeenCalledWith(fakeDb, bandages, {
@@ -288,7 +297,7 @@ describe('editing an Item', () => {
   it('adds a Shop override', () => {
     renderWith([bandages], [medicine], [pharmacy, grocery])
 
-    fireEvent.change(screen.getByLabelText('Shop override for Bandages'), { target: { value: grocery.id } })
+    choose(screen.getByLabelText('Shop override for Bandages'), grocery.id)
     fireEvent.click(screen.getByRole('button', { name: 'Save Bandages' }))
 
     expect(updateItem).toHaveBeenCalledWith(
