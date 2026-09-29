@@ -25,6 +25,13 @@ function dbFor(context: RulesTestContext): Firestore {
   return context.firestore() as unknown as Firestore
 }
 
+/** Seeds a Household already claimed by `alice`, bypassing rules. */
+async function seedClaimedHousehold(): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(core.HOUSEHOLD_DOC_PATH).set({ owner: alice })
+  })
+}
+
 beforeAll(async () => {
   const projectId = process.env.GCLOUD_PROJECT
   if (!projectId) {
@@ -53,9 +60,7 @@ describe('householdExists against the real rules', () => {
   })
 
   it('is true for a signed-in non-member once the household is claimed', async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc(core.HOUSEHOLD_DOC_PATH).set({ owner: alice })
-    })
+    await seedClaimedHousehold()
 
     const db = dbFor(testEnv.authenticatedContext(mallory))
     await expect(householdExists(db)).resolves.toBe(true)
@@ -65,6 +70,14 @@ describe('householdExists against the real rules', () => {
 describe('isHouseholdMember against the real rules', () => {
   it("is false for a signed-in non-member's own member doc", async () => {
     const db = dbFor(testEnv.authenticatedContext(mallory))
+    await expect(isHouseholdMember(db, mallory)).resolves.toBe(false)
+  })
+
+  it('is false for a signed-in non-member once the household is claimed by someone else', async () => {
+    await seedClaimedHousehold()
+
+    const db = dbFor(testEnv.authenticatedContext(mallory))
+    await expect(householdExists(db)).resolves.toBe(true)
     await expect(isHouseholdMember(db, mallory)).resolves.toBe(false)
   })
 
@@ -92,9 +105,7 @@ describe('claimHousehold against the real rules', () => {
   })
 
   it("denies a second signed-in non-member's claim once the household is already claimed", async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc(core.HOUSEHOLD_DOC_PATH).set({ owner: alice })
-    })
+    await seedClaimedHousehold()
 
     const db = dbFor(testEnv.authenticatedContext(mallory))
     await assertFails(claimHousehold(db, mallory, core.email('mallory@example.com')))
