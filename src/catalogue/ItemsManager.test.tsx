@@ -11,7 +11,8 @@ const watchItems = vi.fn()
 const createItem = vi.fn()
 const updateItem = vi.fn()
 const setItemState = vi.fn()
-vi.mock('./items.ts', () => ({
+vi.mock('./items.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),

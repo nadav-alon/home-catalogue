@@ -11,6 +11,7 @@ import {
   type Firestore,
 } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
+import type { CategoryRecord } from './categories.ts'
 
 export interface ItemRecord extends core.Item, catalogue.CatalogueItem {
   id: core.ItemId
@@ -26,6 +27,16 @@ export interface ItemInput {
 
 function toItemRecord(id: core.ItemId, item: core.Item, catalogueItem: catalogue.CatalogueItem): ItemRecord {
   return { id, ...item, ...catalogueItem }
+}
+
+/** The Item's own Shop, else its Category's default; the Item's own Shop alone when its Category isn't loaded. */
+export function resolvedShopId(item: ItemRecord, category: CategoryRecord | undefined): catalogue.ShopId | undefined {
+  return category !== undefined ? catalogue.resolveShop(item, category) : item.shopId
+}
+
+/** Whether an Item's State belongs on the Shopping list: `running low` or `out`. */
+export function isPending(state: core.State): boolean {
+  return state === 'running low' || state === 'out'
 }
 
 /**

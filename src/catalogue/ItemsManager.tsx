@@ -2,7 +2,15 @@ import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
-import { createItem, setItemState, updateItem, watchItems, type ItemInput, type ItemRecord } from './items.ts'
+import {
+  createItem,
+  resolvedShopId,
+  setItemState,
+  updateItem,
+  watchItems,
+  type ItemInput,
+  type ItemRecord,
+} from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { shopName, UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 
@@ -68,7 +76,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   useEffect(() => watchShops(db, setShops), [db])
 
   function resolveShopName(item: ItemRecord, category: CategoryRecord | undefined): string {
-    const shopId = category !== undefined ? catalogue.resolveShop(item, category) : item.shopId
+    const shopId = resolvedShopId(item, category)
     return shopId !== undefined ? shopName(shops, shopId) : UNKNOWN_SHOP_NAME
   }
 
