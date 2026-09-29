@@ -134,6 +134,14 @@ describe('Root', () => {
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
   })
 
+  it('renders the reset button as a text-variant ui-button', () => {
+    saveFirebaseConfig(validConfig)
+    render(<Root />)
+
+    const button = screen.getByRole('button', { name: 'Reset Firebase configuration' })
+    expect(button).toHaveClass('ui-button', 'ui-button--text')
+  })
+
   it('tears down the previous client before initialising a new one after reset', async () => {
     saveFirebaseConfig(validConfig)
     render(<Root />)
