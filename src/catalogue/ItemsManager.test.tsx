@@ -122,6 +122,27 @@ describe('ItemsManager', () => {
     expect(screen.queryByLabelText('Edit Bandages')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save Bandages' })).not.toBeInTheDocument()
   })
+
+  it('lists Uncategorised last, after every Category', () => {
+    const orphan: ItemRecord = {
+      id: core.itemId('orphan'),
+      name: 'Mystery item',
+      state: 'enough',
+      categoryId: catalogue.categoryId('deleted-category'),
+      necessity: 'important',
+    }
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'enough',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([orphan, bandages], [medicine], [pharmacy])
+
+    const headings = screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
+    expect(headings).toEqual(['Medicine', 'Uncategorised'])
+  })
 })
 
 describe('an Item whose Category is not in the local list', () => {
