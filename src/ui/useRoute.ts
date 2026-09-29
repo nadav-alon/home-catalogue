@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import { routeOf, type Route } from './route.ts'
+import { hashOf, routeOf, type Route } from './route.ts'
 
 /** The current route, re-read whenever the URL hash changes. */
 export function useRoute(): Route {
@@ -10,4 +10,9 @@ export function useRoute(): Route {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
   return current
+}
+
+/** Shows `value` by pushing a history entry, so back returns to the previous route. */
+export function navigate(value: Route): void {
+  window.location.hash = hashOf(value)
 }

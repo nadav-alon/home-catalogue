@@ -1,10 +1,11 @@
 import { act, renderHook } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_ROUTE, route } from './route.ts'
-import { useRoute } from './useRoute.ts'
+import { navigate, useRoute } from './useRoute.ts'
 
-afterEach(() => {
+afterEach(async () => {
   window.location.hash = ''
+  await new Promise((resolve) => setTimeout(resolve))
 })
 
 function nextHashChange(): Promise<unknown> {
@@ -38,5 +39,24 @@ describe('useRoute', () => {
     unmount()
     expect(remove).toHaveBeenCalledWith('hashchange', expect.any(Function))
     remove.mockRestore()
+  })
+})
+
+describe('navigate', () => {
+  it('pushes a history entry so back returns to the previous route', async () => {
+    const { result } = renderHook(() => useRoute())
+    const entries = window.history.length
+    await act(async () => {
+      navigate(route('/items'))
+      await nextHashChange()
+    })
+    expect(window.history.length).toBe(entries + 1)
+    expect(result.current).toBe(route('/items'))
+
+    await act(async () => {
+      window.history.back()
+      await nextHashChange()
+    })
+    expect(result.current).toBe(DEFAULT_ROUTE)
   })
 })
