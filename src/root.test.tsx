@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Root } from './root.tsx'
 import { saveFirebaseConfig } from './firebase/configStorage.ts'
 import { deviceTransferUrl } from './firebase/deviceTransfer.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
+import { resetHash } from './testing/hash.ts'
 import type { AuthUser } from './auth/authClient.ts'
 
 const initFirebase = vi.fn()
@@ -74,6 +75,17 @@ function hashOf(url: string): string {
   return url.slice(url.indexOf('#'))
 }
 
+async function resetFromSettings() {
+  vi.spyOn(window, 'confirm').mockReturnValue(true)
+  window.location.hash = '#/settings'
+  fireEvent.click(await screen.findByRole('button', { name: 'Reset' }))
+}
+
+afterEach(async () => {
+  vi.restoreAllMocks()
+  await resetHash()
+})
+
 beforeEach(() => {
   localStorage.clear()
   history.replaceState(null, '', '/')
@@ -127,26 +139,18 @@ describe('Root', () => {
     saveFirebaseConfig(validConfig)
     render(<Root />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
+    await resetFromSettings()
 
     expect(await screen.findByRole('heading', { name: 'Set up' })).toBeInTheDocument()
     expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
   })
 
-  it('renders the reset button as a text-variant ui-button', () => {
-    saveFirebaseConfig(validConfig)
-    render(<Root />)
-
-    const button = screen.getByRole('button', { name: 'Reset Firebase configuration' })
-    expect(button).toHaveClass('ui-button', 'ui-button--text')
-  })
-
   it('tears down the previous client before initialising a new one after reset', async () => {
     saveFirebaseConfig(validConfig)
     render(<Root />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
+    await resetFromSettings()
     await screen.findByRole('heading', { name: 'Set up' })
 
     const otherConfig = firebaseWebConfig({ ...validConfig, projectId: 'other-household' })
