@@ -77,7 +77,7 @@ function ShoppingListRow({ item, onTick }: ShoppingListRowProps) {
       headline={item.name}
       supporting={runningLow ? 'optional' : undefined}
       muted={runningLow}
-      trailing={<input type="checkbox" aria-label={item.name} checked={false} onChange={onTick} />}
+      control={<input type="checkbox" checked={false} onChange={onTick} />}
     />
   )
 }

@@ -46,6 +46,16 @@ describe('ListRow', () => {
     expect(screen.getByRole('listitem')).toContainElement(screen.getByRole('button', { name: 'Out' }))
   })
 
+  it('makes the whole row the label of its control', () => {
+    render(
+      <ul>
+        <ListRow headline="Milk" supporting="optional" control={<input type="checkbox" />} />
+      </ul>,
+    )
+    expect(screen.getByRole('checkbox', { name: /Milk\s*optional/ })).toBeInTheDocument()
+    expect(screen.getByText('Milk').closest('label')).toContainElement(screen.getByRole('checkbox'))
+  })
+
   it('is styled only from defined tokens', () => {
     const { used, undefinedTokens } = tokenUsage('src/ui/ListRow.css')
     expect(used.length).toBeGreaterThan(0)

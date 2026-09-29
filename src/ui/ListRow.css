@@ -34,3 +34,17 @@
   color: var(--md-sys-color-on-surface-variant);
   font-style: italic;
 }
+
+.ui-list-row--labelled {
+  padding: 0;
+}
+
+.ui-list-row__label {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--md-sys-spacing-4);
+  min-height: 3.5rem;
+  padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+  cursor: pointer;
+}
