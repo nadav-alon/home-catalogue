@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:rules": "firebase emulators:exec --project demo-home-catalogue-rules-test --only firestore \"vitest run --dir test/rules --no-file-parallelism\"",
     "theme": "node src/ui/writeTheme.ts",
+    "icons": "node src/ui/writeIcons.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -25,6 +26,7 @@
     "@iconify-json/material-symbols": "^1.2.93",
     "@material/material-color-utilities": "0.3.0",
     "@preact/preset-vite": "^2.10.6",
+    "@resvg/resvg-js": "^2.6.2",
     "@svgr/core": "^8.1.0",
     "@svgr/plugin-jsx": "^8.1.0",
     "@testing-library/jest-dom": "^7.0.1",
