@@ -46,10 +46,13 @@ vi.mock('./platform/readDeployedPlatformVersion.ts', () => ({
 }))
 
 const checkPlatform = vi.fn()
-vi.mock('data-platform', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('data-platform')>()),
-  core: { checkPlatform: (deployed: unknown) => checkPlatform(deployed) },
-}))
+vi.mock('data-platform', async (importOriginal) => {
+  const original = await importOriginal<typeof import('data-platform')>()
+  return {
+    ...original,
+    core: { ...original.core, checkPlatform: (deployed: unknown) => checkPlatform(deployed) },
+  }
+})
 
 const validConfig = firebaseWebConfig({
   apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',
