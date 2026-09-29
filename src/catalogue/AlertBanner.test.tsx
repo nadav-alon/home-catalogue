@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/preact'
+import { render, screen, within } from '@testing-library/preact'
 import { describe, expect, it } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { AlertBanner } from './AlertBanner.tsx'
@@ -15,7 +15,7 @@ describe('AlertBanner', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('shows a yellow banner naming the count and linking the shopping list when the worst level is soon', () => {
+  it('shows a yellow banner naming the count when the worst level is soon', () => {
     render(
       <AlertBanner
         items={[item('important', 'running low'), item('optional', 'out'), item('essential', 'enough')]}
@@ -25,7 +25,7 @@ describe('AlertBanner', () => {
     const banner = screen.getByRole('status')
     expect(banner).toHaveTextContent('2 Items to buy soon (not urgent)')
     expect(banner).toHaveStyle({ backgroundColor: '#fef9c3' })
-    expect(screen.getByRole('link', { name: /shopping list/i })).toHaveAttribute('href', '#/list')
+    expect(within(banner).queryByRole('link')).toBeNull()
   })
 
   it('shows a yellow banner in the singular for one soon Item', () => {
@@ -34,7 +34,7 @@ describe('AlertBanner', () => {
     expect(screen.getByRole('status')).toHaveTextContent('1 Item to buy soon (not urgent)')
   })
 
-  it('shows a red banner naming the count and linking the shopping list when any Item is now', () => {
+  it('shows a red banner naming the count when any Item is now', () => {
     render(
       <AlertBanner
         items={[
@@ -49,7 +49,7 @@ describe('AlertBanner', () => {
     const banner = screen.getByRole('alert')
     expect(banner).toHaveTextContent('2 urgent Items')
     expect(banner).toHaveStyle({ backgroundColor: '#fee2e2' })
-    expect(screen.getByRole('link', { name: /shopping list/i })).toHaveAttribute('href', '#/list')
+    expect(within(banner).queryByRole('link')).toBeNull()
   })
 
   it('shows a red banner in the singular for one now Item', () => {

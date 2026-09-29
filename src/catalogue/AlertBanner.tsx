@@ -1,7 +1,6 @@
 import type { JSX } from 'preact'
 import { catalogue, core } from 'data-platform'
 import { alertLevel, type AlertLevel } from './alerts.ts'
-import { hashOf, route } from '../ui/route.ts'
 
 export interface AlertBannerItem {
   necessity: catalogue.Necessity
@@ -42,7 +41,7 @@ function banner(level: Exclude<AlertLevel, 'none'>, count: number) {
   return (
     <div role={role} style={style}>
       <p>
-        {text(count)} — see the <a href={hashOf(route('/list'))}>Shopping list</a>.
+        {text(count)}
       </p>
     </div>
   )
