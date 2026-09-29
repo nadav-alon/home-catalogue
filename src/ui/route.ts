@@ -8,7 +8,7 @@ export function isRoute(value: string): value is Route {
 }
 
 export function route(value: string): Route {
-  if (!isRoute(value)) throw new Error(`Not a route: ${value}`)
+  if (!isRoute(value)) throw new Error(`Not a route: ${JSON.stringify(value)}`)
   return value
 }
 

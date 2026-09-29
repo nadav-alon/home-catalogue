@@ -12,7 +12,8 @@ describe('route', () => {
     expect(isRoute('/settings/shops')).toBe(true)
     expect(isRoute('/nowhere')).toBe(false)
     expect(route('/items')).toBe('/items')
-    expect(() => route('/nowhere')).toThrow('/nowhere')
+    expect(() => route('/nowhere')).toThrow('Not a route: "/nowhere"')
+    expect(() => route('')).toThrow('Not a route: ""')
   })
 
   it('resolves an empty hash to the default route', () => {
