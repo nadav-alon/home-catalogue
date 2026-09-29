@@ -64,13 +64,34 @@ describe('ShopsManager', () => {
   })
 
   it('shows a message and keeps the input when adding fails', async () => {
-    createShop.mockRejectedValueOnce(new Error('Shop name is required'))
+    createShop.mockRejectedValueOnce(new Error('Could not add Shop'))
     renderWithShops([])
 
-    fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: '' } })
+    fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: 'Hardware' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Shop name is required')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not add Shop')
+    expect(screen.getByLabelText('New Shop name')).toHaveValue('Hardware')
+  })
+
+  it('refuses to add a Shop with a blank name, without calling createShop', () => {
+    renderWithShops([])
+
+    fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('A Shop needs a name.')
+    expect(createShop).not.toHaveBeenCalled()
+  })
+
+  it('refuses to rename a Shop to a blank name, without calling renameShop', () => {
+    renderWithShops([pharmacy])
+
+    fireEvent.input(screen.getByLabelText('Rename Pharmacy'), { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('A Shop needs a name.')
+    expect(renameShop).not.toHaveBeenCalled()
   })
 
   it('renames a Shop', async () => {

@@ -95,6 +95,17 @@ describe('CategoriesManager', () => {
     expect(createCategory).not.toHaveBeenCalled()
   })
 
+  it('refuses to add a Category with a blank name, without calling createCategory', () => {
+    renderWith([], [pharmacy])
+
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: '   ' } })
+    fireEvent.change(screen.getByLabelText('Default Shop'), { target: { value: pharmacy.id } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('A Category needs a name.')
+    expect(createCategory).not.toHaveBeenCalled()
+  })
+
   it('renames a Category', () => {
     renderWith([medicine], [pharmacy])
 
@@ -102,6 +113,16 @@ describe('CategoriesManager', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
 
     expect(renameCategory).toHaveBeenCalledWith(fakeDb, medicine.id, 'Medicine & First aid')
+  })
+
+  it('refuses to rename a Category to a blank name, without calling renameCategory', () => {
+    renderWith([medicine], [pharmacy])
+
+    fireEvent.input(screen.getByLabelText('Rename Medicine'), { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('A Category needs a name.')
+    expect(renameCategory).not.toHaveBeenCalled()
   })
 
   it('deletes a Category', () => {

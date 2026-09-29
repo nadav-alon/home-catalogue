@@ -16,8 +16,13 @@ export function ShopsManager({ db }: ShopsManagerProps) {
 
   async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
+    const trimmedName = newName.trim()
+    if (trimmedName.length === 0) {
+      setError('A Shop needs a name.')
+      return
+    }
     try {
-      await createShop(db, newName)
+      await createShop(db, trimmedName)
       setNewName('')
       setError(null)
     } catch (err) {
@@ -26,8 +31,13 @@ export function ShopsManager({ db }: ShopsManagerProps) {
   }
 
   async function handleRename(shop: ShopRecord, name: string) {
+    const trimmedName = name.trim()
+    if (trimmedName.length === 0) {
+      setError('A Shop needs a name.')
+      return
+    }
     try {
-      await renameShop(db, shop.id, name)
+      await renameShop(db, shop.id, trimmedName)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not rename Shop')

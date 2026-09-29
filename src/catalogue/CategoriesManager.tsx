@@ -28,12 +28,17 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
 
   async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
+    const trimmedName = newName.trim()
+    if (trimmedName.length === 0) {
+      setError('A Category needs a name.')
+      return
+    }
     if (!catalogue.isShopId(newShopId)) {
       setError('Choose a default Shop.')
       return
     }
     try {
-      await createCategory(db, newName, newShopId)
+      await createCategory(db, trimmedName, newShopId)
       setNewName('')
       setNewShopId('')
       setError(null)
@@ -43,8 +48,13 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
   }
 
   async function handleRename(category: CategoryRecord, name: string) {
+    const trimmedName = name.trim()
+    if (trimmedName.length === 0) {
+      setError('A Category needs a name.')
+      return
+    }
     try {
-      await renameCategory(db, category.id, name)
+      await renameCategory(db, category.id, trimmedName)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not rename Category')
