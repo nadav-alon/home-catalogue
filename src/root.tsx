@@ -35,7 +35,7 @@ function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: ()
   return (
     <>
       <AuthGate client={client}>
-        <App />
+        <App db={client.db} />
       </AuthGate>
       <button
         type="button"
