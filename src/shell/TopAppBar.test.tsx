@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen, within } from '@testing-library/preact'
-import { TopAppBar, TopBarActions } from './TopAppBar.tsx'
+import { TopAppBar, TopAppBarActions } from './TopAppBar.tsx'
 import { tokenUsage } from '../testing/css.ts'
 
 describe('TopAppBar', () => {
@@ -10,13 +10,13 @@ describe('TopAppBar', () => {
     expect(within(banner).getByRole('heading', { level: 1, name: 'Items' })).toBeInTheDocument()
   })
 
-  it('puts what a screen gives TopBarActions into the bar, not where the screen renders it', () => {
+  it('puts what a screen gives TopAppBarActions into the bar, not where the screen renders it', () => {
     render(
       <TopAppBar title="Items">
         <section data-testid="screen">
-          <TopBarActions>
+          <TopAppBarActions>
             <button type="button">Filter</button>
-          </TopBarActions>
+          </TopAppBarActions>
         </section>
       </TopAppBar>,
     )
@@ -27,9 +27,9 @@ describe('TopAppBar', () => {
   it('removes a screen’s actions when the screen goes away', () => {
     const { rerender } = render(
       <TopAppBar title="Items">
-        <TopBarActions>
+        <TopAppBarActions>
           <button type="button">Filter</button>
-        </TopBarActions>
+        </TopAppBarActions>
       </TopAppBar>,
     )
     rerender(<TopAppBar title="Items">{null}</TopAppBar>)

@@ -7,7 +7,7 @@ const ActionsSlot = createContext<HTMLElement | null>(null)
 
 export interface TopAppBarProps {
   title: string
-  /** The screen; anything in it can put actions in the bar with `TopBarActions`. */
+  /** The screen; anything in it can put actions in the bar with `TopAppBarActions`. */
   children?: ComponentChildren
 }
 
@@ -26,7 +26,7 @@ export function TopAppBar({ title, children }: TopAppBarProps) {
 }
 
 /** Renders its children in the top app bar's actions slot, for as long as the calling screen is shown. */
-export function TopBarActions({ children }: { children: ComponentChildren }) {
+export function TopAppBarActions({ children }: { children: ComponentChildren }) {
   const slot = useContext(ActionsSlot)
   return slot === null ? null : createPortal(children, slot)
 }
