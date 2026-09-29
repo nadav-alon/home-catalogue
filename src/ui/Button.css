@@ -1,0 +1,36 @@
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--md-sys-spacing-2);
+  min-height: 2.5rem;
+  padding: 0 var(--md-sys-spacing-6);
+  border: 0;
+  border-radius: var(--md-sys-shape-corner-full);
+  font: inherit;
+  font-size: var(--md-sys-typescale-label-size);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ui-button--filled {
+  background: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+}
+
+.ui-button--tonal {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.ui-button--text {
+  padding: 0 var(--md-sys-spacing-3);
+  background: transparent;
+  color: var(--md-sys-color-primary);
+}
+
+.ui-button:disabled {
+  background: color-mix(in srgb, var(--md-sys-color-on-surface) 12%, transparent);
+  color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
+  cursor: default;
+}
