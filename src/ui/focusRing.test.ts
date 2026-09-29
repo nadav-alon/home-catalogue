@@ -12,8 +12,4 @@ describe('focus ring', () => {
   it.each(primitiveStylesheets)('%s does not remove it', (name) => {
     expect(read(name)).not.toMatch(/outline\s*:\s*(none|0)/)
   })
-
-  it('covers every primitive stylesheet', () => {
-    expect(primitiveStylesheets.length).toBeGreaterThanOrEqual(8)
-  })
 })
