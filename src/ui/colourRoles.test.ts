@@ -41,9 +41,8 @@ describe('colourRolesCss', () => {
   })
 
   it('derives the roles with SchemeFidelity, keeping the seed hue in the containers', () => {
-    const orange = colourRolesCss(seedColour('#e8590c'))
-    expect(block(orange, ':root {')).toContain('--md-sys-color-primary-container: #cb4a00;')
-    expect(block(orange, '@media (prefers-color-scheme: dark)')).toContain('--md-sys-color-primary-container: #f56218;')
+    expect(light).toContain('--md-sys-color-primary-container: #cb4a00;')
+    expect(dark).toContain('--md-sys-color-primary-container: #f56218;')
   })
 
   it('rejects a seed that is not #rrggbb', () => {
