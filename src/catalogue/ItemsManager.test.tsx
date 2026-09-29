@@ -31,10 +31,20 @@ vi.mock('./shops.ts', async (importOriginal) => ({
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
-const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy' }
-const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery' }
-const medicine: CategoryRecord = { id: catalogue.categoryId('medicine'), name: 'Medicine', defaultShopId: pharmacy.id }
-const cleaning: CategoryRecord = { id: catalogue.categoryId('cleaning'), name: 'Cleaning', defaultShopId: grocery.id }
+const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 1 }
+const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery', referenceCount: 1 }
+const medicine: CategoryRecord = {
+  id: catalogue.categoryId('medicine'),
+  name: 'Medicine',
+  defaultShopId: pharmacy.id,
+  referenceCount: 1,
+}
+const cleaning: CategoryRecord = {
+  id: catalogue.categoryId('cleaning'),
+  name: 'Cleaning',
+  defaultShopId: grocery.id,
+  referenceCount: 1,
+}
 
 beforeEach(() => {
   watchItems.mockReset()

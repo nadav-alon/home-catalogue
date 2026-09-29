@@ -33,9 +33,14 @@ const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const categoriesUnsubscribe = vi.fn()
 const shopsUnsubscribe = vi.fn()
 
-const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy' }
-const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery' }
-const medicine: CategoryRecord = { id: catalogue.categoryId('medicine'), name: 'Medicine', defaultShopId: pharmacy.id }
+const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 1 }
+const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery', referenceCount: 0 }
+const medicine: CategoryRecord = {
+  id: catalogue.categoryId('medicine'),
+  name: 'Medicine',
+  defaultShopId: pharmacy.id,
+  referenceCount: 0,
+}
 
 beforeEach(() => {
   createCategory.mockReset().mockResolvedValue(undefined)
