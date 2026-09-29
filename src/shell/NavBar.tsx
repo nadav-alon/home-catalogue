@@ -1,6 +1,6 @@
 import { Icon, type IconSymbol } from '../ui/Icon.tsx'
 import { hashOf, route, type Route } from '../ui/route.ts'
-import { useRoute } from '../ui/useRoute.ts'
+import { navigate, useRoute } from '../ui/useRoute.ts'
 import ListIcon from '~icons/material-symbols/checklist'
 import ItemsIcon from '~icons/material-symbols/inventory-2-outline'
 import SettingsIcon from '~icons/material-symbols/settings-outline'
@@ -32,6 +32,10 @@ export function NavBar() {
             key={destination.route}
             class="shell-nav__destination"
             href={hashOf(destination.route)}
+            onClick={(event) => {
+              event.preventDefault()
+              navigate(destination.route)
+            }}
             aria-current={active ? 'page' : undefined}
           >
             <span class="shell-nav__pill">

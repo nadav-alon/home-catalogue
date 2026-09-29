@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/preact'
+import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { NavBar } from './NavBar.tsx'
 import { tokenUsage } from '../testing/css.ts'
 import { readFileSync } from 'node:fs'
@@ -37,12 +37,9 @@ describe('NavBar', () => {
   it('navigates via the router when a destination is tapped, and follows the route', async () => {
     render(<NavBar />)
     expect(screen.getByRole('link', { name: 'Shopping list' })).toHaveAttribute('aria-current', 'page')
-    await act(async () => {
-      fireEvent.click(screen.getByRole('link', { name: 'Settings' }))
-      await new Promise((resolve) => setTimeout(resolve))
-    })
+    fireEvent.click(screen.getByRole('link', { name: 'Settings' }))
     expect(window.location.hash).toBe('#/settings')
-    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page')
+    await waitFor(() => expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page'))
   })
 
   it('is a bottom bar below 600px and a left rail from 600px', () => {
