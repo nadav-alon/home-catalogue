@@ -1,0 +1,32 @@
+.ui-dialog {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  padding: var(--md-sys-spacing-6);
+  border: 0;
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+}
+
+.ui-dialog::backdrop {
+  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
+}
+
+.ui-dialog__title {
+  margin: 0 0 var(--md-sys-spacing-4);
+  font-size: var(--md-sys-typescale-headline-size);
+  font-weight: 400;
+}
+
+@media (min-width: 600px) {
+  .ui-dialog {
+    width: min(35rem, calc(100% - var(--md-sys-spacing-8)));
+    height: auto;
+    max-height: calc(100% - var(--md-sys-spacing-8));
+    margin: auto;
+    border-radius: var(--md-sys-shape-corner-extra-large);
+  }
+}
