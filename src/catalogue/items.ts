@@ -232,7 +232,7 @@ export async function findItemsByBarcode(
 }
 
 /**
- * Validates `barcode` against {@link core.barcodeSchema} before adding it to the Item's
+ * Validates `barcode` with {@link core.barcode}, which throws naming it, before adding it to the Item's
  * `barcodes` with `arrayUnion`, so attaching one the Item already carries changes nothing.
  * Resolves once the write is queued, see {@link createItem}.
  */
@@ -241,7 +241,7 @@ export async function attachBarcode(
   item: Pick<ItemRecord, 'id' | 'name'>,
   barcode: string,
 ): Promise<void> {
-  const validBarcode = core.barcodeSchema.parse(barcode)
+  const validBarcode = core.barcode(barcode)
 
   void updateDoc(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) }).catch(
     (err: unknown) => {

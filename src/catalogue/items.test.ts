@@ -611,8 +611,8 @@ describe('attachBarcode', () => {
   it('rejects a non-GTIN before writing', async () => {
     const { attachBarcode } = await import('./items.ts')
 
-    await expect(attachBarcode(fakeDb, dishSoap, '12345')).rejects.toThrow()
-    await expect(attachBarcode(fakeDb, dishSoap, '1234567A')).rejects.toThrow()
+    await expect(attachBarcode(fakeDb, dishSoap, '12345')).rejects.toThrow('Not a Barcode: "12345"')
+    await expect(attachBarcode(fakeDb, dishSoap, '1234567A')).rejects.toThrow('Not a Barcode: "1234567A"')
 
     expect(updateDoc).not.toHaveBeenCalled()
   })
