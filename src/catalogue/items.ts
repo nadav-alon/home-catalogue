@@ -14,6 +14,7 @@ import {
   where,
   writeBatch,
   type Firestore,
+  type QueryDocumentSnapshot,
 } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import type { CategoryRecord } from './categories.ts'
@@ -33,6 +34,18 @@ export interface ItemInput {
 
 function toItemRecord(id: core.ItemId, item: core.Item, catalogueItem: catalogue.CatalogueItem): ItemRecord {
   return { id, ...item, ...catalogueItem }
+}
+
+/** The Items among core `items` docs, each with its id; a document failing its schema is logged and left out. */
+function parseCoreItemDocs(docs: readonly QueryDocumentSnapshot[]): (core.Item & { id: core.ItemId })[] {
+  return docs.flatMap((snapshotDoc) => {
+    const parsed = core.itemSchema.safeParse(snapshotDoc.data())
+    if (!parsed.success) {
+      console.error(`Skipping invalid Item document ${snapshotDoc.id}`, parsed.error)
+      return []
+    }
+    return [{ id: core.itemId(snapshotDoc.id), ...parsed.data }]
+  })
 }
 
 /** The Item's own Shop, else its Category's default; the Item's own Shop alone when its Category isn't loaded. */
@@ -70,16 +83,7 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
   }
 
   const unsubscribeItems = onSnapshot(query(collection(db, core.ITEMS_COLLECTION), orderBy('name')), (snapshot) => {
-    coreItems = new Map(
-      snapshot.docs.flatMap((snapshotDoc) => {
-        const parsed = core.itemSchema.safeParse(snapshotDoc.data())
-        if (!parsed.success) {
-          console.error(`Skipping invalid Item document ${snapshotDoc.id}`, parsed.error)
-          return []
-        }
-        return [[core.itemId(snapshotDoc.id), parsed.data] as const]
-      }),
-    )
+    coreItems = new Map(parseCoreItemDocs(snapshot.docs).map((item) => [item.id, item] as const))
     coreLoaded = true
     emit()
   })
@@ -211,8 +215,9 @@ export async function setItemState(
 
 /**
  * Every Item whose core `items` doc carries `barcode` in its `barcodes`, answered from the local
- * cache when offline. Empty when none does. Only the core half is returned; a document failing
- * its schema is left out.
+ * cache when offline. Empty when none does. Only the core half is returned, so an Item whose
+ * catalogue half has not synced yet is found here though {@link watchItems} does not emit it; a
+ * document failing its schema is left out.
  */
 export async function findItemsByBarcode(
   db: Firestore,
@@ -221,14 +226,7 @@ export async function findItemsByBarcode(
   const snapshot = await getDocs(
     query(collection(db, core.ITEMS_COLLECTION), where('barcodes', 'array-contains', barcode)),
   )
-  return snapshot.docs.flatMap((snapshotDoc) => {
-    const parsed = core.itemSchema.safeParse(snapshotDoc.data())
-    if (!parsed.success) {
-      console.error(`Skipping invalid Item document ${snapshotDoc.id}`, parsed.error)
-      return []
-    }
-    return [{ id: core.itemId(snapshotDoc.id), ...parsed.data }]
-  })
+  return parseCoreItemDocs(snapshot.docs)
 }
 
 /**
@@ -245,7 +243,7 @@ export async function attachBarcode(
 
   void updateDoc(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) }).catch(
     (err: unknown) => {
-      reportWriteRejection(`barcode for ${item.name}`, err)
+      reportWriteRejection(`barcode change for ${item.name}`, err)
     },
   )
 }
@@ -261,7 +259,7 @@ export async function removeBarcode(
 ): Promise<void> {
   void updateDoc(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayRemove(barcode) }).catch(
     (err: unknown) => {
-      reportWriteRejection(`removal of a barcode from ${item.name}`, err)
+      reportWriteRejection(`barcode removal for ${item.name}`, err)
     },
   )
 }

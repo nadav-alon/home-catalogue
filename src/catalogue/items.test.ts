@@ -595,7 +595,7 @@ describe('findItemsByBarcode', () => {
 describe('attachBarcode', () => {
   const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
 
-  it('adds the barcode to the Item with arrayUnion, so it is never duplicated', async () => {
+  it('writes the barcode to the Item with arrayUnion', async () => {
     const { attachBarcode } = await import('./items.ts')
     updateDoc.mockResolvedValueOnce(undefined)
 
@@ -628,7 +628,7 @@ describe('attachBarcode', () => {
 describe('removeBarcode', () => {
   const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
 
-  it('drops only that barcode from the Item with arrayRemove', async () => {
+  it('writes the removal of that barcode to the Item with arrayRemove', async () => {
     const { removeBarcode } = await import('./items.ts')
     updateDoc.mockResolvedValueOnce(undefined)
 
@@ -668,7 +668,7 @@ describe('barcode write rejections', () => {
     await attachBarcode(fakeDb, dishSoap, '12345678')
     await Promise.resolve()
 
-    expect(latest()).toEqual(['Could not save barcode for Dish soap'])
+    expect(latest()).toEqual(['Could not save barcode change for Dish soap'])
   })
 
   it('reports a removal the server rejects', async () => {
@@ -679,6 +679,6 @@ describe('barcode write rejections', () => {
     await removeBarcode(fakeDb, dishSoap, core.barcode('12345678'))
     await Promise.resolve()
 
-    expect(latest()).toEqual(['Could not save removal of a barcode from Dish soap'])
+    expect(latest()).toEqual(['Could not save barcode removal for Dish soap'])
   })
 })
