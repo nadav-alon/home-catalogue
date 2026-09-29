@@ -8,6 +8,7 @@ import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { watchShops, type ShopRecord } from './shops.ts'
 import { ListRow } from '../ui/ListRow.tsx'
 import { SegmentedButton } from '../ui/SegmentedButton.tsx'
+import { TextField } from '../ui/TextField.tsx'
 
 export interface ItemsManagerProps {
   db: Firestore
@@ -57,6 +58,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   const [newNecessity, setNewNecessity] = useState('')
   const [newShopId, setNewShopId] = useState(NO_SHOP_OVERRIDE)
   const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(() => watchCategories(db, setCategories), [db])
@@ -97,10 +99,12 @@ export function ItemsManager({ db }: ItemsManagerProps) {
     }
   }
 
+  const needle = search.trim().toLowerCase()
+  const visibleItems = items.filter((item) => item.name.toLowerCase().includes(needle))
   const groups = categories
-    .map((category) => ({ category, items: items.filter((item) => item.categoryId === category.id) }))
+    .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
-  const uncategorisedItems = items.filter(
+  const uncategorisedItems = visibleItems.filter(
     (item) => !categories.some((category) => category.id === item.categoryId),
   )
 
@@ -110,6 +114,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
       {/* TODO[#169]: route the scanned barcode to its Items, or attach it. */}
       <ScanEntry onScan={() => {}} />
       {error !== null && <p role="alert">{error}</p>}
+      <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
       {groups.map(({ category, items: categoryItems }) => (
         <ItemGroup key={category.id} heading={category.name} items={categoryItems} onSetState={handleSetState} />
       ))}

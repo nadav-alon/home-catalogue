@@ -269,3 +269,38 @@ describe("changing an Item's State", () => {
     expect(setItemState).not.toHaveBeenCalled()
   })
 })
+
+describe('searching Items', () => {
+  const bandages: ItemRecord = {
+    id: core.itemId('bandages'),
+    name: 'Bandages',
+    state: 'enough',
+    categoryId: medicine.id,
+    necessity: 'essential',
+  }
+  const soap: ItemRecord = {
+    id: core.itemId('soap'),
+    name: 'Dish soap',
+    state: 'enough',
+    categoryId: cleaning.id,
+    necessity: 'important',
+  }
+
+  it('filters rows by name, ignoring case', () => {
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'BAND' } })
+
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+    expect(screen.queryByText('Dish soap')).not.toBeInTheDocument()
+  })
+
+  it('hides a group left with no matching rows', () => {
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'soap' } })
+
+    expect(screen.queryByRole('heading', { name: 'Medicine' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Cleaning' })).toBeInTheDocument()
+  })
+})
