@@ -1,7 +1,7 @@
-/** The upstream Google Cloud project's OAuth client (see home-catalogue#11); public, so it is committed here rather than configured per household. */
+/** The upstream project's OAuth client ID. It's public, so it is committed rather than configured per Household. */
 export const GOOGLE_OAUTH_CLIENT_ID = '648912727760-c50322ilkhctn2tvjrtp73ahahgbip2b.apps.googleusercontent.com'
 
-/** Scoped to events the app itself created, per the Calendar research (side-projects-manager#914). */
+/** Limits the app to calendars and events it created itself, rather than the household's whole Calendar. */
 export const CALENDAR_APP_CREATED_SCOPE = 'https://www.googleapis.com/auth/calendar.app.created'
 
 interface GisTokenResponse {
