@@ -33,19 +33,30 @@ export function watchShops(db: Firestore, callback: (shops: ShopRecord[]) => voi
   })
 }
 
-/** Validates against {@link catalogue.shopSchema} before writing a new Shop. */
+/**
+ * Validates against {@link catalogue.shopSchema} before writing a new Shop. Resolves once the
+ * write is queued, not once Firestore acknowledges it, so a caller offline is not left waiting;
+ * a write that later fails to sync is only logged.
+ */
 export async function createShop(db: Firestore, name: string): Promise<void> {
   const data = catalogue.shopSchema.parse({ name })
-  await addDoc(collection(db, catalogue.SHOPS_COLLECTION), data)
+  void addDoc(collection(db, catalogue.SHOPS_COLLECTION), data).catch((err: unknown) => {
+    console.error('Failed to sync new Shop', err)
+  })
 }
 
-/** Validates the new name against {@link catalogue.shopSchema} before writing it. */
+/** Validates the new name against {@link catalogue.shopSchema} before writing it. Resolves once queued, see {@link createShop}. */
 export async function renameShop(db: Firestore, id: catalogue.ShopId, name: string): Promise<void> {
   const validName = catalogue.shopSchema.shape.name.parse(name)
-  await updateDoc(doc(db, catalogue.SHOPS_COLLECTION, id), { name: validName })
+  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, id), { name: validName }).catch((err: unknown) => {
+    console.error(`Failed to sync renamed Shop ${id}`, err)
+  })
 }
 
-/** Refuses with {@link ShopInUseError} while any Category defaults to this Shop, or any Item overrides to it. */
+/**
+ * Refuses with {@link ShopInUseError} while any Category defaults to this Shop, or any Item
+ * overrides to it. Resolves once the delete is queued, see {@link createShop}.
+ */
 export async function deleteShop(db: Firestore, id: catalogue.ShopId): Promise<void> {
   const [categoryDependents, itemDependents] = await Promise.all([
     getDocs(query(collection(db, catalogue.CATEGORIES_COLLECTION), where('defaultShopId', '==', id), limit(1))),
@@ -54,5 +65,7 @@ export async function deleteShop(db: Firestore, id: catalogue.ShopId): Promise<v
   if (!categoryDependents.empty || !itemDependents.empty) {
     throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
   }
-  await deleteDoc(doc(db, catalogue.SHOPS_COLLECTION, id))
+  void deleteDoc(doc(db, catalogue.SHOPS_COLLECTION, id)).catch((err: unknown) => {
+    console.error(`Failed to sync deleted Shop ${id}`, err)
+  })
 }

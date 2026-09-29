@@ -38,27 +38,38 @@ export function watchCategories(
   })
 }
 
-/** Validates against {@link catalogue.categorySchema} before writing a new Category. */
+/**
+ * Validates against {@link catalogue.categorySchema} before writing a new Category. Resolves once
+ * the write is queued, not once Firestore acknowledges it, so a caller offline is not left
+ * waiting; a write that later fails to sync is only logged.
+ */
 export async function createCategory(
   db: Firestore,
   name: string,
   defaultShopId: catalogue.ShopId,
 ): Promise<void> {
   const data = catalogue.categorySchema.parse({ name, defaultShopId })
-  await addDoc(collection(db, catalogue.CATEGORIES_COLLECTION), data)
+  void addDoc(collection(db, catalogue.CATEGORIES_COLLECTION), data).catch((err: unknown) => {
+    console.error('Failed to sync new Category', err)
+  })
 }
 
-/** Validates the new name against {@link catalogue.categorySchema} before writing it. */
+/** Validates the new name against {@link catalogue.categorySchema} before writing it. Resolves once queued, see {@link createCategory}. */
 export async function renameCategory(
   db: Firestore,
   id: catalogue.CategoryId,
   name: string,
 ): Promise<void> {
   const validName = catalogue.categorySchema.shape.name.parse(name)
-  await updateDoc(doc(db, catalogue.CATEGORIES_COLLECTION, id), { name: validName })
+  void updateDoc(doc(db, catalogue.CATEGORIES_COLLECTION, id), { name: validName }).catch((err: unknown) => {
+    console.error(`Failed to sync renamed Category ${id}`, err)
+  })
 }
 
-/** Refuses with {@link CategoryInUseError} while any catalogue Item still belongs to this Category. */
+/**
+ * Refuses with {@link CategoryInUseError} while any catalogue Item still belongs to this Category.
+ * Resolves once the delete is queued, see {@link createCategory}.
+ */
 export async function deleteCategory(db: Firestore, id: catalogue.CategoryId): Promise<void> {
   const dependents = await getDocs(
     query(collection(db, catalogue.CATALOGUE_ITEMS_COLLECTION), where('categoryId', '==', id), limit(1)),
@@ -66,5 +77,7 @@ export async function deleteCategory(db: Firestore, id: catalogue.CategoryId): P
   if (!dependents.empty) {
     throw new CategoryInUseError('This Category is still used by an Item, and cannot be deleted.')
   }
-  await deleteDoc(doc(db, catalogue.CATEGORIES_COLLECTION, id))
+  void deleteDoc(doc(db, catalogue.CATEGORIES_COLLECTION, id)).catch((err: unknown) => {
+    console.error(`Failed to sync deleted Category ${id}`, err)
+  })
 }

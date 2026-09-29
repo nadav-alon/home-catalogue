@@ -80,6 +80,13 @@ describe('createShop', () => {
     await expect(createShop(fakeDb, '')).rejects.toThrow()
     expect(addDoc).not.toHaveBeenCalled()
   })
+
+  it('resolves once the write is queued, without waiting for Firestore to acknowledge it', async () => {
+    const { createShop } = await import('./shops.ts')
+    addDoc.mockReturnValueOnce(new Promise(() => {}))
+
+    await expect(createShop(fakeDb, 'Pharmacy')).resolves.toBeUndefined()
+  })
 })
 
 describe('renameShop', () => {
@@ -102,6 +109,13 @@ describe('renameShop', () => {
     await expect(renameShop(fakeDb, catalogue.shopId('pharmacy'), '')).rejects.toThrow()
     expect(updateDoc).not.toHaveBeenCalled()
   })
+
+  it('resolves once the write is queued, without waiting for Firestore to acknowledge it', async () => {
+    const { renameShop } = await import('./shops.ts')
+    updateDoc.mockReturnValueOnce(new Promise(() => {}))
+
+    await expect(renameShop(fakeDb, catalogue.shopId('pharmacy'), 'Pharmacy & Health')).resolves.toBeUndefined()
+  })
 })
 
 describe('deleteShop', () => {
@@ -117,6 +131,14 @@ describe('deleteShop', () => {
     expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATEGORIES_COLLECTION)
     expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATALOGUE_ITEMS_COLLECTION)
     expect(deleteDoc).toHaveBeenCalledWith({ path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' })
+  })
+
+  it('resolves once the delete is queued, without waiting for Firestore to acknowledge it', async () => {
+    const { deleteShop } = await import('./shops.ts')
+    getDocs.mockResolvedValue({ empty: true })
+    deleteDoc.mockReturnValueOnce(new Promise(() => {}))
+
+    await expect(deleteShop(fakeDb, catalogue.shopId('pharmacy'))).resolves.toBeUndefined()
   })
 
   it('refuses with ShopInUseError while a Category still defaults to it, without deleting', async () => {

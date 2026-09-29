@@ -91,6 +91,13 @@ describe('createCategory', () => {
     await expect(createCategory(fakeDb, 'Medicine', emptyShopId)).rejects.toThrow()
     expect(addDoc).not.toHaveBeenCalled()
   })
+
+  it('resolves once the write is queued, without waiting for Firestore to acknowledge it', async () => {
+    const { createCategory } = await import('./categories.ts')
+    addDoc.mockReturnValueOnce(new Promise(() => {}))
+
+    await expect(createCategory(fakeDb, 'Medicine', catalogue.shopId('pharmacy'))).resolves.toBeUndefined()
+  })
 })
 
 describe('renameCategory', () => {
@@ -113,6 +120,15 @@ describe('renameCategory', () => {
     await expect(renameCategory(fakeDb, catalogue.categoryId('medicine'), '')).rejects.toThrow()
     expect(updateDoc).not.toHaveBeenCalled()
   })
+
+  it('resolves once the write is queued, without waiting for Firestore to acknowledge it', async () => {
+    const { renameCategory } = await import('./categories.ts')
+    updateDoc.mockReturnValueOnce(new Promise(() => {}))
+
+    await expect(
+      renameCategory(fakeDb, catalogue.categoryId('medicine'), 'Medicine & First aid'),
+    ).resolves.toBeUndefined()
+  })
 })
 
 describe('deleteCategory', () => {
@@ -126,6 +142,14 @@ describe('deleteCategory', () => {
     expect(where).toHaveBeenCalledWith('categoryId', '==', 'medicine')
     expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATALOGUE_ITEMS_COLLECTION)
     expect(deleteDoc).toHaveBeenCalledWith({ path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' })
+  })
+
+  it('resolves once the delete is queued, without waiting for Firestore to acknowledge it', async () => {
+    const { deleteCategory } = await import('./categories.ts')
+    getDocs.mockResolvedValueOnce({ empty: true })
+    deleteDoc.mockReturnValueOnce(new Promise(() => {}))
+
+    await expect(deleteCategory(fakeDb, catalogue.categoryId('medicine'))).resolves.toBeUndefined()
   })
 
   it('refuses with CategoryInUseError while an Item still belongs to it, without deleting', async () => {
