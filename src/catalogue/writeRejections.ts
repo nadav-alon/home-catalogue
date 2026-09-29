@@ -21,9 +21,21 @@ function publish() {
  * Also logs `err`.
  */
 export function reportWriteRejection(what: string, err: unknown): void {
-  console.error(`Could not save ${what}`, err)
+  show(`Could not save ${what}`, err)
+}
+
+/**
+ * Shows `message` in the same banner, followed by the readable cause from `err`, and logs `err`.
+ * For failures that are not a rejected queued write, such as the Export falling back to deep links.
+ */
+export function reportFailure(message: string, err: unknown): void {
+  show(err instanceof Error && err.message.length > 0 ? `${message}: ${err.message}` : message, err)
+}
+
+function show(message: string, err: unknown): void {
+  console.error(message, err)
   nextId += 1
-  rejections = [...rejections, { id: `write-rejection-${nextId}`, message: `Could not save ${what}` }]
+  rejections = [...rejections, { id: `write-rejection-${nextId}`, message }]
   publish()
 }
 
