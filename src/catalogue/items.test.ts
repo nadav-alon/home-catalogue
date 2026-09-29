@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
+import type { ItemRecord } from './items.ts'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
 /** Mirrors both overloads used in items.ts: `doc(collectionRef)` generates an id; `doc(db, path, id)` targets one. */
@@ -21,6 +22,7 @@ const batchCommit = vi.fn()
 const writeBatch = vi.fn((_db: unknown) => ({ set: batchSet, update: batchUpdate, commit: batchCommit }))
 const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
 const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
+const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
@@ -31,6 +33,7 @@ vi.mock('firebase/firestore', () => ({
   writeBatch: (db: unknown) => writeBatch(db),
   deleteField: () => deleteField(),
   serverTimestamp: () => serverTimestamp(),
+  increment: (n: number) => increment(n),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -47,6 +50,7 @@ beforeEach(() => {
   writeBatch.mockClear()
   deleteField.mockClear()
   serverTimestamp.mockClear()
+  increment.mockClear()
 })
 
 describe('watchItems', () => {
@@ -174,10 +178,18 @@ describe('createItem', () => {
       { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'generated-id' },
       { categoryId: 'cleaning', necessity: 'essential' },
     )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' },
+      { referenceCount: { kind: 'increment', delta: 1 } },
+    )
+    expect(batchUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ path: catalogue.SHOPS_COLLECTION }),
+      expect.anything(),
+    )
     expect(batchCommit).toHaveBeenCalled()
   })
 
-  it('includes an optional brand note and Shop override when given', async () => {
+  it('includes an optional brand note and Shop override when given, bumping the Shop too', async () => {
     const { createItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
@@ -196,6 +208,14 @@ describe('createItem', () => {
     expect(batchSet).toHaveBeenCalledWith(
       { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'generated-id' },
       { categoryId: 'cleaning', necessity: 'essential', shopId: 'grocery' },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' },
+      { referenceCount: { kind: 'increment', delta: 1 } },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'grocery' },
+      { referenceCount: { kind: 'increment', delta: 1 } },
     )
   })
 
@@ -242,11 +262,20 @@ describe('createItem', () => {
 })
 
 describe('updateItem', () => {
+  const dishSoap: ItemRecord = {
+    id: core.itemId('dish-soap'),
+    name: 'Dish soap',
+    state: 'enough',
+    categoryId: catalogue.categoryId('cleaning'),
+    necessity: 'essential',
+    shopId: catalogue.shopId('grocery'),
+  }
+
   it('updates the core Item and catalogue CatalogueItem docs as one batch, leaving State untouched', async () => {
     const { updateItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
-    await updateItem(fakeDb, core.itemId('dish-soap'), {
+    await updateItem(fakeDb, dishSoap, {
       name: 'Dish soap',
       brandNote: 'the green one',
       categoryId: catalogue.categoryId('cleaning'),
@@ -265,11 +294,110 @@ describe('updateItem', () => {
     expect(batchCommit).toHaveBeenCalled()
   })
 
+  it('leaves every referenceCount untouched when the Category and Shop override are unchanged', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await updateItem(fakeDb, dishSoap, {
+      name: 'Dish soap (large)',
+      categoryId: dishSoap.categoryId,
+      necessity: catalogue.necessitySchema.parse('essential'),
+      shopId: dishSoap.shopId,
+    })
+
+    expect(batchUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ path: catalogue.CATEGORIES_COLLECTION }),
+      expect.anything(),
+    )
+    expect(batchUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({ path: catalogue.SHOPS_COLLECTION }),
+      expect.anything(),
+    )
+  })
+
+  it('moves the Category referenceCount by one each way when the Category changes', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await updateItem(fakeDb, dishSoap, {
+      name: dishSoap.name,
+      categoryId: catalogue.categoryId('kitchen'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+      shopId: dishSoap.shopId,
+    })
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' },
+      { referenceCount: { kind: 'increment', delta: -1 } },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATEGORIES_COLLECTION, id: 'kitchen' },
+      { referenceCount: { kind: 'increment', delta: 1 } },
+    )
+  })
+
+  it('moves the Shop referenceCount by one each way when the Shop override changes', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await updateItem(fakeDb, dishSoap, {
+      name: dishSoap.name,
+      categoryId: dishSoap.categoryId,
+      necessity: catalogue.necessitySchema.parse('essential'),
+      shopId: catalogue.shopId('pharmacy'),
+    })
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'grocery' },
+      { referenceCount: { kind: 'increment', delta: -1 } },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
+      { referenceCount: { kind: 'increment', delta: 1 } },
+    )
+  })
+
+  it('bumps only the new Shop when adding a Shop override that had none before', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+    const noOverride: ItemRecord = { ...dishSoap, shopId: undefined }
+
+    await updateItem(fakeDb, noOverride, {
+      name: noOverride.name,
+      categoryId: noOverride.categoryId,
+      necessity: catalogue.necessitySchema.parse('essential'),
+      shopId: catalogue.shopId('pharmacy'),
+    })
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
+      { referenceCount: { kind: 'increment', delta: 1 } },
+    )
+    expect(batchUpdate).toHaveBeenCalledTimes(3)
+  })
+
+  it('drops only the old Shop when clearing a Shop override', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await updateItem(fakeDb, dishSoap, {
+      name: dishSoap.name,
+      categoryId: dishSoap.categoryId,
+      necessity: catalogue.necessitySchema.parse('essential'),
+    })
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'grocery' },
+      { referenceCount: { kind: 'increment', delta: -1 } },
+    )
+    expect(batchUpdate).toHaveBeenCalledTimes(3)
+  })
+
   it('clears the brand note and Shop override when they are omitted', async () => {
     const { updateItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
-    await updateItem(fakeDb, core.itemId('dish-soap'), {
+    await updateItem(fakeDb, dishSoap, {
       name: 'Dish soap',
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
@@ -289,7 +417,7 @@ describe('updateItem', () => {
     const { updateItem } = await import('./items.ts')
 
     await expect(
-      updateItem(fakeDb, core.itemId('dish-soap'), {
+      updateItem(fakeDb, dishSoap, {
         name: '',
         categoryId: catalogue.categoryId('cleaning'),
         necessity: catalogue.necessitySchema.parse('essential'),
@@ -304,10 +432,11 @@ describe('updateItem', () => {
     batchCommit.mockReturnValueOnce(new Promise(() => {}))
 
     await expect(
-      updateItem(fakeDb, core.itemId('dish-soap'), {
+      updateItem(fakeDb, dishSoap, {
         name: 'Dish soap',
         categoryId: catalogue.categoryId('cleaning'),
         necessity: catalogue.necessitySchema.parse('essential'),
+        shopId: catalogue.shopId('grocery'),
       }),
     ).resolves.toBeUndefined()
   })

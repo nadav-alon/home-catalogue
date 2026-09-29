@@ -200,3 +200,100 @@ describe('deleteCategory against the real rules', () => {
     expect(categorySnapshot.exists()).toBe(true)
   })
 })
+
+describe('CatalogueItem writes against the real rules', () => {
+  it('accepts a new CatalogueItem that bumps its Category in the same batch', async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
+        name: 'Medicine',
+        defaultShopId: 'pharmacy',
+        referenceCount: 0,
+      })
+    })
+
+    const batch = writeBatch(db)
+    batch.set(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, 'bandages'), {
+      categoryId: 'medicine',
+      necessity: 'essential',
+    })
+    batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'), { referenceCount: increment(1) })
+
+    await assertSucceeds(batch.commit())
+  })
+
+  it('denies a new CatalogueItem that skips bumping its Category in the same batch', async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
+        name: 'Medicine',
+        defaultShopId: 'pharmacy',
+        referenceCount: 0,
+      })
+    })
+
+    await assertFails(
+      setDoc(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, 'bandages'), {
+        categoryId: 'medicine',
+        necessity: 'essential',
+      }),
+    )
+  })
+
+  it('moves the Category referenceCount by one each way when a CatalogueItem changes Category', async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
+        name: 'Medicine',
+        defaultShopId: 'pharmacy',
+        referenceCount: 1,
+      })
+      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/cleaning`).set({
+        name: 'Cleaning',
+        defaultShopId: 'pharmacy',
+        referenceCount: 0,
+      })
+      await context.firestore().doc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`).set({
+        categoryId: 'medicine',
+        necessity: 'essential',
+      })
+    })
+
+    const batch = writeBatch(db)
+    batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, 'bandages'), {
+      categoryId: 'cleaning',
+      necessity: 'essential',
+    })
+    batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'), { referenceCount: increment(-1) })
+    batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, 'cleaning'), { referenceCount: increment(1) })
+
+    await assertSucceeds(batch.commit())
+  })
+
+  it('denies moving a CatalogueItem to a new Category without adjusting both referenceCounts', async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
+        name: 'Medicine',
+        defaultShopId: 'pharmacy',
+        referenceCount: 1,
+      })
+      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/cleaning`).set({
+        name: 'Cleaning',
+        defaultShopId: 'pharmacy',
+        referenceCount: 0,
+      })
+      await context.firestore().doc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`).set({
+        categoryId: 'medicine',
+        necessity: 'essential',
+      })
+    })
+
+    await assertFails(
+      setDoc(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, 'bandages'), {
+        categoryId: 'cleaning',
+        necessity: 'essential',
+      }),
+    )
+  })
+})

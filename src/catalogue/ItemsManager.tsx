@@ -114,7 +114,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
       return
     }
     try {
-      await updateItem(db, item.id, result.input)
+      await updateItem(db, item, result.input)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update Item')

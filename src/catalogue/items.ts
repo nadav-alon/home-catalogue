@@ -2,6 +2,7 @@ import {
   collection,
   deleteField,
   doc,
+  increment,
   onSnapshot,
   orderBy,
   query,
@@ -90,9 +91,10 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
 /**
  * Validates against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema} before
  * writing a new Item's two docs, core `items` plus catalogue `catalogueItems`, keyed by the same
- * generated id, as one batch. A new Item always starts at State `enough`. Resolves once the batch
- * is queued, not once Firestore acknowledges it, so a caller offline is not left waiting; a batch
- * that later fails to sync is only logged.
+ * generated id, as one batch. A new Item always starts at State `enough`. The batch also bumps
+ * the referenced Category's referenceCount, and the Shop override's when set, matching the
+ * platform's create rule. Resolves once the batch is queued, not once Firestore acknowledges it,
+ * so a caller offline is not left waiting; a batch that later fails to sync is only logged.
  */
 export async function createItem(db: Firestore, input: ItemInput): Promise<void> {
   const item = core.itemSchema.parse({
@@ -111,6 +113,12 @@ export async function createItem(db: Firestore, input: ItemInput): Promise<void>
   const batch = writeBatch(db)
   batch.set(itemRef, item)
   batch.set(catalogueItemRef, catalogueItem)
+  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, catalogueItem.categoryId), {
+    referenceCount: increment(1),
+  })
+  if (catalogueItem.shopId !== undefined) {
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, catalogueItem.shopId), { referenceCount: increment(1) })
+  }
   void batch.commit().catch((err: unknown) => {
     console.error('Failed to sync new Item', err)
   })
@@ -120,9 +128,11 @@ export async function createItem(db: Firestore, input: ItemInput): Promise<void>
  * Validates the new fields against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema}
  * before updating an Item's two docs as one batch. State is left untouched; State changes go
  * through their own write. Omitting `brandNote` or `shopId` clears that field rather than leaving
- * it stale. Resolves once the batch is queued, see {@link createItem}.
+ * it stale. When the Category or Shop override changes, the batch moves the old and new
+ * referenceCount by one each, matching the platform's update rule; `previous` supplies the
+ * references being moved away from. Resolves once the batch is queued, see {@link createItem}.
  */
-export async function updateItem(db: Firestore, id: core.ItemId, input: ItemInput): Promise<void> {
+export async function updateItem(db: Firestore, previous: ItemRecord, input: ItemInput): Promise<void> {
   const { name, brandNote } = core.itemSchema.pick({ name: true, brandNote: true }).parse({
     name: input.name,
     ...(input.brandNote !== undefined ? { brandNote: input.brandNote } : {}),
@@ -136,14 +146,26 @@ export async function updateItem(db: Firestore, id: core.ItemId, input: ItemInpu
     })
 
   const batch = writeBatch(db)
-  batch.update(doc(db, core.ITEMS_COLLECTION, id), { name, brandNote: brandNote ?? deleteField() })
-  batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, id), {
+  batch.update(doc(db, core.ITEMS_COLLECTION, previous.id), { name, brandNote: brandNote ?? deleteField() })
+  batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, previous.id), {
     categoryId,
     necessity,
     shopId: shopId ?? deleteField(),
   })
+  if (categoryId !== previous.categoryId) {
+    batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, previous.categoryId), { referenceCount: increment(-1) })
+    batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, categoryId), { referenceCount: increment(1) })
+  }
+  if (shopId !== previous.shopId) {
+    if (previous.shopId !== undefined) {
+      batch.update(doc(db, catalogue.SHOPS_COLLECTION, previous.shopId), { referenceCount: increment(-1) })
+    }
+    if (shopId !== undefined) {
+      batch.update(doc(db, catalogue.SHOPS_COLLECTION, shopId), { referenceCount: increment(1) })
+    }
+  }
   void batch.commit().catch((err: unknown) => {
-    console.error(`Failed to sync updated Item ${id}`, err)
+    console.error(`Failed to sync updated Item ${previous.id}`, err)
   })
 }
 
