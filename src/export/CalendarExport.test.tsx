@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/preact'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { CalendarExport } from './CalendarExport.tsx'
@@ -53,6 +53,10 @@ beforeEach(() => {
   exportShoppingList.mockReset()
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
     cb(items)
@@ -97,6 +101,16 @@ describe('CalendarExport', () => {
     expect(exportShoppingList).not.toHaveBeenCalled()
   })
 
+  it('rejects exporting while offline, without attempting the export', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderWith([bandages], [medicine], [pharmacy])
+
+    await submit('2026-03-05')
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Exporting to Calendar needs a connection.')
+    expect(exportShoppingList).not.toHaveBeenCalled()
+  })
+
   it('exports the pending Items grouped by Shop, on the chosen date', async () => {
     exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
     renderWith([bandages], [medicine], [pharmacy])
@@ -105,6 +119,19 @@ describe('CalendarExport', () => {
 
     expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [bandages] }], '2026-03-05')
     expect(screen.getByRole('status')).toHaveTextContent('Exported to Calendar.')
+  })
+
+  it('notes pending Items with no resolved Shop are left out of the export', () => {
+    const orphan: ItemRecord = {
+      id: core.itemId('orphan'),
+      name: 'Mystery item',
+      state: 'out',
+      categoryId: catalogue.categoryId('deleted-category'),
+      necessity: 'important',
+    }
+    renderWith([bandages, orphan], [medicine], [pharmacy])
+
+    expect(screen.getByText("1 pending Item with no Shop won't be included in the export.")).toBeInTheDocument()
   })
 
   it('shows a deep link per Shop when the export falls back', async () => {

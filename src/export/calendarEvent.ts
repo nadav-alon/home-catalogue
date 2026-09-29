@@ -13,7 +13,9 @@ export interface CalendarEventResource {
 
 /**
  * One all-day event for `group`'s Shop on `date`, its pending Items listed in the description.
- * Carries a same-day popup reminder when any Item is at Alert `now` (see {@link alertLevel}).
+ * Carries a popup reminder at midnight on `date` when any Item is at Alert `now` (see
+ * {@link alertLevel}): the Calendar API only accepts non-negative reminder offsets, so midnight
+ * is the earliest same-day time an all-day event's reminder can name.
  */
 export function buildShopEvent(group: ShopGroup, date: ExportDate): CalendarEventResource {
   const hasAlertNow = group.items.some((item) => alertLevel(item.necessity, item.state) === 'now')
