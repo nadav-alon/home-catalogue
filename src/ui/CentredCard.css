@@ -33,6 +33,11 @@
   margin: 0;
 }
 
+.ui-centred-card__surface h1 {
+  font-size: var(--md-sys-typescale-headline-size);
+  font-weight: 400;
+}
+
 .ui-centred-card__surface a {
   color: var(--md-sys-color-primary);
 }
