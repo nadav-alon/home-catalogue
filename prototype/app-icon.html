@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Catalogue Icon Picker</title>
+<!-- PROTOTYPE, throwaway. Answers "App icon and seed colour" (home-catalogue#129).
+     Three icon concepts, switchable via #A / #B / #C and the floating bar (or ← →).
+     Colour schemes precomputed with @material/material-color-utilities@0.3.0. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column; icon previews in a wrapping row, then one row per colour scheme with light + dark phone mocks. Page stays neutral so only the candidate colours carry hue. */
+:root {
+  --bg: #f3f4f6; --panel: #ffffff; --fg: #1a1d23; --muted: #5d6470; --line: #dde0e6; --chip: #eceef2;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121418; --panel: #1b1e24; --fg: #e8eaee; --muted: #9aa1ad; --line: #2c3038; --chip: #252930; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #121418; --panel: #1b1e24; --fg: #e8eaee; --muted: #9aa1ad; --line: #2c3038; --chip: #252930; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 120px; display: grid; gap: 36px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+h1 { font-family: var(--display); font-size: clamp(28px, 5vw, 40px); line-height: 1.1; margin: 6px 0 8px; text-wrap: balance; }
+h2 { font-family: var(--display); font-size: 20px; margin: 0 0 4px; }
+.lede { color: var(--muted); max-width: 62ch; margin: 0; }
+.hex { font-family: var(--mono); font-size: 12.5px; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .15); }
+.icons { display: flex; flex-wrap: wrap; gap: 20px; }
+.tile { display: grid; gap: 8px; justify-items: center; }
+.tile svg { width: 132px; height: 132px; max-width: 100%; display: block; }
+.tile figcaption { font-size: 12.5px; color: var(--muted); text-align: center; max-width: 150px; }
+.home { width: 132px; height: 132px; border-radius: 18px; display: grid; place-items: center; align-content: center; gap: 6px;
+  background: linear-gradient(160deg, #3b4a5e, #1e2633); color: #fff; font-size: 11px; }
+.home .row { display: flex; gap: 12px; align-items: flex-end; }
+.home .dummy { width: 34px; height: 34px; border-radius: 50%; background: rgb(255 255 255 / .22); }
+.home .me { display: grid; justify-items: center; gap: 3px; }
+.home .me svg { width: 44px; height: 44px; }
+.schemes { display: grid; gap: 22px; }
+.scheme { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; }
+.scheme-head { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; }
+.scheme-head p { margin: 0; color: var(--muted); font-size: 13.5px; flex: 1 1 280px; min-width: 0; }
+.mocks { display: flex; flex-wrap: wrap; gap: 16px; }
+/* phone mock: every colour comes from the candidate scheme, set as --m-* on the element */
+.mock { width: 260px; max-width: 100%; border-radius: 22px; overflow: hidden; background: var(--m-surface); color: var(--m-onSurface);
+  font-family: Roboto, "Segoe UI", system-ui, sans-serif; font-size: 13px; box-shadow: 0 0 0 1px var(--line); display: grid; grid-template-rows: auto 1fr auto; height: 330px; position: relative; }
+.m-bar { padding: 14px 16px 8px; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
+.m-bar .act { font-size: 12px; color: var(--m-primary); font-weight: 600; }
+.m-body { padding: 0 12px; display: grid; gap: 8px; align-content: start; }
+.m-banner { background: var(--m-tertiaryContainer); color: var(--m-onTertiaryContainer); border-radius: 12px; padding: 8px 12px; font-size: 12px; }
+.m-shop { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--m-onSurfaceVariant); padding: 4px 4px 0; }
+.m-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid var(--m-outlineVariant); }
+.m-row:last-child { border-bottom: 0; }
+.m-row .box { width: 16px; height: 16px; border-radius: 3px; border: 2px solid var(--m-onSurfaceVariant); flex: none; }
+.m-row small { color: var(--m-onSurfaceVariant); margin-left: auto; }
+.m-fab { position: absolute; right: 14px; bottom: 84px; width: 50px; height: 50px; border-radius: 16px; background: var(--m-primaryContainer); color: var(--m-onPrimaryContainer); display: grid; place-items: center; font-size: 26px; box-shadow: 0 2px 6px rgb(0 0 0 / .25); }
+.m-nav { background: var(--m-surfaceContainer); display: grid; grid-template-columns: repeat(3, 1fr); padding: 10px 4px 12px; }
+.m-tab { display: grid; justify-items: center; gap: 4px; font-size: 11px; color: var(--m-onSurfaceVariant); }
+.m-tab .pill { width: 52px; height: 28px; border-radius: 14px; display: grid; place-items: center; }
+.m-tab.on { color: var(--m-onSurface); font-weight: 600; }
+.m-tab.on .pill { background: var(--m-secondaryContainer); color: var(--m-onSecondaryContainer); }
+.m-tab svg { width: 20px; height: 20px; }
+.mock-label { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.switcher { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 4px; padding: 6px; border-radius: 999px; background: #111; color: #fff; box-shadow: 0 6px 24px rgb(0 0 0 / .35); z-index: 10; max-width: calc(100% - 32px); }
+.switcher button { all: unset; cursor: pointer; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; }
+.switcher button:hover { background: #333; }
+.switcher button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.switcher span { padding: 0 12px; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Prototype · App icon and seed colour</div>
+    <h1 id="name"></h1>
+    <p class="lede" id="concept"></p>
+  </header>
+
+  <section>
+    <h2>Icon</h2>
+    <p class="lede" style="margin-bottom:16px">Full-bleed for <span class="hex">purpose: any</span>; maskable keeps the glyph inside the dashed 80% safe zone, so circle and squircle masks never crop it.</p>
+    <div class="icons" id="icons"></div>
+  </section>
+
+  <section>
+    <h2>Colour scheme</h2>
+    <p class="lede" style="margin-bottom:16px">Every UI colour derives from the icon's seed. Pick one of three generators too: TonalSpot is Android's default and mutes the seed; Fidelity and Content keep it close to the icon.</p>
+    <div class="schemes" id="schemes"></div>
+  </section>
+</div>
+
+<nav class="switcher" aria-label="Variant">
+  <button type="button" id="prev" aria-label="Previous variant">‹</button>
+  <span id="label"></span>
+  <button type="button" id="next" aria-label="Next variant">›</button>
+</nav>
+
+<script>
+const DATA = {"A":{"seed":"#0d9488","schemes":{"TonalSpot":{"light":{"primary":"#006a61","onPrimary":"#ffffff","primaryContainer":"#9ef2e6","onPrimaryContainer":"#005049","secondaryContainer":"#cce8e3","onSecondaryContainer":"#324b48","surface":"#f4fbf8","surfaceContainer":"#e9efed","onSurface":"#161d1c","onSurfaceVariant":"#3f4947","outlineVariant":"#bec9c6","tertiaryContainer":"#cde5ff","onTertiaryContainer":"#2e4961"},"dark":{"primary":"#82d5ca","onPrimary":"#003732","primaryContainer":"#005049","onPrimaryContainer":"#9ef2e6","secondaryContainer":"#324b48","onSecondaryContainer":"#cce8e3","surface":"#0e1513","surfaceContainer":"#1a2120","onSurface":"#dde4e1","onSurfaceVariant":"#bec9c6","outlineVariant":"#3f4947","tertiaryContainer":"#2e4961","onTertiaryContainer":"#cde5ff"}},"Fidelity":{"light":{"primary":"#00685f","onPrimary":"#ffffff","primaryContainer":"#008378","onPrimaryContainer":"#f4fffc","secondaryContainer":"#c2ebe3","onSecondaryContainer":"#456b66","surface":"#f5faf8","surfaceContainer":"#eaefed","onSurface":"#171d1c","onSurfaceVariant":"#3d4947","outlineVariant":"#bcc9c6","tertiaryContainer":"#b05e3d","onTertiaryContainer":"#fffbff"},"dark":{"primary":"#6bd8cb","onPrimary":"#003732","primaryContainer":"#29a195","onPrimaryContainer":"#00211d","secondaryContainer":"#274d48","onSecondaryContainer":"#95bdb6","surface":"#0f1413","surfaceContainer":"#1b2120","onSurface":"#dee4e1","onSurfaceVariant":"#bcc9c6","outlineVariant":"#3d4947","tertiaryContainer":"#d27956","onTertiaryContainer":"#390e00"}},"Content":{"light":{"primary":"#00685f","onPrimary":"#ffffff","primaryContainer":"#008378","onPrimaryContainer":"#f4fffc","secondaryContainer":"#c2ebe3","onSecondaryContainer":"#456b66","surface":"#f5faf8","surfaceContainer":"#eaefed","onSurface":"#171d1c","onSurfaceVariant":"#3d4947","outlineVariant":"#bcc9c6","tertiaryContainer":"#8367af","onTertiaryContainer":"#fffbff"},"dark":{"primary":"#6bd8cb","onPrimary":"#003732","primaryContainer":"#29a195","onPrimaryContainer":"#00211d","secondaryContainer":"#274d48","onSecondaryContainer":"#95bdb6","surface":"#0f1413","surfaceContainer":"#1b2120","onSurface":"#dee4e1","onSurfaceVariant":"#bcc9c6","outlineVariant":"#3d4947","tertiaryContainer":"#a083ce","onTertiaryContainer":"#270750"}}}},"B":{"seed":"#e8590c","schemes":{"TonalSpot":{"light":{"primary":"#8e4d31","onPrimary":"#ffffff","primaryContainer":"#ffdbce","onPrimaryContainer":"#71361c","secondaryContainer":"#ffdbce","onSecondaryContainer":"#5d4035","surface":"#fff8f6","surfaceContainer":"#fceae4","onSurface":"#231a16","onSurfaceVariant":"#53433e","outlineVariant":"#d8c2ba","tertiaryContainer":"#f1e3a8","onTertiaryContainer":"#4f471b"},"dark":{"primary":"#ffb598","onPrimary":"#552008","primaryContainer":"#71361c","onPrimaryContainer":"#ffdbce","secondaryContainer":"#5d4035","onSecondaryContainer":"#ffdbce","surface":"#1a110e","surfaceContainer":"#271e1a","onSurface":"#f1dfd9","onSurfaceVariant":"#d8c2ba","outlineVariant":"#53433e","tertiaryContainer":"#4f471b","onTertiaryContainer":"#f1e3a8"}},"Fidelity":{"light":{"primary":"#a23a00","onPrimary":"#ffffff","primaryContainer":"#cb4a00","onPrimaryContainer":"#fffbff","secondaryContainer":"#fd9a72","onSecondaryContainer":"#763010","surface":"#fff8f6","surfaceContainer":"#ffe9e2","onSurface":"#261813","onSurfaceVariant":"#5a4138","outlineVariant":"#e2bfb2","tertiaryContainer":"#0076d2","onTertiaryContainer":"#fdfcff"},"dark":{"primary":"#ffb598","onPrimary":"#591c00","primaryContainer":"#f56218","onPrimaryContainer":"#3f1100","secondaryContainer":"#7a3414","onSecondaryContainer":"#ffa17b","surface":"#1d100b","surfaceContainer":"#2a1c17","onSurface":"#f8ddd4","onSurfaceVariant":"#e2bfb2","outlineVariant":"#5a4138","tertiaryContainer":"#2192fd","onTertiaryContainer":"#002141"}},"Content":{"light":{"primary":"#a23a00","onPrimary":"#ffffff","primaryContainer":"#cb4a00","onPrimaryContainer":"#fffbff","secondaryContainer":"#fd9a72","onSecondaryContainer":"#763010","surface":"#fff8f6","surfaceContainer":"#ffe9e2","onSurface":"#261813","onSurfaceVariant":"#5a4138","outlineVariant":"#e2bfb2","tertiaryContainer":"#c2ab30","onTertiaryContainer":"#4a3f00"},"dark":{"primary":"#ffb598","onPrimary":"#591c00","primaryContainer":"#f56218","onPrimaryContainer":"#3f1100","secondaryContainer":"#7a3414","onSecondaryContainer":"#ffa17b","surface":"#1d100b","surfaceContainer":"#2a1c17","onSurface":"#f8ddd4","onSurfaceVariant":"#e2bfb2","outlineVariant":"#5a4138","tertiaryContainer":"#c2ab30","onTertiaryContainer":"#4a3f00"}}}},"C":{"seed":"#8e3a8e","schemes":{"TonalSpot":{"light":{"primary":"#7e4d7b","onPrimary":"#ffffff","primaryContainer":"#ffd6f7","onPrimaryContainer":"#643662","secondaryContainer":"#f6dbef","onSecondaryContainer":"#544151","surface":"#fff7fa","surfaceContainer":"#f7ebf1","onSurface":"#201a1e","onSurfaceVariant":"#4e444b","outlineVariant":"#d1c3cc","tertiaryContainer":"#ffdad2","onTertiaryContainer":"#663b31"},"dark":{"primary":"#efb3e8","onPrimary":"#4b1f4a","primaryContainer":"#643662","onPrimaryContainer":"#ffd6f7","secondaryContainer":"#544151","onSecondaryContainer":"#f6dbef","surface":"#171216","surfaceContainer":"#241e22","onSurface":"#ebdfe6","onSurfaceVariant":"#d1c3cc","outlineVariant":"#4e444b","tertiaryContainer":"#663b31","onTertiaryContainer":"#ffdad2"}},"Fidelity":{"light":{"primary":"#722074","onPrimary":"#ffffff","primaryContainer":"#8e3a8e","onPrimaryContainer":"#ffc2f7","secondaryContainer":"#ffcef7","onSecondaryContainer":"#7b5477","surface":"#fff7fa","surfaceContainer":"#f8eaf2","onSurface":"#20191f","onSurfaceVariant":"#50434e","outlineVariant":"#d4c1ce","tertiaryContainer":"#516300","onTertiaryContainer":"#c8df75"},"dark":{"primary":"#ffaaf8","onPrimary":"#5a015e","primaryContainer":"#8e3a8e","onPrimaryContainer":"#ffc2f7","secondaryContainer":"#613d5e","onSecondaryContainer":"#d8aad1","surface":"#181117","surfaceContainer":"#251d23","onSurface":"#ecdfe7","onSurfaceVariant":"#d4c1ce","outlineVariant":"#50434e","tertiaryContainer":"#516300","onTertiaryContainer":"#c8df75"}},"Content":{"light":{"primary":"#722074","onPrimary":"#ffffff","primaryContainer":"#8e3a8e","onPrimaryContainer":"#ffc2f7","secondaryContainer":"#ffcef7","onSecondaryContainer":"#7b5477","surface":"#fff7fa","surfaceContainer":"#f8eaf2","onSurface":"#20191f","onSurfaceVariant":"#50434e","outlineVariant":"#d4c1ce","tertiaryContainer":"#a23647","onTertiaryContainer":"#ffc8cb"},"dark":{"primary":"#ffaaf8","onPrimary":"#5a015e","primaryContainer":"#8e3a8e","onPrimaryContainer":"#ffc2f7","secondaryContainer":"#613d5e","onSecondaryContainer":"#d8aad1","surface":"#181117","surfaceContainer":"#251d23","onSurface":"#ecdfe7","onSurfaceVariant":"#d4c1ce","outlineVariant":"#50434e","tertiaryContainer":"#a23647","onTertiaryContainer":"#ffc8cb"}}}}};
+const V = {
+  A: { name: 'Pantry jar', concept: 'A jar with a fill line: the thing you check when deciding whether to buy more. Teal, calm, kitchen-shelf.',
+    glyph: `<rect x="33" y="20" width="34" height="9" rx="3" fill="#fff"/>
+      <path d="M30 34h40a6 6 0 0 1 6 6v34a6 6 0 0 1-6 6H30a6 6 0 0 1-6-6V40a6 6 0 0 1 6-6z" fill="none" stroke="#fff" stroke-width="5"/>
+      <path d="M29 56q7-5 14 0t14 0t14 0v18a3 3 0 0 1-3 3H32a3 3 0 0 1-3-3z" fill="#fff" opacity=".9"/>` },
+  B: { name: 'House check', concept: 'A house outline with a tick inside: the household, sorted. Warm orange, reads instantly at 48px.',
+    glyph: `<path d="M20 48L50 22L80 48" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M28 44v32a4 4 0 0 0 4 4h36a4 4 0 0 0 4-4V44" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round"/>
+      <path d="M38 60l9 9l16-17" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>` },
+  C: { name: 'Stock shelf', concept: 'Three bars on a shelf: full, half, empty. The app\'s own enough / running low / out, drawn as a gauge. Plum, abstract.',
+    glyph: `<rect x="20" y="74" width="60" height="6" rx="3" fill="#fff"/>
+      <rect x="22" y="24" width="14" height="46" rx="4" fill="#fff"/>
+      <rect x="45" y="26" width="10" height="42" rx="3" fill="none" stroke="#fff" stroke-width="4" opacity=".5"/>
+      <rect x="43" y="47" width="14" height="23" rx="4" fill="#fff"/>
+      <rect x="66" y="26" width="10" height="42" rx="3" fill="none" stroke="#fff" stroke-width="4" opacity=".5"/>` },
+};
+const KEYS = Object.keys(V);
+const SQUIRCLE = 'M50 0C88 0 100 12 100 50S88 100 50 100S0 88 0 50S12 0 50 0Z';
+const scaled = (g, s) => `<g transform="translate(50 50) scale(${s}) translate(-50 -50)">${g}</g>`;
+
+function icon(v, mode, uid) {
+  const { glyph } = V[v], seed = DATA[v].seed;
+  const clip = mode === 'circle' ? `<circle cx="50" cy="50" r="50"/>` : mode === 'squircle' ? `<path d="${SQUIRCLE}"/>` : `<rect width="100" height="100"/>`;
+  const s = mode === 'any' ? 1.15 : 0.85;
+  const zone = mode === 'maskable' ? `<circle cx="50" cy="50" r="40" fill="none" stroke="#fff" stroke-width=".8" stroke-dasharray="3 2" opacity=".8"/>` : '';
+  return `<svg viewBox="0 0 100 100" role="img" aria-label="${V[v].name} icon, ${mode}"><defs><clipPath id="c${uid}">${clip}</clipPath></defs>
+    <g clip-path="url(#c${uid})"><rect width="100" height="100" fill="${seed}"/>${scaled(glyph, s)}${zone}</g></svg>`;
+}
+
+const TABS = [
+  ['Shopping list', '<path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>'],
+  ['Items', '<rect x="4" y="5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 10h16" stroke="currentColor" stroke-width="2"/>'],
+  ['Settings', '<circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 2.3"/>'],
+];
+function mock(roles) {
+  const vars = Object.entries(roles).map(([k, c]) => `--m-${k}:${c}`).join(';');
+  return `<div class="mock" style="${vars}" aria-hidden="true">
+    <div class="m-bar">Shopping list <span class="act">Export</span></div>
+    <div class="m-body">
+      <div class="m-banner">2 Items needed now</div>
+      <div class="m-shop">Pharmacy</div>
+      <div class="m-row"><span class="box"></span>Paracetamol<small>out</small></div>
+      <div class="m-shop">Grocery</div>
+      <div class="m-row"><span class="box"></span>Olive oil<small>running low</small></div>
+      <div class="m-row"><span class="box"></span>Dish soap<small>out</small></div>
+    </div>
+    <div class="m-fab">+</div>
+    <div class="m-nav">${TABS.map(([t, p], i) => `<div class="m-tab${i === 0 ? ' on' : ''}"><span class="pill"><svg viewBox="0 0 24 24">${p}</svg></span>${t}</div>`).join('')}</div>
+  </div>`;
+}
+const BLURB = {
+  TonalSpot: 'Android default. Softens the seed into a muted primary; calmest, least brand-like.',
+  Fidelity: 'Keeps primary close to the seed; containers stay tinted by it.',
+  Content: 'Like Fidelity, tuned for colour pulled from imagery; slightly richer containers.',
+};
+
+function render(v) {
+  const d = V[v];
+  document.getElementById('name').textContent = `${v} · ${d.name}`;
+  document.getElementById('concept').textContent = d.concept;
+  document.getElementById('label').textContent = `${v} (${d.name})`;
+  const tiles = [['any', 'Full-bleed, purpose any'], ['maskable', 'Maskable, safe zone dashed'], ['circle', 'Circle mask'], ['squircle', 'Squircle mask']];
+  document.getElementById('icons').innerHTML =
+    tiles.map(([m, cap], i) => `<figure class="tile" style="margin:0">${icon(v, m, v + i)}<figcaption>${cap}</figcaption></figure>`).join('') +
+    `<figure class="tile" style="margin:0"><div class="home"><div class="row"><span class="dummy"></span><span class="me">${icon(v, 'circle', v + 'h')}Home Catalogue</span><span class="dummy"></span></div></div><figcaption>Home screen, 48dp</figcaption></figure>`;
+  const seed = DATA[v].seed;
+  document.getElementById('schemes').innerHTML = Object.entries(DATA[v].schemes).map(([n, s]) => `
+    <article class="scheme">
+      <div class="scheme-head"><h2 style="font-size:17px">${n}</h2>
+        <span class="hex"><span class="sw" style="background:${seed}"></span>seed ${seed} → <span class="sw" style="background:${s.light.primary}"></span>primary ${s.light.primary}</span>
+        <p>${BLURB[n]}</p></div>
+      <div class="mocks"><div>${mock(s.light)}<div class="mock-label">Light</div></div><div>${mock(s.dark)}<div class="mock-label">Dark</div></div></div>
+    </article>`).join('');
+}
+
+function current() { const h = location.hash.slice(1).toUpperCase(); return KEYS.includes(h) ? h : 'A'; }
+function go(step) { const i = (KEYS.indexOf(current()) + step + KEYS.length) % KEYS.length; location.hash = KEYS[i]; }
+document.getElementById('prev').onclick = () => go(-1);
+document.getElementById('next').onclick = () => go(1);
+addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, [contenteditable]')) return;
+  if (e.key === 'ArrowLeft') go(-1); if (e.key === 'ArrowRight') go(1);
+});
+addEventListener('hashchange', () => render(current()));
+render(current());
+</script>
+
+</html>
