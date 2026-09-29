@@ -1,4 +1,5 @@
 import {
+  arrayRemove,
   arrayUnion,
   collection,
   deleteField,
@@ -245,6 +246,22 @@ export async function attachBarcode(
   void updateDoc(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) }).catch(
     (err: unknown) => {
       reportWriteRejection(`barcode for ${item.name}`, err)
+    },
+  )
+}
+
+/**
+ * Removes `barcode` from the Item's `barcodes` with `arrayRemove`, leaving its other barcodes.
+ * Resolves once the write is queued, see {@link createItem}.
+ */
+export async function removeBarcode(
+  db: Firestore,
+  item: Pick<ItemRecord, 'id' | 'name'>,
+  barcode: core.Barcode,
+): Promise<void> {
+  void updateDoc(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayRemove(barcode) }).catch(
+    (err: unknown) => {
+      reportWriteRejection(`removal of a barcode from ${item.name}`, err)
     },
   )
 }

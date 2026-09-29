@@ -26,6 +26,7 @@ const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
 const where = vi.fn((field: string, op: string, value: unknown) => ({ kind: 'where', field, op, value }))
 const getDocs = vi.fn()
 const updateDoc = vi.fn()
+const arrayRemove = vi.fn((...values: unknown[]) => ({ kind: 'arrayRemove', values }))
 const arrayUnion = vi.fn((...values: unknown[]) => ({ kind: 'arrayUnion', values }))
 
 vi.mock('firebase/firestore', () => ({
@@ -42,6 +43,7 @@ vi.mock('firebase/firestore', () => ({
   getDocs: (q: unknown) => getDocs(q),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
   arrayUnion: (...values: unknown[]) => arrayUnion(...values),
+  arrayRemove: (...values: unknown[]) => arrayRemove(...values),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -63,6 +65,7 @@ beforeEach(() => {
   getDocs.mockReset()
   updateDoc.mockReset()
   arrayUnion.mockClear()
+  arrayRemove.mockClear()
 })
 
 describe('watchItems', () => {
@@ -619,5 +622,63 @@ describe('attachBarcode', () => {
     updateDoc.mockReturnValueOnce(new Promise(() => {}))
 
     await attachBarcode(fakeDb, dishSoap, '12345678')
+  })
+})
+
+describe('removeBarcode', () => {
+  const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
+
+  it('drops only that barcode from the Item with arrayRemove', async () => {
+    const { removeBarcode } = await import('./items.ts')
+    updateDoc.mockResolvedValueOnce(undefined)
+
+    await removeBarcode(fakeDb, dishSoap, core.barcode('12345678'))
+
+    expect(arrayRemove).toHaveBeenCalledWith('12345678')
+    expect(updateDoc).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
+      { barcodes: { kind: 'arrayRemove', values: ['12345678'] } },
+    )
+  })
+})
+
+describe('barcode write rejections', () => {
+  const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
+
+  async function rejections() {
+    const { watchWriteRejections } = await import('./writeRejections.ts')
+    let latest: string[] = []
+    watchWriteRejections((list) => {
+      latest = list.map((rejection) => rejection.message)
+    })
+    return () => latest
+  }
+
+  beforeEach(async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { resetWriteRejections } = await import('./writeRejections.ts')
+    resetWriteRejections()
+  })
+
+  it('reports an attach the server rejects', async () => {
+    const { attachBarcode } = await import('./items.ts')
+    const latest = await rejections()
+    updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await attachBarcode(fakeDb, dishSoap, '12345678')
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save barcode for Dish soap'])
+  })
+
+  it('reports a removal the server rejects', async () => {
+    const { removeBarcode } = await import('./items.ts')
+    const latest = await rejections()
+    updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await removeBarcode(fakeDb, dishSoap, core.barcode('12345678'))
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save removal of a barcode from Dish soap'])
   })
 })
