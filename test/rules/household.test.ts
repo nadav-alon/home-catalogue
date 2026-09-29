@@ -32,6 +32,12 @@ async function seedClaimedHousehold(): Promise<void> {
   })
 }
 
+/** The same rules path the Firestore emulator itself loads, per `firebase.json`. */
+function rulesPath(): string {
+  const { firestore } = JSON.parse(readFileSync('firebase.json', 'utf8')) as { firestore: { rules: string } }
+  return firestore.rules
+}
+
 beforeAll(async () => {
   const projectId = process.env.GCLOUD_PROJECT
   if (!projectId) {
@@ -40,7 +46,7 @@ beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId,
     firestore: {
-      rules: readFileSync('node_modules/data-platform/firestore.rules', 'utf8'),
+      rules: readFileSync(rulesPath(), 'utf8'),
     },
   })
 })
