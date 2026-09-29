@@ -1,9 +1,6 @@
-declare const writeRejectionIdBrand: unique symbol
-
-export type WriteRejectionId = string & { readonly [writeRejectionIdBrand]: true }
 
 export interface WriteRejection {
-  id: WriteRejectionId
+  id: string
   message: string
 }
 
@@ -26,11 +23,11 @@ function publish() {
 export function reportWriteRejection(what: string, err: unknown): void {
   console.error(`Could not save ${what}`, err)
   nextId += 1
-  rejections = [...rejections, { id: `write-rejection-${nextId}` as WriteRejectionId, message: `Could not save ${what}` }]
+  rejections = [...rejections, { id: `write-rejection-${nextId}`, message: `Could not save ${what}` }]
   publish()
 }
 
-export function dismissWriteRejection(id: WriteRejectionId): void {
+export function dismissWriteRejection(id: string): void {
   rejections = rejections.filter((rejection) => rejection.id !== id)
   publish()
 }
