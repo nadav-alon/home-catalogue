@@ -17,7 +17,7 @@ interface ShopGroup {
 }
 
 export function ShoppingList({ db }: ShoppingListProps) {
-  const [items, setItems] = useState<ItemRecord[]>([])
+  const [items, setItems] = useState<ItemRecord[] | null>(null)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +35,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
     }
   }
 
-  const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items, categories, shops)
+  const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops)
   const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
     key: shop.id,
     name: shop.name,
@@ -48,7 +48,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
   return (
     <section>
       {error !== null && <p role="alert">{error}</p>}
-      {groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
+      {items !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
       {groups.map(({ key, name, items: groupItems }) => (
         <div key={key}>
           <h2>{name}</h2>

@@ -137,6 +137,15 @@ describe('ShoppingList', () => {
     expect(screen.getByText('Nothing to buy — every Item is enough.')).toBeInTheDocument()
   })
 
+  it('does not show the empty state before the first snapshot of Items arrives', () => {
+    watchItems.mockReturnValue(vi.fn())
+    watchCategories.mockReturnValue(vi.fn())
+    watchShops.mockReturnValue(vi.fn())
+    render(<ShoppingList db={fakeDb} />)
+
+    expect(screen.queryByText(/Nothing to buy/)).not.toBeInTheDocument()
+  })
+
   it('does not show the empty state while an Item is pending', () => {
     const bandages: ItemRecord = {
       id: core.itemId('bandages'),
