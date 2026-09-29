@@ -17,7 +17,7 @@ function fromBase64Url(value: string): string {
   return new TextDecoder().decode(bytes)
 }
 
-/** The current page's URL carrying `config` as a `#config=` fragment, for another signed-in device to scan. */
+/** The current page's URL carrying `config` as a `#config=` fragment, for a new device to scan. */
 export function deviceTransferUrl(config: FirebaseWebConfig): string {
   const url = new URL(location.href)
   url.hash = `${FRAGMENT_PREFIX.slice(1)}${toBase64Url(JSON.stringify(config))}`
