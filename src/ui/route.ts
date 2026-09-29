@@ -1,12 +1,10 @@
-declare const routeBrand: unique symbol
+const ROUTES = ['/list', '/items', '/settings', '/settings/shops', '/settings/categories'] as const
 
-/** A place the app can show: the path after `#` in the URL hash. */
-export type Route = string & { readonly [routeBrand]: true }
-
-const ROUTES = ['/list', '/items', '/settings', '/settings/shops', '/settings/categories']
+/** A place the app can show: the path after `#` in the URL hash. A closed set, so it can be switched over exhaustively. */
+export type Route = (typeof ROUTES)[number]
 
 export function isRoute(value: string): value is Route {
-  return ROUTES.includes(value)
+  return (ROUTES as readonly string[]).includes(value)
 }
 
 export function route(value: string): Route {
