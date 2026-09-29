@@ -37,8 +37,7 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
         <TopAppBar title={titleOf(current)}>
           <main>
             <WriteRejectionBanner />
-            <AlertBanner items={items} />
-            <Screen route={current} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
+            <Screen route={current} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} items={items} />
           </main>
         </TopAppBar>
       </div>
@@ -47,12 +46,20 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
 }
 
 /** The screen for a route. */
-function Screen({ route: current, db, config, onResetConfig, onSignOut }: { route: Route } & AppProps) {
+function Screen({
+  route: current,
+  db,
+  config,
+  onResetConfig,
+  onSignOut,
+  items,
+}: { route: Route; items: ItemRecord[] } & AppProps) {
   switch (current) {
     case '/list':
       // TODO[#135]: the Shopping list screen.
       return (
         <>
+          <AlertBanner items={items} />
           <ShoppingList db={db} />
           <CalendarExport db={db} />
         </>

@@ -103,6 +103,27 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { level: 2, name: 'Shops' })).toBeNull()
   })
 
+  it('shows the AlertBanner on the Shopping list screen only', async () => {
+    render(<App db={fakeDb} config={config} />)
+    const items: ItemRecord[] = [
+      {
+        id: core.itemId('bandages'),
+        name: 'Bandages',
+        state: 'out',
+        categoryId: catalogue.categoryId('medicine'),
+        necessity: catalogue.necessitySchema.parse('essential'),
+      },
+    ]
+    act(() => watchItemsCallbacks.forEach((cb) => cb(items)))
+    expect(screen.getByRole('alert')).toHaveTextContent('1 urgent Item')
+
+    await goTo('#/items')
+    expect(screen.queryByText(/urgent Item/)).toBeNull()
+
+    await goTo('#/settings')
+    expect(screen.queryByText(/urgent Item/)).toBeNull()
+  })
+
   it('shows a red AlertBanner when a watched Item is now', () => {
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
