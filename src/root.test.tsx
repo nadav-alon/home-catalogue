@@ -98,7 +98,7 @@ describe('Root', () => {
   it('shows the setup screen when no config is stored', () => {
     render(<Root />)
 
-    expect(screen.getByRole('heading', { name: 'Set up Home Catalogue' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Set up' })).toBeInTheDocument()
     expect(initFirebase).not.toHaveBeenCalled()
   })
 
@@ -129,7 +129,7 @@ describe('Root', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
 
-    expect(await screen.findByRole('heading', { name: 'Set up Home Catalogue' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Set up' })).toBeInTheDocument()
     expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
   })
@@ -139,7 +139,7 @@ describe('Root', () => {
     render(<Root />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
-    await screen.findByRole('heading', { name: 'Set up Home Catalogue' })
+    await screen.findByRole('heading', { name: 'Set up' })
 
     const otherConfig = firebaseWebConfig({ ...validConfig, projectId: 'other-household' })
     fireEvent.input(screen.getByLabelText('Firebase web config'), {
@@ -224,7 +224,7 @@ describe('Root with a device transfer fragment in the URL', () => {
 
     render(<Root />)
 
-    expect(screen.getByRole('heading', { name: 'Set up Home Catalogue' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Set up' })).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent(/truncated or corrupted/)
     expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
     expect(location.hash).toBe('')

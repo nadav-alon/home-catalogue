@@ -28,7 +28,7 @@ export function SetupScreen({ onConfigured, initialError = null }: SetupScreenPr
   }
 
   return (
-    <CentredCard title="Set up Home Catalogue">
+    <CentredCard title="Set up">
       <p>
         Paste your household's Firebase web config below. Not set up a Household yet? Follow the{' '}
         <a href={HOUSEHOLD_SETUP_DOC_URL}>household setup guide</a>.
