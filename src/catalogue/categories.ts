@@ -72,12 +72,12 @@ export async function createCategory(
 /** Validates the new name against {@link catalogue.categorySchema} before writing it. Resolves once queued, see {@link createCategory}. */
 export async function renameCategory(
   db: Firestore,
-  id: catalogue.CategoryId,
+  category: CategoryRecord,
   name: string,
 ): Promise<void> {
   const validName = catalogue.categorySchema.shape.name.parse(name)
-  void updateDoc(doc(db, catalogue.CATEGORIES_COLLECTION, id), { name: validName }).catch((err: unknown) => {
-    reportWriteRejection(`renamed Category ${validName}`, err)
+  void updateDoc(doc(db, catalogue.CATEGORIES_COLLECTION, category.id), { name: validName }).catch((err: unknown) => {
+    reportWriteRejection(`rename of Category ${category.name} to ${validName}`, err)
   })
 }
 

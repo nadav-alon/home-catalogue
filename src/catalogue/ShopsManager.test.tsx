@@ -16,7 +16,7 @@ const { FakeShopInUseError } = vi.hoisted(() => ({
 
 vi.mock('./shops.ts', () => ({
   createShop: (db: unknown, name: string) => createShop(db, name),
-  renameShop: (db: unknown, id: unknown, name: string) => renameShop(db, id, name),
+  renameShop: (db: unknown, shop: unknown, name: string) => renameShop(db, shop, name),
   deleteShop: (db: unknown, shop: unknown) => deleteShop(db, shop),
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
   ShopInUseError: FakeShopInUseError,
@@ -100,7 +100,7 @@ describe('ShopsManager', () => {
     fireEvent.input(screen.getByLabelText('Rename Pharmacy'), { target: { value: 'Pharmacy & Health' } })
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
 
-    expect(renameShop).toHaveBeenCalledWith(fakeDb, pharmacy.id, 'Pharmacy & Health')
+    expect(renameShop).toHaveBeenCalledWith(fakeDb, pharmacy, 'Pharmacy & Health')
   })
 
   it('deletes a Shop', async () => {

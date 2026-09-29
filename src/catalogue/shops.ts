@@ -65,10 +65,10 @@ export async function createShop(db: Firestore, name: string): Promise<void> {
 }
 
 /** Validates the new name against {@link catalogue.shopSchema} before writing it. Resolves once queued, see {@link createShop}. */
-export async function renameShop(db: Firestore, id: catalogue.ShopId, name: string): Promise<void> {
+export async function renameShop(db: Firestore, shop: ShopRecord, name: string): Promise<void> {
   const validName = catalogue.shopSchema.shape.name.parse(name)
-  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, id), { name: validName }).catch((err: unknown) => {
-    reportWriteRejection(`renamed Shop ${validName}`, err)
+  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id), { name: validName }).catch((err: unknown) => {
+    reportWriteRejection(`rename of Shop ${shop.name} to ${validName}`, err)
   })
 }
 

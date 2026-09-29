@@ -54,7 +54,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
       return
     }
     try {
-      await renameCategory(db, category.id, trimmedName)
+      await renameCategory(db, category, trimmedName)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not rename Category')

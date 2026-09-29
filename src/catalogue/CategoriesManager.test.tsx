@@ -17,7 +17,7 @@ const { FakeCategoryInUseError } = vi.hoisted(() => ({
 
 vi.mock('./categories.ts', () => ({
   createCategory: (db: unknown, name: string, shopId: unknown) => createCategory(db, name, shopId),
-  renameCategory: (db: unknown, id: unknown, name: string) => renameCategory(db, id, name),
+  renameCategory: (db: unknown, category: unknown, name: string) => renameCategory(db, category, name),
   deleteCategory: (db: unknown, category: unknown) => deleteCategory(db, category),
   watchCategories: (db: unknown, cb: unknown) => watchCategories(db, cb),
   CategoryInUseError: FakeCategoryInUseError,
@@ -124,7 +124,7 @@ describe('CategoriesManager', () => {
     fireEvent.input(screen.getByLabelText('Rename Medicine'), { target: { value: 'Medicine & First aid' } })
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
 
-    expect(renameCategory).toHaveBeenCalledWith(fakeDb, medicine.id, 'Medicine & First aid')
+    expect(renameCategory).toHaveBeenCalledWith(fakeDb, medicine, 'Medicine & First aid')
   })
 
   it('refuses to rename a Category to a blank name, without calling renameCategory', () => {

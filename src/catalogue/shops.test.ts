@@ -115,11 +115,13 @@ describe('createShop', () => {
 })
 
 describe('renameShop', () => {
+  const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
+
   it('validates the new name and updates it', async () => {
     const { renameShop } = await import('./shops.ts')
     updateDoc.mockResolvedValueOnce(undefined)
 
-    await renameShop(fakeDb, catalogue.shopId('pharmacy'), 'Pharmacy & Health')
+    await renameShop(fakeDb, pharmacy, 'Pharmacy & Health')
 
     expect(doc).toHaveBeenCalledWith(fakeDb, catalogue.SHOPS_COLLECTION, 'pharmacy')
     expect(updateDoc).toHaveBeenCalledWith(
@@ -131,7 +133,7 @@ describe('renameShop', () => {
   it('rejects an empty name without writing', async () => {
     const { renameShop } = await import('./shops.ts')
 
-    await expect(renameShop(fakeDb, catalogue.shopId('pharmacy'), '')).rejects.toThrow()
+    await expect(renameShop(fakeDb, pharmacy, '')).rejects.toThrow()
     expect(updateDoc).not.toHaveBeenCalled()
   })
 
@@ -139,7 +141,7 @@ describe('renameShop', () => {
     const { renameShop } = await import('./shops.ts')
     updateDoc.mockReturnValueOnce(new Promise(() => {}))
 
-    await expect(renameShop(fakeDb, catalogue.shopId('pharmacy'), 'Pharmacy & Health')).resolves.toBeUndefined()
+    await expect(renameShop(fakeDb, pharmacy, 'Pharmacy & Health')).resolves.toBeUndefined()
   })
 })
 
@@ -184,15 +186,16 @@ describe('a queued Shop write the server rejects', () => {
     expect(latest()).toEqual(['Could not save new Shop Pharmacy'])
   })
 
-  it('reports a rename by its new name', async () => {
+  it('reports a rename by its old and new name', async () => {
     const { renameShop } = await import('./shops.ts')
     const latest = await rejections()
+    const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
     updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
 
-    await renameShop(fakeDb, catalogue.shopId('pharmacy'), 'Chemist')
+    await renameShop(fakeDb, pharmacy, 'Chemist')
     await Promise.resolve()
 
-    expect(latest()).toEqual(['Could not save renamed Shop Chemist'])
+    expect(latest()).toEqual(['Could not save rename of Shop Pharmacy to Chemist'])
   })
 })
 

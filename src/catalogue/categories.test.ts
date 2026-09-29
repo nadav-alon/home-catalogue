@@ -164,11 +164,18 @@ describe('createCategory', () => {
 })
 
 describe('renameCategory', () => {
+  const medicine = {
+    id: catalogue.categoryId('medicine'),
+    name: 'Medicine',
+    defaultShopId: catalogue.shopId('pharmacy'),
+    referenceCount: 0,
+  }
+
   it('validates the new name and updates it', async () => {
     const { renameCategory } = await import('./categories.ts')
     updateDoc.mockResolvedValueOnce(undefined)
 
-    await renameCategory(fakeDb, catalogue.categoryId('medicine'), 'Medicine & First aid')
+    await renameCategory(fakeDb, medicine, 'Medicine & First aid')
 
     expect(doc).toHaveBeenCalledWith(fakeDb, catalogue.CATEGORIES_COLLECTION, 'medicine')
     expect(updateDoc).toHaveBeenCalledWith(
@@ -180,7 +187,7 @@ describe('renameCategory', () => {
   it('rejects an empty name without writing', async () => {
     const { renameCategory } = await import('./categories.ts')
 
-    await expect(renameCategory(fakeDb, catalogue.categoryId('medicine'), '')).rejects.toThrow()
+    await expect(renameCategory(fakeDb, medicine, '')).rejects.toThrow()
     expect(updateDoc).not.toHaveBeenCalled()
   })
 
@@ -189,7 +196,7 @@ describe('renameCategory', () => {
     updateDoc.mockReturnValueOnce(new Promise(() => {}))
 
     await expect(
-      renameCategory(fakeDb, catalogue.categoryId('medicine'), 'Medicine & First aid'),
+      renameCategory(fakeDb, medicine, 'Medicine & First aid'),
     ).resolves.toBeUndefined()
   })
 })
@@ -245,14 +252,20 @@ describe('a queued Category write the server rejects', () => {
     expect(latest()).toEqual(['Could not save new Category Medicine'])
   })
 
-  it('reports a rename by its new name', async () => {
+  it('reports a rename by its old and new name', async () => {
     const { renameCategory } = await import('./categories.ts')
     const latest = await rejections()
+    const medicine = {
+      id: catalogue.categoryId('medicine'),
+      name: 'Medicine',
+      defaultShopId: catalogue.shopId('pharmacy'),
+      referenceCount: 0,
+    }
     updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
 
-    await renameCategory(fakeDb, catalogue.categoryId('medicine'), 'Meds')
+    await renameCategory(fakeDb, medicine, 'Meds')
     await Promise.resolve()
 
-    expect(latest()).toEqual(['Could not save renamed Category Meds'])
+    expect(latest()).toEqual(['Could not save rename of Category Medicine to Meds'])
   })
 })
