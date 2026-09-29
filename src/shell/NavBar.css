@@ -4,6 +4,8 @@
   bottom: 0;
   left: 0;
   right: 0;
+  box-sizing: border-box;
+  min-height: var(--shell-bar-height);
   display: flex;
   justify-content: space-around;
   gap: var(--md-sys-spacing-2);
@@ -45,7 +47,8 @@
     top: 0;
     right: auto;
     bottom: 0;
-    width: 5rem;
+    width: var(--shell-rail-width);
+    min-height: 0;
     flex-direction: column;
     justify-content: flex-start;
     gap: var(--md-sys-spacing-3);
