@@ -122,12 +122,17 @@ export async function createItem(db: Firestore, input: ItemInput): Promise<void>
  * it stale. Resolves once the batch is queued, see {@link createItem}.
  */
 export async function updateItem(db: Firestore, id: core.ItemId, input: ItemInput): Promise<void> {
-  const name = core.itemSchema.shape.name.parse(input.name)
-  const brandNote = input.brandNote === undefined ? undefined : core.itemSchema.shape.brandNote.parse(input.brandNote)
-  const categoryId = catalogue.catalogueItemSchema.shape.categoryId.parse(input.categoryId)
-  const necessity = catalogue.catalogueItemSchema.shape.necessity.parse(input.necessity)
-  const shopId =
-    input.shopId === undefined ? undefined : catalogue.catalogueItemSchema.shape.shopId.parse(input.shopId)
+  const { name, brandNote } = core.itemSchema.pick({ name: true, brandNote: true }).parse({
+    name: input.name,
+    ...(input.brandNote !== undefined ? { brandNote: input.brandNote } : {}),
+  })
+  const { categoryId, necessity, shopId } = catalogue.catalogueItemSchema
+    .pick({ categoryId: true, necessity: true, shopId: true })
+    .parse({
+      categoryId: input.categoryId,
+      necessity: input.necessity,
+      ...(input.shopId !== undefined ? { shopId: input.shopId } : {}),
+    })
 
   const batch = writeBatch(db)
   batch.update(doc(db, core.ITEMS_COLLECTION, id), { name, brandNote: brandNote ?? deleteField() })
