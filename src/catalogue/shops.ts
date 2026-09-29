@@ -18,7 +18,7 @@ export interface ShopRecord extends catalogue.Shop {
   id: catalogue.ShopId
 }
 
-/** Thrown by {@link deleteShop} while a Category still defaults to the Shop. */
+/** Thrown by {@link deleteShop} while a Category still defaults to the Shop, or an Item still overrides to it. */
 export class ShopInUseError extends Error {}
 
 function toShopRecord(id: string, data: catalogue.Shop): ShopRecord {
@@ -45,13 +45,14 @@ export async function renameShop(db: Firestore, id: catalogue.ShopId, name: stri
   await updateDoc(doc(db, catalogue.SHOPS_COLLECTION, id), { name: validName })
 }
 
-/** Refuses with {@link ShopInUseError} while any Category still defaults to this Shop. */
+/** Refuses with {@link ShopInUseError} while any Category defaults to this Shop, or any Item overrides to it. */
 export async function deleteShop(db: Firestore, id: catalogue.ShopId): Promise<void> {
-  const dependents = await getDocs(
-    query(collection(db, catalogue.CATEGORIES_COLLECTION), where('defaultShopId', '==', id), limit(1)),
-  )
-  if (!dependents.empty) {
-    throw new ShopInUseError('This Shop is the default Shop for a Category, and cannot be deleted.')
+  const [categoryDependents, itemDependents] = await Promise.all([
+    getDocs(query(collection(db, catalogue.CATEGORIES_COLLECTION), where('defaultShopId', '==', id), limit(1))),
+    getDocs(query(collection(db, catalogue.CATALOGUE_ITEMS_COLLECTION), where('shopId', '==', id), limit(1))),
+  ])
+  if (!categoryDependents.empty || !itemDependents.empty) {
+    throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
   }
   await deleteDoc(doc(db, catalogue.SHOPS_COLLECTION, id))
 }

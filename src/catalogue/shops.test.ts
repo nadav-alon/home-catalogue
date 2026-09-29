@@ -105,21 +105,35 @@ describe('renameShop', () => {
 })
 
 describe('deleteShop', () => {
-  it('deletes a Shop no Category defaults to', async () => {
+  it('deletes a Shop no Category defaults to and no Item overrides to', async () => {
     const { deleteShop } = await import('./shops.ts')
-    getDocs.mockResolvedValueOnce({ empty: true })
+    getDocs.mockResolvedValue({ empty: true })
     deleteDoc.mockResolvedValueOnce(undefined)
 
     await deleteShop(fakeDb, catalogue.shopId('pharmacy'))
 
     expect(where).toHaveBeenCalledWith('defaultShopId', '==', 'pharmacy')
+    expect(where).toHaveBeenCalledWith('shopId', '==', 'pharmacy')
     expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATEGORIES_COLLECTION)
+    expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATALOGUE_ITEMS_COLLECTION)
     expect(deleteDoc).toHaveBeenCalledWith({ path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' })
   })
 
   it('refuses with ShopInUseError while a Category still defaults to it, without deleting', async () => {
     const { deleteShop, ShopInUseError } = await import('./shops.ts')
-    getDocs.mockResolvedValueOnce({ empty: false })
+    getDocs.mockImplementation((q: { constraints: { field: string }[] }) =>
+      Promise.resolve({ empty: !q.constraints.some((constraint) => constraint.field === 'defaultShopId') }),
+    )
+
+    await expect(deleteShop(fakeDb, catalogue.shopId('pharmacy'))).rejects.toBeInstanceOf(ShopInUseError)
+    expect(deleteDoc).not.toHaveBeenCalled()
+  })
+
+  it('refuses with ShopInUseError while an Item still overrides to it, without deleting', async () => {
+    const { deleteShop, ShopInUseError } = await import('./shops.ts')
+    getDocs.mockImplementation((q: { constraints: { field: string }[] }) =>
+      Promise.resolve({ empty: !q.constraints.some((constraint) => constraint.field === 'shopId') }),
+    )
 
     await expect(deleteShop(fakeDb, catalogue.shopId('pharmacy'))).rejects.toBeInstanceOf(ShopInUseError)
     expect(deleteDoc).not.toHaveBeenCalled()
