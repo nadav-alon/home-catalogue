@@ -1,4 +1,4 @@
-import { hasAlertNow } from './alert.ts'
+import { alertLevel } from '../catalogue/alerts.ts'
 import { nextExportDate, type ExportDate } from './exportDate.ts'
 import type { ShopGroup } from './shopGroups.ts'
 
@@ -13,9 +13,10 @@ export interface CalendarEventResource {
 
 /**
  * One all-day event for `group`'s Shop on `date`, its pending Items listed in the description.
- * Carries a same-day popup reminder when any Item is at Alert `now` (see {@link hasAlertNow}).
+ * Carries a same-day popup reminder when any Item is at Alert `now` (see {@link alertLevel}).
  */
 export function buildShopEvent(group: ShopGroup, date: ExportDate): CalendarEventResource {
+  const hasAlertNow = group.items.some((item) => alertLevel(item.necessity, item.state) === 'now')
   return {
     summary: group.shop.name,
     description: group.items.map((item) => item.name).join('\n'),
@@ -23,7 +24,7 @@ export function buildShopEvent(group: ShopGroup, date: ExportDate): CalendarEven
     end: { date: nextExportDate(date) },
     reminders: {
       useDefault: false,
-      overrides: hasAlertNow(group.items) ? [{ method: 'popup', minutes: 0 }] : [],
+      overrides: hasAlertNow ? [{ method: 'popup', minutes: 0 }] : [],
     },
   }
 }
