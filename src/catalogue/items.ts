@@ -33,6 +33,11 @@ export function resolvedShopId(item: ItemRecord, category: CategoryRecord | unde
   return category !== undefined ? catalogue.resolveShop(item, category) : item.shopId
 }
 
+/** Whether an Item's State belongs on the Shopping list: `running low` or `out`. */
+export function isPending(state: core.State): boolean {
+  return state === 'running low' || state === 'out'
+}
+
 /**
  * Notifies `callback` with every Item whose core `items` doc and catalogue `catalogueItems` doc
  * have both synced, ordered by name. An Item missing either half — not yet written, or a document

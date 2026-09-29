@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
-import { resolvedShopId, setItemState, watchItems, type ItemRecord } from './items.ts'
+import { isPending, resolvedShopId, setItemState, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 
@@ -27,7 +27,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
     }
   }
 
-  const pendingItems = items.filter((item) => item.state === 'running low' || item.state === 'out')
+  const pendingItems = items.filter((item) => isPending(item.state))
 
   const groups = shops
     .map((shop) => ({
