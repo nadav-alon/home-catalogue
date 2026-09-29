@@ -18,7 +18,7 @@ export interface ShopRecord extends catalogue.Shop {
   id: catalogue.ShopId
 }
 
-const UNKNOWN_SHOP_NAME = 'Unknown Shop'
+export const UNKNOWN_SHOP_NAME = 'Unknown Shop'
 
 /** The Shop's display name, or {@link UNKNOWN_SHOP_NAME} when `shops` has no record for it: deleted, not yet synced, or invalid. */
 export function shopName(shops: ShopRecord[], shopId: catalogue.ShopId): string {

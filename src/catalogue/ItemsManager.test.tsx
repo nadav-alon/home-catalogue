@@ -129,6 +129,54 @@ describe('ItemsManager', () => {
   })
 })
 
+describe('an Item whose Category is not in the local list', () => {
+  const orphan: ItemRecord = {
+    id: core.itemId('orphan'),
+    name: 'Mystery item',
+    state: 'enough',
+    categoryId: catalogue.categoryId('deleted-category'),
+    necessity: 'important',
+  }
+
+  it('is grouped under "Uncategorised" instead of disappearing', () => {
+    renderWith([orphan], [medicine], [pharmacy])
+
+    expect(screen.getByRole('heading', { name: 'Uncategorised' })).toBeInTheDocument()
+    expect(screen.getByText('Mystery item')).toBeInTheDocument()
+  })
+
+  it("shows its own Shop override as the resolved Shop, with no Category default to fall back to", () => {
+    renderWith([{ ...orphan, shopId: grocery.id }], [medicine], [pharmacy, grocery])
+
+    expect(screen.getByText('Shop: Grocery')).toBeInTheDocument()
+  })
+
+  it("falls back to 'Unknown Shop' when it also has no Shop override", () => {
+    renderWith([orphan], [medicine], [pharmacy])
+
+    expect(screen.getByText('Shop: Unknown Shop')).toBeInTheDocument()
+  })
+
+  it('offers its own unknown id as a Category option, instead of silently showing the first Category', () => {
+    renderWith([orphan], [medicine, cleaning], [pharmacy])
+
+    expect(screen.getByLabelText('Category for Mystery item')).toHaveValue(orphan.categoryId)
+    expect(screen.getByRole('option', { name: 'Unknown Category' })).toBeInTheDocument()
+  })
+
+  it('keeps its own Category id when saved without picking a new one', () => {
+    renderWith([orphan], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Mystery item' }))
+
+    expect(updateItem).toHaveBeenCalledWith(
+      fakeDb,
+      orphan.id,
+      expect.objectContaining({ categoryId: orphan.categoryId }),
+    )
+  })
+})
+
 describe('adding an Item', () => {
   it('offers every Category and Necessity, and every Shop as an override choice', () => {
     renderWith([], [medicine, cleaning], [pharmacy, grocery])

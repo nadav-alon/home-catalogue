@@ -4,7 +4,7 @@ import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { createItem, updateItem, watchItems, type ItemInput, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
-import { shopName, watchShops, type ShopRecord } from './shops.ts'
+import { shopName, UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 
 export interface ItemsManagerProps {
   db: Firestore
@@ -59,8 +59,9 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
 
-  function resolveShopName(item: ItemRecord, category: CategoryRecord): string {
-    return shopName(shops, catalogue.resolveShop(item, category))
+  function resolveShopName(item: ItemRecord, category: CategoryRecord | undefined): string {
+    const shopId = category !== undefined ? catalogue.resolveShop(item, category) : item.shopId
+    return shopId !== undefined ? shopName(shops, shopId) : UNKNOWN_SHOP_NAME
   }
 
   async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
@@ -106,6 +107,9 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   const groups = categories
     .map((category) => ({ category, items: items.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
+  const uncategorisedItems = items.filter(
+    (item) => !categories.some((category) => category.id === item.categoryId),
+  )
 
   return (
     <section>
@@ -128,6 +132,23 @@ export function ItemsManager({ db }: ItemsManagerProps) {
           </ul>
         </div>
       ))}
+      {uncategorisedItems.length > 0 && (
+        <div>
+          <h3>Uncategorised</h3>
+          <ul>
+            {uncategorisedItems.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                categories={categories}
+                shops={shops}
+                resolvedShopName={resolveShopName(item, undefined)}
+                onUpdate={(values) => void handleUpdate(item, values)}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
       <form onSubmit={handleCreate}>
         <label htmlFor="new-item-name">New Item name</label>
         <input id="new-item-name" value={newName} onInput={(event) => setNewName(event.currentTarget.value)} />
@@ -234,6 +255,9 @@ function ItemRow({ item, categories, shops, resolvedShopName, onUpdate }: ItemRo
           value={categoryId}
           onChange={(event) => setCategoryId(event.currentTarget.value)}
         >
+          {!categories.some((category) => category.id === categoryId) && (
+            <option value={categoryId}>Unknown Category</option>
+          )}
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
               {category.name}
