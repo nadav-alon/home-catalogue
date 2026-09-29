@@ -7,11 +7,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:rules": "firebase emulators:exec --project demo-home-catalogue-rules-test --only firestore \"vitest run --dir test/rules\"",
+    "test:rules": "firebase emulators:exec --project demo-home-catalogue-rules-test --only firestore \"vitest run --dir test/rules --no-file-parallelism\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "data-platform": "github:nadav-alon/data-platform#v0.2.0",
+    "data-platform": "github:nadav-alon/data-platform#v0.3.0",
     "firebase": "^12.19.0",
     "preact": "^10.29.8",
     "qrcode": "^1.5.4"

@@ -14,7 +14,7 @@ const setItemState = vi.fn()
 vi.mock('./items.ts', () => ({
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
-  updateItem: (db: unknown, id: unknown, input: unknown) => updateItem(db, id, input),
+  updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
   setItemState: (db: unknown, id: unknown, state: unknown) => setItemState(db, id, state),
 }))
 
@@ -31,10 +31,20 @@ vi.mock('./shops.ts', async (importOriginal) => ({
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
-const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy' }
-const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery' }
-const medicine: CategoryRecord = { id: catalogue.categoryId('medicine'), name: 'Medicine', defaultShopId: pharmacy.id }
-const cleaning: CategoryRecord = { id: catalogue.categoryId('cleaning'), name: 'Cleaning', defaultShopId: grocery.id }
+const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 1 }
+const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery', referenceCount: 1 }
+const medicine: CategoryRecord = {
+  id: catalogue.categoryId('medicine'),
+  name: 'Medicine',
+  defaultShopId: pharmacy.id,
+  referenceCount: 1,
+}
+const cleaning: CategoryRecord = {
+  id: catalogue.categoryId('cleaning'),
+  name: 'Cleaning',
+  defaultShopId: grocery.id,
+  referenceCount: 1,
+}
 
 beforeEach(() => {
   watchItems.mockReset()
@@ -174,7 +184,7 @@ describe('an Item whose Category is not in the local list', () => {
 
     expect(updateItem).toHaveBeenCalledWith(
       fakeDb,
-      orphan.id,
+      orphan,
       expect.objectContaining({ categoryId: orphan.categoryId }),
     )
   })
@@ -279,7 +289,7 @@ describe('editing an Item', () => {
     fireEvent.change(screen.getByLabelText('Necessity for Bandages'), { target: { value: 'optional' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save Bandages' }))
 
-    expect(updateItem).toHaveBeenCalledWith(fakeDb, bandages.id, {
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, bandages, {
       name: 'Large bandages',
       brandNote: 'the waterproof ones',
       categoryId: cleaning.id,
@@ -296,7 +306,7 @@ describe('editing an Item', () => {
 
     expect(updateItem).toHaveBeenCalledWith(
       fakeDb,
-      bandages.id,
+      bandages,
       expect.objectContaining({ shopId: grocery.id }),
     )
   })
@@ -309,7 +319,7 @@ describe('editing an Item', () => {
 
     expect(updateItem).toHaveBeenCalledWith(
       fakeDb,
-      bandages.id,
+      bandages,
       expect.objectContaining({ brandNote: undefined }),
     )
   })

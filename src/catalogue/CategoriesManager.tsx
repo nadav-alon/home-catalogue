@@ -63,7 +63,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
 
   async function handleDelete(category: CategoryRecord) {
     try {
-      await deleteCategory(db, category.id)
+      await deleteCategory(db, category)
       setError(null)
     } catch (err) {
       setError(err instanceof CategoryInUseError ? err.message : 'Could not delete Category')

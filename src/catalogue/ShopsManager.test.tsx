@@ -25,8 +25,8 @@ vi.mock('./shops.ts', () => ({
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const unsubscribe = vi.fn()
 
-const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy' }
-const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery' }
+const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
+const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery', referenceCount: 0 }
 
 beforeEach(() => {
   createShop.mockReset().mockResolvedValue(undefined)

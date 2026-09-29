@@ -18,7 +18,7 @@ const { FakeCategoryInUseError } = vi.hoisted(() => ({
 vi.mock('./categories.ts', () => ({
   createCategory: (db: unknown, name: string, shopId: unknown) => createCategory(db, name, shopId),
   renameCategory: (db: unknown, id: unknown, name: string) => renameCategory(db, id, name),
-  deleteCategory: (db: unknown, id: unknown) => deleteCategory(db, id),
+  deleteCategory: (db: unknown, category: unknown) => deleteCategory(db, category),
   watchCategories: (db: unknown, cb: unknown) => watchCategories(db, cb),
   CategoryInUseError: FakeCategoryInUseError,
 }))
@@ -33,9 +33,14 @@ const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const categoriesUnsubscribe = vi.fn()
 const shopsUnsubscribe = vi.fn()
 
-const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy' }
-const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery' }
-const medicine: CategoryRecord = { id: catalogue.categoryId('medicine'), name: 'Medicine', defaultShopId: pharmacy.id }
+const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 1 }
+const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery', referenceCount: 0 }
+const medicine: CategoryRecord = {
+  id: catalogue.categoryId('medicine'),
+  name: 'Medicine',
+  defaultShopId: pharmacy.id,
+  referenceCount: 0,
+}
 
 beforeEach(() => {
   createCategory.mockReset().mockResolvedValue(undefined)
@@ -137,7 +142,7 @@ describe('CategoriesManager', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete Medicine' }))
 
-    expect(deleteCategory).toHaveBeenCalledWith(fakeDb, medicine.id)
+    expect(deleteCategory).toHaveBeenCalledWith(fakeDb, medicine)
   })
 
   it('shows the CategoryInUseError message when deletion is refused', async () => {

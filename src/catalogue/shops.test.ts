@@ -1,31 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
+import { FirebaseError } from 'firebase/app'
 import { catalogue } from 'data-platform'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
 const doc = vi.fn((_db: unknown, path: string, id: string) => ({ path, id }))
 const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constraints }))
 const orderBy = vi.fn((field: string) => ({ kind: 'orderBy', field }))
-const where = vi.fn((field: string, op: string, value: unknown) => ({ kind: 'where', field, op, value }))
-const limit = vi.fn((count: number) => ({ kind: 'limit', count }))
 const onSnapshot = vi.fn()
 const addDoc = vi.fn()
 const updateDoc = vi.fn()
 const deleteDoc = vi.fn()
-const getDocs = vi.fn()
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
   doc: (db: unknown, path: string, id: string) => doc(db, path, id),
   query: (ref: unknown, ...constraints: unknown[]) => query(ref, ...constraints),
   orderBy: (field: string) => orderBy(field),
-  where: (field: string, op: string, value: unknown) => where(field, op, value),
-  limit: (count: number) => limit(count),
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
   addDoc: (ref: unknown, data: unknown) => addDoc(ref, data),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
   deleteDoc: (ref: unknown) => deleteDoc(ref),
-  getDocs: (q: unknown) => getDocs(q),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -35,13 +30,10 @@ beforeEach(() => {
   doc.mockClear()
   query.mockClear()
   orderBy.mockClear()
-  where.mockClear()
-  limit.mockClear()
   onSnapshot.mockReset()
   addDoc.mockReset()
   updateDoc.mockReset()
   deleteDoc.mockReset()
-  getDocs.mockReset()
 })
 
 describe('watchShops', () => {
@@ -50,7 +42,7 @@ describe('watchShops', () => {
     const callback = vi.fn()
     const unsubscribe = vi.fn()
     onSnapshot.mockImplementation((_snapshotQuery: unknown, cb: (snapshot: unknown) => void) => {
-      cb({ docs: [{ id: 'pharmacy', data: () => ({ name: 'Pharmacy' }) }] })
+      cb({ docs: [{ id: 'pharmacy', data: () => ({ name: 'Pharmacy', referenceCount: 0 }) }] })
       return unsubscribe
     })
 
@@ -58,7 +50,7 @@ describe('watchShops', () => {
 
     expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.SHOPS_COLLECTION)
     expect(orderBy).toHaveBeenCalledWith('name')
-    expect(callback).toHaveBeenCalledWith([{ id: 'pharmacy', name: 'Pharmacy' }])
+    expect(callback).toHaveBeenCalledWith([{ id: 'pharmacy', name: 'Pharmacy', referenceCount: 0 }])
     expect(unsub).toBe(unsubscribe)
   })
 
@@ -69,7 +61,7 @@ describe('watchShops', () => {
       cb({
         docs: [
           { id: 'invalid', data: () => ({ name: '' }) },
-          { id: 'pharmacy', data: () => ({ name: 'Pharmacy' }) },
+          { id: 'pharmacy', data: () => ({ name: 'Pharmacy', referenceCount: 0 }) },
         ],
       })
       return vi.fn()
@@ -77,19 +69,22 @@ describe('watchShops', () => {
 
     watchShops(fakeDb, callback)
 
-    expect(callback).toHaveBeenCalledWith([{ id: 'pharmacy', name: 'Pharmacy' }])
+    expect(callback).toHaveBeenCalledWith([{ id: 'pharmacy', name: 'Pharmacy', referenceCount: 0 }])
   })
 })
 
 describe('createShop', () => {
-  it('validates the name and writes a new Shop', async () => {
+  it('validates the name and writes a new Shop that starts unreferenced', async () => {
     const { createShop } = await import('./shops.ts')
     addDoc.mockResolvedValueOnce({ id: 'new-id' })
 
     await createShop(fakeDb, 'Pharmacy')
 
     expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.SHOPS_COLLECTION)
-    expect(addDoc).toHaveBeenCalledWith({ path: catalogue.SHOPS_COLLECTION }, { name: 'Pharmacy' })
+    expect(addDoc).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION },
+      { name: 'Pharmacy', referenceCount: 0 },
+    )
   })
 
   it('rejects an empty name without writing', async () => {
@@ -137,53 +132,37 @@ describe('renameShop', () => {
 })
 
 describe('deleteShop', () => {
-  it('deletes a Shop no Category defaults to and no Item overrides to', async () => {
+  it('deletes a Shop once Firestore accepts the write', async () => {
     const { deleteShop } = await import('./shops.ts')
-    getDocs.mockResolvedValue({ empty: true })
     deleteDoc.mockResolvedValueOnce(undefined)
 
     await deleteShop(fakeDb, catalogue.shopId('pharmacy'))
 
-    expect(where).toHaveBeenCalledWith('defaultShopId', '==', 'pharmacy')
-    expect(where).toHaveBeenCalledWith('shopId', '==', 'pharmacy')
-    expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATEGORIES_COLLECTION)
-    expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.CATALOGUE_ITEMS_COLLECTION)
     expect(deleteDoc).toHaveBeenCalledWith({ path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' })
   })
 
-  it('resolves once the delete is queued, without waiting for Firestore to acknowledge it', async () => {
+  it("refuses with ShopInUseError when the platform's rules deny the delete", async () => {
+    const { deleteShop, ShopInUseError } = await import('./shops.ts')
+    deleteDoc.mockRejectedValueOnce(new FirebaseError('permission-denied', 'Missing or insufficient permissions.'))
+
+    await expect(deleteShop(fakeDb, catalogue.shopId('pharmacy'))).rejects.toBeInstanceOf(ShopInUseError)
+  })
+
+  it('logs and resolves instead of throwing when the delete fails to sync for another reason', async () => {
     const { deleteShop } = await import('./shops.ts')
-    getDocs.mockResolvedValue({ empty: true })
-    deleteDoc.mockReturnValueOnce(new Promise(() => {}))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    deleteDoc.mockRejectedValueOnce(new Error('offline'))
 
     await expect(deleteShop(fakeDb, catalogue.shopId('pharmacy'))).resolves.toBeUndefined()
-  })
-
-  it('refuses with ShopInUseError while a Category still defaults to it, without deleting', async () => {
-    const { deleteShop, ShopInUseError } = await import('./shops.ts')
-    getDocs.mockImplementation((q: { constraints: { field: string }[] }) =>
-      Promise.resolve({ empty: !q.constraints.some((constraint) => constraint.field === 'defaultShopId') }),
-    )
-
-    await expect(deleteShop(fakeDb, catalogue.shopId('pharmacy'))).rejects.toBeInstanceOf(ShopInUseError)
-    expect(deleteDoc).not.toHaveBeenCalled()
-  })
-
-  it('refuses with ShopInUseError while an Item still overrides to it, without deleting', async () => {
-    const { deleteShop, ShopInUseError } = await import('./shops.ts')
-    getDocs.mockImplementation((q: { constraints: { field: string }[] }) =>
-      Promise.resolve({ empty: !q.constraints.some((constraint) => constraint.field === 'shopId') }),
-    )
-
-    await expect(deleteShop(fakeDb, catalogue.shopId('pharmacy'))).rejects.toBeInstanceOf(ShopInUseError)
-    expect(deleteDoc).not.toHaveBeenCalled()
+    expect(consoleError).toHaveBeenCalled()
+    consoleError.mockRestore()
   })
 })
 
 describe('shopName', () => {
   it("returns the Shop's name when it is in the list", async () => {
     const { shopName } = await import('./shops.ts')
-    const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy' }
+    const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
 
     expect(shopName([pharmacy], pharmacy.id)).toBe('Pharmacy')
   })
