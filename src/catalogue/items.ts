@@ -2,11 +2,13 @@ import {
   collection,
   deleteField,
   doc,
+  getDocs,
   increment,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
+  where,
   writeBatch,
   type Firestore,
 } from 'firebase/firestore'
@@ -201,5 +203,27 @@ export async function setItemState(
   })
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`State change for ${item.name}`, err)
+  })
+}
+
+/**
+ * Every Item whose core `items` doc carries `barcode` in its `barcodes`, answered from the local
+ * cache when offline. Empty when none does. Only the core half is returned; a document failing
+ * its schema is left out.
+ */
+export async function findItemsByBarcode(
+  db: Firestore,
+  barcode: core.Barcode,
+): Promise<(core.Item & { id: core.ItemId })[]> {
+  const snapshot = await getDocs(
+    query(collection(db, core.ITEMS_COLLECTION), where('barcodes', 'array-contains', barcode)),
+  )
+  return snapshot.docs.flatMap((snapshotDoc) => {
+    const parsed = core.itemSchema.safeParse(snapshotDoc.data())
+    if (!parsed.success) {
+      console.error(`Skipping invalid Item document ${snapshotDoc.id}`, parsed.error)
+      return []
+    }
+    return [{ id: core.itemId(snapshotDoc.id), ...parsed.data }]
   })
 }

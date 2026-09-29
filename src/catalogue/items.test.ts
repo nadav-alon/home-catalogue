@@ -23,6 +23,8 @@ const writeBatch = vi.fn((_db: unknown) => ({ set: batchSet, update: batchUpdate
 const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
 const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
 const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
+const where = vi.fn((field: string, op: string, value: unknown) => ({ kind: 'where', field, op, value }))
+const getDocs = vi.fn()
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
@@ -34,6 +36,8 @@ vi.mock('firebase/firestore', () => ({
   deleteField: () => deleteField(),
   serverTimestamp: () => serverTimestamp(),
   increment: (n: number) => increment(n),
+  where: (field: string, op: string, value: unknown) => where(field, op, value),
+  getDocs: (q: unknown) => getDocs(q),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -51,6 +55,8 @@ beforeEach(() => {
   deleteField.mockClear()
   serverTimestamp.mockClear()
   increment.mockClear()
+  where.mockClear()
+  getDocs.mockReset()
 })
 
 describe('watchItems', () => {
@@ -538,5 +544,41 @@ describe('a queued Item write the server rejects', () => {
     await Promise.resolve()
 
     expect(latest()).toEqual(['Could not save changes to Dish soap'])
+  })
+})
+
+describe('findItemsByBarcode', () => {
+  it('returns every core Item whose barcodes contain the barcode', async () => {
+    const { findItemsByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        { id: 'dish-soap', data: () => ({ name: 'Dish soap', state: 'enough', barcodes: ['12345678'] }) },
+        { id: 'sponge', data: () => ({ name: 'Sponge', state: 'out', barcodes: ['12345678', '1234567890123'] }) },
+      ],
+    })
+
+    const found = await findItemsByBarcode(fakeDb, core.barcode('12345678'))
+
+    expect(collection).toHaveBeenCalledWith(fakeDb, core.ITEMS_COLLECTION)
+    expect(where).toHaveBeenCalledWith('barcodes', 'array-contains', '12345678')
+    expect(found).toEqual([
+      { id: 'dish-soap', name: 'Dish soap', state: 'enough', barcodes: ['12345678'] },
+      { id: 'sponge', name: 'Sponge', state: 'out', barcodes: ['12345678', '1234567890123'] },
+    ])
+  })
+
+  it('returns an empty list when no Item carries the barcode', async () => {
+    const { findItemsByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({ docs: [] })
+
+    expect(await findItemsByBarcode(fakeDb, core.barcode('12345678'))).toEqual([])
+  })
+
+  it('skips a document that fails its schema', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { findItemsByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({ docs: [{ id: 'broken', data: () => ({ name: '', state: 'nonsense' }) }] })
+
+    expect(await findItemsByBarcode(fakeDb, core.barcode('12345678'))).toEqual([])
   })
 })
