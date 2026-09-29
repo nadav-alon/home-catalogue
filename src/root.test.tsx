@@ -39,6 +39,8 @@ vi.mock('./catalogue/categories.ts', () => ({
 }))
 vi.mock('./catalogue/items.ts', () => ({
   watchItems: () => vi.fn(),
+  createItem: vi.fn(),
+  updateItem: vi.fn(),
 }))
 
 const readDeployedPlatformVersion = vi.fn()
@@ -47,6 +49,8 @@ vi.mock('./platform/readDeployedPlatformVersion.ts', () => ({
 }))
 
 const checkPlatform = vi.fn()
+// Keep the real catalogue/core exports (the managers read catalogue during render); only
+// checkPlatform is stubbed, so the platform-version tests control its result.
 vi.mock('data-platform', async (importOriginal) => {
   const actual = await importOriginal<typeof import('data-platform')>()
   return {
