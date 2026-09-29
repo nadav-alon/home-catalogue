@@ -2,7 +2,7 @@ import {
   argbFromHex,
   hexFromArgb,
   MaterialDynamicColors,
-  SchemeTonalSpot,
+  SchemeFidelity,
   Hct,
 } from '@material/material-color-utilities'
 
@@ -47,7 +47,7 @@ export function colourRoleProperty(role: ColourRoleName): string {
 }
 
 function declarations(seed: SeedColour, isDark: boolean): string {
-  const scheme = new SchemeTonalSpot(Hct.fromInt(argbFromHex(seed)), isDark, 0)
+  const scheme = new SchemeFidelity(Hct.fromInt(argbFromHex(seed)), isDark, 0)
   return colourRoleNames
     .map((role) => {
       const hex = hexFromArgb(MaterialDynamicColors[role].getArgb(scheme))

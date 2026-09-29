@@ -11,6 +11,7 @@ describe('manifest', () => {
   })
 
   it('takes theme_color from the seed colour', () => {
+    expect(themeColor).toBe('#e8590c')
     expect(manifest.theme_color).toBe(themeColor)
   })
 

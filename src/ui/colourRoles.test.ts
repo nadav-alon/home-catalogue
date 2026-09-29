@@ -3,7 +3,7 @@ import { themeColor } from '../theme.ts'
 import { describe, expect, it } from 'vitest'
 import { type ColourRoleName, colourRoleNames, colourRoleProperty, colourRolesCss, seedColour } from './colourRoles.ts'
 
-const seed = seedColour('#2563eb')
+const seed = seedColour('#e8590c')
 
 function block(css: string, opener: string): string {
   const start = css.indexOf(opener)
@@ -38,6 +38,12 @@ describe('colourRolesCss', () => {
     for (const role of colourRoleNames.filter((r) => !fixed(r) && !neutral(r))) {
       expect(value(other, role), role).not.toBe(value(css, role))
     }
+  })
+
+  it('derives the roles with SchemeFidelity, keeping the seed hue in the containers', () => {
+    const orange = colourRolesCss(seedColour('#e8590c'))
+    expect(block(orange, ':root {')).toContain('--md-sys-color-primary-container: #cb4a00;')
+    expect(block(orange, '@media (prefers-color-scheme: dark)')).toContain('--md-sys-color-primary-container: #f56218;')
   })
 
   it('rejects a seed that is not #rrggbb', () => {
