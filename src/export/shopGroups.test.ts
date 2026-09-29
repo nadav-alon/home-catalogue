@@ -91,4 +91,25 @@ describe('pendingItemsByShop', () => {
     expect(groups).toEqual([])
     expect(unresolvedCount).toBe(1)
   })
+
+  it('leaves out an Item whose resolved Shop has no record, without counting it as unresolved', () => {
+    const garden: CategoryRecord = {
+      id: catalogue.categoryId('garden'),
+      name: 'Garden',
+      defaultShopId: catalogue.shopId('deleted-shop'),
+      referenceCount: 1,
+    }
+    const seeds: ItemRecord = {
+      id: core.itemId('seeds'),
+      name: 'Seeds',
+      state: 'out',
+      categoryId: garden.id,
+      necessity: 'important',
+    }
+
+    const { groups, unresolvedCount } = pendingItemsByShop([seeds], [garden], [pharmacy])
+
+    expect(groups).toEqual([])
+    expect(unresolvedCount).toBe(0)
+  })
 })
