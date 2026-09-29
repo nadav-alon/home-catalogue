@@ -11,6 +11,10 @@ exporting shopping trips to Google Calendar. Stores its data on the data platfor
 A generic product (not a brand), with an optional brand note. Has one Category, one Necessity, one
 State. Its Shop comes from its Category, overridable per Item. A platform Core entity.
 
+**Barcode**:
+A GTIN (8, 12, 13 or 14 digits, no check-digit validation) read from a scan or typed in.
+An Item carries any number of them; the same one may sit on several Items.
+
 **Category**:
 User-defined, flat grouping of Items. Carries a default Shop.
 _Avoid_: aisle, tag
