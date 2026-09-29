@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { themeColor } from '../theme.ts'
 import { describe, expect, it } from 'vitest'
 import { colourRoleNames, colourRoleProperty, colourRolesCss, seedColour } from './colourRoles.ts'
 
@@ -34,5 +36,12 @@ describe('colourRolesCss', () => {
 
   it('rejects a seed that is not #rrggbb', () => {
     expect(() => seedColour('blue')).toThrow('blue')
+  })
+})
+
+describe('theme.css', () => {
+  it('is the output for themeColor, so changing the seed is one edit plus `npm run theme`', () => {
+    const committed = readFileSync('src/ui/theme.css', 'utf8')
+    expect(committed).toBe(colourRolesCss(seedColour(themeColor)))
   })
 })

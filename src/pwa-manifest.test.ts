@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { manifest } from './pwa-manifest'
+import { themeColor } from './theme'
 
 const purposesOf = (purpose?: string | string[]) => (Array.isArray(purpose) ? purpose : purpose?.split(' ') ?? [])
 
@@ -7,6 +8,10 @@ describe('manifest', () => {
   it('is installable as a standalone app', () => {
     expect(manifest.name).toBe('Home Catalogue')
     expect(manifest.display).toBe('standalone')
+  })
+
+  it('takes theme_color from the seed colour', () => {
+    expect(manifest.theme_color).toBe(themeColor)
   })
 
   it('carries the icon sizes Chrome requires for installability', () => {

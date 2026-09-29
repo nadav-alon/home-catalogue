@@ -8,6 +8,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:rules": "firebase emulators:exec --project demo-home-catalogue-rules-test --only firestore \"vitest run --dir test/rules --no-file-parallelism\"",
+    "theme": "node src/ui/writeTheme.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
