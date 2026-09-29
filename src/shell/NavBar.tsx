@@ -10,14 +10,12 @@ import './NavBar.css'
 interface Destination {
   route: Route
   symbol: IconSymbol
-  /** Routes under this destination that keep it marked active. */
-  also: readonly Route[]
 }
 
 const DESTINATIONS: readonly Destination[] = [
-  { route: route('/list'), symbol: ListIcon, also: [] },
-  { route: route('/items'), symbol: ItemsIcon, also: [] },
-  { route: route('/settings'), symbol: SettingsIcon, also: [route('/settings/shops'), route('/settings/categories')] },
+  { route: route('/list'), symbol: ListIcon },
+  { route: route('/items'), symbol: ItemsIcon },
+  { route: route('/settings'), symbol: SettingsIcon },
 ]
 
 /** The app's top-level destinations: a bottom bar below 600px, a left rail from 600px. */
@@ -26,7 +24,7 @@ export function NavBar() {
   return (
     <nav class="shell-nav" aria-label="Main">
       {DESTINATIONS.map((destination) => {
-        const active = destination.route === current || destination.also.includes(current)
+        const active = current === destination.route || current.startsWith(`${destination.route}/`)
         return (
           <a
             key={destination.route}
