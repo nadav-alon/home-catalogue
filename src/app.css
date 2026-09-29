@@ -1,0 +1,20 @@
+/* Clears the bottom bar below 600px and the left rail from 600px. */
+.app-content {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding-bottom: 5.5rem;
+}
+
+.app-content main {
+  box-sizing: border-box;
+  max-width: 45rem;
+  margin: 0 auto;
+  padding: 0 var(--md-sys-spacing-4);
+}
+
+@media (min-width: 600px) {
+  .app-content {
+    padding-bottom: 0;
+    padding-left: 5rem;
+  }
+}
