@@ -30,6 +30,13 @@ vi.mock('./auth/household.ts', () => ({
   claimHousehold: vi.fn(),
 }))
 
+vi.mock('./catalogue/shops.ts', () => ({
+  watchShops: () => vi.fn(),
+}))
+vi.mock('./catalogue/categories.ts', () => ({
+  watchCategories: () => vi.fn(),
+}))
+
 const validConfig = firebaseWebConfig({
   apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',
   authDomain: 'household.firebaseapp.com',
