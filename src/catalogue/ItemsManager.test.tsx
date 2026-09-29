@@ -10,10 +10,12 @@ import type { ShopRecord } from './shops.ts'
 const watchItems = vi.fn()
 const createItem = vi.fn()
 const updateItem = vi.fn()
+const setItemState = vi.fn()
 vi.mock('./items.ts', () => ({
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
   updateItem: (db: unknown, id: unknown, input: unknown) => updateItem(db, id, input),
+  setItemState: (db: unknown, id: unknown, state: unknown) => setItemState(db, id, state),
 }))
 
 const watchCategories = vi.fn()
@@ -38,6 +40,7 @@ beforeEach(() => {
   watchItems.mockReset()
   createItem.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
+  setItemState.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
 })
@@ -352,5 +355,35 @@ describe('editing an Item', () => {
 
     expect(screen.getByText('Dish soap (large)')).toBeInTheDocument()
     expect(screen.getByLabelText('Edit Bandages')).toHaveValue('Large bandages')
+  })
+})
+
+describe("changing an Item's State", () => {
+  const bandages: ItemRecord = {
+    id: core.itemId('bandages'),
+    name: 'Bandages',
+    state: 'enough',
+    categoryId: medicine.id,
+    necessity: 'essential',
+  }
+
+  it('sets the State with one tap', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'running low' }))
+
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages.id, 'running low')
+  })
+
+  it("marks the Item's current State as pressed and disabled", () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    const currentState = screen.getByRole('button', { name: 'enough' })
+    expect(currentState).toHaveAttribute('aria-pressed', 'true')
+    expect(currentState).toBeDisabled()
+
+    const otherState = screen.getByRole('button', { name: 'out' })
+    expect(otherState).toHaveAttribute('aria-pressed', 'false')
+    expect(otherState).not.toBeDisabled()
   })
 })

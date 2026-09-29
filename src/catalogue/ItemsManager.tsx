@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
-import { catalogue } from 'data-platform'
-import { createItem, updateItem, watchItems, type ItemInput, type ItemRecord } from './items.ts'
+import { catalogue, core } from 'data-platform'
+import { createItem, setItemState, updateItem, watchItems, type ItemInput, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { shopName, UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 
@@ -90,6 +90,15 @@ export function ItemsManager({ db }: ItemsManagerProps) {
     }
   }
 
+  async function handleSetState(item: ItemRecord, state: core.State) {
+    try {
+      await setItemState(db, item.id, state)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update State')
+    }
+  }
+
   async function handleUpdate(item: ItemRecord, values: ItemFormValues) {
     const result = parseItemFormValues(values)
     if ('error' in result) {
@@ -126,6 +135,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
                 categories={categories}
                 shops={shops}
                 resolvedShopName={resolveShopName(item, category)}
+                onSetState={(state) => void handleSetState(item, state)}
                 onUpdate={(values) => void handleUpdate(item, values)}
               />
             ))}
@@ -143,6 +153,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
                 categories={categories}
                 shops={shops}
                 resolvedShopName={resolveShopName(item, undefined)}
+                onSetState={(state) => void handleSetState(item, state)}
                 onUpdate={(values) => void handleUpdate(item, values)}
               />
             ))}
@@ -209,10 +220,11 @@ interface ItemRowProps {
   categories: CategoryRecord[]
   shops: ShopRecord[]
   resolvedShopName: string
+  onSetState: (state: core.State) => void
   onUpdate: (values: ItemFormValues) => void
 }
 
-function ItemRow({ item, categories, shops, resolvedShopName, onUpdate }: ItemRowProps) {
+function ItemRow({ item, categories, shops, resolvedShopName, onSetState, onUpdate }: ItemRowProps) {
   const [name, setName] = useState(item.name)
   const [brandNote, setBrandNote] = useState(item.brandNote ?? '')
   const [categoryId, setCategoryId] = useState<string>(item.categoryId)
@@ -233,6 +245,19 @@ function ItemRow({ item, categories, shops, resolvedShopName, onUpdate }: ItemRo
       {item.brandNote !== undefined && <span>{item.brandNote}</span>}
       <span>{item.necessity}</span>
       <span>Shop: {resolvedShopName}</span>
+      <div role="group" aria-label={`State for ${item.name}`}>
+        {core.stateSchema.options.map((state) => (
+          <button
+            key={state}
+            type="button"
+            aria-pressed={item.state === state}
+            disabled={item.state === state}
+            onClick={() => onSetState(state)}
+          >
+            {state}
+          </button>
+        ))}
+      </div>
       <form
         onSubmit={(event) => {
           event.preventDefault()
