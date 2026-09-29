@@ -69,6 +69,9 @@ export async function renameCategory(
 /**
  * Refuses with {@link CategoryInUseError} while any catalogue Item still belongs to this Category.
  * Resolves once the delete is queued, see {@link createCategory}.
+ *
+ * The check only sees Items this device has already synced: one written on another member's
+ * device but not yet cached here counts as "not in use".
  */
 export async function deleteCategory(db: Firestore, id: catalogue.CategoryId): Promise<void> {
   const dependents = await getDocs(

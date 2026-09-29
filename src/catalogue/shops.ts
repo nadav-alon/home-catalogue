@@ -56,6 +56,9 @@ export async function renameShop(db: Firestore, id: catalogue.ShopId, name: stri
 /**
  * Refuses with {@link ShopInUseError} while any Category defaults to this Shop, or any Item
  * overrides to it. Resolves once the delete is queued, see {@link createShop}.
+ *
+ * The check only sees Categories and Items this device has already synced: one written on
+ * another member's device but not yet cached here counts as "not in use".
  */
 export async function deleteShop(db: Firestore, id: catalogue.ShopId): Promise<void> {
   const [categoryDependents, itemDependents] = await Promise.all([
