@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'preact/hooks'
 import { core } from 'data-platform'
 import { Dialog } from '../ui/Dialog.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
-import { nativeBarcodeDetector } from './barcodeDetector.ts'
+import { nativeBarcodeDetector, type BarcodeFormat } from './barcodeDetector.ts'
 import './ScannerDialog.css'
 import CloseIcon from '~icons/material-symbols/close'
 
@@ -18,7 +18,7 @@ export interface ScannerDialogProps {
 export const CAMERA_DENIED_MESSAGE = 'Camera access needed to scan'
 
 /** The symbologies a GTIN is printed in: EAN-8, UPC-A, EAN-13 and ITF-14. */
-const GTIN_FORMATS = ['ean_8', 'upc_a', 'ean_13', 'itf']
+const GTIN_FORMATS: BarcodeFormat[] = ['ean_8', 'upc_a', 'ean_13', 'itf']
 
 const DETECT_INTERVAL_MS = 150
 
