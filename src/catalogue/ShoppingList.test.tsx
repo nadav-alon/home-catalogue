@@ -9,7 +9,8 @@ import type { ShopRecord } from './shops.ts'
 
 const watchItems = vi.fn()
 const setItemState = vi.fn()
-vi.mock('./items.ts', () => ({
+vi.mock('./items.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   setItemState: (db: unknown, id: unknown, state: unknown) => setItemState(db, id, state),
 }))

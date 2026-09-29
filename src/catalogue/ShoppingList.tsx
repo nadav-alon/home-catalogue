@@ -1,18 +1,11 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
-import { catalogue } from 'data-platform'
-import { setItemState, watchItems, type ItemRecord } from './items.ts'
+import { resolvedShopId, setItemState, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 
 export interface ShoppingListProps {
   db: Firestore
-}
-
-/** The Shop an Item resolves to for the Shopping list: its Category's, unless the Category is itself unresolved. */
-function resolvedShopId(item: ItemRecord, categories: CategoryRecord[]): catalogue.ShopId | undefined {
-  const category = categories.find((candidate) => candidate.id === item.categoryId)
-  return category !== undefined ? catalogue.resolveShop(item, category) : item.shopId
 }
 
 export function ShoppingList({ db }: ShoppingListProps) {
@@ -39,13 +32,17 @@ export function ShoppingList({ db }: ShoppingListProps) {
   const groups = shops
     .map((shop) => ({
       shop,
-      items: pendingItems.filter((item) => resolvedShopId(item, categories) === shop.id),
+      items: pendingItems.filter((item) => {
+        const category = categories.find((candidate) => candidate.id === item.categoryId)
+        return resolvedShopId(item, category) === shop.id
+      }),
     }))
     .filter((group) => group.items.length > 0)
 
-  const unresolvedItems = pendingItems.filter(
-    (item) => !shops.some((shop) => shop.id === resolvedShopId(item, categories)),
-  )
+  const unresolvedItems = pendingItems.filter((item) => {
+    const category = categories.find((candidate) => candidate.id === item.categoryId)
+    return !shops.some((shop) => shop.id === resolvedShopId(item, category))
+  })
 
   return (
     <section>
