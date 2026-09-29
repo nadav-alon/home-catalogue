@@ -12,17 +12,32 @@ export interface AlertBannerProps {
   items: AlertBannerItem[]
 }
 
-const BANNERS: Record<'now' | 'soon', { role: 'alert' | 'status'; style: JSX.CSSProperties; verb: string }> = {
-  now: { role: 'alert', style: { backgroundColor: '#fee2e2', color: '#991b1b' }, verb: 'to buy now' },
-  soon: { role: 'status', style: { backgroundColor: '#fef9c3', color: '#854d0e' }, verb: 'to buy soon' },
+const BANNERS: Record<
+  'now' | 'soon',
+  { role: 'alert' | 'status'; style: JSX.CSSProperties; text: (count: number, plural: string) => string }
+> = {
+  now: {
+    role: 'alert',
+    style: { backgroundColor: '#fee2e2', color: '#991b1b' },
+    text: (count, plural) => `${count} urgent Item${plural}`,
+  },
+  soon: {
+    role: 'status',
+    style: { backgroundColor: '#fef9c3', color: '#854d0e' },
+    text: (count, plural) => `${count} Item${plural} soon to be urgent`,
+  },
 }
 
+/**
+ * Names only the count of Items at this Alert level, not the Shopping list's count — the Shopping
+ * list also includes non-urgent running-low Items, so the two counts can differ.
+ */
 function banner(level: 'now' | 'soon', count: number) {
-  const { role, style, verb } = BANNERS[level]
+  const { role, style, text } = BANNERS[level]
   return (
     <div role={role} style={style}>
       <p>
-        {count} Item{count === 1 ? '' : 's'} {verb} — see the <a href={SHOPPING_LIST_ANCHOR}>shopping list</a>.
+        {text(count, count === 1 ? '' : 's')} — see the <a href={SHOPPING_LIST_ANCHOR}>shopping list</a>.
       </p>
     </div>
   )
