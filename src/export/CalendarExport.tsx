@@ -31,6 +31,8 @@ export function CalendarExport({ db }: CalendarExportProps) {
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
 
+  const { groups, unresolvedCount } = pendingItemsByShop(items, categories, shops)
+
   async function handleExport(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -39,7 +41,6 @@ export function CalendarExport({ db }: CalendarExportProps) {
       return
     }
 
-    const groups = pendingItemsByShop(items, categories, shops)
     if (groups.length === 0) {
       setStatus({ phase: 'error', message: 'No pending Items to export.' })
       return
@@ -73,6 +74,12 @@ export function CalendarExport({ db }: CalendarExportProps) {
             ))}
           </ul>
         </div>
+      )}
+      {unresolvedCount > 0 && (
+        <p>
+          {unresolvedCount} pending Item{unresolvedCount === 1 ? '' : 's'} with no Shop won't be included in the
+          export.
+        </p>
       )}
       <form onSubmit={(event) => void handleExport(event)}>
         <label htmlFor="export-date">Date</label>

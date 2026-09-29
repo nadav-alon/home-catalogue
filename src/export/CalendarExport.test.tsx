@@ -121,6 +121,19 @@ describe('CalendarExport', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Exported to Calendar.')
   })
 
+  it('notes pending Items with no resolved Shop are left out of the export', () => {
+    const orphan: ItemRecord = {
+      id: core.itemId('orphan'),
+      name: 'Mystery item',
+      state: 'out',
+      categoryId: catalogue.categoryId('deleted-category'),
+      necessity: 'important',
+    }
+    renderWith([bandages, orphan], [medicine], [pharmacy])
+
+    expect(screen.getByText("1 pending Item with no Shop won't be included in the export.")).toBeInTheDocument()
+  })
+
   it('shows a deep link per Shop when the export falls back', async () => {
     exportShoppingList.mockResolvedValueOnce({
       status: 'fallback',

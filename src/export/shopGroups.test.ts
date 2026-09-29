@@ -37,12 +37,13 @@ describe('pendingItemsByShop', () => {
       necessity: 'important',
     }
 
-    const groups = pendingItemsByShop([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+    const { groups, unresolvedCount } = pendingItemsByShop([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
 
     expect(groups).toEqual([
       { shop: pharmacy, items: [bandages] },
       { shop: grocery, items: [soap] },
     ])
+    expect(unresolvedCount).toBe(0)
   })
 
   it('groups an Item under its own Shop override instead of its Category default', () => {
@@ -55,13 +56,13 @@ describe('pendingItemsByShop', () => {
       shopId: grocery.id,
     }
 
-    const groups = pendingItemsByShop([bandages], [medicine], [pharmacy, grocery])
+    const { groups } = pendingItemsByShop([bandages], [medicine], [pharmacy, grocery])
 
     expect(groups).toEqual([{ shop: grocery, items: [bandages] }])
   })
 
   it('leaves out a Shop with no pending Items', () => {
-    expect(pendingItemsByShop([], [medicine], [pharmacy, grocery])).toEqual([])
+    expect(pendingItemsByShop([], [medicine], [pharmacy, grocery]).groups).toEqual([])
   })
 
   it('leaves out an Item that is enough', () => {
@@ -73,10 +74,10 @@ describe('pendingItemsByShop', () => {
       necessity: 'essential',
     }
 
-    expect(pendingItemsByShop([bandages], [medicine], [pharmacy])).toEqual([])
+    expect(pendingItemsByShop([bandages], [medicine], [pharmacy]).groups).toEqual([])
   })
 
-  it('leaves out an Item with no resolved Shop', () => {
+  it('leaves out an Item with no resolved Shop, and counts it as unresolved', () => {
     const orphan: ItemRecord = {
       id: core.itemId('orphan'),
       name: 'Mystery item',
@@ -85,6 +86,9 @@ describe('pendingItemsByShop', () => {
       necessity: 'important',
     }
 
-    expect(pendingItemsByShop([orphan], [medicine], [pharmacy])).toEqual([])
+    const { groups, unresolvedCount } = pendingItemsByShop([orphan], [medicine], [pharmacy])
+
+    expect(groups).toEqual([])
+    expect(unresolvedCount).toBe(1)
   })
 })
