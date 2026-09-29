@@ -24,6 +24,7 @@ describe('AlertBanner', () => {
 
     const banner = screen.getByRole('status')
     expect(banner).toHaveTextContent('2')
+    expect(banner).toHaveStyle({ backgroundColor: '#fef9c3' })
     expect(screen.getByRole('link', { name: /shopping list/ })).toHaveAttribute('href', '#shopping-list')
   })
 
@@ -41,6 +42,7 @@ describe('AlertBanner', () => {
 
     const banner = screen.getByRole('alert')
     expect(banner).toHaveTextContent('2')
+    expect(banner).toHaveStyle({ backgroundColor: '#fee2e2' })
     expect(screen.getByRole('link', { name: /shopping list/ })).toHaveAttribute('href', '#shopping-list')
   })
 
