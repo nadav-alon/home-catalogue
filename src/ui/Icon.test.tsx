@@ -23,6 +23,14 @@ describe('Icon', () => {
     expect(svg).not.toHaveAttribute('role')
   })
 
+  it('is decorative when the label is empty', () => {
+    const { container } = render(<Icon symbol={HomeIcon} label="" />)
+    const svg = container.querySelector('svg')
+    expect(svg).toHaveAttribute('aria-hidden', 'true')
+    expect(svg).not.toHaveAttribute('role')
+    expect(svg).not.toHaveAttribute('aria-label')
+  })
+
   it('is an image with an accessible name when given a label', () => {
     const { container } = render(<Icon symbol={HomeIcon} label="Home" />)
     expect(screen.getByRole('img', { name: 'Home' })).toBe(container.querySelector('svg'))
