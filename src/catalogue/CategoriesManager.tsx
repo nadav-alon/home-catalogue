@@ -10,7 +10,7 @@ import {
   CategoryInUseError,
   type CategoryRecord,
 } from './categories.ts'
-import { watchShops, type ShopRecord } from './shops.ts'
+import { shopName, watchShops, type ShopRecord } from './shops.ts'
 
 export interface CategoriesManagerProps {
   db: Firestore
@@ -70,10 +70,6 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     }
   }
 
-  function shopName(shopId: catalogue.ShopId): string {
-    return shops.find((shop) => shop.id === shopId)?.name ?? shopId
-  }
-
   return (
     <section>
       <h2>Categories</h2>
@@ -83,7 +79,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           <CategoryRow
             key={category.id}
             category={category}
-            defaultShopName={shopName(category.defaultShopId)}
+            defaultShopName={shopName(shops, category.defaultShopId)}
             onRename={(name) => void handleRename(category, name)}
             onDelete={() => void handleDelete(category)}
           />

@@ -4,7 +4,7 @@ import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { createItem, updateItem, watchItems, type ItemInput, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
-import { watchShops, type ShopRecord } from './shops.ts'
+import { shopName, watchShops, type ShopRecord } from './shops.ts'
 
 export interface ItemsManagerProps {
   db: Firestore
@@ -59,12 +59,8 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
 
-  function shopName(shopId: catalogue.ShopId): string {
-    return shops.find((shop) => shop.id === shopId)?.name ?? shopId
-  }
-
-  function resolvedShopName(item: ItemRecord, category: CategoryRecord): string {
-    return shopName(catalogue.resolveShop(item, category))
+  function resolveShopName(item: ItemRecord, category: CategoryRecord): string {
+    return shopName(shops, catalogue.resolveShop(item, category))
   }
 
   async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
@@ -125,7 +121,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
                 item={item}
                 categories={categories}
                 shops={shops}
-                resolvedShopName={resolvedShopName(item, category)}
+                resolvedShopName={resolveShopName(item, category)}
                 onUpdate={(values) => void handleUpdate(item, values)}
               />
             ))}

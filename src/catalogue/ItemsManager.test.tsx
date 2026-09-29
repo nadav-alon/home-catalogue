@@ -22,7 +22,8 @@ vi.mock('./categories.ts', () => ({
 }))
 
 const watchShops = vi.fn()
-vi.mock('./shops.ts', () => ({
+vi.mock('./shops.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./shops.ts')>()),
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
 }))
 
@@ -112,6 +113,19 @@ describe('ItemsManager', () => {
     renderWith([], [medicine, cleaning], [pharmacy, grocery])
 
     expect(screen.queryByRole('heading', { name: 'Medicine' })).not.toBeInTheDocument()
+  })
+
+  it("falls back to 'Unknown Shop' instead of the raw id when the resolved Shop is missing", () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'enough',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [])
+
+    expect(screen.getByText('Shop: Unknown Shop')).toBeInTheDocument()
   })
 })
 
