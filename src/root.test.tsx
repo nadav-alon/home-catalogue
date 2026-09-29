@@ -18,10 +18,11 @@ vi.mock('./firebase/client.ts', () => ({
 // stubbed as an already-signed-in member throughout.
 const member: AuthUser = { uid: 'owner-uid', email: 'owner@example.com' } as unknown as AuthUser
 const watchAuthState = vi.fn()
+const signOutUser = vi.fn()
 vi.mock('./auth/authClient.ts', () => ({
   watchAuthState: (app: unknown, cb: (user: AuthUser | null) => void) => watchAuthState(app, cb),
   signInWithGoogle: vi.fn(),
-  signOutUser: vi.fn(),
+  signOutUser: (app: unknown) => signOutUser(app),
 }))
 
 const householdExists = vi.fn()
@@ -75,9 +76,13 @@ function hashOf(url: string): string {
   return url.slice(url.indexOf('#'))
 }
 
+/** Settings is chosen by the URL, so the hash is set before rendering: the router reads it on mount. */
+function startOnSettings() {
+  window.location.hash = '#/settings'
+}
+
 async function resetFromSettings() {
   vi.spyOn(window, 'confirm').mockReturnValue(true)
-  window.location.hash = '#/settings'
   fireEvent.click(await screen.findByRole('button', { name: 'Reset' }))
 }
 
@@ -137,6 +142,7 @@ describe('Root', () => {
 
   it('returns to the setup screen and clears storage when reset', async () => {
     saveFirebaseConfig(validConfig)
+    startOnSettings()
     render(<Root />)
 
     await resetFromSettings()
@@ -148,6 +154,7 @@ describe('Root', () => {
 
   it('tears down the previous client before initialising a new one after reset', async () => {
     saveFirebaseConfig(validConfig)
+    startOnSettings()
     render(<Root />)
 
     await resetFromSettings()
@@ -162,6 +169,21 @@ describe('Root', () => {
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
     expect(initFirebase).toHaveBeenLastCalledWith(otherConfig)
+  })
+
+  it('signs out the connected client from Settings, and nowhere else', async () => {
+    saveFirebaseConfig(validConfig)
+    const { unmount } = render(<Root />)
+    await screen.findByRole('navigation', { name: 'Main' })
+    expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
+    unmount()
+
+    startOnSettings()
+    render(<Root />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+
+    expect(signOutUser).toHaveBeenCalledWith(fakeClient.app)
   })
 
   it('checks the deployed platform version against the connected client', async () => {

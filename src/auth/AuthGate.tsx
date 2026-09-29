@@ -77,12 +77,7 @@ export function AuthGate({ client, children }: AuthGateProps) {
       )
 
     case 'member':
-      return (
-        <>
-          {children}
-          <SignOutButton app={client.app} />
-        </>
-      )
+      return <>{children}</>
   }
 }
 

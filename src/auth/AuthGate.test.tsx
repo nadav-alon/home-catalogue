@@ -109,7 +109,7 @@ describe('AuthGate', () => {
     expect(signOutUser).toHaveBeenCalledWith('fake-app')
   })
 
-  it('shows the app and a sign-out button for a member', async () => {
+  it('shows the app, with no sign-out button of its own, for a member', async () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
@@ -124,10 +124,7 @@ describe('AuthGate', () => {
     )
 
     expect(await screen.findByText('App content')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
-    expect(signOutUser).toHaveBeenCalledWith('fake-app')
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
   })
 
   it('unsubscribes from auth state on unmount', () => {

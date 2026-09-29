@@ -21,9 +21,10 @@ export interface AppProps {
   db: Firestore
   config: FirebaseWebConfig
   onResetConfig: () => void | Promise<void>
+  onSignOut: () => void | Promise<void>
 }
 
-export function App({ db, config, onResetConfig }: AppProps) {
+export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
   const [items, setItems] = useState<ItemRecord[]>([])
   const current = useRoute()
 
@@ -37,7 +38,7 @@ export function App({ db, config, onResetConfig }: AppProps) {
           <main>
             <WriteRejectionBanner />
             <AlertBanner items={items} />
-            <Screen route={current} db={db} config={config} onResetConfig={onResetConfig} />
+            <Screen route={current} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
           </main>
         </TopAppBar>
       </div>
@@ -46,7 +47,7 @@ export function App({ db, config, onResetConfig }: AppProps) {
 }
 
 /** The screen for a route. */
-function Screen({ route: current, db, config, onResetConfig }: { route: Route } & AppProps) {
+function Screen({ route: current, db, config, onResetConfig, onSignOut }: { route: Route } & AppProps) {
   switch (current) {
     case '/list':
       // TODO[#135]: the Shopping list screen.
@@ -60,7 +61,7 @@ function Screen({ route: current, db, config, onResetConfig }: { route: Route } 
       // TODO[#136]: the Items screen.
       return <ItemsManager db={db} />
     case '/settings':
-      return <SettingsScreen config={config} onResetConfig={onResetConfig} />
+      return <SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
     case '/settings/shops':
       // TODO[#140]: the Shops screen.
       return <ShopsManager db={db} />

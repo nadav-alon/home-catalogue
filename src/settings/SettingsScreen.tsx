@@ -14,9 +14,10 @@ export interface SettingsScreenProps {
   config: FirebaseWebConfig
   /** Forgets the stored Firebase configuration; called once the user has confirmed. */
   onResetConfig: () => void | Promise<void>
+  onSignOut: () => void | Promise<void>
 }
 
-export function SettingsScreen({ config, onResetConfig }: SettingsScreenProps) {
+export function SettingsScreen({ config, onResetConfig, onSignOut }: SettingsScreenProps) {
   return (
     <ul>
       <NavigationRow to={SHOPS} />
@@ -34,6 +35,14 @@ export function SettingsScreen({ config, onResetConfig }: SettingsScreenProps) {
             }}
           >
             Reset
+          </Button>
+        }
+      />
+      <ListRow
+        headline="Sign out"
+        trailing={
+          <Button variant="tonal" onClick={() => void onSignOut()}>
+            Sign out
           </Button>
         }
       />
