@@ -10,7 +10,7 @@ export interface ScannerDialogProps {
   open: boolean
   /** Called once with the first detected value that is a Barcode; the camera is already released. */
   onScan: (barcode: core.Barcode) => void
-  /** Called instead of `onScan` when the Member refuses camera access; the caller closes the dialog. */
+  /** Called instead of `onScan` when the Member refuses camera access; the caller closes the dialog. Any other camera or detector failure calls `onClose`. */
   onDenied: () => void
   onClose: () => void
 }
@@ -30,17 +30,19 @@ export function ScannerDialog({ open, onScan, onDenied, onClose }: ScannerDialog
   return (
     <Dialog open={open} title="Scan barcode" class="scan-dialog" onClose={onClose}>
       <IconButton symbol={CloseIcon} label="Close" onClick={onClose} />
-      {open && <CameraReader onScan={onScan} onDenied={onDenied} />}
+      {open && <CameraReader onScan={onScan} onDenied={onDenied} onClose={onClose} />}
     </Dialog>
   )
 }
 
-function CameraReader({ onScan, onDenied }: Pick<ScannerDialogProps, 'onScan' | 'onDenied'>) {
+function CameraReader({ onScan, onDenied, onClose }: Pick<ScannerDialogProps, 'onScan' | 'onDenied' | 'onClose'>) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const onScanRef = useRef(onScan)
   onScanRef.current = onScan
   const onDeniedRef = useRef(onDenied)
   onDeniedRef.current = onDenied
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     let stopped = false
@@ -54,24 +56,32 @@ function CameraReader({ onScan, onDenied }: Pick<ScannerDialogProps, 'onScan' | 
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
       } catch (err) {
-        if (!(err instanceof DOMException && err.name === 'NotAllowedError')) throw err
-        if (!stopped) onDeniedRef.current()
+        if (stopped) return
+        if (err instanceof DOMException && err.name === 'NotAllowedError') onDeniedRef.current()
+        else onCloseRef.current()
         return
       }
       if (stopped) return release()
-      video.srcObject = stream
-      void video.play()
-      const detector = new Detector({ formats: GTIN_FORMATS })
-      while (!stopped) {
-        const found = (await detector.detect(video)).map((code) => code.rawValue).find(core.isBarcode)
-        if (stopped) return
-        if (found !== undefined) {
-          stopped = true
-          release()
-          onScanRef.current(found)
-          return
+      try {
+        video.srcObject = stream
+        await video.play()
+        const detector = new Detector({ formats: GTIN_FORMATS })
+        while (!stopped) {
+          const found = (await detector.detect(video)).map((code) => code.rawValue).find(core.isBarcode)
+          if (stopped) return
+          if (found !== undefined) {
+            stopped = true
+            release()
+            onScanRef.current(found)
+            return
+          }
+          await new Promise((resolve) => setTimeout(resolve, DETECT_INTERVAL_MS))
         }
-        await new Promise((resolve) => setTimeout(resolve, DETECT_INTERVAL_MS))
+      } catch {
+        if (stopped) return
+        stopped = true
+        release()
+        onCloseRef.current()
       }
     }
 

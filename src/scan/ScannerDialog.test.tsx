@@ -97,4 +97,28 @@ describe('ScannerDialog', () => {
     await waitFor(() => expect(onDenied).toHaveBeenCalledOnce())
     expect(onScan).not.toHaveBeenCalled()
   })
+
+  it('closes instead of rethrowing when the camera cannot be opened for another reason', async () => {
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockRejectedValueOnce(new DOMException('No camera', 'NotFoundError'))
+    const onDenied = vi.fn()
+    const onClose = vi.fn()
+    render(<ScannerDialog open onScan={() => {}} onDenied={onDenied} onClose={onClose} />)
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(onDenied).not.toHaveBeenCalled()
+  })
+
+  it('releases the camera and closes when detection fails', async () => {
+    vi.stubGlobal(
+      'BarcodeDetector',
+      class {
+        detect = vi.fn(async () => {
+          throw new DOMException('No frame', 'InvalidStateError')
+        })
+      },
+    )
+    const onClose = vi.fn()
+    render(<ScannerDialog open onScan={() => {}} onDenied={() => {}} onClose={onClose} />)
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(track.stop).toHaveBeenCalled()
+  })
 })
