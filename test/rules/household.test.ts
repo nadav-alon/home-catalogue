@@ -18,7 +18,7 @@ let testEnv: RulesTestEnvironment
 /**
  * `RulesTestContext.firestore()` is typed as the compat SDK's `Firestore`, but the object it
  * returns bridges to the modular SDK too (the JS SDK's modular functions unwrap a compat
- * instance's delegate) — the same pattern `household.ts` itself is written against.
+ * instance's delegate).
  */
 function dbFor(context: RulesTestContext): Firestore {
   return context.firestore() as unknown as Firestore
