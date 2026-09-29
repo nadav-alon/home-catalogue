@@ -2,11 +2,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { NavBar } from './NavBar.tsx'
 import { read, tokenUsage } from '../testing/css.ts'
+import { resetHash } from '../testing/hash.ts'
 
-afterEach(async () => {
-  window.location.hash = ''
-  await new Promise((resolve) => setTimeout(resolve))
-})
+afterEach(resetHash)
 
 describe('NavBar', () => {
   it('offers Shopping list, Items and Settings as links inside a labelled navigation landmark', () => {

@@ -2,11 +2,9 @@ import { act, renderHook } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_ROUTE, route } from './route.ts'
 import { navigate, useRoute } from './useRoute.ts'
+import { resetHash } from '../testing/hash.ts'
 
-afterEach(async () => {
-  window.location.hash = ''
-  await new Promise((resolve) => setTimeout(resolve))
-})
+afterEach(resetHash)
 
 function nextHashChange(): Promise<unknown> {
   return new Promise((resolve) => window.addEventListener('hashchange', resolve, { once: true }))

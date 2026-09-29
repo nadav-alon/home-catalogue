@@ -5,6 +5,7 @@ import { catalogue, core } from 'data-platform'
 import { App } from './app'
 import type { ItemRecord } from './catalogue/items.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
+import { resetHash } from './testing/hash.ts'
 
 const watchItemsCallbacks: ((items: ItemRecord[]) => void)[] = []
 const watchItems = vi.fn((_db: unknown, cb: (items: ItemRecord[]) => void) => {
@@ -35,10 +36,7 @@ const config = firebaseWebConfig({
   appId: '1:123456789:web:abcdef',
 })
 
-afterEach(async () => {
-  window.location.hash = ''
-  await new Promise((resolve) => setTimeout(resolve))
-})
+afterEach(resetHash)
 
 async function goTo(hash: string) {
   await act(async () => {
