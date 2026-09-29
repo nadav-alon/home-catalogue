@@ -12,36 +12,31 @@ export interface AlertBannerProps {
   items: AlertBannerItem[]
 }
 
-const redStyle: JSX.CSSProperties = { backgroundColor: '#fee2e2', color: '#991b1b' }
-const yellowStyle: JSX.CSSProperties = { backgroundColor: '#fef9c3', color: '#854d0e' }
+const BANNERS: Record<'now' | 'soon', { role: 'alert' | 'status'; style: JSX.CSSProperties; verb: string }> = {
+  now: { role: 'alert', style: { backgroundColor: '#fee2e2', color: '#991b1b' }, verb: 'to buy now' },
+  soon: { role: 'status', style: { backgroundColor: '#fef9c3', color: '#854d0e' }, verb: 'to buy soon' },
+}
+
+function banner(level: 'now' | 'soon', count: number) {
+  const { role, style, verb } = BANNERS[level]
+  return (
+    <div role={role} style={style}>
+      <p>
+        {count} Item{count === 1 ? '' : 's'} {verb} — see the <a href={SHOPPING_LIST_ANCHOR}>shopping list</a>.
+      </p>
+    </div>
+  )
+}
 
 /** Red for any `now` Item, else yellow for any `soon`, else nothing. Never both at once. */
 export function AlertBanner({ items }: AlertBannerProps) {
   const levels = items.map((item) => alertLevel(item.necessity, item.state))
+
   const nowCount = levels.filter((level) => level === 'now').length
+  if (nowCount > 0) return banner('now', nowCount)
+
   const soonCount = levels.filter((level) => level === 'soon').length
-
-  if (nowCount > 0) {
-    return (
-      <div role="alert" style={redStyle}>
-        <p>
-          {nowCount} Item{nowCount === 1 ? '' : 's'} need shopping now — see the{' '}
-          <a href={SHOPPING_LIST_ANCHOR}>shopping list</a>.
-        </p>
-      </div>
-    )
-  }
-
-  if (soonCount > 0) {
-    return (
-      <div role="status" style={yellowStyle}>
-        <p>
-          {soonCount} Item{soonCount === 1 ? '' : 's'} will need shopping soon — see the{' '}
-          <a href={SHOPPING_LIST_ANCHOR}>shopping list</a>.
-        </p>
-      </div>
-    )
-  }
+  if (soonCount > 0) return banner('soon', soonCount)
 
   return null
 }
