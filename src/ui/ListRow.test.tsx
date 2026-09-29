@@ -35,7 +35,7 @@ describe('ListRow', () => {
   })
 
   it('is styled only from defined tokens', () => {
-    const { used, undefinedTokens } = tokenUsage('ListRow.css')
+    const { used, undefinedTokens } = tokenUsage('src/ui/ListRow.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })

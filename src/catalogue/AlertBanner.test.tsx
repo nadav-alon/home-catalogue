@@ -25,7 +25,7 @@ describe('AlertBanner', () => {
     const banner = screen.getByRole('status')
     expect(banner).toHaveTextContent('2 Items to buy soon (not urgent)')
     expect(banner).toHaveStyle({ backgroundColor: '#fef9c3' })
-    expect(screen.getByRole('link', { name: /shopping list/i })).toHaveAttribute('href', '#shopping-list')
+    expect(screen.getByRole('link', { name: /shopping list/i })).toHaveAttribute('href', '#/list')
   })
 
   it('shows a yellow banner in the singular for one soon Item', () => {
@@ -49,7 +49,7 @@ describe('AlertBanner', () => {
     const banner = screen.getByRole('alert')
     expect(banner).toHaveTextContent('2 urgent Items')
     expect(banner).toHaveStyle({ backgroundColor: '#fee2e2' })
-    expect(screen.getByRole('link', { name: /shopping list/i })).toHaveAttribute('href', '#shopping-list')
+    expect(screen.getByRole('link', { name: /shopping list/i })).toHaveAttribute('href', '#/list')
   })
 
   it('shows a red banner in the singular for one now Item', () => {

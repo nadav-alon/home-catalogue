@@ -108,7 +108,7 @@ describe('Root', () => {
     render(<Root />)
 
     expect(initFirebase).toHaveBeenCalledWith(validConfig)
-    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
   })
 
   it('shows the app after the setup screen submits a valid config', async () => {
@@ -119,7 +119,7 @@ describe('Root', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(initFirebase).toHaveBeenCalledWith(validConfig)
   })
 
@@ -155,7 +155,7 @@ describe('Root', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
     expect(initFirebase).toHaveBeenLastCalledWith(otherConfig)
   })
@@ -165,7 +165,7 @@ describe('Root', () => {
 
     render(<Root />)
 
-    await screen.findByRole('heading', { name: 'Home Catalogue' })
+    await screen.findByRole('navigation', { name: 'Main' })
     await waitFor(() => expect(checkPlatform).toHaveBeenCalledWith('deployed-version'))
     expect(readDeployedPlatformVersion).toHaveBeenCalledWith(fakeClient.db)
   })
@@ -188,7 +188,7 @@ describe('Root', () => {
 
     render(<Root />)
 
-    await screen.findByRole('heading', { name: 'Home Catalogue' })
+    await screen.findByRole('navigation', { name: 'Main' })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -246,7 +246,7 @@ describe('Root with a device transfer fragment in the URL', () => {
 
     render(<Root />)
 
-    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(confirmSpy).toHaveBeenCalled()
     expect(initFirebase).toHaveBeenCalledWith(validConfig)
     expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(validConfig)
@@ -261,7 +261,7 @@ describe('Root with a device transfer fragment in the URL', () => {
 
     render(<Root />)
 
-    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(initFirebase).toHaveBeenCalledWith(otherConfig)
     expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(otherConfig)
   })
@@ -274,7 +274,7 @@ describe('Root with a device transfer fragment in the URL', () => {
 
     render(<Root />)
 
-    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(confirmSpy).not.toHaveBeenCalled()
     expect(initFirebase).toHaveBeenCalledWith(validConfig)
     expect(setItemSpy).not.toHaveBeenCalled()

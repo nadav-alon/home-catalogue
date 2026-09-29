@@ -38,8 +38,8 @@ describe('PlatformBanner styling', () => {
     render(<PlatformBanner check="outdated" />)
 
     expect(screen.getByRole('alert')).toHaveClass('platform-banner')
-    expect(read('../platform/PlatformBanner.css')).toMatch(/margin:[^;]*auto/)
-    const { used, undefinedTokens } = tokenUsage('../platform/PlatformBanner.css')
+    expect(read('src/platform/PlatformBanner.css')).toMatch(/margin:[^;]*auto/)
+    const { used, undefinedTokens } = tokenUsage('src/platform/PlatformBanner.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })

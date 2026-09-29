@@ -23,7 +23,7 @@ describe('IconButton', () => {
   })
 
   it('is styled only from defined tokens', () => {
-    const { used, undefinedTokens } = tokenUsage('IconButton.css')
+    const { used, undefinedTokens } = tokenUsage('src/ui/IconButton.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })

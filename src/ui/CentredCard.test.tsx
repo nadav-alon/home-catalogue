@@ -18,7 +18,7 @@ describe('CentredCard', () => {
   })
 
   it('is a single centred column with a width cap and no width breakpoints', () => {
-    const css = read('CentredCard.css')
+    const css = read('src/ui/CentredCard.css')
     expect(css).toMatch(/flex-direction:\s*column/)
     expect(css).toMatch(/align-items:\s*center/)
     expect(css).toMatch(/max-width:/)
@@ -26,7 +26,7 @@ describe('CentredCard', () => {
   })
 
   it('is styled only from defined tokens, which cover light and dark', () => {
-    const { used, undefinedTokens } = tokenUsage('CentredCard.css')
+    const { used, undefinedTokens } = tokenUsage('src/ui/CentredCard.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })
