@@ -1,0 +1,9 @@
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-sys-spacing-4);
+}
+
+.setup-form > .ui-button {
+  align-self: flex-end;
+}
