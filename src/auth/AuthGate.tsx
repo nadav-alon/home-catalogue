@@ -3,6 +3,8 @@ import type { ComponentChildren } from 'preact'
 import type { FirebaseClient } from '../firebase/client.ts'
 import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
 import { claimHousehold, householdExists, isHouseholdMember } from './household.ts'
+import { Button } from '../ui/Button.tsx'
+import { CentredCard } from '../ui/CentredCard.tsx'
 
 export interface AuthGateProps {
   client: FirebaseClient
@@ -45,39 +47,33 @@ export function AuthGate({ client, children }: AuthGateProps) {
 
     case 'signed-out':
       return (
-        <main>
-          <h1>Sign in</h1>
-          <button type="button" onClick={() => void signInWithGoogle(client.app)}>
-            Sign in with Google
-          </button>
-        </main>
+        <CentredCard title="Sign in">
+          <Button onClick={() => void signInWithGoogle(client.app)}>Sign in with Google</Button>
+        </CentredCard>
       )
 
     case 'claim-available':
       return (
-        <main>
-          <h1>Claim this household</h1>
+        <CentredCard title="Claim this household">
           <p>No one has claimed this household yet.</p>
-          <button
-            type="button"
+          <Button
             onClick={async () => {
               await claimHousehold(client.db, state.user.uid, state.user.email)
               setState({ status: 'member' })
             }}
           >
             Claim household
-          </button>
-        </main>
+          </Button>
+        </CentredCard>
       )
 
     case 'non-member':
       return (
-        <main>
-          <h1>Not a member</h1>
+        <CentredCard title="Not a member">
           <p>Signed in as {state.user.email}.</p>
           <p>You are not a member of this household.</p>
           <SignOutButton app={client.app} />
-        </main>
+        </CentredCard>
       )
 
     case 'member':
@@ -92,8 +88,8 @@ export function AuthGate({ client, children }: AuthGateProps) {
 
 function SignOutButton({ app }: { app: FirebaseClient['app'] }) {
   return (
-    <button type="button" onClick={() => void signOutUser(app)}>
+    <Button variant="tonal" onClick={() => void signOutUser(app)}>
       Sign out
-    </button>
+    </Button>
   )
 }

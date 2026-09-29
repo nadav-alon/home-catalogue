@@ -4,7 +4,7 @@ import './Field.css'
 
 export interface TextFieldProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'class' | 'className'> {
   label: string
-  /** Shown under the field and announced as its description; also marks the input invalid. */
+  /** Shown under the field as an alert and announced as its description; also marks the input invalid. */
   error?: string
 }
 
@@ -27,7 +27,7 @@ export function TextField({ label, error, id, 'aria-describedby': describedBy, .
         aria-describedby={description}
       />
       {error ? (
-        <p class="ui-field__error" id={errorId}>
+        <p class="ui-field__error" id={errorId} role="alert">
           {error}
         </p>
       ) : null}
