@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'preact/hooks'
 import { core } from 'data-platform'
 import { Dialog } from '../ui/Dialog.tsx'
+import { IconButton } from '../ui/IconButton.tsx'
 import { nativeBarcodeDetector } from './barcodeDetector.ts'
 import './ScannerDialog.css'
+import CloseIcon from '~icons/material-symbols/close'
 
 export interface ScannerDialogProps {
   open: boolean
@@ -16,10 +18,14 @@ const GTIN_FORMATS = ['ean_8', 'upc_a', 'ean_13', 'itf']
 
 const DETECT_INTERVAL_MS = 150
 
-/** A full-screen dialog showing the rear camera until it reads one Barcode, then releasing the camera. */
+/**
+ * A full-screen dialog showing the rear camera until it reads one Barcode. The camera is released
+ * when a Barcode is read and whenever the dialog closes, whichever comes first.
+ */
 export function ScannerDialog({ open, onScan, onClose }: ScannerDialogProps) {
   return (
     <Dialog open={open} title="Scan barcode" onClose={onClose}>
+      <IconButton symbol={CloseIcon} label="Close" onClick={onClose} />
       {open && <CameraReader onScan={onScan} />}
     </Dialog>
   )

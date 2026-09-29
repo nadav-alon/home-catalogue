@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, waitFor } from '@testing-library/preact'
+import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { ScannerDialog } from './ScannerDialog.tsx'
 
 const track = { stop: vi.fn() }
-const stream = { getTracks: () => [track] }
+const stream = { getTracks: () => [track] } as unknown as MediaStream
 let detected: string[][]
 
 beforeEach(() => {
@@ -50,5 +50,40 @@ describe('ScannerDialog', () => {
     await waitFor(() => expect(onScan).toHaveBeenCalledWith('4006381333931'))
     expect(onScan).toHaveBeenCalledOnce()
     expect(track.stop).toHaveBeenCalled()
+  })
+
+  it('closes from ✕ without returning anything, and releases the camera once closed', async () => {
+    const onScan = vi.fn()
+    const onClose = vi.fn()
+    const { rerender } = render(<ScannerDialog open onScan={onScan} onClose={onClose} />)
+    await waitFor(() => expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalledOnce()
+    rerender(<ScannerDialog open={false} onScan={onScan} onClose={onClose} />)
+    expect(track.stop).toHaveBeenCalled()
+    expect(onScan).not.toHaveBeenCalled()
+  })
+
+  it('closes on browser back without returning anything', async () => {
+    const onScan = vi.fn()
+    const onClose = vi.fn()
+    render(<ScannerDialog open onScan={onScan} onClose={onClose} />)
+    await waitFor(() => expect(history.state).not.toBeNull())
+    history.back()
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(onScan).not.toHaveBeenCalled()
+  })
+
+  it('releases a camera that was granted only after the dialog closed', async () => {
+    let grant: (value: MediaStream) => void = () => {}
+    vi.mocked(navigator.mediaDevices.getUserMedia).mockReturnValueOnce(
+      new Promise((resolve) => (grant = resolve)),
+    )
+    const onScan = vi.fn()
+    const { rerender } = render(<ScannerDialog open onScan={onScan} onClose={() => {}} />)
+    rerender(<ScannerDialog open={false} onScan={onScan} onClose={() => {}} />)
+    grant(stream)
+    await waitFor(() => expect(track.stop).toHaveBeenCalled())
+    expect(onScan).not.toHaveBeenCalled()
   })
 })
