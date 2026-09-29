@@ -131,6 +131,27 @@ describe('ShoppingList', () => {
     expect(screen.getByText('Dish soap').closest('li')).toHaveTextContent('optional')
   })
 
+  it('sets a running low row back visually from an out row', () => {
+    const soap: ItemRecord = {
+      id: core.itemId('soap'),
+      name: 'Dish soap',
+      state: 'running low',
+      categoryId: cleaning.id,
+      necessity: 'important',
+    }
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([soap, bandages], [cleaning, medicine], [grocery, pharmacy])
+
+    expect(screen.getByText('Dish soap').closest('li')).toHaveClass('ui-list-row--muted')
+    expect(screen.getByText('Bandages').closest('li')).not.toHaveClass('ui-list-row--muted')
+  })
+
   it('does not flag an out Item as optional', () => {
     const bandages: ItemRecord = {
       id: core.itemId('bandages'),

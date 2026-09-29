@@ -15,6 +15,18 @@ describe('ListRow', () => {
     expect(row).toHaveTextContent('Grocery')
   })
 
+  it('marks a muted row for a visual set-back', () => {
+    render(
+      <ul>
+        <ListRow headline="Milk" muted />
+        <ListRow headline="Eggs" />
+      </ul>,
+    )
+    const [milk, eggs] = screen.getAllByRole('listitem')
+    expect(milk).toHaveClass('ui-list-row--muted')
+    expect(eggs).not.toHaveClass('ui-list-row--muted')
+  })
+
   it('omits supporting text and trailing slot when not given', () => {
     const { container } = render(
       <ul>

@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase/firestore'
 import { setItemState, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
+import { ListRow } from '../ui/ListRow.tsx'
 import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
 
 export interface ShoppingListProps {
@@ -46,7 +47,6 @@ export function ShoppingList({ db }: ShoppingListProps) {
 
   return (
     <section>
-      <h2>Shopping list</h2>
       {error !== null && <p role="alert">{error}</p>}
       {groups.map(({ key, name, items: groupItems }) => (
         <div key={key}>
@@ -68,13 +68,13 @@ interface ShoppingListRowProps {
 }
 
 function ShoppingListRow({ item, onTick }: ShoppingListRowProps) {
+  const runningLow = item.state === 'running low'
   return (
-    <li>
-      <label>
-        <input type="checkbox" checked={false} onChange={onTick} />
-        {item.name}
-      </label>
-      {item.state === 'running low' && <span>optional</span>}
-    </li>
+    <ListRow
+      headline={item.name}
+      supporting={runningLow ? 'optional' : undefined}
+      muted={runningLow}
+      trailing={<input type="checkbox" aria-label={item.name} checked={false} onChange={onTick} />}
+    />
   )
 }
