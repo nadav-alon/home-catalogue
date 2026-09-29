@@ -208,7 +208,7 @@ function ItemRow({ item, categories, shops, resolvedShopName, onUpdate }: ItemRo
     setCategoryId(item.categoryId)
     setNecessity(item.necessity)
     setShopId(item.shopId ?? NO_SHOP_OVERRIDE)
-  }, [item])
+  }, [item.name, item.brandNote, item.categoryId, item.necessity, item.shopId])
 
   return (
     <li>

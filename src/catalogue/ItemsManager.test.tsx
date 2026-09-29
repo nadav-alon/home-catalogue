@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/preact'
+import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
@@ -257,5 +257,38 @@ describe('editing an Item', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('An Item needs a name.')
     expect(updateItem).not.toHaveBeenCalled()
+  })
+
+  it('keeps an unsaved edit in one row when another Item snapshot arrives', () => {
+    const soap: ItemRecord = {
+      id: core.itemId('soap'),
+      name: 'Dish soap',
+      state: 'enough',
+      categoryId: cleaning.id,
+      necessity: 'important',
+    }
+    let itemsCallback: ((items: ItemRecord[]) => void) | undefined
+    watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
+      itemsCallback = cb
+      cb([bandages, soap])
+      return vi.fn()
+    })
+    watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
+      cb([medicine, cleaning])
+      return vi.fn()
+    })
+    watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
+      cb([pharmacy, grocery])
+      return vi.fn()
+    })
+    render(<ItemsManager db={fakeDb} />)
+
+    fireEvent.input(screen.getByLabelText('Edit Bandages'), { target: { value: 'Large bandages' } })
+    // watchItems builds a new ItemRecord for every Item on every snapshot, including one
+    // triggered by saving a different row; the resets from that shouldn't touch this input.
+    act(() => itemsCallback?.([{ ...bandages }, { ...soap, name: 'Dish soap (large)' }]))
+
+    expect(screen.getByText('Dish soap (large)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Edit Bandages')).toHaveValue('Large bandages')
   })
 })
