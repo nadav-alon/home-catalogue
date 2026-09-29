@@ -1,0 +1,38 @@
+.ui-centred-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--md-sys-spacing-4);
+  min-height: 100dvh;
+  padding: var(--md-sys-spacing-4);
+}
+
+.ui-centred-card__name {
+  margin: 0;
+  font-size: var(--md-sys-typescale-title-size);
+  color: var(--md-sys-color-primary);
+}
+
+.ui-centred-card__surface {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-sys-spacing-4);
+  width: 100%;
+  max-width: 28rem;
+  padding: var(--md-sys-spacing-6);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-sys-color-surface-container);
+  color: var(--md-sys-color-on-surface);
+  box-shadow: var(--md-sys-elevation-level1);
+}
+
+.ui-centred-card__surface > * {
+  margin: 0;
+}
+
+.ui-centred-card__surface a {
+  color: var(--md-sys-color-primary);
+}
