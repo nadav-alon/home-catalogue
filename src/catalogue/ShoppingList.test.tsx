@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { ShoppingList } from './ShoppingList.tsx'
+import { SHOPPING_LIST_ANCHOR } from '../links.ts'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
@@ -67,6 +68,12 @@ function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: Sh
 }
 
 describe('ShoppingList', () => {
+  it('renders its section with the id the AlertBanner links to', () => {
+    const { container } = renderWith([], [], [])
+
+    expect(container.querySelector('section')).toHaveAttribute('id', SHOPPING_LIST_ANCHOR.slice(1))
+  })
+
   it('lists Items at running low or out, grouped by resolved Shop', () => {
     const bandages: ItemRecord = {
       id: core.itemId('bandages'),
