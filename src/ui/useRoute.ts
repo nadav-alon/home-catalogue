@@ -12,7 +12,7 @@ export function useRoute(): Route {
   return current
 }
 
-/** Shows `value` by pushing a history entry, so back returns to the previous route. */
+/** Shows `value` by pushing a history entry, so back returns to the previous route; a no-op when `value` is already shown. */
 export function navigate(value: Route): void {
   window.location.hash = hashOf(value)
 }

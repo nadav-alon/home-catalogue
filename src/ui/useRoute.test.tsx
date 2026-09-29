@@ -59,4 +59,11 @@ describe('navigate', () => {
     })
     expect(result.current).toBe(DEFAULT_ROUTE)
   })
+
+  it('pushes nothing when the route is already shown', () => {
+    window.location.hash = '#/items'
+    const entries = window.history.length
+    navigate(route('/items'))
+    expect(window.history.length).toBe(entries)
+  })
 })
