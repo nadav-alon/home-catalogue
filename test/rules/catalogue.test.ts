@@ -92,7 +92,7 @@ describe('deleteShop against the real rules', () => {
       })
     })
 
-    await expect(deleteShop(db, catalogue.shopId('pharmacy'))).resolves.toBeUndefined()
+    await expect(deleteShop(db, { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 })).resolves.toBeUndefined()
     const snapshot = await getDoc(doc(db, catalogue.SHOPS_COLLECTION, 'pharmacy'))
     expect(snapshot.exists()).toBe(false)
   })
@@ -106,7 +106,7 @@ describe('deleteShop against the real rules', () => {
       })
     })
 
-    await expect(deleteShop(db, catalogue.shopId('pharmacy'))).rejects.toBeInstanceOf(ShopInUseError)
+    await expect(deleteShop(db, { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 })).rejects.toBeInstanceOf(ShopInUseError)
     const snapshot = await getDoc(doc(db, catalogue.SHOPS_COLLECTION, 'pharmacy'))
     expect(snapshot.exists()).toBe(true)
   })

@@ -17,7 +17,7 @@ const { FakeShopInUseError } = vi.hoisted(() => ({
 vi.mock('./shops.ts', () => ({
   createShop: (db: unknown, name: string) => createShop(db, name),
   renameShop: (db: unknown, id: unknown, name: string) => renameShop(db, id, name),
-  deleteShop: (db: unknown, id: unknown) => deleteShop(db, id),
+  deleteShop: (db: unknown, shop: unknown) => deleteShop(db, shop),
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
   ShopInUseError: FakeShopInUseError,
 }))
@@ -108,7 +108,7 @@ describe('ShopsManager', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete Pharmacy' }))
 
-    expect(deleteShop).toHaveBeenCalledWith(fakeDb, pharmacy.id)
+    expect(deleteShop).toHaveBeenCalledWith(fakeDb, pharmacy)
   })
 
   it('shows the ShopInUseError message when deletion is refused', async () => {

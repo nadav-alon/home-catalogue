@@ -44,7 +44,19 @@ vi.mock('firebase/firestore', () => ({
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
+/** Starts from an empty banner state and returns the messages currently shown. */
+async function rejections() {
+  const { resetWriteRejections, watchWriteRejections } = await import('./writeRejections.ts')
+  resetWriteRejections()
+  let latest: string[] = []
+  watchWriteRejections((list) => {
+    latest = list.map((rejection) => rejection.message)
+  })
+  return () => latest
+}
+
 beforeEach(() => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
   collection.mockClear()
   doc.mockClear()
   query.mockClear()
@@ -211,13 +223,36 @@ describe('deleteCategory', () => {
     await expect(deleteCategory(fakeDb, medicine)).rejects.toBeInstanceOf(CategoryInUseError)
   })
 
-  it('logs and resolves instead of throwing when the delete fails to sync for another reason', async () => {
+  it('reports to the write-rejection banner and resolves when the delete fails to sync for another reason', async () => {
     const { deleteCategory } = await import('./categories.ts')
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const latest = await rejections()
     batchCommit.mockRejectedValueOnce(new Error('offline'))
 
     await expect(deleteCategory(fakeDb, medicine)).resolves.toBeUndefined()
-    expect(consoleError).toHaveBeenCalled()
-    consoleError.mockRestore()
+    expect(latest()).toEqual(['Could not save deleted Category Medicine'])
+  })
+})
+
+describe('a queued Category write the server rejects', () => {
+  it('reports a new Category by name', async () => {
+    const { createCategory } = await import('./categories.ts')
+    const latest = await rejections()
+    batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await createCategory(fakeDb, 'Medicine', catalogue.shopId('pharmacy'))
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save new Category Medicine'])
+  })
+
+  it('reports a rename by its new name', async () => {
+    const { renameCategory } = await import('./categories.ts')
+    const latest = await rejections()
+    updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await renameCategory(fakeDb, catalogue.categoryId('medicine'), 'Meds')
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save renamed Category Meds'])
   })
 })
