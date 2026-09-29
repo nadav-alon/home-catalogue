@@ -3,6 +3,7 @@ import { defineConfig, type Plugin } from 'vite'
 import { configDefaults } from 'vitest/config'
 import preact from '@preact/preset-vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import Icons from 'unplugin-icons/vite'
 import { manifest } from './src/pwa-manifest.ts'
 import { themeColor } from './src/theme.ts'
 
@@ -25,6 +26,7 @@ export default defineConfig({
   base: '/home-catalogue/',
   plugins: [
     preact(),
+    Icons({ compiler: 'jsx', jsx: 'preact', scale: 1 }),
     injectThemeColor(),
     VitePWA({
       registerType: 'autoUpdate',
