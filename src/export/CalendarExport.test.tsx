@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/preact'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { CalendarExport } from './CalendarExport.tsx'
@@ -53,6 +53,10 @@ beforeEach(() => {
   exportShoppingList.mockReset()
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
     cb(items)
@@ -94,6 +98,16 @@ describe('CalendarExport', () => {
     await submit('2026-03-05')
 
     expect(screen.getByRole('alert')).toHaveTextContent('No pending Items to export.')
+    expect(exportShoppingList).not.toHaveBeenCalled()
+  })
+
+  it('rejects exporting while offline, without attempting the export', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderWith([bandages], [medicine], [pharmacy])
+
+    await submit('2026-03-05')
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Exporting to Calendar needs a connection.')
     expect(exportShoppingList).not.toHaveBeenCalled()
   })
 

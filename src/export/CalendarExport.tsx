@@ -45,6 +45,11 @@ export function CalendarExport({ db }: CalendarExportProps) {
       return
     }
 
+    if (!navigator.onLine) {
+      setStatus({ phase: 'error', message: 'Exporting to Calendar needs a connection. Try again once you are online.' })
+      return
+    }
+
     setStatus({ phase: 'exporting' })
     const result = await exportShoppingList(groups, date)
     setStatus(result.status === 'exported' ? { phase: 'exported' } : { phase: 'fallback', links: result.links })
