@@ -11,6 +11,7 @@ import { CalendarExport } from './export/CalendarExport.tsx'
 import { AddDeviceQrCode } from './setup/AddDeviceQrCode.tsx'
 import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
+import { titleOf } from './shell/titles.ts'
 import type { Route } from './ui/route.ts'
 import { useRoute } from './ui/useRoute.ts'
 import './app.css'
@@ -41,22 +42,6 @@ export function App({ db, config }: AppProps) {
       </div>
     </>
   )
-}
-
-function titleOf(current: Route): string {
-  switch (current) {
-    case '/list':
-      return 'Shopping list'
-    case '/items':
-      // TODO[#136]: the Items screen.
-      return 'Items'
-    case '/settings':
-      return 'Settings'
-    case '/settings/shops':
-      return 'Shops'
-    case '/settings/categories':
-      return 'Categories'
-  }
 }
 
 /** The screen for a route. */

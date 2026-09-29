@@ -1,5 +1,6 @@
 import { Icon, type IconSymbol } from '../ui/Icon.tsx'
 import { hashOf, route, type Route } from '../ui/route.ts'
+import { titleOf } from './titles.ts'
 import { navigate, useRoute } from '../ui/useRoute.ts'
 import ListIcon from '~icons/material-symbols/checklist'
 import ItemsIcon from '~icons/material-symbols/inventory-2-outline'
@@ -8,16 +9,15 @@ import './NavBar.css'
 
 interface Destination {
   route: Route
-  label: string
   symbol: IconSymbol
   /** Routes under this destination that keep it marked active. */
   also: readonly Route[]
 }
 
 const DESTINATIONS: readonly Destination[] = [
-  { route: route('/list'), label: 'Shopping list', symbol: ListIcon, also: [] },
-  { route: route('/items'), label: 'Items', symbol: ItemsIcon, also: [] },
-  { route: route('/settings'), label: 'Settings', symbol: SettingsIcon, also: [route('/settings/shops'), route('/settings/categories')] },
+  { route: route('/list'), symbol: ListIcon, also: [] },
+  { route: route('/items'), symbol: ItemsIcon, also: [] },
+  { route: route('/settings'), symbol: SettingsIcon, also: [route('/settings/shops'), route('/settings/categories')] },
 ]
 
 /** The app's top-level destinations: a bottom bar below 600px, a left rail from 600px. */
@@ -41,7 +41,7 @@ export function NavBar() {
             <span class="shell-nav__pill">
               <Icon symbol={destination.symbol} size="1.5rem" />
             </span>
-            {destination.label}
+            {titleOf(destination.route)}
           </a>
         )
       })}
