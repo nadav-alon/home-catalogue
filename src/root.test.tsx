@@ -36,6 +36,9 @@ vi.mock('./catalogue/shops.ts', () => ({
 vi.mock('./catalogue/categories.ts', () => ({
   watchCategories: () => vi.fn(),
 }))
+vi.mock('./catalogue/items.ts', () => ({
+  watchItems: () => vi.fn(),
+}))
 
 const readDeployedPlatformVersion = vi.fn()
 vi.mock('./platform/readDeployedPlatformVersion.ts', () => ({
@@ -43,7 +46,8 @@ vi.mock('./platform/readDeployedPlatformVersion.ts', () => ({
 }))
 
 const checkPlatform = vi.fn()
-vi.mock('data-platform', () => ({
+vi.mock('data-platform', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('data-platform')>()),
   core: { checkPlatform: (deployed: unknown) => checkPlatform(deployed) },
 }))
 
