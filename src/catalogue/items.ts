@@ -132,7 +132,7 @@ export async function createItem(db: Firestore, input: ItemInput): Promise<void>
     batch.update(doc(db, catalogue.SHOPS_COLLECTION, catalogueItem.shopId), { referenceCount: increment(1) })
   }
   void batch.commit().catch((err: unknown) => {
-    reportWriteRejection(`new Item ${input.name}`, err)
+    reportWriteRejection(`new Item ${item.name}`, err)
   })
 }
 
