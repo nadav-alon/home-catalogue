@@ -3,16 +3,14 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
-  limit,
   onSnapshot,
   orderBy,
   query,
   updateDoc,
-  where,
   type Firestore,
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
+import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 
 export interface ShopRecord extends catalogue.Shop {
   id: catalogue.ShopId
@@ -59,7 +57,7 @@ export function watchShops(db: Firestore, callback: (shops: ShopRecord[]) => voi
  * a write that later fails to sync is only logged.
  */
 export async function createShop(db: Firestore, name: string): Promise<void> {
-  const data = catalogue.shopSchema.parse({ name })
+  const data = catalogue.shopSchema.parse({ name, referenceCount: 0 })
   void addDoc(collection(db, catalogue.SHOPS_COLLECTION), data).catch((err: unknown) => {
     console.error('Failed to sync new Shop', err)
   })
@@ -75,20 +73,16 @@ export async function renameShop(db: Firestore, id: catalogue.ShopId, name: stri
 
 /**
  * Refuses with {@link ShopInUseError} while any Category defaults to this Shop, or any Item
- * overrides to it. Resolves once the delete is queued, see {@link createShop}.
- *
- * The check only sees Categories and Items this device has already synced: one written on
- * another member's device but not yet cached here counts as "not in use".
+ * overrides to it. Enforced by the platform's Firestore rules against the Shop's own
+ * `referenceCount`, so the refusal holds regardless of what this device has cached.
  */
 export async function deleteShop(db: Firestore, id: catalogue.ShopId): Promise<void> {
-  const [categoryDependents, itemDependents] = await Promise.all([
-    getDocs(query(collection(db, catalogue.CATEGORIES_COLLECTION), where('defaultShopId', '==', id), limit(1))),
-    getDocs(query(collection(db, catalogue.CATALOGUE_ITEMS_COLLECTION), where('shopId', '==', id), limit(1))),
-  ])
-  if (!categoryDependents.empty || !itemDependents.empty) {
-    throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
-  }
-  void deleteDoc(doc(db, catalogue.SHOPS_COLLECTION, id)).catch((err: unknown) => {
+  try {
+    await deleteDoc(doc(db, catalogue.SHOPS_COLLECTION, id))
+  } catch (err) {
+    if (isRulesRefusal(err)) {
+      throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
+    }
     console.error(`Failed to sync deleted Shop ${id}`, err)
-  })
+  }
 }
