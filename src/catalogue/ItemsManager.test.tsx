@@ -375,15 +375,24 @@ describe("changing an Item's State", () => {
     expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages.id, 'running low')
   })
 
-  it("marks the Item's current State as pressed and disabled", () => {
+  it("marks the Item's current State as pressed, without taking it out of the tab order", () => {
     renderWith([bandages], [medicine], [pharmacy])
 
     const currentState = screen.getByRole('button', { name: 'enough' })
     expect(currentState).toHaveAttribute('aria-pressed', 'true')
-    expect(currentState).toBeDisabled()
+    expect(currentState).toHaveAttribute('aria-disabled', 'true')
+    expect(currentState).not.toBeDisabled()
 
     const otherState = screen.getByRole('button', { name: 'out' })
     expect(otherState).toHaveAttribute('aria-pressed', 'false')
-    expect(otherState).not.toBeDisabled()
+    expect(otherState).toHaveAttribute('aria-disabled', 'false')
+  })
+
+  it('taps on the current State as a no-op', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'enough' }))
+
+    expect(setItemState).not.toHaveBeenCalled()
   })
 })

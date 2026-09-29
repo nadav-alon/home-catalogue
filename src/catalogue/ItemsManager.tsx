@@ -12,6 +12,14 @@ export interface ItemsManagerProps {
 
 const NO_SHOP_OVERRIDE = ''
 
+const visuallyHiddenStyle: JSX.CSSProperties = {
+  position: 'absolute',
+  width: '1px',
+  height: '1px',
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+}
+
 interface ItemFormValues {
   name: string
   brandNote: string
@@ -245,19 +253,23 @@ function ItemRow({ item, categories, shops, resolvedShopName, onSetState, onUpda
       {item.brandNote !== undefined && <span>{item.brandNote}</span>}
       <span>{item.necessity}</span>
       <span>Shop: {resolvedShopName}</span>
-      <div role="group" aria-label={`State for ${item.name}`}>
+      <fieldset>
+        <legend style={visuallyHiddenStyle}>State for {item.name}</legend>
         {core.stateSchema.options.map((state) => (
           <button
             key={state}
             type="button"
             aria-pressed={item.state === state}
-            disabled={item.state === state}
-            onClick={() => onSetState(state)}
+            aria-disabled={item.state === state}
+            onClick={() => {
+              if (item.state === state) return
+              onSetState(state)
+            }}
           >
             {state}
           </button>
         ))}
-      </div>
+      </fieldset>
       <form
         onSubmit={(event) => {
           event.preventDefault()
