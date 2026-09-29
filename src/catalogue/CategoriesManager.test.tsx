@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
-import { catalogue } from 'data-platform'
 import { CategoriesManager } from './CategoriesManager.tsx'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import { grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const createCategory = vi.fn()
 const renameCategory = vi.fn()
@@ -32,15 +32,6 @@ vi.mock('./shops.ts', async (importOriginal) => ({
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const categoriesUnsubscribe = vi.fn()
 const shopsUnsubscribe = vi.fn()
-
-const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 1 }
-const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery', referenceCount: 0 }
-const medicine: CategoryRecord = {
-  id: catalogue.categoryId('medicine'),
-  name: 'Medicine',
-  defaultShopId: pharmacy.id,
-  referenceCount: 0,
-}
 
 beforeEach(() => {
   createCategory.mockReset().mockResolvedValue(undefined)
