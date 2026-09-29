@@ -48,6 +48,7 @@ function titleOf(current: Route): string {
     case '/list':
       return 'Shopping list'
     case '/items':
+      // TODO[#136]: the Items screen.
       return 'Items'
     case '/settings':
       return 'Settings'
@@ -58,10 +59,11 @@ function titleOf(current: Route): string {
   }
 }
 
-/** The screen for a route; each wraps today's components until its own ticket replaces it. */
+/** The screen for a route. */
 function Screen({ route: current, db, config }: { route: Route } & AppProps) {
   switch (current) {
     case '/list':
+      // TODO[#135]: the Shopping list screen.
       return (
         <>
           <ShoppingList db={db} />
@@ -69,8 +71,10 @@ function Screen({ route: current, db, config }: { route: Route } & AppProps) {
         </>
       )
     case '/items':
+      // TODO[#136]: the Items screen.
       return <ItemsManager db={db} />
     case '/settings':
+      // TODO[#139]: the Settings screen.
       return (
         <>
           <AddDeviceQrCode config={config} />
@@ -79,8 +83,10 @@ function Screen({ route: current, db, config }: { route: Route } & AppProps) {
         </>
       )
     case '/settings/shops':
+      // TODO[#140]: the Shops screen.
       return <ShopsManager db={db} />
     case '/settings/categories':
+      // TODO[#141]: the Categories screen.
       return <CategoriesManager db={db} />
   }
 }
