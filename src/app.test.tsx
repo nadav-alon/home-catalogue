@@ -81,14 +81,15 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: 'Scan barcode' })).toBeNull()
   })
 
-  it('shows the Settings screen with device transfer, Shops and Categories, and follows the route', async () => {
+  it('shows the Settings screen with device transfer and links to Shops and Categories, and follows the route', async () => {
     render(<App db={fakeDb} config={config} />)
     await goTo('#/settings')
 
     expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Add a device' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Shops' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Categories' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open Shops' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open Categories' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Shops' })).toBeNull()
   })
 
   it('shows one management screen on each Settings sub-route', async () => {

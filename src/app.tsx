@@ -9,6 +9,7 @@ import { ShoppingList } from './catalogue/ShoppingList.tsx'
 import { watchItems, type ItemRecord } from './catalogue/items.ts'
 import { CalendarExport } from './export/CalendarExport.tsx'
 import { AddDeviceQrCode } from './setup/AddDeviceQrCode.tsx'
+import { SettingsScreen } from './settings/SettingsScreen.tsx'
 import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
 import { titleOf } from './shell/titles.ts'
@@ -59,12 +60,10 @@ function Screen({ route: current, db, config }: { route: Route } & AppProps) {
       // TODO[#136]: the Items screen.
       return <ItemsManager db={db} />
     case '/settings':
-      // TODO[#139]: the Settings screen.
       return (
         <>
+          <SettingsScreen />
           <AddDeviceQrCode config={config} />
-          <ShopsManager db={db} />
-          <CategoriesManager db={db} />
         </>
       )
     case '/settings/shops':
