@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { App } from './app.tsx'
+import { AuthGate } from './auth/AuthGate.tsx'
 import { SetupScreen } from './setup/SetupScreen.tsx'
 import { clearFirebaseConfig, getStoredFirebaseConfig, saveFirebaseConfig } from './firebase/configStorage.ts'
 import { initFirebase, terminateFirebase, type FirebaseClient } from './firebase/client.ts'
@@ -23,19 +24,23 @@ export function Root() {
 }
 
 function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: () => void }) {
-  const clientRef = useRef<FirebaseClient | null>(null)
+  const [client, setClient] = useState<FirebaseClient | null>(null)
 
   useEffect(() => {
-    clientRef.current = initFirebase(config)
+    setClient(initFirebase(config))
   }, [config])
+
+  if (client === null) return null
 
   return (
     <>
-      <App />
+      <AuthGate client={client}>
+        <App />
+      </AuthGate>
       <button
         type="button"
         onClick={async () => {
-          if (clientRef.current) await terminateFirebase(clientRef.current)
+          await terminateFirebase(client)
           clearFirebaseConfig()
           onReset()
         }}

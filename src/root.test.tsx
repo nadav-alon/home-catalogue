@@ -3,12 +3,31 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Root } from './root.tsx'
 import { saveFirebaseConfig } from './firebase/configStorage.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
+import type { AuthUser } from './auth/authClient.ts'
 
 const initFirebase = vi.fn()
 const terminateFirebase = vi.fn()
 vi.mock('./firebase/client.ts', () => ({
   initFirebase: (config: unknown) => initFirebase(config),
   terminateFirebase: (client: unknown) => terminateFirebase(client),
+}))
+
+// These tests are about the Firebase config lifecycle, not auth, so the auth gate is
+// stubbed as an already-signed-in member throughout.
+const member: AuthUser = { uid: 'owner-uid', email: 'owner@example.com' } as unknown as AuthUser
+const watchAuthState = vi.fn()
+vi.mock('./auth/authClient.ts', () => ({
+  watchAuthState: (app: unknown, cb: (user: AuthUser | null) => void) => watchAuthState(app, cb),
+  signInWithGoogle: vi.fn(),
+  signOutUser: vi.fn(),
+}))
+
+const householdExists = vi.fn()
+const isHouseholdMember = vi.fn()
+vi.mock('./auth/household.ts', () => ({
+  householdExists: (db: unknown) => householdExists(db),
+  isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
+  claimHousehold: vi.fn(),
 }))
 
 const validConfig = firebaseWebConfig({
@@ -28,6 +47,13 @@ beforeEach(() => {
   initFirebase.mockReturnValue(fakeClient)
   terminateFirebase.mockClear()
   terminateFirebase.mockResolvedValue(undefined)
+  watchAuthState.mockReset()
+  watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    cb(member)
+    return vi.fn()
+  })
+  householdExists.mockReset().mockResolvedValue(true)
+  isHouseholdMember.mockReset().mockResolvedValue(true)
 })
 
 describe('Root', () => {
@@ -38,16 +64,16 @@ describe('Root', () => {
     expect(initFirebase).not.toHaveBeenCalled()
   })
 
-  it('initialises Firebase and shows the app once config is stored', () => {
+  it('initialises Firebase and shows the app once config is stored', async () => {
     saveFirebaseConfig(validConfig)
 
     render(<Root />)
 
     expect(initFirebase).toHaveBeenCalledWith(validConfig)
-    expect(screen.getByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
   })
 
-  it('shows the app after the setup screen submits a valid config', () => {
+  it('shows the app after the setup screen submits a valid config', async () => {
     render(<Root />)
 
     fireEvent.input(screen.getByLabelText('Firebase web config'), {
@@ -55,7 +81,7 @@ describe('Root', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
     expect(initFirebase).toHaveBeenCalledWith(validConfig)
   })
 
