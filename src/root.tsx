@@ -77,7 +77,7 @@ function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: ()
     <>
       <AuthGate client={client}>
         <PlatformGuard db={client.db} />
-        <App db={client.db} />
+        <App db={client.db} config={config} />
       </AuthGate>
       <button
         type="button"
