@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { Button } from './Button.tsx'
-import { tokenUsage } from './cssTokens.ts'
+import { tokenUsage } from '../testing/css.ts'
 
 describe('Button', () => {
   it('renders a native button that does not submit by default', () => {

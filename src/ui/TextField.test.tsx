@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { TextField } from './TextField.tsx'
-import { tokenUsage } from './cssTokens.ts'
+import { tokenUsage } from '../testing/css.ts'
 
 describe('TextField', () => {
   it('renders a native input labelled by its label', () => {

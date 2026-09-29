@@ -1,11 +1,6 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { colourRoleProperty } from './colourRoles.ts'
-
-const read = (name: string) => readFileSync(`src/ui/${name}`, 'utf8')
-const defined = new Set(
-  [read('theme.css'), read('tokens.css')].flatMap((css) => [...css.matchAll(/^\s*(--[\w-]+):/gm)].map((m) => m[1])),
-)
+import { defined, read } from '../testing/css.ts'
 
 describe('design tokens', () => {
   it('define type, spacing, shape and elevation scales', () => {

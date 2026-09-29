@@ -1,7 +1,7 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { read } from '../testing/css.ts'
 
-const read = (name: string) => readFileSync(`src/ui/${name}`, 'utf8')
 const primitiveStylesheets = readdirSync('src/ui').filter((name) => /^[A-Z]\w*\.css$/.test(name))
 
 describe('focus ring', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { SegmentedButton } from './SegmentedButton.tsx'
-import { tokenUsage } from './cssTokens.ts'
+import { tokenUsage } from '../testing/css.ts'
 
 const options = [
   { value: 'enough', label: 'Enough' },

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact'
 import { Dialog } from './Dialog.tsx'
 import { readFileSync } from 'node:fs'
-import { tokenUsage } from './cssTokens.ts'
+import { tokenUsage } from '../testing/css.ts'
 
 /** jsdom has no modal dialog; stand in for the browser's open/close bookkeeping. */
 beforeEach(() => {

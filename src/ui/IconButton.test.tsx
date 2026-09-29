@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import HomeIcon from '~icons/material-symbols/home-outline'
 import { IconButton } from './IconButton.tsx'
-import { tokenUsage } from './cssTokens.ts'
+import { tokenUsage } from '../testing/css.ts'
 
 describe('IconButton', () => {
   it('renders a native button named by its label, with a decorative icon', () => {

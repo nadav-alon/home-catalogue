@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/preact'
 import { ListRow } from './ListRow.tsx'
-import { tokenUsage } from './cssTokens.ts'
+import { tokenUsage } from '../testing/css.ts'
 
 describe('ListRow', () => {
   it('renders a native list item with headline and supporting text', () => {

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import AddIcon from '~icons/material-symbols/add'
 import { Fab } from './Fab.tsx'
-import { tokenUsage } from './cssTokens.ts'
+import { tokenUsage } from '../testing/css.ts'
 
 describe('Fab', () => {
   it('renders a native button named by its label, with a decorative icon', () => {
