@@ -137,6 +137,20 @@ describe('ShoppingList', () => {
     expect(screen.getByText('Nothing to buy — every Item is enough.')).toBeInTheDocument()
   })
 
+  it('shows the AlertBanner above the list from the same Items', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    expect(screen.getByRole('alert')).toHaveTextContent('1 urgent Item')
+    expect(watchItems).toHaveBeenCalledTimes(1)
+  })
+
   it('does not show the empty state before the first snapshot of Items arrives', () => {
     watchItems.mockReturnValue(vi.fn())
     watchCategories.mockReturnValue(vi.fn())
