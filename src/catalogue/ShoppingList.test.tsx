@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/preact'
+import { act, fireEvent, render, screen, within } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
@@ -74,10 +74,32 @@ describe('ShoppingList', () => {
     }
     renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
 
-    expect(screen.getByRole('heading', { name: 'Pharmacy' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Grocery' })).toBeInTheDocument()
-    expect(screen.getByText('Bandages')).toBeInTheDocument()
-    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+    const pharmacyGroup = screen.getByRole('heading', { name: 'Pharmacy' }).closest('div')
+    const groceryGroup = screen.getByRole('heading', { name: 'Grocery' }).closest('div')
+    if (pharmacyGroup === null || groceryGroup === null) throw new Error('group not found')
+
+    expect(within(pharmacyGroup).getByText('Bandages')).toBeInTheDocument()
+    expect(within(pharmacyGroup).queryByText('Dish soap')).not.toBeInTheDocument()
+    expect(within(groceryGroup).getByText('Dish soap')).toBeInTheDocument()
+    expect(within(groceryGroup).queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('groups an Item under its own Shop override instead of its Category default', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+      shopId: grocery.id,
+    }
+    renderWith([bandages], [medicine], [pharmacy, grocery])
+
+    const groceryGroup = screen.getByRole('heading', { name: 'Grocery' }).closest('div')
+    if (groceryGroup === null) throw new Error('group not found')
+
+    expect(within(groceryGroup).getByText('Bandages')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Pharmacy' })).not.toBeInTheDocument()
   })
 
   it('leaves out an Item that is enough', () => {
