@@ -1,5 +1,5 @@
-# Gate for pull requests: the app must build, typecheck and pass its tests
-# before a change merges.
+# Gate for pull requests: the app must build, typecheck and pass its tests,
+# including the Firestore rules suite, before a change merges.
 name: CI
 
 on:
@@ -15,7 +15,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
       - run: npm ci
       - run: npm run build
       - run: npm test
+      - run: npm run test:rules
       - run: npm run typecheck
