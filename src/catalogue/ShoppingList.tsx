@@ -4,7 +4,7 @@ import { catalogue } from 'data-platform'
 import { isPending, resolvedShopId, setItemState, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
-import { SHOPPING_LIST_ANCHOR } from '../links.ts'
+import { SHOPPING_LIST_ID } from '../links.ts'
 
 export interface ShoppingListProps {
   db: Firestore
@@ -60,7 +60,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
   }
 
   return (
-    <section id={SHOPPING_LIST_ANCHOR.slice(1)}>
+    <section id={SHOPPING_LIST_ID}>
       <h2>Shopping list</h2>
       {error !== null && <p role="alert">{error}</p>}
       {groups.map(({ key, name, items: groupItems }) => (

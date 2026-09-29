@@ -71,7 +71,7 @@ describe('ShoppingList', () => {
   it('renders its section with the id the AlertBanner links to', () => {
     const { container } = renderWith([], [], [])
 
-    expect(container.querySelector('section')).toHaveAttribute('id', SHOPPING_LIST_ANCHOR.slice(1))
+    expect(container.querySelector(SHOPPING_LIST_ANCHOR)).toBe(container.querySelector('section'))
   })
 
   it('lists Items at running low or out, grouped by resolved Shop', () => {
