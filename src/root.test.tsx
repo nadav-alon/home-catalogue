@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/preact'
+import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Root } from './root.tsx'
 import { saveFirebaseConfig } from './firebase/configStorage.ts'
@@ -37,6 +37,16 @@ vi.mock('./catalogue/categories.ts', () => ({
   watchCategories: () => vi.fn(),
 }))
 
+const readDeployedPlatformVersion = vi.fn()
+vi.mock('./platform/readDeployedPlatformVersion.ts', () => ({
+  readDeployedPlatformVersion: (db: unknown) => readDeployedPlatformVersion(db),
+}))
+
+const checkPlatform = vi.fn()
+vi.mock('data-platform', () => ({
+  core: { checkPlatform: (deployed: unknown) => checkPlatform(deployed) },
+}))
+
 const validConfig = firebaseWebConfig({
   apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',
   authDomain: 'household.firebaseapp.com',
@@ -61,6 +71,10 @@ beforeEach(() => {
   })
   householdExists.mockReset().mockResolvedValue(true)
   isHouseholdMember.mockReset().mockResolvedValue(true)
+  readDeployedPlatformVersion.mockReset()
+  readDeployedPlatformVersion.mockResolvedValue('deployed-version')
+  checkPlatform.mockReset()
+  checkPlatform.mockReturnValue('ok')
 })
 
 describe('Root', () => {
@@ -119,5 +133,55 @@ describe('Root', () => {
     expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
     expect(initFirebase).toHaveBeenLastCalledWith(otherConfig)
+  })
+
+  it('checks the deployed platform version against the connected client', async () => {
+    saveFirebaseConfig(validConfig)
+
+    render(<Root />)
+
+    await screen.findByRole('heading', { name: 'Home Catalogue' })
+    await waitFor(() => expect(checkPlatform).toHaveBeenCalledWith('deployed-version'))
+    expect(readDeployedPlatformVersion).toHaveBeenCalledWith(fakeClient.db)
+  })
+
+  it('does not read the platform version before sign-in', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(null)
+      return vi.fn()
+    })
+    saveFirebaseConfig(validConfig)
+
+    render(<Root />)
+
+    await screen.findByRole('heading', { name: 'Sign in' })
+    expect(readDeployedPlatformVersion).not.toHaveBeenCalled()
+  })
+
+  it('shows no banner once checkPlatform resolves ok', async () => {
+    saveFirebaseConfig(validConfig)
+
+    render(<Root />)
+
+    await screen.findByRole('heading', { name: 'Home Catalogue' })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('shows a blocking banner once checkPlatform resolves outdated', async () => {
+    checkPlatform.mockReturnValue('outdated')
+    saveFirebaseConfig(validConfig)
+
+    render(<Root />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('update your platform deploy')
+  })
+
+  it('shows a blocking banner once checkPlatform resolves missing', async () => {
+    checkPlatform.mockReturnValue('missing')
+    saveFirebaseConfig(validConfig)
+
+    render(<Root />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('update your platform deploy')
   })
 })
