@@ -61,6 +61,24 @@ describe('watchCategories', () => {
     expect(callback).toHaveBeenCalledWith([{ id: 'medicine', name: 'Medicine', defaultShopId: 'pharmacy' }])
     expect(unsub).toBe(unsubscribe)
   })
+
+  it('skips a document that fails categorySchema instead of trusting the cast', async () => {
+    const { watchCategories } = await import('./categories.ts')
+    const callback = vi.fn()
+    onSnapshot.mockImplementation((_snapshotQuery: unknown, cb: (snapshot: unknown) => void) => {
+      cb({
+        docs: [
+          { id: 'invalid', data: () => ({ name: 'Medicine', defaultShopId: '' }) },
+          { id: 'medicine', data: () => ({ name: 'Medicine', defaultShopId: 'pharmacy' }) },
+        ],
+      })
+      return vi.fn()
+    })
+
+    watchCategories(fakeDb, callback)
+
+    expect(callback).toHaveBeenCalledWith([{ id: 'medicine', name: 'Medicine', defaultShopId: 'pharmacy' }])
+  })
 })
 
 describe('createCategory', () => {

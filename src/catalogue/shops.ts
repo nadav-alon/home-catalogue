@@ -25,11 +25,24 @@ function toShopRecord(id: string, data: catalogue.Shop): ShopRecord {
   return { id: catalogue.shopId(id), ...data }
 }
 
-/** Notifies `callback` with every Shop, ordered by name. Returns the unsubscribe function. */
+/**
+ * Notifies `callback` with every Shop, ordered by name. A document failing
+ * {@link catalogue.shopSchema} is skipped and logged rather than breaking the whole list.
+ * Returns the unsubscribe function.
+ */
 export function watchShops(db: Firestore, callback: (shops: ShopRecord[]) => void): () => void {
   const shopsQuery = query(collection(db, catalogue.SHOPS_COLLECTION), orderBy('name'))
   return onSnapshot(shopsQuery, (snapshot) => {
-    callback(snapshot.docs.map((snapshotDoc) => toShopRecord(snapshotDoc.id, snapshotDoc.data() as catalogue.Shop)))
+    callback(
+      snapshot.docs.flatMap((snapshotDoc) => {
+        const parsed = catalogue.shopSchema.safeParse(snapshotDoc.data())
+        if (!parsed.success) {
+          console.error(`Skipping invalid Shop document ${snapshotDoc.id}`, parsed.error)
+          return []
+        }
+        return [toShopRecord(snapshotDoc.id, parsed.data)]
+      }),
+    )
   })
 }
 

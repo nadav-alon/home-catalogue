@@ -61,6 +61,24 @@ describe('watchShops', () => {
     expect(callback).toHaveBeenCalledWith([{ id: 'pharmacy', name: 'Pharmacy' }])
     expect(unsub).toBe(unsubscribe)
   })
+
+  it('skips a document that fails shopSchema instead of trusting the cast', async () => {
+    const { watchShops } = await import('./shops.ts')
+    const callback = vi.fn()
+    onSnapshot.mockImplementation((_snapshotQuery: unknown, cb: (snapshot: unknown) => void) => {
+      cb({
+        docs: [
+          { id: 'invalid', data: () => ({ name: '' }) },
+          { id: 'pharmacy', data: () => ({ name: 'Pharmacy' }) },
+        ],
+      })
+      return vi.fn()
+    })
+
+    watchShops(fakeDb, callback)
+
+    expect(callback).toHaveBeenCalledWith([{ id: 'pharmacy', name: 'Pharmacy' }])
+  })
 })
 
 describe('createShop', () => {
