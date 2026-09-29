@@ -36,12 +36,13 @@ const config = firebaseWebConfig({
 })
 
 describe('App', () => {
-  it('shows the home screen with the Shopping list, Shops, Categories and Items management', () => {
+  it('shows the home screen with the Shopping list, Calendar export, Shops, Categories and Items management', () => {
     render(<App db={fakeDb} config={config} />)
 
     expect(screen.getByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Add a device' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Shopping list' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Export to Calendar' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Shops' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Categories' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Items' })).toBeInTheDocument()
