@@ -231,6 +231,7 @@ describe('Root with a device transfer fragment in the URL', () => {
     expect(confirmSpy).toHaveBeenCalled()
     expect(initFirebase).toHaveBeenCalledWith(validConfig)
     expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(validConfig)
+    expect(location.hash).toBe('')
   })
 
   it('replaces the stored config when the user confirms', async () => {
@@ -250,11 +251,14 @@ describe('Root with a device transfer fragment in the URL', () => {
     saveFirebaseConfig(validConfig)
     history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(validConfig)))
     const confirmSpy = vi.spyOn(window, 'confirm')
+    const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
 
     render(<Root />)
 
     expect(await screen.findByRole('heading', { name: 'Home Catalogue' })).toBeInTheDocument()
     expect(confirmSpy).not.toHaveBeenCalled()
     expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(setItemSpy).not.toHaveBeenCalled()
+    expect(location.hash).toBe('')
   })
 })

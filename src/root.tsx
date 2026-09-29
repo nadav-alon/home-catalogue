@@ -36,7 +36,8 @@ function resolveInitialState(): InitialState {
   }
   if (incoming === null) return { config: stored, setupError: null }
 
-  if (stored !== null && !sameFirebaseConfig(stored, incoming)) {
+  if (stored !== null) {
+    if (sameFirebaseConfig(stored, incoming)) return { config: stored, setupError: null }
     if (!confirm('Replace the stored Firebase configuration with the scanned one?')) {
       return { config: stored, setupError: null }
     }
