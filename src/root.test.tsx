@@ -37,6 +37,9 @@ vi.mock('./catalogue/shops.ts', () => ({
 vi.mock('./catalogue/categories.ts', () => ({
   watchCategories: () => vi.fn(),
 }))
+vi.mock('./catalogue/items.ts', () => ({
+  watchItems: () => vi.fn(),
+}))
 
 const readDeployedPlatformVersion = vi.fn()
 vi.mock('./platform/readDeployedPlatformVersion.ts', () => ({
@@ -44,9 +47,13 @@ vi.mock('./platform/readDeployedPlatformVersion.ts', () => ({
 }))
 
 const checkPlatform = vi.fn()
-vi.mock('data-platform', () => ({
-  core: { checkPlatform: (deployed: unknown) => checkPlatform(deployed) },
-}))
+vi.mock('data-platform', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('data-platform')>()
+  return {
+    ...actual,
+    core: { ...actual.core, checkPlatform: (deployed: unknown) => checkPlatform(deployed) },
+  }
+})
 
 const validConfig = firebaseWebConfig({
   apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',
