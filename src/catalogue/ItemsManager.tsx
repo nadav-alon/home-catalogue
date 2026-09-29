@@ -115,6 +115,9 @@ export function ItemsManager({ db }: ItemsManagerProps) {
       <ScanEntry onScan={() => {}} />
       {error !== null && <p role="alert">{error}</p>}
       <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
+      {visibleItems.length === 0 && (
+        <p>{items.length === 0 ? 'No Items yet.' : 'No Items match your search.'}</p>
+      )}
       {groups.map(({ category, items: categoryItems }) => (
         <ItemGroup key={category.id} heading={category.name} items={categoryItems} onSetState={handleSetState} />
       ))}

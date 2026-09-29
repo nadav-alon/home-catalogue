@@ -304,3 +304,40 @@ describe('searching Items', () => {
     expect(screen.getByRole('heading', { name: 'Cleaning' })).toBeInTheDocument()
   })
 })
+
+describe('the empty state', () => {
+  it('says so when there are no Items', () => {
+    renderWith([], [medicine], [pharmacy])
+
+    expect(screen.getByText('No Items yet.')).toBeInTheDocument()
+  })
+
+  it('says so when the search matches no Item', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'enough',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'zzz' } })
+
+    expect(screen.getByText('No Items match your search.')).toBeInTheDocument()
+    expect(screen.queryByText('No Items yet.')).not.toBeInTheDocument()
+  })
+
+  it('is not shown while Items are listed', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'enough',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    expect(screen.queryByText(/^No Items/)).not.toBeInTheDocument()
+  })
+})
