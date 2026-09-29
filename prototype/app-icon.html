@@ -112,7 +112,8 @@ const V = {
       <rect x="43" y="47" width="14" height="23" rx="4" fill="#fff"/>
       <rect x="66" y="26" width="10" height="42" rx="3" fill="none" stroke="#fff" stroke-width="4" opacity=".5"/>` },
 };
-const KEYS = Object.keys(V);
+const KEYS = ['PICK', ...Object.keys(V)];
+const PICK = { v: 'B', scheme: 'Fidelity' };
 const SQUIRCLE = 'M50 0C88 0 100 12 100 50S88 100 50 100S0 88 0 50S12 0 50 0Z';
 const scaled = (g, s) => `<g transform="translate(50 50) scale(${s}) translate(-50 -50)">${g}</g>`;
 
@@ -152,17 +153,17 @@ const BLURB = {
   Content: 'Like Fidelity, tuned for colour pulled from imagery; slightly richer containers.',
 };
 
-function render(v) {
-  const d = V[v];
-  document.getElementById('name').textContent = `${v} · ${d.name}`;
-  document.getElementById('concept').textContent = d.concept;
-  document.getElementById('label').textContent = `${v} (${d.name})`;
+function render(key) {
+  const picked = key === 'PICK', v = picked ? PICK.v : key, d = V[v];
+  document.getElementById('name').textContent = picked ? `Chosen: ${v} · ${d.name} + ${PICK.scheme}` : `${v} · ${d.name}`;
+  document.getElementById('concept').textContent = picked ? `${d.concept} Colours from the ${PICK.scheme} scheme, so the app's primary stays close to the icon.` : d.concept;
+  document.getElementById('label').textContent = picked ? 'Chosen' : `${v} (${d.name})`;
   const tiles = [['any', 'Full-bleed, purpose any'], ['maskable', 'Maskable, safe zone dashed'], ['circle', 'Circle mask'], ['squircle', 'Squircle mask']];
   document.getElementById('icons').innerHTML =
     tiles.map(([m, cap], i) => `<figure class="tile" style="margin:0">${icon(v, m, v + i)}<figcaption>${cap}</figcaption></figure>`).join('') +
     `<figure class="tile" style="margin:0"><div class="home"><div class="row"><span class="dummy"></span><span class="me">${icon(v, 'circle', v + 'h')}Home Catalogue</span><span class="dummy"></span></div></div><figcaption>Home screen, 48dp</figcaption></figure>`;
   const seed = DATA[v].seed;
-  document.getElementById('schemes').innerHTML = Object.entries(DATA[v].schemes).map(([n, s]) => `
+  document.getElementById('schemes').innerHTML = Object.entries(DATA[v].schemes).filter(([n]) => !picked || n === PICK.scheme).map(([n, s]) => `
     <article class="scheme">
       <div class="scheme-head"><h2 style="font-size:17px">${n}</h2>
         <span class="hex"><span class="sw" style="background:${seed}"></span>seed ${seed} → <span class="sw" style="background:${s.light.primary}"></span>primary ${s.light.primary}</span>
@@ -171,7 +172,7 @@ function render(v) {
     </article>`).join('');
 }
 
-function current() { const h = location.hash.slice(1).toUpperCase(); return KEYS.includes(h) ? h : 'A'; }
+function current() { const h = location.hash.slice(1).toUpperCase(); return KEYS.includes(h) ? h : 'PICK'; }
 function go(step) { const i = (KEYS.indexOf(current()) + step + KEYS.length) % KEYS.length; location.hash = KEYS[i]; }
 document.getElementById('prev').onclick = () => go(-1);
 document.getElementById('next').onclick = () => go(1);
