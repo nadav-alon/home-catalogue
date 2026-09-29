@@ -176,7 +176,7 @@ describe('Dialog', () => {
   })
 
   it('is styled only from defined tokens', () => {
-    const { used, undefinedTokens } = tokenUsage('Dialog.css')
+    const { used, undefinedTokens } = tokenUsage('src/ui/Dialog.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })

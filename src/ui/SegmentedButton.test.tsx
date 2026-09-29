@@ -33,7 +33,7 @@ describe('SegmentedButton', () => {
   })
 
   it('is styled only from defined tokens', () => {
-    const { used, undefinedTokens } = tokenUsage('SegmentedButton.css')
+    const { used, undefinedTokens } = tokenUsage('src/ui/SegmentedButton.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })

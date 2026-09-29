@@ -34,7 +34,7 @@ describe('TextField', () => {
   })
 
   it('is styled only from defined tokens', () => {
-    const { used, undefinedTokens } = tokenUsage('Field.css')
+    const { used, undefinedTokens } = tokenUsage('src/ui/Field.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })

@@ -37,7 +37,7 @@ describe('TopAppBar', () => {
   })
 
   it('is styled only from defined tokens', () => {
-    const { used, undefinedTokens } = tokenUsage('../shell/TopAppBar.css')
+    const { used, undefinedTokens } = tokenUsage('src/shell/TopAppBar.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })

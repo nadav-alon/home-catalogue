@@ -10,7 +10,7 @@ describe('design tokens', () => {
   })
 
   it('base styles paint the body and the focus ring from defined tokens', () => {
-    const base = read('base.css')
+    const base = read('src/ui/base.css')
     expect(base).toMatch(/body\s*{[^}]*background: var\(--md-sys-color-background\)/)
     expect(base).toMatch(/:focus-visible\s*{[^}]*outline:/)
     for (const [, property] of base.matchAll(/var\((--[\w-]+)\)/g)) {

@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { NavBar } from './NavBar.tsx'
-import { tokenUsage } from '../testing/css.ts'
-import { readFileSync } from 'node:fs'
+import { read, tokenUsage } from '../testing/css.ts'
 
 afterEach(async () => {
   window.location.hash = ''
@@ -43,13 +42,13 @@ describe('NavBar', () => {
   })
 
   it('is a bottom bar below 600px and a left rail from 600px', () => {
-    const css = readFileSync('src/shell/NavBar.css', 'utf8')
+    const css = read('src/shell/NavBar.css')
     expect(css).toMatch(/@media \(min-width: 600px\)/)
     expect(css).toMatch(/\.shell-nav\s*{[^}]*position:\s*fixed;[^}]*bottom:\s*0/)
   })
 
   it('is styled only from defined tokens', () => {
-    const { used, undefinedTokens } = tokenUsage('../shell/NavBar.css')
+    const { used, undefinedTokens } = tokenUsage('src/shell/NavBar.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })
