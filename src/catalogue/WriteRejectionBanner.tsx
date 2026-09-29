@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { dismissWriteRejection, watchWriteRejections, type WriteRejection } from './writeRejections.ts'
 
-/** One dismissible alert per queued catalogue write the server rejected on sync. */
+/** One dismissible notice per queued catalogue write the server rejected on sync. */
 export function WriteRejectionBanner() {
   const [rejections, setRejections] = useState<WriteRejection[]>([])
 
