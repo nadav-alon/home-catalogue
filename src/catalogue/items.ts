@@ -117,9 +117,9 @@ export async function createItem(db: Firestore, input: ItemInput): Promise<void>
 
 /**
  * Validates the new fields against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema}
- * before updating an Item's two docs as one batch. State is untouched — this editor never changes
- * it. Omitting `brandNote` or `shopId` clears that field rather than leaving it stale. Resolves
- * once the batch is queued, see {@link createItem}.
+ * before updating an Item's two docs as one batch. State is left untouched; State changes go
+ * through their own write. Omitting `brandNote` or `shopId` clears that field rather than leaving
+ * it stale. Resolves once the batch is queued, see {@link createItem}.
  */
 export async function updateItem(db: Firestore, id: core.ItemId, input: ItemInput): Promise<void> {
   const name = core.itemSchema.shape.name.parse(input.name)
