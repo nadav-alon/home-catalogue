@@ -7,7 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:rules": "firebase emulators:exec --project demo-home-catalogue-rules-test --only firestore \"vitest run --dir test/rules --environment node\"",
+    "test:rules": "firebase emulators:exec --project demo-home-catalogue-rules-test --only firestore \"vitest run --dir test/rules\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
