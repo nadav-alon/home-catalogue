@@ -75,6 +75,12 @@ describe('SetupScreen', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
+  it('shows an initial error, e.g. from a failed device transfer link', () => {
+    render(<SetupScreen onConfigured={vi.fn()} initialError="That device transfer link is truncated or corrupted." />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('That device transfer link is truncated or corrupted.')
+  })
+
   it('links to the platform household setup doc', () => {
     render(<SetupScreen onConfigured={vi.fn()} />)
 

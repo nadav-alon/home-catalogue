@@ -5,11 +5,13 @@ import { HOUSEHOLD_SETUP_DOC_URL } from '../links.ts'
 
 export interface SetupScreenProps {
   onConfigured: (config: FirebaseWebConfig) => void
+  /** An error to show up front, e.g. from a device transfer link that failed to parse. */
+  initialError?: string | null
 }
 
-export function SetupScreen({ onConfigured }: SetupScreenProps) {
+export function SetupScreen({ onConfigured, initialError = null }: SetupScreenProps) {
   const [configText, setConfigText] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(initialError)
 
   function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
