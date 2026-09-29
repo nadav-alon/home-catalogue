@@ -6,7 +6,7 @@
   align-items: center;
   gap: var(--md-sys-spacing-2);
   min-height: 4rem;
-  padding: 0 var(--md-sys-spacing-4);
+  padding: 0 max(var(--md-sys-spacing-4), calc((100% - var(--shell-content-width)) / 2 + var(--md-sys-spacing-4)));
   background: var(--md-sys-color-surface);
   color: var(--md-sys-color-on-surface);
 }

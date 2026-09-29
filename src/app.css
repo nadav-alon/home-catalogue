@@ -7,7 +7,7 @@
 
 .app-content main {
   box-sizing: border-box;
-  max-width: 45rem;
+  max-width: var(--shell-content-width);
   margin: 0 auto;
   padding: 0 var(--md-sys-spacing-4);
 }
