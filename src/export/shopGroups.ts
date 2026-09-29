@@ -1,6 +1,6 @@
-import type { catalogue } from 'data-platform'
 import type { CategoryRecord } from '../catalogue/categories.ts'
-import { isPending, resolvedShopId, type ItemRecord } from '../catalogue/items.ts'
+import type { ItemRecord } from '../catalogue/items.ts'
+import { groupPendingItemsByShop } from '../catalogue/pendingItemsByShop.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
 
 export interface ShopGroup {
@@ -25,26 +25,6 @@ export function pendingItemsByShop(
   categories: CategoryRecord[],
   shops: ShopRecord[],
 ): PendingItemGroups {
-  const categoriesById = new Map(categories.map((category) => [category.id, category]))
-  const itemsByShopId = new Map<catalogue.ShopId, ItemRecord[]>()
-  let unresolvedCount = 0
-
-  for (const item of items) {
-    if (!isPending(item.state)) continue
-    const shopId = resolvedShopId(item, categoriesById.get(item.categoryId))
-    if (shopId === undefined) {
-      unresolvedCount++
-      continue
-    }
-    const bucket = itemsByShopId.get(shopId)
-    if (bucket !== undefined) bucket.push(item)
-    else itemsByShopId.set(shopId, [item])
-  }
-
-  const groups = shops.flatMap((shop) => {
-    const shopItems = itemsByShopId.get(shop.id)
-    return shopItems !== undefined ? [{ shop, items: shopItems }] : []
-  })
-
-  return { groups, unresolvedCount }
+  const { groups, unresolved } = groupPendingItemsByShop(items, categories, shops)
+  return { groups, unresolvedCount: unresolved.length }
 }
