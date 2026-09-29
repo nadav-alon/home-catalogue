@@ -4,10 +4,9 @@ import { CategoriesManager } from './catalogue/CategoriesManager.tsx'
 import { ShopsManager } from './catalogue/ShopsManager.tsx'
 import { ItemsManager } from './catalogue/ItemsManager.tsx'
 import { ShoppingList } from './catalogue/ShoppingList.tsx'
-import { CalendarExport } from './export/CalendarExport.tsx'
 import { SettingsScreen } from './settings/SettingsScreen.tsx'
 import { NavBar } from './shell/NavBar.tsx'
-import { TopAppBar, TopAppBarActions } from './shell/TopAppBar.tsx'
+import { TopAppBar } from './shell/TopAppBar.tsx'
 import { titleOf } from './shell/titles.ts'
 import type { Route } from './ui/route.ts'
 import { useRoute } from './ui/useRoute.ts'
@@ -44,14 +43,7 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
 function Screen({ route: current, db, config, onResetConfig, onSignOut }: { route: Route } & AppProps) {
   switch (current) {
     case '/list':
-      return (
-        <>
-          <ShoppingList db={db} />
-          <TopAppBarActions>
-            <CalendarExport db={db} />
-          </TopAppBarActions>
-        </>
-      )
+      return <ShoppingList db={db} />
     case '/items':
       return <ItemsManager db={db} />
     case '/settings':

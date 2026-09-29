@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
-import type { Firestore } from 'firebase/firestore'
-import { watchCategories, type CategoryRecord } from '../catalogue/categories.ts'
-import { watchItems, type ItemRecord } from '../catalogue/items.ts'
-import { watchShops, type ShopRecord } from '../catalogue/shops.ts'
+import type { CategoryRecord } from '../catalogue/categories.ts'
+import type { ItemRecord } from '../catalogue/items.ts'
+import type { ShopRecord } from '../catalogue/shops.ts'
+import { Button } from '../ui/Button.tsx'
+import { Dialog } from '../ui/Dialog.tsx'
+import { TopAppBarActions } from '../shell/TopAppBar.tsx'
 import { isExportDate } from './exportDate.ts'
 import { exportShoppingList, type ShopFallbackLink } from './exportShoppingList.ts'
 import { pendingItemsByShop } from './shopGroups.ts'
 
 export interface CalendarExportProps {
-  db: Firestore
+  items: ItemRecord[]
+  categories: CategoryRecord[]
+  shops: ShopRecord[]
 }
 
 type ExportStatus =
@@ -19,17 +23,15 @@ type ExportStatus =
   | { phase: 'fallback'; links: ShopFallbackLink[] }
   | { phase: 'error'; message: string }
 
-/** One-tap export of the Shopping list to Calendar: one event per Shop, or a deep link per Shop if the token or API fails. */
-export function CalendarExport({ db }: CalendarExportProps) {
-  const [items, setItems] = useState<ItemRecord[]>([])
-  const [categories, setCategories] = useState<CategoryRecord[]>([])
-  const [shops, setShops] = useState<ShopRecord[]>([])
+/**
+ * Export of the Shopping list to Calendar, opened from a top app bar action: one event per Shop, or a
+ * deep link per Shop if the token or API fails. Works from the Items, Categories and Shops it is given.
+ */
+export function CalendarExport({ items, categories, shops }: CalendarExportProps) {
+  const [open, setOpen] = useState(false)
   const [date, setDate] = useState('')
   const [status, setStatus] = useState<ExportStatus>({ phase: 'idle' })
 
-  useEffect(() => watchItems(db, setItems), [db])
-  useEffect(() => watchCategories(db, setCategories), [db])
-  useEffect(() => watchShops(db, setShops), [db])
 
   const { groups, unresolvedCount } = pendingItemsByShop(items, categories, shops)
 
@@ -57,38 +59,47 @@ export function CalendarExport({ db }: CalendarExportProps) {
   }
 
   return (
-    <section>
-      <h2>Export to Calendar</h2>
-      {status.phase === 'error' && <p role="alert">{status.message}</p>}
-      {status.phase === 'exported' && <p role="status">Exported to Calendar.</p>}
-      {status.phase === 'fallback' && (
-        <div role="status">
-          <p>Couldn't reach Google Calendar. Add these events yourself:</p>
-          <ul>
-            {status.links.map((link) => (
-              <li key={link.shopName}>
-                <a href={link.url} target="_blank" rel="noreferrer">
-                  {link.shopName}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {unresolvedCount > 0 && (
-        <p>
-          {unresolvedCount} pending Item{unresolvedCount === 1 ? '' : 's'} with no Shop won't be included in the
-          export.
-        </p>
-      )}
-      <form onSubmit={(event) => void handleExport(event)}>
-        <label htmlFor="export-date">Date</label>
-        <input id="export-date" type="date" value={date} onInput={(event) => setDate(event.currentTarget.value)} />
-
-        <button type="submit" disabled={status.phase === 'exporting'}>
+    <>
+      <TopAppBarActions>
+        <Button variant="text" onClick={() => setOpen(true)}>
           Export to Calendar
-        </button>
-      </form>
-    </section>
+        </Button>
+      </TopAppBarActions>
+      <Dialog open={open} title="Export to Calendar" onClose={() => setOpen(false)}>
+        {status.phase === 'error' && <p role="alert">{status.message}</p>}
+        {status.phase === 'exported' && <p role="status">Exported to Calendar.</p>}
+        {status.phase === 'fallback' && (
+          <div role="status">
+            <p>Couldn't reach Google Calendar. Add these events yourself:</p>
+            <ul>
+              {status.links.map((link) => (
+                <li key={link.shopName}>
+                  <a href={link.url} target="_blank" rel="noreferrer">
+                    {link.shopName}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {unresolvedCount > 0 && (
+          <p>
+            {unresolvedCount} pending Item{unresolvedCount === 1 ? '' : 's'} with no Shop won't be included in the
+            export.
+          </p>
+        )}
+        <form onSubmit={(event) => void handleExport(event)}>
+          <label htmlFor="export-date">Date</label>
+          <input id="export-date" type="date" value={date} onInput={(event) => setDate(event.currentTarget.value)} />
+
+          <Button type="submit" disabled={status.phase === 'exporting'}>
+            Export
+          </Button>
+          <Button variant="text" onClick={() => setOpen(false)}>
+            Close
+          </Button>
+        </form>
+      </Dialog>
+    </>
   )
 }

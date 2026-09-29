@@ -53,7 +53,7 @@ describe('App', () => {
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Shopping list' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Export to Calendar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Items', level: 2 })).toBeNull()
   })
@@ -64,6 +64,8 @@ describe('App', () => {
     const bar = screen.getByRole('banner')
     expect(within(bar).getByRole('button', { name: 'Export to Calendar' })).toBeInTheDocument()
     expect(within(screen.getByRole('main')).queryByRole('button', { name: 'Export to Calendar' })).toBeNull()
+    expect(within(bar).getAllByRole('heading')).toHaveLength(1)
+    expect(within(bar).queryByLabelText('Date')).toBeNull()
   })
 
   it('shows the Items screen on #/items', () => {
@@ -71,7 +73,7 @@ describe('App', () => {
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Items' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Export to Calendar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Export to Calendar' })).toBeNull()
   })
 
   it('puts the scan icon in the top app bar on the Items screen when BarcodeDetector exists', () => {

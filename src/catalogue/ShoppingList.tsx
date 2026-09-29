@@ -4,6 +4,7 @@ import { setItemState, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 import { AlertBanner } from './AlertBanner.tsx'
+import { CalendarExport } from '../export/CalendarExport.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
 
@@ -49,6 +50,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
   return (
     <section>
       <AlertBanner items={items ?? []} />
+      <CalendarExport items={items ?? []} categories={categories} shops={shops} />
       {error !== null && <p role="alert">{error}</p>}
       {items !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
       {groups.map(({ key, name, items: groupItems }) => (
