@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs'
 import { themeColor } from '../theme.ts'
 import { describe, expect, it } from 'vitest'
-import { colourRoleNames, colourRoleProperty, colourRolesCss, seedColour } from './colourRoles.ts'
+import { type ColourRoleName, colourRoleNames, colourRoleProperty, colourRolesCss, seedColour } from './colourRoles.ts'
 
 const seed = seedColour('#2563eb')
 
 function block(css: string, opener: string): string {
   const start = css.indexOf(opener)
+  if (start < 0) throw new Error(`No ${opener} block in the generated CSS`)
   return css.slice(start, css.indexOf('\n}', start))
 }
 
@@ -24,14 +25,19 @@ describe('colourRolesCss', () => {
     expect(colourRoleNames).toHaveLength(49)
   })
 
-  it('gives dark different values from light', () => {
+  it('gives dark a different surface from light', () => {
     expect(dark).not.toContain(light.split('\n').find((l) => l.includes('--md-sys-color-surface:'))!)
   })
 
-  it('regenerates every role from a different seed', () => {
+  it('regenerates every seed-derived role from a different seed', () => {
     const other = colourRolesCss(seedColour('#16a34a'))
-    expect(other).not.toContain('--md-sys-color-primary: #4b5c92')
-    expect(css).toContain('--md-sys-color-primary: #4b5c92')
+    const fixed = (role: string) => role === 'shadow' || role === 'scrim' || /^(on)?[eE]rror/.test(role)
+    const value = (source: string, role: ColourRoleName) =>
+      new RegExp(`${colourRoleProperty(role)}: (#[0-9a-f]{6});`).exec(source)![1]
+    const neutral = (role: ColourRoleName) => ['#ffffff', '#000000'].includes(value(css, role))
+    for (const role of colourRoleNames.filter((r) => !fixed(r) && !neutral(r))) {
+      expect(value(other, role), role).not.toBe(value(css, role))
+    }
   })
 
   it('rejects a seed that is not #rrggbb', () => {
