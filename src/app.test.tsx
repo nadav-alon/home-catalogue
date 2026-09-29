@@ -1,17 +1,27 @@
-import { render, screen } from '@testing-library/preact'
+import { act, render, screen } from '@testing-library/preact'
 import { describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
+import { catalogue, core } from 'data-platform'
 import { App } from './app'
+import type { ItemRecord } from './catalogue/items.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 
-vi.mock('./catalogue/shops.ts', () => ({
+const watchItemsCallbacks: ((items: ItemRecord[]) => void)[] = []
+const watchItems = vi.fn((_db: unknown, cb: (items: ItemRecord[]) => void) => {
+  watchItemsCallbacks.push(cb)
+  return vi.fn()
+})
+
+vi.mock('./catalogue/shops.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./catalogue/shops.ts')>()),
   watchShops: () => vi.fn(),
 }))
 vi.mock('./catalogue/categories.ts', () => ({
   watchCategories: () => vi.fn(),
 }))
-vi.mock('./catalogue/items.ts', () => ({
-  watchItems: () => vi.fn(),
+vi.mock('./catalogue/items.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./catalogue/items.ts')>()),
+  watchItems: (db: unknown, cb: (items: ItemRecord[]) => void) => watchItems(db, cb),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -35,5 +45,23 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Shops' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Categories' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Items' })).toBeInTheDocument()
+  })
+
+  it('shows a red AlertBanner when a watched Item is now', () => {
+    render(<App db={fakeDb} config={config} />)
+
+    const items: ItemRecord[] = [
+      {
+        id: core.itemId('bandages'),
+        name: 'Bandages',
+        state: 'out',
+        categoryId: catalogue.categoryId('medicine'),
+        necessity: catalogue.necessitySchema.parse('essential'),
+      },
+    ]
+    act(() => watchItemsCallbacks.forEach((cb) => cb(items)))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('1')
+    expect(screen.getByRole('link', { name: /shopping list/ })).toHaveAttribute('href', '#shopping-list')
   })
 })
