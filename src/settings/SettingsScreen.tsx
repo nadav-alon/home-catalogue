@@ -1,10 +1,12 @@
 import { AddDeviceQrCode } from '../setup/AddDeviceQrCode.tsx'
 import type { FirebaseWebConfig } from '../firebase/webConfig.ts'
 import { Button } from '../ui/Button.tsx'
+import { Icon } from '../ui/Icon.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { hashOf, route, type Route } from '../ui/route.ts'
 import { navigate } from '../ui/useRoute.ts'
 import { titleOf } from '../shell/titles.ts'
+import ChevronRightIcon from '~icons/material-symbols/chevron-right'
 
 const SHOPS = route('/settings/shops')
 const CATEGORIES = route('/settings/categories')
@@ -64,7 +66,7 @@ function NavigationRow({ to }: { to: Route }) {
             navigate(to)
           }}
         >
-          ›
+          <Icon symbol={ChevronRightIcon} size="1.5rem" />
         </a>
       }
     />
