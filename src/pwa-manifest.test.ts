@@ -1,7 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { manifest } from './pwa-manifest'
 import { themeColor } from './theme'
+import { appIcons } from './ui/appIcons'
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const fromRepo = (path: string) => resolve(repoRoot, path)
+const pngHeaderWidthOffset = 16
+const pngHeaderHeightOffset = 20
 
 const purposesOf = (purpose?: string | string[]) => (Array.isArray(purpose) ? purpose : purpose?.split(' ') ?? [])
 
@@ -36,8 +44,8 @@ describe('manifest', () => {
 
   it('points every icon at a PNG that exists at its declared size', () => {
     for (const icon of manifest.icons ?? []) {
-      const png = readFileSync(`public/${icon.src}`)
-      const [width, height] = [png.readUInt32BE(16), png.readUInt32BE(20)]
+      const png = readFileSync(fromRepo(`public/${icon.src}`))
+      const [width, height] = [png.readUInt32BE(pngHeaderWidthOffset), png.readUInt32BE(pngHeaderHeightOffset)]
       expect(icon.sizes, icon.src).toBe(`${width}x${height}`)
     }
   })
@@ -51,7 +59,13 @@ describe('manifest', () => {
   })
 
   it('commits the icon source SVGs the PNGs are generated from', () => {
-    expect(existsSync('src/ui/icons/house-check.svg')).toBe(true)
-    expect(existsSync('src/ui/icons/house-check-maskable.svg')).toBe(true)
+    for (const { source } of appIcons) expect(existsSync(fromRepo(`src/ui/icons/${source}`)), source).toBe(true)
+  })
+
+  it('fills every icon background with the seed colour', () => {
+    for (const { source } of appIcons) {
+      const svg = readFileSync(fromRepo(`src/ui/icons/${source}`), 'utf8')
+      expect(/<rect[^>]*fill="([^"]+)"/.exec(svg)?.[1], source).toBe(themeColor)
+    }
   })
 })
