@@ -111,6 +111,32 @@ describe('ShoppingList', () => {
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
   })
 
+  it('shows an empty state when no Item is pending', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'enough',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    expect(screen.getByText('Nothing to buy — every Item is enough.')).toBeInTheDocument()
+  })
+
+  it('does not show the empty state while an Item is pending', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    expect(screen.queryByText(/Nothing to buy/)).not.toBeInTheDocument()
+  })
+
   it('leaves out a Shop with no pending Items', () => {
     renderWith([], [medicine], [pharmacy, grocery])
 

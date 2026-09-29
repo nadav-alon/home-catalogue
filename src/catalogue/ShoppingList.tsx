@@ -48,6 +48,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
   return (
     <section>
       {error !== null && <p role="alert">{error}</p>}
+      {groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
       {groups.map(({ key, name, items: groupItems }) => (
         <div key={key}>
           <h3>{name}</h3>
