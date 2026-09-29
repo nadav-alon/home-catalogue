@@ -146,3 +146,28 @@ describe('AuthGate', () => {
     expect(unsubscribe).toHaveBeenCalled()
   })
 })
+
+describe('AuthGate styling', () => {
+  it.each([
+    ['signed out', null, undefined, 'Sign in with Google'],
+    ['claimable', user, false, 'Claim household'],
+    ['not a member', user, true, 'Sign out'],
+  ] as const)('shows the %s screen as a card under the app name with a primitive button', async (_name, who, exists, button) => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(who)
+      return unsubscribe
+    })
+    householdExists.mockResolvedValue(exists)
+    isHouseholdMember.mockResolvedValue(false)
+
+    render(
+      <AuthGate client={fakeClient}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+
+    expect(await screen.findByRole('button', { name: button })).toHaveClass('ui-button')
+    expect(screen.getByText('Home Catalogue')).toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+  })
+})

@@ -90,3 +90,14 @@ describe('SetupScreen', () => {
     )
   })
 })
+
+describe('SetupScreen styling', () => {
+  it('is a card under the app name with no navigation, using primitives for the field and button', () => {
+    render(<SetupScreen onConfigured={vi.fn()} />)
+
+    expect(screen.getByText('Home Catalogue')).toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Firebase web config')).toHaveClass('ui-field__control')
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveClass('ui-button')
+  })
+})

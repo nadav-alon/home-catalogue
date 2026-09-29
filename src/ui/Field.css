@@ -28,3 +28,9 @@
   font-size: var(--md-sys-typescale-label-size);
   color: var(--md-sys-color-error);
 }
+
+.ui-field__control--multiline {
+  min-height: 8rem;
+  padding: var(--md-sys-spacing-3) var(--md-sys-spacing-4);
+  resize: vertical;
+}

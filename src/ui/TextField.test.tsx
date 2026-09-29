@@ -25,6 +25,7 @@ describe('TextField', () => {
     render(<TextField label="Name" error="Required" />)
     const input = screen.getByLabelText('Name')
     expect(input).toBeInvalid()
+    expect(screen.getByRole('alert')).toHaveTextContent('Required')
     expect(input).toHaveAccessibleDescription('Required')
   })
 

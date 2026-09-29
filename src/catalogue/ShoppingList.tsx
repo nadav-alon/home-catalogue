@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
-import { catalogue } from 'data-platform'
-import { isPending, resolvedShopId, setItemState, watchItems, type ItemRecord } from './items.ts'
+import { setItemState, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
+import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
 
 export interface ShoppingListProps {
   db: Firestore
@@ -34,28 +34,14 @@ export function ShoppingList({ db }: ShoppingListProps) {
     }
   }
 
-  const pendingItems = items.filter((item) => isPending(item.state))
-
-  const itemsByShopId = new Map<catalogue.ShopId | undefined, ItemRecord[]>()
-  for (const item of pendingItems) {
-    const category = categories.find((candidate) => candidate.id === item.categoryId)
-    const shopId = resolvedShopId(item, category)
-    const key = shops.some((shop) => shop.id === shopId) ? shopId : undefined
-    const bucket = itemsByShopId.get(key)
-    if (bucket !== undefined) {
-      bucket.push(item)
-    } else {
-      itemsByShopId.set(key, [item])
-    }
-  }
-
-  const groups: ShopGroup[] = shops.flatMap((shop) => {
-    const shopItems = itemsByShopId.get(shop.id)
-    return shopItems !== undefined ? [{ key: shop.id, name: shop.name, items: shopItems }] : []
-  })
-  const unresolvedItems = itemsByShopId.get(undefined)
-  if (unresolvedItems !== undefined) {
-    groups.push({ key: UNKNOWN_SHOP_NAME, name: UNKNOWN_SHOP_NAME, items: unresolvedItems })
+  const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items, categories, shops)
+  const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
+    key: shop.id,
+    name: shop.name,
+    items: shopItems,
+  }))
+  if (unresolved.length > 0) {
+    groups.push({ key: UNKNOWN_SHOP_NAME, name: UNKNOWN_SHOP_NAME, items: unresolved })
   }
 
   return (

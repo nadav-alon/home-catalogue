@@ -1,0 +1,18 @@
+.platform-banner {
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--md-sys-spacing-4));
+  max-width: 28rem;
+  margin: var(--md-sys-spacing-4) auto;
+  padding: var(--md-sys-spacing-6);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+.platform-banner p {
+  margin: 0;
+}
+
+.platform-banner a {
+  color: inherit;
+}
