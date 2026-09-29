@@ -5,6 +5,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   writeBatch,
   type Firestore,
 } from 'firebase/firestore'
@@ -143,5 +144,24 @@ export async function updateItem(db: Firestore, id: core.ItemId, input: ItemInpu
   })
   void batch.commit().catch((err: unknown) => {
     console.error(`Failed to sync updated Item ${id}`, err)
+  })
+}
+
+/**
+ * Validates the new State against {@link core.stateSchema} before updating the Item's `state`
+ * and appending a `stateHistory` entry timestamped with {@link serverTimestamp}, as one batch.
+ * Resolves once the batch is queued, see {@link createItem}.
+ */
+export async function setItemState(db: Firestore, id: core.ItemId, state: core.State): Promise<void> {
+  const validState = core.stateSchema.parse(state)
+
+  const batch = writeBatch(db)
+  batch.update(doc(db, core.ITEMS_COLLECTION, id), { state: validState })
+  batch.set(doc(collection(db, core.stateHistoryCollectionPath(id))), {
+    state: validState,
+    at: serverTimestamp(),
+  })
+  void batch.commit().catch((err: unknown) => {
+    console.error(`Failed to sync State change for Item ${id}`, err)
   })
 }

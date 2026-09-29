@@ -20,6 +20,7 @@ const batchUpdate = vi.fn()
 const batchCommit = vi.fn()
 const writeBatch = vi.fn((_db: unknown) => ({ set: batchSet, update: batchUpdate, commit: batchCommit }))
 const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
+const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
@@ -29,6 +30,7 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
   writeBatch: (db: unknown) => writeBatch(db),
   deleteField: () => deleteField(),
+  serverTimestamp: () => serverTimestamp(),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -44,6 +46,7 @@ beforeEach(() => {
   batchCommit.mockReset()
   writeBatch.mockClear()
   deleteField.mockClear()
+  serverTimestamp.mockClear()
 })
 
 describe('watchItems', () => {
@@ -307,5 +310,38 @@ describe('updateItem', () => {
         necessity: catalogue.necessitySchema.parse('essential'),
       }),
     ).resolves.toBeUndefined()
+  })
+})
+
+describe('setItemState', () => {
+  it('updates the Item and appends a timestamped stateHistory entry as one batch', async () => {
+    const { setItemState } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await setItemState(fakeDb, core.itemId('dish-soap'), 'out')
+
+    expect(collection).toHaveBeenCalledWith(fakeDb, 'items/dish-soap/stateHistory')
+    expect(batchUpdate).toHaveBeenCalledWith({ path: core.ITEMS_COLLECTION, id: 'dish-soap' }, { state: 'out' })
+    expect(batchSet).toHaveBeenCalledWith(
+      { path: 'items/dish-soap/stateHistory', id: 'generated-id' },
+      { state: 'out', at: { kind: 'serverTimestamp' } },
+    )
+    expect(batchCommit).toHaveBeenCalled()
+  })
+
+  it('rejects a State outside the enum without writing', async () => {
+    const { setItemState } = await import('./items.ts')
+    const invalidState = 'almost gone' as unknown as core.State
+
+    await expect(setItemState(fakeDb, core.itemId('dish-soap'), invalidState)).rejects.toThrow()
+    expect(batchUpdate).not.toHaveBeenCalled()
+    expect(batchCommit).not.toHaveBeenCalled()
+  })
+
+  it('resolves once the batch is queued, without waiting for Firestore to acknowledge it', async () => {
+    const { setItemState } = await import('./items.ts')
+    batchCommit.mockReturnValueOnce(new Promise(() => {}))
+
+    await expect(setItemState(fakeDb, core.itemId('dish-soap'), 'out')).resolves.toBeUndefined()
   })
 })
