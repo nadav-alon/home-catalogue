@@ -6,6 +6,7 @@ import { ShopsManager } from './catalogue/ShopsManager.tsx'
 import { ItemsManager } from './catalogue/ItemsManager.tsx'
 import { ShoppingList } from './catalogue/ShoppingList.tsx'
 import { watchItems, type ItemRecord } from './catalogue/items.ts'
+import { CalendarExport } from './export/CalendarExport.tsx'
 import { AddDeviceQrCode } from './setup/AddDeviceQrCode.tsx'
 import type { FirebaseWebConfig } from './firebase/webConfig.ts'
 
@@ -25,6 +26,7 @@ export function App({ db, config }: AppProps) {
       <AlertBanner items={items} />
       <AddDeviceQrCode config={config} />
       <ShoppingList db={db} />
+      <CalendarExport db={db} />
       <ShopsManager db={db} />
       <CategoriesManager db={db} />
       <ItemsManager db={db} />
