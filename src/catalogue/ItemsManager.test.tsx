@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/preact'
+import { fireEvent, render, screen, within } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
@@ -6,7 +6,7 @@ import { ItemsManager } from './ItemsManager.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
-import { cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
+import { bandages, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const watchItems = vi.fn()
 const createItem = vi.fn()
@@ -66,13 +66,6 @@ function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: Sh
 
 describe('ItemsManager', () => {
   it('groups Items by Category', () => {
-    const bandages: ItemRecord = {
-      id: core.itemId('bandages'),
-      name: 'Bandages',
-      state: 'enough',
-      categoryId: medicine.id,
-      necessity: 'essential',
-    }
     const soap: ItemRecord = {
       id: core.itemId('soap'),
       name: 'Dish soap',
@@ -95,28 +88,14 @@ describe('ItemsManager', () => {
   })
 
   it("shows each Item's name, brand note and Necessity in its row", () => {
-    const bandages: ItemRecord = {
-      id: core.itemId('bandages'),
-      name: 'Bandages',
-      brandNote: 'the waterproof ones',
-      state: 'enough',
-      categoryId: medicine.id,
-      necessity: 'essential',
-    }
-    renderWith([bandages], [medicine], [pharmacy])
+    const waterproofBandages: ItemRecord = { ...bandages, brandNote: 'the waterproof ones' }
+    renderWith([waterproofBandages], [medicine], [pharmacy])
 
     expect(screen.getByText('Bandages')).toBeInTheDocument()
     expect(screen.getByText('the waterproof ones · essential')).toBeInTheDocument()
   })
 
   it('has no inline edit form on a row', () => {
-    const bandages: ItemRecord = {
-      id: core.itemId('bandages'),
-      name: 'Bandages',
-      state: 'enough',
-      categoryId: medicine.id,
-      necessity: 'essential',
-    }
     renderWith([bandages], [medicine], [pharmacy])
 
     expect(screen.queryByLabelText('Edit Bandages')).not.toBeInTheDocument()
@@ -130,13 +109,6 @@ describe('ItemsManager', () => {
       state: 'enough',
       categoryId: catalogue.categoryId('deleted-category'),
       necessity: 'important',
-    }
-    const bandages: ItemRecord = {
-      id: core.itemId('bandages'),
-      name: 'Bandages',
-      state: 'enough',
-      categoryId: medicine.id,
-      necessity: 'essential',
     }
     renderWith([orphan, bandages], [medicine], [pharmacy])
 
@@ -160,7 +132,6 @@ describe('an Item whose Category is not in the local list', () => {
     expect(screen.getByRole('heading', { name: 'Uncategorised' })).toBeInTheDocument()
     expect(screen.getByText('Mystery item')).toBeInTheDocument()
   })
-
 })
 
 describe('adding an Item', () => {
@@ -245,39 +216,34 @@ describe('adding an Item', () => {
 })
 
 describe("changing an Item's State", () => {
-  const bandages: ItemRecord = {
-    id: core.itemId('bandages'),
-    name: 'Bandages',
-    state: 'enough',
-    categoryId: medicine.id,
-    necessity: 'essential',
-  }
-
   it('sets the State with one tap', () => {
     renderWith([bandages], [medicine], [pharmacy])
 
-    fireEvent.click(screen.getByRole('button', { name: 'running low' }))
+    const group = screen.getByRole('group', { name: 'State for Bandages' })
+    fireEvent.click(within(group).getByRole('button', { name: 'running low' }))
 
     expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'running low')
+  })
+
+  it("marks the Item's current State as pressed", () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    const group = screen.getByRole('group', { name: 'State for Bandages' })
+    expect(within(group).getByRole('button', { name: 'enough' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(group).getByRole('button', { name: 'running low' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('taps on the current State as a no-op', () => {
     renderWith([bandages], [medicine], [pharmacy])
 
-    fireEvent.click(screen.getByRole('button', { name: 'enough' }))
+    const group = screen.getByRole('group', { name: 'State for Bandages' })
+    fireEvent.click(within(group).getByRole('button', { name: 'enough' }))
 
     expect(setItemState).not.toHaveBeenCalled()
   })
 })
 
 describe('searching Items', () => {
-  const bandages: ItemRecord = {
-    id: core.itemId('bandages'),
-    name: 'Bandages',
-    state: 'enough',
-    categoryId: medicine.id,
-    necessity: 'essential',
-  }
   const soap: ItemRecord = {
     id: core.itemId('soap'),
     name: 'Dish soap',
@@ -303,6 +269,22 @@ describe('searching Items', () => {
     expect(screen.queryByRole('heading', { name: 'Medicine' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Cleaning' })).toBeInTheDocument()
   })
+
+  it('hides the Uncategorised group when the search matches none of its Items', () => {
+    const orphan: ItemRecord = {
+      id: core.itemId('orphan'),
+      name: 'Mystery item',
+      state: 'enough',
+      categoryId: catalogue.categoryId('deleted-category'),
+      necessity: 'important',
+    }
+    renderWith([bandages, orphan], [medicine], [pharmacy])
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'band' } })
+
+    expect(screen.getByRole('heading', { name: 'Medicine' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Uncategorised' })).not.toBeInTheDocument()
+  })
 })
 
 describe('the empty state', () => {
@@ -313,13 +295,6 @@ describe('the empty state', () => {
   })
 
   it('says so when the search matches no Item', () => {
-    const bandages: ItemRecord = {
-      id: core.itemId('bandages'),
-      name: 'Bandages',
-      state: 'enough',
-      categoryId: medicine.id,
-      necessity: 'essential',
-    }
     renderWith([bandages], [medicine], [pharmacy])
 
     fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'zzz' } })
@@ -344,13 +319,6 @@ describe('the empty state', () => {
   })
 
   it('is not shown while Items are listed', () => {
-    const bandages: ItemRecord = {
-      id: core.itemId('bandages'),
-      name: 'Bandages',
-      state: 'enough',
-      categoryId: medicine.id,
-      necessity: 'essential',
-    }
     renderWith([bandages], [medicine], [pharmacy])
 
     expect(screen.queryByText(/^No Items/)).not.toBeInTheDocument()
