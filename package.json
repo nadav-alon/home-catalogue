@@ -7,17 +7,20 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:rules": "firebase emulators:exec --project demo-home-catalogue-rules-test --only firestore \"vitest run --dir test/rules\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "data-platform": "github:nadav-alon/data-platform#v0.1.0",
+    "data-platform": "github:nadav-alon/data-platform#v0.2.0",
     "firebase": "^12.19.0",
     "preact": "^10.29.8"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@preact/preset-vite": "^2.10.6",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/preact": "^3.2.4",
+    "firebase-tools": "^15.32.0",
     "jsdom": "^30.1.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",
