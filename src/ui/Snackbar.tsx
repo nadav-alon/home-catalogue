@@ -19,7 +19,7 @@ let current: SnackbarMessage | null = null
 let timer: ReturnType<typeof setTimeout> | undefined
 const listeners = new Set<Listener>()
 /** What is keeping the snackbar up. While any hold is active the timeout does not run. */
-type Hold = 'pointer'
+type Hold = 'pointer' | 'focus'
 const holds = new Set<Hold>()
 
 function publish(next: SnackbarMessage | null): void {
@@ -85,6 +85,8 @@ export function SnackbarHost() {
       role="status"
       onPointerEnter={() => setHold('pointer', true)}
       onPointerLeave={() => setHold('pointer', false)}
+      onFocusIn={() => setHold('focus', true)}
+      onFocusOut={() => setHold('focus', false)}
     >
       {message && <p class="ui-snackbar__text">{message.text}</p>}
       {message?.action && (

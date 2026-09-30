@@ -91,6 +91,51 @@ describe('Snackbar', () => {
     expect(status).toBeEmptyDOMElement()
   })
 
+  it('stays up while focus is inside it, then gets a fresh full time once focus leaves', () => {
+    vi.useFakeTimers()
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'Deleted Bandages', action: { label: 'Undo', onAction: () => {} } }))
+    const status = screen.getByRole('status')
+    const undo = screen.getByRole('button', { name: 'Undo' })
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+    act(() => undo.focus())
+    act(() => {
+      vi.advanceTimersByTime(60000)
+    })
+    expect(status).toHaveTextContent('Deleted Bandages')
+    act(() => undo.blur())
+    act(() => {
+      vi.advanceTimersByTime(5900)
+    })
+    expect(status).toHaveTextContent('Deleted Bandages')
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    expect(status).toBeEmptyDOMElement()
+  })
+
+  it('stays up until both the pointer and focus have left', () => {
+    vi.useFakeTimers()
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'Deleted Bandages', action: { label: 'Undo', onAction: () => {} } }))
+    const status = screen.getByRole('status')
+    const undo = screen.getByRole('button', { name: 'Undo' })
+    fireEvent.pointerEnter(status)
+    act(() => undo.focus())
+    act(() => undo.blur())
+    act(() => {
+      vi.advanceTimersByTime(60000)
+    })
+    expect(status).toHaveTextContent('Deleted Bandages')
+    fireEvent.pointerLeave(status)
+    act(() => {
+      vi.advanceTimersByTime(6100)
+    })
+    expect(status).toBeEmptyDOMElement()
+  })
+
   it('is styled only from defined tokens', () => {
     const { used, undefinedTokens } = tokenUsage('src/ui/Snackbar.css')
     expect(used.length).toBeGreaterThan(0)
