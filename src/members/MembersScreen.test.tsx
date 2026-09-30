@@ -44,7 +44,10 @@ beforeEach(() => {
   currentUserUid.mockReset().mockReturnValue(core.uid('u1'))
 })
 
-afterEach(resetHash)
+afterEach(() => {
+  resetHash()
+  vi.restoreAllMocks()
+})
 
 function renderScreen(members: MemberRecord[] = [], invites: core.Email[] = []) {
   watchMembers.mockImplementation((_db, cb: (members: MemberRecord[]) => void) => {
