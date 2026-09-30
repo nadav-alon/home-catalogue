@@ -99,11 +99,12 @@ describe('watchCategories', () => {
   it('leaves out a Category that carries deletedAt', async () => {
     const { watchCategories } = await import('./categories.ts')
     const callback = vi.fn()
+    const cleaning = { name: 'Cleaning', defaultShopId: 'pharmacy', referenceCount: 1 }
     onSnapshot.mockImplementation((_snapshotQuery: unknown, cb: (snapshot: unknown) => void) => {
       cb({
         docs: [
-          { id: 'gone', data: () => ({ ...{ name: 'Cleaning', defaultShopId: 'pharmacy', referenceCount: 1 }, deletedAt: { seconds: 1, nanoseconds: 0 } }) },
-          { id: 'kept', data: () => ({ name: 'Cleaning', defaultShopId: 'pharmacy', referenceCount: 1 }) },
+          { id: 'gone', data: () => ({ ...cleaning, deletedAt: { seconds: 1, nanoseconds: 0 } }) },
+          { id: 'kept', data: () => cleaning },
         ],
       })
       return vi.fn()
