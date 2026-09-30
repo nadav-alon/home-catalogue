@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact'
-import { useEffect, useId, useRef } from 'preact/hooks'
+import { useId, useLayoutEffect, useRef } from 'preact/hooks'
 import { afterPendingPop, popEntry } from './pendingPop.ts'
 import './Dialog.css'
 
@@ -31,7 +31,9 @@ export function Dialog({ open, title, onClose, class: className, children }: Dia
   const openRef = useRef(open)
   openRef.current = open
 
-  useEffect(() => {
+  // A layout effect, so closing issues the pop in the same commit as the render that closed it, not after paint: a navigation
+  // that follows the close at once (a resolved lookup) must already find the pop pending.
+  useLayoutEffect(() => {
     const dialog = ref.current
     if (!open || !dialog) return
     dialog.showModal()
