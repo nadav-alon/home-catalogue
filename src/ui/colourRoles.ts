@@ -6,6 +6,20 @@ import {
   Hct,
 } from '@material/material-color-utilities'
 
+declare const hexColourBrand: unique symbol
+
+/** A `#rrggbb` colour. */
+export type HexColour = string & { readonly [hexColourBrand]: true }
+
+export function isHexColour(value: string): value is HexColour {
+  return /^#[0-9a-f]{6}$/i.test(value)
+}
+
+export function hexColour(value: string): HexColour {
+  if (!isHexColour(value)) throw new Error(`Not a #rrggbb colour: ${JSON.stringify(value)}`)
+  return value
+}
+
 declare const seedColourBrand: unique symbol
 
 /** A `#rrggbb` colour the whole M3 scheme is derived from. */
@@ -49,7 +63,7 @@ export function colourRoleProperty(role: ColourRoleName): string {
 export type ColourMode = 'light' | 'dark'
 
 /** The `#rrggbb` a colour role takes in the light or dark scheme derived from `seed`. */
-export function colourRoleHex(seed: SeedColour, role: ColourRoleName, mode: ColourMode): string {
+export function colourRoleHex(seed: SeedColour, role: ColourRoleName, mode: ColourMode): HexColour {
   return roleHex(scheme(seed, mode), role)
 }
 
@@ -57,8 +71,8 @@ function scheme(seed: SeedColour, mode: ColourMode): SchemeFidelity {
   return new SchemeFidelity(Hct.fromInt(argbFromHex(seed)), mode === 'dark', 0)
 }
 
-function roleHex(derived: SchemeFidelity, role: ColourRoleName): string {
-  return hexFromArgb(MaterialDynamicColors[role].getArgb(derived))
+function roleHex(derived: SchemeFidelity, role: ColourRoleName): HexColour {
+  return hexColour(hexFromArgb(MaterialDynamicColors[role].getArgb(derived)))
 }
 
 function declarations(seed: SeedColour, mode: ColourMode): string {
