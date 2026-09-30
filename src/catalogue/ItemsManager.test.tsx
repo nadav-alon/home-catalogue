@@ -28,7 +28,7 @@ vi.mock('./items.ts', async (importOriginal) => ({
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
   softDeleteItem: (db: unknown, item: unknown) => softDeleteItem(db, item),
-  restoreItem: (db: unknown, item: unknown) => restoreItem(db, item),
+  restoreItem: (db: unknown, item: unknown, edit?: unknown) => (edit === undefined ? restoreItem(db, item) : restoreItem(db, item, edit)),
   findItemsByBarcode: (db: unknown, barcode: unknown) => findItemsByBarcode(db, barcode),
   attachBarcode: (db: unknown, item: unknown, barcode: unknown) => attachBarcode(db, item, barcode),
   findDeletedItemByBarcode: (db: unknown, barcode: unknown) => findDeletedItemByBarcode(db, barcode),
@@ -981,6 +981,53 @@ describe('a scanned barcode', () => {
 
     await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages'))
     expect(restoreItem).toHaveBeenCalledWith(fakeDb, bandages)
+  })
+
+  it('opens the Item dialog on Yes when the deleted Item\'s Category is gone, restoring it with the new choice on save', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    renderWith([], [cleaning], [grocery])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Item' })
+    expect(restoreItem).not.toHaveBeenCalled()
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Bandages')
+    expect(within(dialog).getByLabelText('Category')).toHaveValue('')
+    expect(within(dialog).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    choose(within(dialog).getByLabelText('Category'), cleaning.id)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages'))
+    expect(restoreItem).toHaveBeenCalledWith(fakeDb, bandages, expect.objectContaining({ categoryId: cleaning.id }))
+    expect(updateItem).not.toHaveBeenCalled()
+  })
+
+  it('opens the Item dialog on Yes when the deleted Item\'s Shop override is gone', async () => {
+    findDeletedItemByBarcode.mockResolvedValue({ ...bandages, shopId: grocery.id })
+    renderWith([], [medicine], [pharmacy])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Item' })
+    expect(within(dialog).getByLabelText('Shop override')).toHaveValue('')
+    expect(restoreItem).not.toHaveBeenCalled()
+  })
+
+  it('leaves the Item deleted when the restoring dialog is cancelled', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    renderWith([], [cleaning], [grocery])
+    scan()
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Deleted Item' })).getByRole('button', { name: 'Yes' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit Item' })
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(dialog).not.toHaveAttribute('open'))
+    expect(restoreItem).not.toHaveBeenCalled()
   })
 
   it('leaves the Item deleted on No and opens the unknown-barcode chooser', async () => {

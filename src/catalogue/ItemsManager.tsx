@@ -31,8 +31,13 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
-  /** `null` while the Item dialog is closed; otherwise editing `item`, or adding an Item that may carry `barcode`. */
-  const [dialog, setDialog] = useState<{ item: ItemRecord } | { item?: undefined; barcode?: core.Barcode } | null>(null)
+  /**
+   * `null` while the Item dialog is closed; otherwise editing `item`, restoring the deleted `item` with a live
+   * Category and Shop, or adding an Item that may carry `barcode`.
+   */
+  const [dialog, setDialog] = useState<
+    { item: ItemRecord; restoring?: true } | { item?: undefined; restoring?: undefined; barcode?: core.Barcode } | null
+  >(null)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
@@ -59,8 +64,11 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   }
 
   async function handleRestore(item: ItemRecord) {
-    await restoreItem(db, item)
     setDeletedMatch(undefined)
+    const categoryLive = categories.some((category) => category.id === item.categoryId)
+    const shopLive = item.shopId === undefined || shops.some((shop) => shop.id === item.shopId)
+    if (!categoryLive || !shopLive) return setDialog({ item, restoring: true })
+    await restoreItem(db, item)
     navigateToItems([item.id])
   }
 
@@ -161,11 +169,16 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         shops={shops}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
         onSave={async (input) => {
+          if (dialog?.restoring && editedItem) {
+            await restoreItem(db, editedItem, input)
+            navigateToItems([editedItem.id])
+            return
+          }
           if (!editedItem) return createItem(db, { ...input, barcode: dialog && 'barcode' in dialog ? dialog.barcode : undefined })
           // Its reference counts move from the current record.
           await updateItem(db, editedItem, input)
         }}
-        onDelete={handleDelete}
+        onDelete={dialog?.restoring ? undefined : handleDelete}
         onClose={() => setDialog(null)}
       />
     </section>

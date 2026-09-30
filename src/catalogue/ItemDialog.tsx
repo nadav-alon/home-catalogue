@@ -24,8 +24,11 @@ export interface ItemDialogProps {
    * is shown in the dialog and keeps it open.
    */
   onSave: (input: ItemEdit) => Promise<void>
-  /** Called when they delete the Item being edited, just before the dialog closes; the Delete button shows only when editing. */
-  onDelete: (item: ItemRecord) => void
+  /**
+   * Called when they delete the Item being edited, just before the dialog closes; the Delete button shows only when
+   * editing and this is given, so a dialog restoring a deleted Item omits it.
+   */
+  onDelete?: (item: ItemRecord) => void
   onClose: () => void
 }
 
@@ -88,9 +91,9 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onDelete,
   const [values, setValues] = useState<ItemFormValues>({
     name: item?.name ?? '',
     brandNote: item?.brandNote ?? '',
-    categoryId: item?.categoryId ?? '',
+    categoryId: item !== undefined && categories.some((category) => category.id === item.categoryId) ? item.categoryId : '',
     necessity: item?.necessity ?? '',
-    shopId: item?.shopId ?? NO_SHOP_OVERRIDE,
+    shopId: item?.shopId !== undefined && shops.some((shop) => shop.id === item.shopId) ? item.shopId : NO_SHOP_OVERRIDE,
   })
   const [errors, setErrors] = useState<ItemFormErrors>({})
   const [removedBarcodes, setRemovedBarcodes] = useState<core.Barcode[]>([])
@@ -159,7 +162,7 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onDelete,
   }
 
   function handleDelete() {
-    if (!item) return
+    if (!item || !onDelete) return
     onDelete(item)
     onClose()
   }
@@ -249,7 +252,7 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onDelete,
           </ul>
         </section>
       )}
-      {item && (
+      {item && onDelete && (
         <Button variant="text" onClick={handleDelete}>
           Delete
         </Button>
