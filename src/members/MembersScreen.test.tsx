@@ -4,6 +4,7 @@ import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { resetHash } from '../testing/hash.ts'
+import { createInvite } from './invites.ts'
 import { MembersScreen } from './MembersScreen.tsx'
 import type { MemberRecord } from './members.ts'
 
@@ -28,6 +29,7 @@ vi.mock('../catalogue/writeRejections.ts', () => ({
 
 vi.mock('./invites.ts', () => ({
   watchInvites: (db: unknown, cb: unknown) => watchInvites(db, cb),
+  createInvite: vi.fn(),
 }))
 
 const addedAt = { seconds: 0, nanoseconds: 0, toMillis: () => 0 }
@@ -45,6 +47,7 @@ beforeEach(() => {
   removeMember.mockReset().mockResolvedValue(undefined)
   reportFailure.mockReset()
   currentUserUid.mockReset().mockReturnValue(core.uid('u1'))
+  vi.mocked(createInvite).mockReset().mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -171,5 +174,57 @@ describe('MembersScreen', () => {
     renderScreen().unmount()
 
     expect(unsubscribe).toHaveBeenCalledTimes(2)
+  })
+
+  describe('inviting', () => {
+    function invite(email: string) {
+      fireEvent.input(screen.getByLabelText('Invite by email'), { target: { value: email } })
+      fireEvent.click(screen.getByRole('button', { name: 'Invite' }))
+    }
+
+    it('lets the Owner invite an email, lowercased', async () => {
+      renderScreen([owner, member])
+
+      invite('  New@Example.com ')
+
+      await waitFor(() => expect(createInvite).toHaveBeenCalledWith(fakeDb, 'new@example.com'))
+      expect(screen.getByLabelText('Invite by email')).toHaveValue('')
+    })
+
+    it('refuses an email that is already a Member, on the field', async () => {
+      renderScreen([owner, member])
+
+      invite('B@example.com')
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('That email is already a Member.')
+      expect(screen.getByLabelText('Invite by email')).toHaveAccessibleDescription('That email is already a Member.')
+      expect(createInvite).not.toHaveBeenCalled()
+    })
+
+    it('refuses an email that is already invited, on the field', async () => {
+      renderScreen([owner], [core.email('c@example.com')])
+
+      invite('c@example.com')
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('That email is already invited.')
+      expect(createInvite).not.toHaveBeenCalled()
+    })
+
+    it('refuses something that is not an email, on the field', async () => {
+      renderScreen([owner])
+
+      invite('nope')
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Enter a Google email address.')
+      expect(createInvite).not.toHaveBeenCalled()
+    })
+
+    it('shows a non-Owner Member no invite controls', () => {
+      currentUserUid.mockReturnValue(member.uid)
+      renderScreen([owner, member])
+
+      expect(screen.queryByLabelText('Invite by email')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Invite' })).not.toBeInTheDocument()
+    })
   })
 })
