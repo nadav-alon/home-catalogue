@@ -7,6 +7,7 @@ import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { bandages, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
+import { choose } from '../testing/select.ts'
 
 const watchItems = vi.fn()
 const createItem = vi.fn()
@@ -48,15 +49,6 @@ beforeEach(() => {
   watchCategories.mockReset()
   watchShops.mockReset()
 })
-
-/**
- * Picks an option the way a browser does. Once `preact/compat` is loaded (the top app bar's portal
- * pulls it in), Testing Library's `fireEvent.change` no longer reaches a `<select>`'s `onChange`.
- */
-function choose(select: HTMLElement, value: string) {
-  ;(select as HTMLSelectElement).value = value
-  fireEvent(select, new Event('change', { bubbles: true }))
-}
 
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {

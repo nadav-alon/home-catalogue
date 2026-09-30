@@ -201,6 +201,56 @@ describe('renameCategory', () => {
   })
 })
 
+describe('changeCategoryDefaultShop', () => {
+  const medicine = {
+    id: catalogue.categoryId('medicine'),
+    name: 'Medicine',
+    defaultShopId: catalogue.shopId('pharmacy'),
+    referenceCount: 0,
+  }
+  const grocery = catalogue.shopId('grocery')
+
+  it('points the Category at the new Shop and moves one reference between the two Shops in one batch', async () => {
+    const { changeCategoryDefaultShop } = await import('./categories.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await changeCategoryDefaultShop(fakeDb, medicine, grocery)
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' },
+      { defaultShopId: 'grocery' },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
+      { referenceCount: { kind: 'increment', delta: -1 } },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'grocery' },
+      { referenceCount: { kind: 'increment', delta: 1 } },
+    )
+    expect(batchCommit).toHaveBeenCalledOnce()
+  })
+
+  it('writes nothing when the Shop is unchanged', async () => {
+    const { changeCategoryDefaultShop } = await import('./categories.ts')
+
+    await changeCategoryDefaultShop(fakeDb, medicine, medicine.defaultShopId)
+
+    expect(batchCommit).not.toHaveBeenCalled()
+  })
+
+  it('reports to the write-rejection banner when the server rejects the batch', async () => {
+    const { changeCategoryDefaultShop } = await import('./categories.ts')
+    const latest = await rejections()
+    batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await changeCategoryDefaultShop(fakeDb, medicine, grocery)
+    await Promise.resolve()
+
+    expect(latest()).toEqual(["Could not save change of Category Medicine's default Shop"])
+  })
+})
+
 describe('deleteCategory', () => {
   const medicine = {
     id: catalogue.categoryId('medicine'),
