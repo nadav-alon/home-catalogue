@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { FirebaseError } from 'firebase/app'
 import { catalogue } from 'data-platform'
+import { pharmacy } from './testFixtures.ts'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
 const doc = vi.fn((_db: unknown, path: string, id: string) => ({ path, id }))
@@ -115,8 +116,6 @@ describe('createShop', () => {
 })
 
 describe('renameShop', () => {
-  const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
-
   it('validates the new name and updates it', async () => {
     const { renameShop } = await import('./shops.ts')
     updateDoc.mockResolvedValueOnce(undefined)
@@ -146,8 +145,6 @@ describe('renameShop', () => {
 })
 
 describe('deleteShop', () => {
-  const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
-
   it('deletes a Shop once Firestore accepts the write', async () => {
     const { deleteShop } = await import('./shops.ts')
     deleteDoc.mockResolvedValueOnce(undefined)
@@ -189,7 +186,6 @@ describe('a queued Shop write the server rejects', () => {
   it('reports a rename by its old and new name', async () => {
     const { renameShop } = await import('./shops.ts')
     const latest = await rejections()
-    const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
     updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
 
     await renameShop(fakeDb, pharmacy, 'Chemist')
@@ -202,7 +198,6 @@ describe('a queued Shop write the server rejects', () => {
 describe('shopName', () => {
   it("returns the Shop's name when it is in the list", async () => {
     const { shopName } = await import('./shops.ts')
-    const pharmacy = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 0 }
 
     expect(shopName([pharmacy], pharmacy.id)).toBe('Pharmacy')
   })
