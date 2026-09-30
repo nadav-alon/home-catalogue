@@ -82,6 +82,26 @@ export async function renameCategory(
 }
 
 /**
+ * Moves the Category's default Shop reference from its current Shop to `defaultShopId` in one batch, as the
+ * platform's rules require both Shops' `referenceCount` to move with it. A no-op when the Shop is unchanged.
+ * Resolves once queued, see {@link createCategory}.
+ */
+export async function changeCategoryShop(
+  db: Firestore,
+  category: CategoryRecord,
+  defaultShopId: catalogue.ShopId,
+): Promise<void> {
+  if (defaultShopId === category.defaultShopId) return
+  const batch = writeBatch(db)
+  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, category.id), { defaultShopId })
+  batch.update(doc(db, catalogue.SHOPS_COLLECTION, category.defaultShopId), { referenceCount: increment(-1) })
+  batch.update(doc(db, catalogue.SHOPS_COLLECTION, defaultShopId), { referenceCount: increment(1) })
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`change of Category ${category.name}'s default Shop`, err)
+  })
+}
+
+/**
  * Refuses with {@link CategoryInUseError} while any catalogue Item still belongs to this Category.
  * Enforced by the platform's Firestore rules against the Category's own `referenceCount`, so the
  * refusal holds regardless of what this device has cached. Drops the Category's own reference to
