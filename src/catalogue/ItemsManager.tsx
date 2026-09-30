@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, findDeletedItemByBarcode, softDeleteItem, findItemsByBarcode, matchesName, isLiveReference, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
@@ -70,10 +70,14 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   )
 
   async function handleScan(barcode: core.Barcode) {
+    if (items === undefined) {
+      setError('Items are still loading, scan again in a moment')
+      return
+    }
+    setError(null)
+    const found = itemsWithBarcode(items, barcode)
+    if (found.length > 0) return navigateToItems(found.map((item) => item.id))
     try {
-      const found = await findItemsByBarcode(db, barcode)
-      setError(null)
-      if (found.length > 0) return navigateToItems(found.map((item) => item.id))
       const deleted = await findDeletedItemByBarcode(db, barcode)
       if (deleted === undefined) setUnknownBarcode(barcode)
       else setDeletedMatch({ item: deleted, barcode })

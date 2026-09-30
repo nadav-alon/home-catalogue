@@ -679,59 +679,6 @@ describe('itemsWithBarcode', () => {
   })
 })
 
-describe('findItemsByBarcode', () => {
-  it('returns every core Item whose barcodes contain the barcode', async () => {
-    const { findItemsByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({
-      docs: [
-        { id: 'dish-soap', data: () => ({ name: 'Dish soap', state: 'enough', barcodes: ['12345678'] }) },
-        { id: 'sponge', data: () => ({ name: 'Sponge', state: 'out', barcodes: ['12345678', '1234567890123'] }) },
-      ],
-    })
-
-    const found = await findItemsByBarcode(fakeDb, core.barcode('12345678'))
-
-    expect(collection).toHaveBeenCalledWith(fakeDb, core.ITEMS_COLLECTION)
-    expect(where).toHaveBeenCalledWith('barcodes', 'array-contains', '12345678')
-    expect(found).toEqual([
-      { id: 'dish-soap', name: 'Dish soap', state: 'enough', barcodes: ['12345678'] },
-      { id: 'sponge', name: 'Sponge', state: 'out', barcodes: ['12345678', '1234567890123'] },
-    ])
-  })
-
-  it('leaves out an Item that carries deletedAt', async () => {
-    const { findItemsByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({
-      docs: [
-        {
-          id: 'dish-soap',
-          data: () => ({ name: 'Dish soap', state: 'enough', barcodes: ['12345678'], deletedAt }),
-        },
-        { id: 'sponge', data: () => ({ name: 'Sponge', state: 'out', barcodes: ['12345678'] }) },
-      ],
-    })
-
-    const found = await findItemsByBarcode(fakeDb, core.barcode('12345678'))
-
-    expect(found.map((item) => item.id)).toEqual(['sponge'])
-  })
-
-  it('returns an empty list when no Item carries the barcode', async () => {
-    const { findItemsByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({ docs: [] })
-
-    expect(await findItemsByBarcode(fakeDb, core.barcode('12345678'))).toEqual([])
-  })
-
-  it('skips a document that fails its schema', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    const { findItemsByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({ docs: [{ id: 'broken', data: () => ({ name: '', state: 'nonsense' }) }] })
-
-    expect(await findItemsByBarcode(fakeDb, core.barcode('12345678'))).toEqual([])
-  })
-})
-
 describe('findDeletedItemByBarcode', () => {
   const coreDoc = (id: string, extra: object = {}) => ({
     id,
