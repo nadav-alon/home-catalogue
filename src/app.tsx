@@ -53,7 +53,7 @@ function Screen({
     case '/list':
       return <ShoppingList db={db} />
     case '/items':
-      return <ItemsManager db={db} itemIds={itemIds.length > 0 ? itemIds : undefined} />
+      return <ItemsManager db={db} itemIds={itemIds} />
     case '/settings':
       return <SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
     case '/settings/shops':

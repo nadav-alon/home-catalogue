@@ -17,11 +17,11 @@ import './ItemsManager.css'
 
 export interface ItemsManagerProps {
   db: Firestore
-  /** Show only the Items with these ids; unknown ids are ignored. Every Item when omitted. */
+  /** Show only the Items with these ids; unknown ids are ignored. Every Item when empty or omitted. */
   itemIds?: readonly core.ItemId[]
 }
 
-export function ItemsManager({ db, itemIds }: ItemsManagerProps) {
+export function ItemsManager({ db, itemIds = [] }: ItemsManagerProps) {
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
@@ -51,9 +51,10 @@ export function ItemsManager({ db, itemIds }: ItemsManagerProps) {
   const editedItem = dialog?.item && (items?.find((item) => item.id === dialog.item?.id) ?? dialog.item)
 
   const needle = search.trim().toLowerCase()
-  const loadedItems = (items ?? []).filter((item) => itemIds === undefined || itemIds.includes(item.id))
-  const scannedLabel = loadedItems.length === 1 ? loadedItems[0]!.name : `${loadedItems.length} Items`
-  const visibleItems = loadedItems.filter((item) => item.name.toLowerCase().includes(needle))
+  const scanFiltered = itemIds.length > 0
+  const candidateItems = (items ?? []).filter((item) => !scanFiltered || itemIds.includes(item.id))
+  const scannedLabel = candidateItems.length === 1 ? candidateItems[0]!.name : `${candidateItems.length} Items`
+  const visibleItems = candidateItems.filter((item) => item.name.toLowerCase().includes(needle))
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
@@ -67,7 +68,7 @@ export function ItemsManager({ db, itemIds }: ItemsManagerProps) {
       {/* TODO[#169]: route the scanned barcode to its Items, or attach it. */}
       <ScanEntry onScan={() => {}} />
       {error !== null && <p role="alert">{error}</p>}
-      {itemIds === undefined ? (
+      {!scanFiltered ? (
         <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
       ) : (
         items !== undefined && (
