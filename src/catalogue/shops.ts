@@ -1,16 +1,15 @@
 import {
   addDoc,
   collection,
-  deleteDoc,
   doc,
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   updateDoc,
   type Firestore,
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
-import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 import { reportWriteRejection } from './writeRejections.ts'
 
 export interface ShopRecord extends catalogue.Shop {
@@ -74,17 +73,14 @@ export async function renameShop(db: Firestore, shop: ShopRecord, name: string):
 }
 
 /**
- * Refuses with {@link ShopInUseError} while any Category defaults to this Shop, or any Item
- * overrides to it. Enforced by the platform's Firestore rules against the Shop's own
- * `referenceCount`, so the refusal holds regardless of what this device has cached.
+ * Soft-deletes the Shop by setting `deletedAt` to the server's commit time. Resolves once the write
+ * is queued, see {@link createShop}; a write the rules refuse is reported through
+ * {@link reportWriteRejection}.
  */
 export async function deleteShop(db: Firestore, shop: ShopRecord): Promise<void> {
-  try {
-    await deleteDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id))
-  } catch (err) {
-    if (isRulesRefusal(err)) {
-      throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
-    }
-    reportWriteRejection(`deleted Shop ${shop.name}`, err)
-  }
+  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id), { deletedAt: serverTimestamp() }).catch(
+    (err: unknown) => {
+      reportWriteRejection(`deleted Shop ${shop.name}`, err)
+    },
+  )
 }
