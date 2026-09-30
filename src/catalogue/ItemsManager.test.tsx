@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
+import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { ItemsManager } from './ItemsManager.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
@@ -14,12 +15,14 @@ const watchItems = vi.fn()
 const createItem = vi.fn()
 const setItemState = vi.fn()
 const updateItem = vi.fn()
+const findItemsByBarcode = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
+  findItemsByBarcode: (db: unknown, barcode: unknown) => findItemsByBarcode(db, barcode),
 }))
 
 const watchCategories = vi.fn()
@@ -50,6 +53,7 @@ beforeEach(() => {
   createItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
+  findItemsByBarcode.mockReset().mockResolvedValue([])
   watchCategories.mockReset()
   createCategory.mockReset()
   watchShops.mockReset()
@@ -77,7 +81,11 @@ function renderWith(
     return vi.fn()
   })
   return {
-    ...render(<ItemsManager db={fakeDb} itemIds={itemIds} onClearFilter={onClearFilter} />),
+    ...render(
+      <TopAppBar title="Items">
+        <ItemsManager db={fakeDb} itemIds={itemIds} onClearFilter={onClearFilter} />
+      </TopAppBar>,
+    ),
     publishCategories,
   }
 }
@@ -842,5 +850,54 @@ describe('adding a Category from the Item dialog', () => {
 
     expect(screen.getByText('Add a Shop in Settings before adding a Category.')).toBeInTheDocument()
     expect(screen.queryByLabelText('Default Shop')).not.toBeInTheDocument()
+  })
+})
+
+describe('a scanned barcode', () => {
+  const track = { stop: vi.fn() }
+
+  beforeEach(() => {
+    HTMLMediaElement.prototype.play = vi.fn(() => Promise.resolve())
+    vi.stubGlobal(
+      'BarcodeDetector',
+      class {
+        detect = async () => [{ rawValue: '4006381333931' }]
+      },
+    )
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [track] })) },
+    })
+  })
+
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  })
+
+  function scan() {
+    fireEvent.click(screen.getByRole('button', { name: 'Scan barcode' }))
+  }
+
+  it('opens the filter for the one Item carrying it', async () => {
+    findItemsByBarcode.mockResolvedValue([{ id: bandages.id, name: 'Bandages', state: 'enough' }])
+    renderWith([bandages], [medicine], [pharmacy])
+
+    scan()
+
+    await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages'))
+    expect(findItemsByBarcode).toHaveBeenCalledWith(fakeDb, '4006381333931')
+  })
+
+  it('opens the filter for every Item carrying it', async () => {
+    findItemsByBarcode.mockResolvedValue([
+      { id: bandages.id, name: 'Bandages', state: 'enough' },
+      { id: core.itemId('tape'), name: 'Tape', state: 'enough' },
+    ])
+    renderWith([bandages], [medicine], [pharmacy])
+
+    scan()
+
+    await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages,tape'))
   })
 })

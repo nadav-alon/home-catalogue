@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { createItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { createItem, findItemsByBarcode, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { watchShops, type ShopRecord } from './shops.ts'
+import { navigateToItems } from '../ui/useRoute.ts'
 import { ItemDialog } from './ItemDialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
@@ -35,6 +36,16 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
+
+  async function handleScan(barcode: core.Barcode) {
+    try {
+      const found = await findItemsByBarcode(db, barcode)
+      setError(null)
+      navigateToItems(found.map((item) => item.id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not look up the barcode')
+    }
+  }
 
   function openDialog(item: ItemRecord | undefined) {
     setDialog({ item })
@@ -74,8 +85,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   return (
     <section class="items-manager">
       <h2>Items</h2>
-      {/* TODO[#169]: route the scanned barcode to its Items, or attach it. */}
-      <ScanEntry onScan={() => {}} />
+      <ScanEntry onScan={(barcode) => void handleScan(barcode)} />
       {error !== null && <p role="alert">{error}</p>}
       {!scanFiltered ? (
         <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
