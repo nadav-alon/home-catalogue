@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, findItemsByBarcode, matchesName, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, deleteItem, findItemsByBarcode, matchesName, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
@@ -140,6 +140,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
           // Its reference counts move from the current record.
           await updateItem(db, editedItem, input)
         }}
+        onDelete={(item) => void deleteItem(db, item)}
         onClose={() => setDialog(null)}
       />
     </section>

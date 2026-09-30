@@ -15,6 +15,7 @@ const watchItems = vi.fn()
 const createItem = vi.fn()
 const setItemState = vi.fn()
 const updateItem = vi.fn()
+const deleteItem = vi.fn()
 const findItemsByBarcode = vi.fn()
 const attachBarcode = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
@@ -23,6 +24,7 @@ vi.mock('./items.ts', async (importOriginal) => ({
   createItem: (db: unknown, input: unknown) => createItem(db, input),
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
+  deleteItem: (db: unknown, item: unknown) => deleteItem(db, item),
   findItemsByBarcode: (db: unknown, barcode: unknown) => findItemsByBarcode(db, barcode),
   attachBarcode: (db: unknown, item: unknown, barcode: unknown) => attachBarcode(db, item, barcode),
 }))
@@ -55,6 +57,7 @@ beforeEach(() => {
   createItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
+  deleteItem.mockReset().mockResolvedValue(undefined)
   findItemsByBarcode.mockReset().mockResolvedValue([])
   attachBarcode.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
@@ -404,6 +407,26 @@ describe('editing an Item', () => {
     })
     expect(createItem).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('deletes that Item and closes the dialog at once, without waiting on the write', () => {
+    deleteItem.mockReturnValue(new Promise(() => {}))
+    renderWith([waterproofBandages], [medicine, cleaning], [pharmacy, grocery])
+
+    openRow('Bandages')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(deleteItem).toHaveBeenCalledWith(fakeDb, waterproofBandages)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('offers no Delete when adding an Item', () => {
+    renderWith([], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
   })
 
   it('updates from the Item as it is at save time when it changed while the dialog was open', () => {
