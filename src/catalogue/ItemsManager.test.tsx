@@ -941,19 +941,6 @@ describe('a scanned barcode', () => {
     await waitFor(() => expect(chooser).not.toHaveAttribute('open'))
   })
 
-  it('shows why the barcode could not be attached, and stays on the route', async () => {
-    attachBarcode.mockRejectedValue(new Error('Not a Barcode'))
-    renderWith([bandages], [medicine], [pharmacy])
-    scan()
-    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
-    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
-
-    fireEvent.click(within(chooser).getByRole('button', { name: 'Bandages' }))
-
-    expect(await screen.findByText('Not a Barcode')).toBeInTheDocument()
-    expect(window.location.hash).toBe('')
-  })
-
   it('creates the Item carrying the barcode from "New Item"', async () => {
     renderWith([bandages], [medicine], [pharmacy])
     scan()

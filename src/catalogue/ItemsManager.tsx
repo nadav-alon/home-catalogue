@@ -53,14 +53,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
 
   async function handleAttach(item: ItemRecord) {
     if (unknownBarcode === undefined) return
-    try {
-      await attachBarcode(db, item, unknownBarcode)
-      setError(null)
-      setUnknownBarcode(undefined)
-      navigateToItems([item.id])
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not attach the barcode')
-    }
+    await attachBarcode(db, item, unknownBarcode)
+    setUnknownBarcode(undefined)
+    navigateToItems([item.id])
   }
 
   function openDialog(item: ItemRecord | undefined) {
