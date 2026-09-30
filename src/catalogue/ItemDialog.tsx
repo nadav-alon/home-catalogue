@@ -26,6 +26,8 @@ export interface ItemDialogProps {
 }
 
 const NO_SHOP_OVERRIDE = ''
+/** The Category picker's value for "+ New Category"; never a Category id. */
+const NEW_CATEGORY = '+new'
 
 interface ItemFormValues {
   name: string
@@ -79,12 +81,20 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
   const [errors, setErrors] = useState<ItemFormErrors>({})
   const [removedBarcodes, setRemovedBarcodes] = useState<core.Barcode[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
+  /** The "+ New Category" prompt: `null` while it is closed. */
+  const [categoryDraft, setCategoryDraft] = useState<{ name: string; shopId: string } | null>(null)
 
   function set(field: keyof ItemFormValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }))
   }
 
   const keptBarcodes = (item?.barcodes ?? []).filter((barcode) => !removedBarcodes.includes(barcode))
+
+  function handleCategoryChange(event: JSX.TargetedEvent<HTMLSelectElement>) {
+    const { value } = event.currentTarget
+    if (value === NEW_CATEGORY) setCategoryDraft({ name: '', shopId: '' })
+    else set('categoryId', value)
+  }
 
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -112,14 +122,38 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
         value={values.brandNote}
         onInput={(event) => set('brandNote', event.currentTarget.value)}
       />
-      <Select label="Category" error={errors.categoryId} value={values.categoryId} onChange={(event) => set('categoryId', event.currentTarget.value)}>
+      <Select label="Category" error={errors.categoryId} value={values.categoryId} onChange={handleCategoryChange}>
         <option value="">Choose a Category</option>
         {categories.map((category) => (
           <option key={category.id} value={category.id}>
             {category.name}
           </option>
         ))}
+        <option value={NEW_CATEGORY}>+ New Category</option>
       </Select>
+      {categoryDraft !== null && (
+        <>
+          <TextField
+            label="New Category name"
+            value={categoryDraft.name}
+            onInput={(event) => setCategoryDraft({ ...categoryDraft, name: event.currentTarget.value })}
+          />
+          <Select
+            label="Default Shop"
+            value={categoryDraft.shopId}
+            onChange={(event) => setCategoryDraft({ ...categoryDraft, shopId: event.currentTarget.value })}
+          >
+            <option value="" disabled>
+              Choose a Shop
+            </option>
+            {shops.map((shop) => (
+              <option key={shop.id} value={shop.id}>
+                {shop.name}
+              </option>
+            ))}
+          </Select>
+        </>
+      )}
       <Select label="Necessity" error={errors.necessity} value={values.necessity} onChange={(event) => set('necessity', event.currentTarget.value)}>
         <option value="">Choose a Necessity</option>
         {catalogue.necessitySchema.options.map((necessity) => (

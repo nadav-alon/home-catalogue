@@ -585,3 +585,32 @@ describe('the empty state', () => {
     expect(screen.queryByText(/^No Items/)).not.toBeInTheDocument()
   })
 })
+
+describe('adding a Category from the Item dialog', () => {
+  function openDialog() {
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+  }
+
+  function chooseNewCategory() {
+    const option = screen.getByRole<HTMLOptionElement>('option', { name: '+ New Category' })
+    choose(screen.getByLabelText('Category'), option.value)
+  }
+
+  it('lists "+ New Category" in the Category picker', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+
+    expect(within(screen.getByLabelText('Category')).getByRole('option', { name: '+ New Category' })).toBeInTheDocument()
+  })
+
+  it('asks for a name and a default Shop when "+ New Category" is chosen', () => {
+    renderWith([], [medicine], [pharmacy, grocery])
+    openDialog()
+    expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
+
+    chooseNewCategory()
+
+    expect(screen.getByLabelText('New Category name')).toHaveValue('')
+    expect(screen.getByLabelText('Default Shop')).toBeInTheDocument()
+  })
+})
