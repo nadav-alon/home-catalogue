@@ -5,7 +5,7 @@ import { Icon } from '../ui/Icon.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { hashOf, route, type Route } from '../ui/route.ts'
 import { navigate } from '../ui/useRoute.ts'
-import { ResetConfigButton } from './ResetConfigButton.tsx'
+import { ResetConfigButton } from '../setup/ResetConfigButton.tsx'
 import { titleOf } from '../shell/titles.ts'
 import ChevronRightIcon from '~icons/material-symbols/chevron-right'
 

@@ -4,7 +4,7 @@ import type { FirebaseClient } from '../firebase/client.ts'
 import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
 import { claimHousehold, householdExists, isHouseholdMember } from './household.ts'
 import { Button } from '../ui/Button.tsx'
-import { ResetConfigButton } from '../settings/ResetConfigButton.tsx'
+import { ResetConfigButton } from '../setup/ResetConfigButton.tsx'
 import { CentredCard } from '../ui/CentredCard.tsx'
 
 export interface AuthGateProps {
