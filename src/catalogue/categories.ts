@@ -44,7 +44,7 @@ function toCategoryRecord(id: string, data: catalogue.Category): CategoryRecord 
 }
 
 /**
- * Notifies `callback` with every Category, ordered by name. A document failing
+ * Notifies `callback` with every live Category (no `deletedAt`), ordered by name. A document failing
  * {@link catalogue.categorySchema} is skipped and logged rather than breaking the whole list.
  * Returns the unsubscribe function.
  */
@@ -61,6 +61,7 @@ export function watchCategories(
           console.error(`Skipping invalid Category document ${snapshotDoc.id}`, parsed.error)
           return []
         }
+        if (parsed.data.deletedAt !== undefined) return []
         return [toCategoryRecord(snapshotDoc.id, parsed.data)]
       }),
     )
