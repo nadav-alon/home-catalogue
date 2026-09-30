@@ -151,6 +151,43 @@ describe('ShopsManager', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('This Shop is in use.')
   })
 
+  it('opens the Edit Shop dialog when the row itself is tapped', () => {
+    renderWithShops([pharmacy])
+
+    fireEvent.click(screen.getByText('Pharmacy'))
+
+    expect(screen.getByRole('dialog', { name: 'Edit Shop' })).toBeInTheDocument()
+  })
+
+  it('starts each Add Shop opening blank, with no leftover error', () => {
+    renderWithShops([])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+    fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: 'Hard' } })
+
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+
+    expect(screen.getByLabelText('New Shop name')).toHaveValue('')
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('clears a delete refusal when another Shop is opened', async () => {
+    deleteShop.mockRejectedValueOnce(new FakeShopInUseError('This Shop is in use.'))
+    renderWithShops([pharmacy, grocery])
+    openEditor('Pharmacy')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await screen.findByRole('alert')
+
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
+    openEditor('Grocery')
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByLabelText('Shop name')).toHaveValue('Grocery')
+  })
+
   it('unsubscribes from the Shops list on unmount', () => {
     const { unmount } = renderWithShops([])
     unmount()

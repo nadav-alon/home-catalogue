@@ -113,7 +113,19 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { level: 2, name: 'Shops' })).toBeNull()
   })
 
-  it('shows the AlertBanner on the Shopping list screen only', async () => {
+  it('returns from the Shops sub-page to Settings with the back arrow', async () => {
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+    await goTo('#/settings/shops')
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Back to Settings' }).click()
+      await new Promise((resolve) => setTimeout(resolve))
+    })
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument()
+  })
+
+  it('shows the AlertBanner on the Shopping list screen only',async () => {
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
     const items: ItemRecord[] = [
       {

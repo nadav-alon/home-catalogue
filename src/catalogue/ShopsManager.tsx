@@ -20,79 +20,114 @@ export interface ShopsManagerProps {
   db: Firestore
 }
 
-export function ShopsManager({ db }: ShopsManagerProps) {
-  const [shops, setShops] = useState<ShopRecord[]>([])
-  const [adding, setAdding] = useState(false)
-  const [editing, setEditing] = useState<ShopRecord | null>(null)
-  const [editName, setEditName] = useState('')
-  const [newName, setNewName] = useState('')
+const BLANK_NAME_MESSAGE = 'A Shop needs a name.'
+
+interface AddShopDialogProps {
+  db: Firestore
+  onClose: () => void
+}
+
+/** Owns its draft name and error, so each opening starts blank; mount it only while open. */
+function AddShopDialog({ db, onClose }: AddShopDialogProps) {
+  const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => watchShops(db, setShops), [db])
-
-  async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
+  async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
-    const trimmedName = newName.trim()
+    const trimmedName = name.trim()
     if (trimmedName.length === 0) {
-      setError('A Shop needs a name.')
+      setError(BLANK_NAME_MESSAGE)
       return
     }
     try {
       await createShop(db, trimmedName)
-      setNewName('')
-      setError(null)
-      setAdding(false)
+      onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add Shop')
     }
   }
 
-  async function handleRename(shop: ShopRecord, name: string) {
+  return (
+    <Dialog open title="Add Shop" onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+        {error !== null && <p role="alert">{error}</p>}
+        <TextField label="New Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
+        <Button type="submit">Add</Button>
+      </form>
+    </Dialog>
+  )
+}
+
+interface EditShopDialogProps {
+  db: Firestore
+  shop: ShopRecord
+  onClose: () => void
+}
+
+/** Owns its draft name and error, so each opening starts from the Shop's current name; mount it only while open. */
+function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
+  const [name, setName] = useState(shop.name)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleRename(event: JSX.TargetedEvent<HTMLFormElement>) {
+    event.preventDefault()
     const trimmedName = name.trim()
     if (trimmedName.length === 0) {
-      setError('A Shop needs a name.')
+      setError(BLANK_NAME_MESSAGE)
       return
     }
     try {
       await renameShop(db, shop, trimmedName)
-      setError(null)
-      setEditing(null)
+      onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not rename Shop')
     }
   }
 
-  async function handleDelete(shop: ShopRecord) {
+  async function handleDelete() {
     try {
       await deleteShop(db, shop)
-      setError(null)
-      setEditing(null)
+      onClose()
     } catch (err) {
       setError(err instanceof ShopInUseError ? err.message : 'Could not delete Shop')
     }
   }
 
   return (
+    <Dialog open title="Edit Shop" onClose={onClose}>
+      <form onSubmit={handleRename}>
+        {error !== null && <p role="alert">{error}</p>}
+        <TextField label="Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
+        <Button type="submit">Rename</Button>
+        <Button variant="text" onClick={() => void handleDelete()}>
+          Delete
+        </Button>
+      </form>
+    </Dialog>
+  )
+}
+
+export function ShopsManager({ db }: ShopsManagerProps) {
+  const [shops, setShops] = useState<ShopRecord[]>([])
+  const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<ShopRecord | null>(null)
+
+  useEffect(() => watchShops(db, setShops), [db])
+
+  return (
     <section>
+      {/* TODO[#217]: move the back arrow to TopAppBar's leading navigation slot. */}
       <TopAppBarActions>
         <IconButton symbol={ArrowBackIcon} label="Back to Settings" onClick={() => navigate(SETTINGS)} />
       </TopAppBarActions>
       <h2>Shops</h2>
-      {error !== null && <p role="alert">{error}</p>}
       <ul>
         {shops.map((shop) => (
           <ListRow
             key={shop.id}
             headline={shop.name}
             control={
-              <Button
-                variant="text"
-                aria-label={`Edit ${shop.name}`}
-                onClick={() => {
-                  setEditName(shop.name)
-                  setEditing(shop)
-                }}
-              >
+              <Button variant="text" aria-label={`Edit ${shop.name}`} onClick={() => setEditing(shop)}>
                 Edit
               </Button>
             }
@@ -100,28 +135,8 @@ export function ShopsManager({ db }: ShopsManagerProps) {
         ))}
       </ul>
       <Fab symbol={AddIcon} label="Add Shop" onClick={() => setAdding(true)} />
-      <Dialog open={adding} title="Add Shop" onClose={() => setAdding(false)}>
-        <form onSubmit={handleCreate}>
-          <TextField label="New Shop name" value={newName} onInput={(event) => setNewName(event.currentTarget.value)} />
-          <Button type="submit">Add</Button>
-        </form>
-      </Dialog>
-      <Dialog open={editing !== null} title="Edit Shop" onClose={() => setEditing(null)}>
-        {editing !== null && (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault()
-              void handleRename(editing, editName)
-            }}
-          >
-            <TextField label="Shop name" value={editName} onInput={(event) => setEditName(event.currentTarget.value)} />
-            <Button type="submit">Rename</Button>
-            <Button variant="text" onClick={() => void handleDelete(editing)}>
-              Delete
-            </Button>
-          </form>
-        )}
-      </Dialog>
+      {adding && <AddShopDialog db={db} onClose={() => setAdding(false)} />}
+      {editing !== null && <EditShopDialog db={db} shop={editing} onClose={() => setEditing(null)} />}
     </section>
   )
 }
