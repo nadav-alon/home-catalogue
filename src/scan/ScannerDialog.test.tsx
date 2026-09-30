@@ -107,6 +107,15 @@ describe('ScannerDialog', () => {
     expect(onDenied).not.toHaveBeenCalled()
   })
 
+  it('reports the camera as unavailable when navigator.mediaDevices is undefined', async () => {
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined })
+    const onDenied = vi.fn()
+    const onUnavailable = vi.fn()
+    render(<ScannerDialog open onScan={() => {}} onDenied={onDenied} onUnavailable={onUnavailable} onClose={() => {}} />)
+    await waitFor(() => expect(onUnavailable).toHaveBeenCalledOnce())
+    expect(onDenied).not.toHaveBeenCalled()
+  })
+
   it('releases the camera and reports the camera unavailable when detection fails', async () => {
     vi.stubGlobal(
       'BarcodeDetector',
