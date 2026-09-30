@@ -89,7 +89,10 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
                   <Button
                     variant="text"
                     aria-label={`Revoke invite for ${email}`}
-                    onClick={() => void revokeInvite(db, email)}
+                    onClick={() => {
+                      if (qrInviteEmail === email) setQrInviteEmail(null)
+                      void revokeInvite(db, email)
+                    }}
                   >
                     Revoke
                   </Button>
@@ -99,7 +102,14 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
           />
         ))}
       </ul>
-      {qrInviteEmail !== null && <InviteQrCode config={config} email={qrInviteEmail} />}
+      {qrInviteEmail !== null && (
+        <div>
+          <InviteQrCode config={config} email={qrInviteEmail} />
+          <Button variant="text" onClick={() => setQrInviteEmail(null)}>
+            Close QR code
+          </Button>
+        </div>
+      )}
     </section>
   )
 }

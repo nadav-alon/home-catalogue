@@ -269,6 +269,27 @@ describe('MembersScreen', () => {
       expect(await screen.findByRole('img', { name: /c@example\.com/ })).toBeInTheDocument()
     })
 
+    it('closes the QR code', async () => {
+      renderScreen([owner], invites)
+      fireEvent.click(shareButton())
+      await screen.findByRole('img', { name: /c@example\.com/ })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close QR code' }))
+
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Close QR code' })).not.toBeInTheDocument()
+    })
+
+    it('drops the QR code of an invite when it is revoked', async () => {
+      renderScreen([owner], invites)
+      fireEvent.click(shareButton())
+      await screen.findByRole('img', { name: /c@example\.com/ })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Revoke invite for c@example.com' }))
+
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    })
+
     it('does not fall back to the QR code when the user dismisses the share sheet', async () => {
       const share = vi.fn().mockRejectedValue(new DOMException('dismissed', 'AbortError'))
       Object.defineProperty(navigator, 'share', { value: share, configurable: true })
