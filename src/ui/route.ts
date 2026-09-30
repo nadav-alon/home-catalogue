@@ -1,3 +1,5 @@
+import { core } from 'data-platform'
+
 const ROUTES = ['/list', '/items', '/settings', '/settings/shops', '/settings/categories'] as const
 
 /** A place the app can show: the path after `#` in the URL hash. A closed set, so it can be switched over exhaustively. */
@@ -17,13 +19,33 @@ export const DEFAULT_ROUTE: Route = route('/list')
 
 /** The route a URL hash names; undefined when the hash is empty or names no route. */
 export function routeIn(hash: string): Route | undefined {
-  const path = hash.startsWith('#') ? hash.slice(1) : hash
+  const [path] = hashParts(hash)
   return isRoute(path) ? path : undefined
 }
 
 /** The route a URL hash names; the default route when the hash is empty or unknown. */
 export function routeOf(hash: string): Route {
   return routeIn(hash) ?? DEFAULT_ROUTE
+}
+
+/** The path and the query string (without its `?`) of a URL hash. */
+function hashParts(hash: string): [path: string, query: string] {
+  const body = hash.startsWith('#') ? hash.slice(1) : hash
+  const at = body.indexOf('?')
+  return at === -1 ? [body, ''] : [body.slice(0, at), body.slice(at + 1)]
+}
+
+/**
+ * The Item ids an `item=<id>[,<id>…]` query on the hash names, in order; empty when there is none.
+ * Says nothing about whether an Item with that id exists.
+ */
+export function itemIdsOf(hash: string): core.ItemId[] {
+  const [, query] = hashParts(hash)
+  const listed = new URLSearchParams(query).get('item') ?? ''
+  return listed
+    .split(',')
+    .filter((id) => id.length > 0)
+    .map((id) => core.itemId(id))
 }
 
 /** The URL hash that names `value`. */
