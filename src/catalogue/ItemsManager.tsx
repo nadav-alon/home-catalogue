@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { createItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
-import { watchCategories, type CategoryRecord } from './categories.ts'
+import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { watchShops, type ShopRecord } from './shops.ts'
 import { ItemDialog } from './ItemDialog.tsx'
@@ -78,6 +78,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
         item={editedItem}
         categories={categories}
         shops={shops}
+        onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
         onSave={async (input) => {
           if (!editedItem) return createItem(db, input)
           // Its reference counts move from the current record.

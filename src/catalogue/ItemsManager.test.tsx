@@ -22,8 +22,10 @@ vi.mock('./items.ts', async (importOriginal) => ({
 }))
 
 const watchCategories = vi.fn()
+const createCategory = vi.fn()
 vi.mock('./categories.ts', () => ({
   watchCategories: (db: unknown, cb: unknown) => watchCategories(db, cb),
+  createCategory: (db: unknown, name: unknown, shopId: unknown) => createCategory(db, name, shopId),
 }))
 
 const watchShops = vi.fn()
@@ -47,15 +49,18 @@ beforeEach(() => {
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
+  createCategory.mockReset()
   watchShops.mockReset()
 })
 
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
+  let publishCategories: (categories: CategoryRecord[]) => void = () => {}
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
     cb(items)
     return vi.fn()
   })
   watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
+    publishCategories = cb
     cb(categories)
     return vi.fn()
   })
@@ -63,7 +68,7 @@ function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: Sh
     cb(shops)
     return vi.fn()
   })
-  return render(<ItemsManager db={fakeDb} />)
+  return { ...render(<ItemsManager db={fakeDb} />), publishCategories }
 }
 
 describe('ItemsManager', () => {
@@ -600,7 +605,9 @@ describe('adding a Category from the Item dialog', () => {
     renderWith([], [medicine], [pharmacy])
     openDialog()
 
-    expect(within(screen.getByLabelText('Category')).getByRole('option', { name: '+ New Category' })).toBeInTheDocument()
+    expect(
+      within(screen.getByLabelText('Category')).getByRole('option', { name: '+ New Category' }),
+    ).toBeInTheDocument()
   })
 
   it('asks for a name and a default Shop when "+ New Category" is chosen', () => {
@@ -612,5 +619,32 @@ describe('adding a Category from the Item dialog', () => {
 
     expect(screen.getByLabelText('New Category name')).toHaveValue('')
     expect(screen.getByLabelText('Default Shop')).toBeInTheDocument()
+  })
+
+  it('creates the Category and selects it, keeping what was typed in the dialog', async () => {
+    const created: CategoryRecord = {
+      ...cleaning,
+      id: catalogue.categoryId('first-aid'),
+      name: 'First aid',
+      defaultShopId: pharmacy.id,
+    }
+    const { publishCategories } = renderWith([], [medicine], [pharmacy, grocery])
+    createCategory.mockImplementation(() => {
+      publishCategories([medicine, created])
+      return Promise.resolve(created.id)
+    })
+    openDialog()
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+
+    await waitFor(() => expect(screen.getByLabelText('Category')).toHaveValue(created.id))
+    expect(createCategory).toHaveBeenCalledWith(fakeDb, 'First aid', pharmacy.id)
+    expect(screen.getByLabelText('Name')).toHaveValue('Plasters')
+    expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
   })
 })

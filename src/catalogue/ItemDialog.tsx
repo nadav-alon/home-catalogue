@@ -17,6 +17,8 @@ export interface ItemDialogProps {
   item?: ItemRecord
   categories: CategoryRecord[]
   shops: ShopRecord[]
+  /** Creates a Category and resolves with its id; a rejection is shown in the dialog's Category prompt. */
+  onCreateCategory: (name: string, defaultShopId: catalogue.ShopId) => Promise<catalogue.CategoryId>
   /**
    * Called with the validated fields, and the Item's Barcodes the Member removed, when they save; a rejection
    * is shown in the dialog and keeps it open.
@@ -62,15 +64,24 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 }
 
 /** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its Barcodes when editing, in a dialog that starts from `item`, or empty, on each open. */
-export function ItemDialog({ open, item, categories, shops, onSave, onClose }: ItemDialogProps) {
+export function ItemDialog({ open, item, categories, shops, onCreateCategory, onSave, onClose }: ItemDialogProps) {
   return (
     <Dialog open={open} title={item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
-      {open && <ItemForm item={item} categories={categories} shops={shops} onSave={onSave} onClose={onClose} />}
+      {open && (
+        <ItemForm
+          item={item}
+          categories={categories}
+          shops={shops}
+          onCreateCategory={onCreateCategory}
+          onSave={onSave}
+          onClose={onClose}
+        />
+      )}
     </Dialog>
   )
 }
 
-function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogProps, 'open'>) {
+function ItemForm({ item, categories, shops, onCreateCategory, onSave, onClose }: Omit<ItemDialogProps, 'open'>) {
   const [values, setValues] = useState<ItemFormValues>({
     name: item?.name ?? '',
     brandNote: item?.brandNote ?? '',
@@ -81,6 +92,7 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
   const [errors, setErrors] = useState<ItemFormErrors>({})
   const [removedBarcodes, setRemovedBarcodes] = useState<core.Barcode[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [categoryError, setCategoryError] = useState<string | null>(null)
   /** The "+ New Category" prompt: `null` while it is closed. */
   const [categoryDraft, setCategoryDraft] = useState<{ name: string; shopId: string } | null>(null)
 
@@ -94,6 +106,21 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
     const { value } = event.currentTarget
     if (value === NEW_CATEGORY) setCategoryDraft({ name: '', shopId: '' })
     else set('categoryId', value)
+  }
+
+  async function handleCreateCategory() {
+    if (categoryDraft === null) return
+    const name = categoryDraft.name.trim()
+    const shop = shops.find((candidate) => candidate.id === categoryDraft.shopId)
+    if (name.length === 0) return setCategoryError('A Category needs a name.')
+    if (shop === undefined || !catalogue.isShopId(shop.id)) return setCategoryError('Choose a default Shop.')
+    setCategoryError(null)
+    try {
+      set('categoryId', await onCreateCategory(name, shop.id))
+      setCategoryDraft(null)
+    } catch (err) {
+      setCategoryError(err instanceof Error ? err.message : 'Could not add Category')
+    }
   }
 
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
@@ -133,6 +160,7 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
       </Select>
       {categoryDraft !== null && (
         <>
+          {categoryError !== null && <p role="alert">{categoryError}</p>}
           <TextField
             label="New Category name"
             value={categoryDraft.name}
@@ -152,6 +180,7 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
               </option>
             ))}
           </Select>
+          <Button onClick={handleCreateCategory}>Create Category</Button>
         </>
       )}
       <Select label="Necessity" error={errors.necessity} value={values.necessity} onChange={(event) => set('necessity', event.currentTarget.value)}>
