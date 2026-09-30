@@ -38,7 +38,7 @@ describe('pendingItemsByShop', () => {
   })
 
   it('leaves out an Item that is enough', () => {
-    expect(pendingItemsByShop([bandages], [medicine], [pharmacy]).groups).toEqual([])
+    expect(pendingItemsByShop([{ ...bandages, state: 'enough' }], [medicine], [pharmacy]).groups).toEqual([])
   })
 
   it('leaves out an Item with no resolved Shop, and counts it as unresolved', () => {
