@@ -59,7 +59,7 @@ describe('App', () => {
   })
 
   it('puts Calendar Export in the top app bar on the Shopping list screen', () => {
-    render(<App db={fakeDb} config={config} />)
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     const bar = screen.getByRole('banner')
     expect(within(bar).getByRole('button', { name: 'Export to Calendar' })).toBeInTheDocument()
@@ -114,7 +114,7 @@ describe('App', () => {
   })
 
   it('shows the AlertBanner on the Shopping list screen only', async () => {
-    render(<App db={fakeDb} config={config} />)
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
     const items: ItemRecord[] = [
       {
         id: core.itemId('bandages'),
