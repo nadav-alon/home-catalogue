@@ -11,6 +11,7 @@ import { resetHash } from '../testing/hash.ts'
 import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { choose } from '../testing/select.ts'
+import { resetPendingPop } from '../ui/pendingPop.ts'
 
 const watchItems = vi.fn()
 const createItem = vi.fn()
@@ -107,6 +108,8 @@ function renderWith(
 }
 
 afterEach(() => {
+  vi.restoreAllMocks()
+  resetPendingPop()
   resetHash()
   resetSnackbar()
 })
@@ -1155,9 +1158,12 @@ describe('a scanned barcode', () => {
     })
     const onHashChange = () => order.push(window.location.hash)
     window.addEventListener('hashchange', onHashChange)
-    fireEvent.click(within(chooser).getByRole('button', { name: 'Tape' }))
-    await waitFor(() => expect(order).toContain('#/items?item=tape'))
-    window.removeEventListener('hashchange', onHashChange)
+    try {
+      fireEvent.click(within(chooser).getByRole('button', { name: 'Tape' }))
+      await waitFor(() => expect(order).toContain('#/items?item=tape'))
+    } finally {
+      window.removeEventListener('hashchange', onHashChange)
+    }
 
     expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
     expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=tape'))
