@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/preact'
 import { tokenUsage } from '../testing/css.ts'
-import { SnackbarHost, showSnackbar } from './Snackbar.tsx'
+import { SnackbarHost, resetSnackbar, showSnackbar } from './Snackbar.tsx'
 
 afterEach(() => {
+  resetSnackbar()
   cleanup()
   vi.useRealTimers()
 })

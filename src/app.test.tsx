@@ -6,7 +6,7 @@ import { App } from './app'
 import type { ItemRecord } from './catalogue/items.ts'
 import { bandages } from './catalogue/testFixtures.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
-import { showSnackbar } from './ui/Snackbar.tsx'
+import { resetSnackbar, showSnackbar } from './ui/Snackbar.tsx'
 import { resetHash } from './testing/hash.ts'
 
 const watchItemsCallbacks: ((items: ItemRecord[]) => void)[] = []
@@ -39,6 +39,7 @@ const config = firebaseWebConfig({
 })
 
 afterEach(() => {
+  resetSnackbar()
   resetHash()
   vi.unstubAllGlobals()
 })

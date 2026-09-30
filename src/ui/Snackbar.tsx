@@ -70,3 +70,8 @@ export function SnackbarHost() {
     </div>
   )
 }
+
+/** Clears the snackbar and its timer; for tests, which share this module-level state. */
+export function resetSnackbar(): void {
+  publish(null)
+}
