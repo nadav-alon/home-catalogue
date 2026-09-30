@@ -10,6 +10,7 @@ import {
   updateDoc,
   writeBatch,
   type Firestore,
+  type WriteBatch,
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { reportWriteRejection } from './writeRejections.ts'
@@ -69,6 +70,13 @@ export function watchCategories(
   })
 }
 
+/** Commits `batch` without awaiting it; a rejection is reported through {@link reportWriteRejection} as `what`. */
+function commitQueued(batch: WriteBatch, what: string): void {
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(what, err)
+  })
+}
+
 /**
  * Validates against {@link catalogue.categorySchema} before writing a new Category, starting at
  * referenceCount 0 and bumping its default Shop's referenceCount in the same batch, matching the
@@ -86,9 +94,7 @@ export async function createCategory(
   const batch = writeBatch(db)
   batch.set(categoryRef, data)
   batch.update(doc(db, catalogue.SHOPS_COLLECTION, defaultShopId), { referenceCount: increment(1) })
-  void batch.commit().catch((err: unknown) => {
-    reportWriteRejection(`new Category ${data.name}`, err)
-  })
+  commitQueued(batch, `new Category ${data.name}`)
   return catalogue.categoryId(categoryRef.id)
 }
 
@@ -119,9 +125,7 @@ export async function changeCategoryDefaultShop(
   batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, category.id), { defaultShopId })
   batch.update(doc(db, catalogue.SHOPS_COLLECTION, category.defaultShopId), { referenceCount: increment(-1) })
   batch.update(doc(db, catalogue.SHOPS_COLLECTION, defaultShopId), { referenceCount: increment(1) })
-  void batch.commit().catch((err: unknown) => {
-    reportWriteRejection(`change of Category ${category.name}'s default Shop`, err)
-  })
+  commitQueued(batch, `change of Category ${category.name}'s default Shop`)
 }
 
 /**
@@ -137,9 +141,7 @@ export async function deleteCategory(db: Firestore, category: CategoryRecord): P
   const batch = writeBatch(db)
   batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, category.id), { deletedAt: serverTimestamp() })
   batch.update(doc(db, catalogue.SHOPS_COLLECTION, category.defaultShopId), { referenceCount: increment(-1) })
-  void batch.commit().catch((err: unknown) => {
-    reportWriteRejection(`deleted Category ${category.name}`, err)
-  })
+  commitQueued(batch, `deleted Category ${category.name}`)
 }
 
 /**
@@ -150,7 +152,5 @@ export async function restoreCategory(db: Firestore, category: CategoryRecord): 
   const batch = writeBatch(db)
   batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, category.id), { deletedAt: deleteField() })
   batch.update(doc(db, catalogue.SHOPS_COLLECTION, category.defaultShopId), { referenceCount: increment(1) })
-  void batch.commit().catch((err: unknown) => {
-    reportWriteRejection(`restored Category ${category.name}`, err)
-  })
+  commitQueued(batch, `restored Category ${category.name}`)
 }
