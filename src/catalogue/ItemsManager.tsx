@@ -53,7 +53,12 @@ export function ItemsManager({ db, itemIds = [] }: ItemsManagerProps) {
   const needle = search.trim().toLowerCase()
   const scanFiltered = itemIds.length > 0
   const candidateItems = (items ?? []).filter((item) => !scanFiltered || itemIds.includes(item.id))
-  const scannedLabel = candidateItems.length === 1 ? candidateItems[0]!.name : `${candidateItems.length} Items`
+  const scannedLabel =
+    candidateItems.length === 0
+      ? 'no Items'
+      : candidateItems.length === 1
+        ? candidateItems[0]!.name
+        : `${candidateItems.length} Items`
   const visibleItems = scanFiltered
     ? candidateItems
     : candidateItems.filter((item) => item.name.toLowerCase().includes(needle))
@@ -83,7 +88,9 @@ export function ItemsManager({ db, itemIds = [] }: ItemsManagerProps) {
         )
       )}
       {items !== undefined && visibleItems.length === 0 && (
-        <p>{items.length === 0 ? 'No Items yet.' : 'No Items match your search.'}</p>
+        <p>
+          {items.length === 0 ? 'No Items yet.' : scanFiltered ? 'No scanned Items found.' : 'No Items match your search.'}
+        </p>
       )}
       {groups.map(({ category, items: categoryItems }) => (
         <ItemGroup key={category.id} heading={category.name} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />

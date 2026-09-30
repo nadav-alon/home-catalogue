@@ -114,6 +114,14 @@ describe('ItemsManager', () => {
     expect(screen.getByText('Bandages')).toBeInTheDocument()
   })
 
+  it('says no scanned Items were found when every id is unknown', () => {
+    renderWith([bandages], [medicine], [pharmacy], [core.itemId('gone')])
+
+    expect(screen.getByText('No scanned Items found.')).toBeInTheDocument()
+    expect(screen.getByText('Scanned: no Items')).toBeInTheDocument()
+    expect(screen.queryByText('No Items match your search.')).not.toBeInTheDocument()
+  })
+
   it('returns to the unfiltered #/items when the chip is dismissed', () => {
     window.location.hash = '#/items?item=bandages'
     renderWith([bandages], [medicine], [pharmacy], [bandages.id])
