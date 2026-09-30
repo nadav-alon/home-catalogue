@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import type { ItemRecord } from '../catalogue/items.ts'
-import type { ShopRecord } from '../catalogue/shops.ts'
+import { pharmacy } from '../catalogue/testFixtures.ts'
 import { shopDeepLink } from './calendarDeepLink.ts'
 import { exportDate } from './exportDate.ts'
 import type { ShopGroup } from './shopGroups.ts'
-
-const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 1 }
 
 const bandages: ItemRecord = {
   id: core.itemId('bandages'),
