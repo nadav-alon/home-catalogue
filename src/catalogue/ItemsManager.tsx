@@ -50,6 +50,7 @@ export function ItemsManager({ db, itemIds }: ItemsManagerProps) {
 
   const needle = search.trim().toLowerCase()
   const loadedItems = (items ?? []).filter((item) => itemIds === undefined || itemIds.includes(item.id))
+  const scannedLabel = loadedItems.length === 1 ? loadedItems[0]!.name : `${loadedItems.length} Items`
   const visibleItems = loadedItems.filter((item) => item.name.toLowerCase().includes(needle))
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
@@ -64,7 +65,11 @@ export function ItemsManager({ db, itemIds }: ItemsManagerProps) {
       {/* TODO[#169]: route the scanned barcode to its Items, or attach it. */}
       <ScanEntry onScan={() => {}} />
       {error !== null && <p role="alert">{error}</p>}
-      <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
+      {itemIds === undefined ? (
+        <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
+      ) : (
+        items !== undefined && <span>Scanned: {scannedLabel}</span>
+      )}
       {items !== undefined && visibleItems.length === 0 && (
         <p>{items.length === 0 ? 'No Items yet.' : 'No Items match your search.'}</p>
       )}

@@ -88,6 +88,20 @@ describe('ItemsManager', () => {
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
   })
 
+  it('names a single filtered Item in a chip in place of the search box', () => {
+    renderWith([bandages], [medicine], [pharmacy], [bandages.id])
+
+    expect(screen.getByText('Scanned: Bandages')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Search Items')).not.toBeInTheDocument()
+  })
+
+  it('counts several filtered Items in the chip, not counting unknown ids', () => {
+    const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+    renderWith([bandages, tape], [medicine], [pharmacy], [bandages.id, tape.id, core.itemId('gone')])
+
+    expect(screen.getByText('Scanned: 2 Items')).toBeInTheDocument()
+  })
+
   it('changes State on a filtered row', () => {
     const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
     renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery], [soap.id])
