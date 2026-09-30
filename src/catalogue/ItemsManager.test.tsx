@@ -6,7 +6,7 @@ import { ItemsManager } from './ItemsManager.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
-import { bandages, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
+import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 import { choose } from '../testing/select.ts'
 
 const watchItems = vi.fn()
@@ -331,7 +331,7 @@ describe('editing an Item', () => {
   })
 
   it("lists the Item's barcodes as digits", () => {
-    renderWith([{ ...bandages, barcodes: [core.barcode('12345678'), core.barcode('1234567890123')] }], [medicine], [pharmacy])
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
 
     openRow('Bandages')
 
@@ -340,8 +340,7 @@ describe('editing an Item', () => {
   })
 
   it('removes a barcode on save, leaving the others', async () => {
-    const scanned = { ...bandages, barcodes: [core.barcode('12345678'), core.barcode('1234567890123')] }
-    renderWith([scanned], [medicine], [pharmacy])
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
 
     openRow('Bandages')
     fireEvent.click(screen.getByRole('button', { name: 'Remove barcode 12345678' }))
@@ -352,9 +351,20 @@ describe('editing an Item', () => {
     await waitFor(() => expect(updateItem).toHaveBeenCalledTimes(1))
     expect(updateItem).toHaveBeenCalledWith(
       fakeDb,
-      scanned,
+      bandagesWithBarcodes,
       expect.objectContaining({ removedBarcodes: [core.barcode('12345678')] }),
     )
+  })
+
+  it('leaves the barcodes alone when the Item is saved without pressing ✕', async () => {
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
+
+    openRow('Bandages')
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(updateItem).toHaveBeenCalledTimes(1))
+    expect(updateItem.mock.calls[0]![2]).not.toHaveProperty('removedBarcodes')
   })
 
   it('hides the barcodes section when the Item has none', () => {
@@ -364,6 +374,15 @@ describe('editing an Item', () => {
     expect(screen.queryByRole('region', { name: 'Barcodes' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     openRow('Gauze')
+    expect(screen.queryByRole('region', { name: 'Barcodes' })).not.toBeInTheDocument()
+  })
+
+  it('has no barcodes section when adding an Item', () => {
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Barcodes' })).not.toBeInTheDocument()
   })
 
@@ -424,8 +443,7 @@ describe('leaving the Item dialog without saving', () => {
   })
 
   it('keeps a removed barcode on Cancel', async () => {
-    const scanned = { ...bandages, barcodes: [core.barcode('12345678')] }
-    renderWith([scanned], [medicine], [pharmacy])
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
     fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove barcode 12345678' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
