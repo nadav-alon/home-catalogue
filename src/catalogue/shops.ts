@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteField,
   doc,
   onSnapshot,
   orderBy,
@@ -85,4 +86,11 @@ export async function deleteShop(db: Firestore, shop: ShopRecord): Promise<void>
       reportWriteRejection(`deleted Shop ${shop.name}`, err)
     },
   )
+}
+
+/** Brings a soft-deleted Shop back by clearing `deletedAt`. Resolves once queued, see {@link createShop}. */
+export async function restoreShop(db: Firestore, shop: ShopRecord): Promise<void> {
+  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id), { deletedAt: deleteField() }).catch((err: unknown) => {
+    reportWriteRejection(`restored Shop ${shop.name}`, err)
+  })
 }

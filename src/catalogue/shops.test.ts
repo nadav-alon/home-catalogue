@@ -10,6 +10,7 @@ const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constra
 const orderBy = vi.fn((field: string) => ({ kind: 'orderBy', field }))
 const onSnapshot = vi.fn()
 const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
+const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
 const addDoc = vi.fn()
 const updateDoc = vi.fn()
 
@@ -20,6 +21,7 @@ vi.mock('firebase/firestore', () => ({
   orderBy: (field: string) => orderBy(field),
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
   serverTimestamp: () => serverTimestamp(),
+  deleteField: () => deleteField(),
   addDoc: (ref: unknown, data: unknown) => addDoc(ref, data),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
 }))
@@ -196,6 +198,29 @@ describe('deleteShop', () => {
 
     await expect(deleteShop(fakeDb, pharmacy)).resolves.toBeUndefined()
     await vi.waitFor(() => expect(latest()).toEqual(['Could not save deleted Shop Pharmacy']))
+  })
+})
+
+describe('restoreShop', () => {
+  it('clears deletedAt', async () => {
+    const { restoreShop } = await import('./shops.ts')
+    updateDoc.mockResolvedValueOnce(undefined)
+
+    await restoreShop(fakeDb, pharmacy)
+
+    expect(updateDoc).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
+      { deletedAt: { kind: 'deleteField' } },
+    )
+  })
+
+  it('reports to the write-rejection banner when the write is later rejected', async () => {
+    const { restoreShop } = await import('./shops.ts')
+    const latest = await rejections()
+    updateDoc.mockRejectedValueOnce(new Error('offline'))
+
+    await expect(restoreShop(fakeDb, pharmacy)).resolves.toBeUndefined()
+    await vi.waitFor(() => expect(latest()).toEqual(['Could not save restored Shop Pharmacy']))
   })
 })
 
