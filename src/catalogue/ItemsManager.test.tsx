@@ -228,7 +228,20 @@ describe('adding an Item', () => {
     choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent('An Item needs a name.')
+    expect(screen.getByLabelText('Name')).toHaveAccessibleDescription('An Item needs a name.')
+    expect(createItem).not.toHaveBeenCalled()
+  })
+
+  it('shows every invalid field at once, each on its own field', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByLabelText('Name')).toBeInvalid()
+    expect(screen.getByLabelText('Category')).toBeInvalid()
+    expect(screen.getByLabelText('Necessity')).toBeInvalid()
+    expect(screen.getByLabelText('Brand note')).toBeValid()
     expect(createItem).not.toHaveBeenCalled()
   })
 
@@ -240,7 +253,7 @@ describe('adding an Item', () => {
     choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Choose a Category.')
+    expect(screen.getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
     expect(createItem).not.toHaveBeenCalled()
   })
 
@@ -252,7 +265,7 @@ describe('adding an Item', () => {
     choose(screen.getByLabelText('Category'), medicine.id)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Choose a Necessity.')
+    expect(screen.getByLabelText('Necessity')).toHaveAccessibleDescription('Choose a Necessity.')
     expect(createItem).not.toHaveBeenCalled()
   })
 })
