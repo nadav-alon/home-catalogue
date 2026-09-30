@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/preact'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthGate } from './AuthGate.tsx'
 import type { FirebaseClient } from '../firebase/client.ts'
 import type { AuthUser } from './authClient.ts'
@@ -25,6 +25,7 @@ vi.mock('./household.ts', () => ({
 const fakeClient = { app: 'fake-app', db: 'fake-db' } as unknown as FirebaseClient
 const user: AuthUser = { uid: 'user-1', email: 'owner@example.com' } as unknown as AuthUser
 const unsubscribe = vi.fn()
+const onResetConfig = vi.fn()
 
 beforeEach(() => {
   signInWithGoogle.mockReset()
@@ -34,7 +35,24 @@ beforeEach(() => {
   isHouseholdMember.mockReset()
   claimHousehold.mockReset().mockResolvedValue(undefined)
   unsubscribe.mockClear()
+  onResetConfig.mockReset()
 })
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+/** Clicks Reset twice, declining the confirm first and accepting it second: only the second may reach `onResetConfig`. */
+function expectResetOnlyAfterConfirm(reset: HTMLElement) {
+  const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+
+  fireEvent.click(reset)
+  expect(confirmSpy).toHaveBeenCalledTimes(1)
+  expect(onResetConfig).not.toHaveBeenCalled()
+
+  fireEvent.click(reset)
+  expect(onResetConfig).toHaveBeenCalledTimes(1)
+}
 
 describe('AuthGate', () => {
   it('shows a Google sign-in button when signed out', () => {
@@ -44,13 +62,29 @@ describe('AuthGate', () => {
     })
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }))
     expect(signInWithGoogle).toHaveBeenCalledWith('fake-app')
+  })
+
+  it('offers Reset Firebase configuration on the signed-out card, only after the user confirms', () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(null)
+      return unsubscribe
+    })
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    const reset = screen.getByRole('button', { name: 'Reset Firebase configuration' })
+
+    expectResetOnlyAfterConfirm(reset)
   })
 
   it('offers to claim the household when meta/household does not exist', async () => {
@@ -61,7 +95,7 @@ describe('AuthGate', () => {
     householdExists.mockResolvedValue(false)
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
@@ -78,7 +112,7 @@ describe('AuthGate', () => {
     householdExists.mockResolvedValue(false)
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
@@ -97,7 +131,7 @@ describe('AuthGate', () => {
     isHouseholdMember.mockResolvedValue(false)
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
@@ -109,6 +143,24 @@ describe('AuthGate', () => {
     expect(signOutUser).toHaveBeenCalledWith('fake-app')
   })
 
+  it('offers Reset Firebase configuration on the non-member card, only after the user confirms', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockResolvedValue(true)
+    isHouseholdMember.mockResolvedValue(false)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    const reset = await screen.findByRole('button', { name: 'Reset Firebase configuration' })
+
+    expectResetOnlyAfterConfirm(reset)
+  })
+
   it('shows the app for a member, without a sign-out button', async () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
@@ -118,7 +170,7 @@ describe('AuthGate', () => {
     isHouseholdMember.mockResolvedValue(true)
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
@@ -134,7 +186,7 @@ describe('AuthGate', () => {
     })
 
     const { unmount } = render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
@@ -158,7 +210,7 @@ describe('AuthGate styling', () => {
     isHouseholdMember.mockResolvedValue(false)
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )

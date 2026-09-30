@@ -83,7 +83,25 @@ function startOnSettings() {
 
 async function resetFromSettings() {
   vi.spyOn(window, 'confirm').mockReturnValue(true)
-  fireEvent.click(await screen.findByRole('button', { name: 'Reset' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Reset Firebase configuration' }))
+}
+
+function startSignedOut() {
+  watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    cb(null)
+    return vi.fn()
+  })
+}
+
+function startAsNonMember() {
+  isHouseholdMember.mockResolvedValue(false)
+}
+
+/** The pre-sign-in cards offer Reset; `cardHeading` is the card each test expects to be showing. */
+async function clickResetOn(cardHeading: string, confirmed: boolean) {
+  await screen.findByRole('heading', { name: cardHeading })
+  vi.spyOn(window, 'confirm').mockReturnValue(confirmed)
+  fireEvent.click(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
 }
 
 afterEach(async () => {
@@ -171,12 +189,42 @@ describe('Root', () => {
     expect(initFirebase).toHaveBeenLastCalledWith(otherConfig)
   })
 
-  it('signs out the connected client from Settings, and nowhere else', async () => {
+  it.each([
+    ['signed-out', 'Sign in', startSignedOut],
+    ['non-member', 'Not a member', startAsNonMember],
+  ])('resets from the %s card: back to Setup, config cleared, client terminated', async (_card, heading, start) => {
+    start()
+    saveFirebaseConfig(validConfig)
+    render(<Root />)
+
+    await clickResetOn(heading, true)
+
+    expect(await screen.findByRole('heading', { name: 'Set up' })).toBeInTheDocument()
+    expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
+    expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
+  })
+
+  it.each([
+    ['signed-out', 'Sign in', startSignedOut],
+    ['non-member', 'Not a member', startAsNonMember],
+  ])('keeps the config and the %s card when the confirm is cancelled', async (_card, heading, start) => {
+    start()
+    saveFirebaseConfig(validConfig)
+    render(<Root />)
+
+    await clickResetOn(heading, false)
+
+    expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(validConfig)
+    expect(terminateFirebase).not.toHaveBeenCalled()
+  })
+
+  it('offers Reset to a member only in Settings, and signs out the connected client from Settings, and nowhere else', async () => {
     saveFirebaseConfig(validConfig)
     const { unmount } = render(<Root />)
     await screen.findByRole('navigation', { name: 'Main' })
     expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reset Firebase configuration' })).toBeNull()
     unmount()
 
     startOnSettings()
