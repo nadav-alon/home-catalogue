@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { manifest } from './pwa-manifest'
 import { themeColor } from './theme'
+import { colourRoleHex } from './ui/colourRoles'
 import { appIcons } from './ui/appIcons'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -22,6 +23,14 @@ describe('manifest', () => {
   it('takes theme_color from the seed colour', () => {
     expect(themeColor).toBe('#e8590c')
     expect(manifest.theme_color).toBe(themeColor)
+  })
+
+  it("takes background_color from the light scheme's background role", () => {
+    expect(manifest.background_color).toBe('#fff8f6')
+    expect(manifest.background_color).toBe(colourRoleHex(themeColor, 'background', false))
+    expect(readFileSync(fromRepo('src/ui/theme.css'), 'utf8')).toContain(
+      `--md-sys-color-background: ${manifest.background_color};`,
+    )
   })
 
   it('carries the icon sizes Chrome requires for installability', () => {

@@ -46,13 +46,15 @@ export function colourRoleProperty(role: ColourRoleName): string {
   return `--md-sys-color-${role.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`
 }
 
-function declarations(seed: SeedColour, isDark: boolean): string {
+/** The `#rrggbb` a colour role takes in the light or dark scheme derived from `seed`. */
+export function colourRoleHex(seed: SeedColour, role: ColourRoleName, isDark: boolean): string {
   const scheme = new SchemeFidelity(Hct.fromInt(argbFromHex(seed)), isDark, 0)
+  return hexFromArgb(MaterialDynamicColors[role].getArgb(scheme))
+}
+
+function declarations(seed: SeedColour, isDark: boolean): string {
   return colourRoleNames
-    .map((role) => {
-      const hex = hexFromArgb(MaterialDynamicColors[role].getArgb(scheme))
-      return `  ${colourRoleProperty(role)}: ${hex};`
-    })
+    .map((role) => `  ${colourRoleProperty(role)}: ${colourRoleHex(seed, role, isDark)};`)
     .join('\n')
 }
 
