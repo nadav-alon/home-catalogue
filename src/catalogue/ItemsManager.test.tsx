@@ -6,6 +6,7 @@ import { ItemsManager } from './ItemsManager.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import { resetHash } from '../testing/hash.ts'
 import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 import { choose } from '../testing/select.ts'
 
@@ -54,7 +55,13 @@ beforeEach(() => {
   watchShops.mockReset()
 })
 
-function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
+function renderWith(
+  items: ItemRecord[],
+  categories: CategoryRecord[],
+  shops: ShopRecord[],
+  itemIds?: readonly core.ItemId[],
+  onClearFilter?: () => void,
+) {
   let publishCategories: (categories: CategoryRecord[]) => void = () => {}
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
     cb(items)
@@ -69,10 +76,74 @@ function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: Sh
     cb(shops)
     return vi.fn()
   })
-  return { ...render(<ItemsManager db={fakeDb} />), publishCategories }
+  return {
+    ...render(<ItemsManager db={fakeDb} itemIds={itemIds} onClearFilter={onClearFilter} />),
+    publishCategories,
+  }
 }
 
+afterEach(resetHash)
+
 describe('ItemsManager', () => {
+  it('shows exactly the Items whose ids are given, ignoring unknown ids', () => {
+    const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
+    const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+    renderWith([bandages, soap, tape], [medicine, cleaning], [pharmacy, grocery], [soap.id, tape.id, core.itemId('gone')])
+
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+    expect(screen.getByText('Tape')).toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('names a single filtered Item in a chip in place of the search box', () => {
+    renderWith([bandages], [medicine], [pharmacy], [bandages.id])
+
+    expect(screen.getByText('Scanned: Bandages')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Search Items')).not.toBeInTheDocument()
+  })
+
+  it('counts several filtered Items in the chip, not counting unknown ids', () => {
+    const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+    renderWith([bandages, tape], [medicine], [pharmacy], [bandages.id, tape.id, core.itemId('gone')])
+
+    expect(screen.getByText('Scanned: 2 Items')).toBeInTheDocument()
+  })
+
+  it('ignores earlier search text once the Items are filtered by id', () => {
+    const { rerender } = renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'zzz' } })
+
+    rerender(<ItemsManager db={fakeDb} itemIds={[bandages.id]} />)
+
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+
+  it('says no scanned Items were found when every id is unknown', () => {
+    renderWith([bandages], [medicine], [pharmacy], [core.itemId('gone')])
+
+    expect(screen.getByText('No scanned Items found.')).toBeInTheDocument()
+    expect(screen.getByText('Scanned: no Items')).toBeInTheDocument()
+    expect(screen.queryByText('No Items match your search.')).not.toBeInTheDocument()
+  })
+
+  it('calls onClearFilter when the chip is dismissed', () => {
+    const onClearFilter = vi.fn()
+    renderWith([bandages], [medicine], [pharmacy], [bandages.id], onClearFilter)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear scanned filter' }))
+
+    expect(onClearFilter).toHaveBeenCalledOnce()
+  })
+
+  it('changes State on a filtered row', () => {
+    const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery], [soap.id])
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'State for Dish soap' })).getByText('out'))
+
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, soap, 'out')
+  })
+
   it('groups Items by Category', () => {
     const soap: ItemRecord = {
       id: core.itemId('soap'),

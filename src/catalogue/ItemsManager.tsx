@@ -10,14 +10,20 @@ import { Fab } from '../ui/Fab.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { SegmentedButton } from '../ui/SegmentedButton.tsx'
 import { TextField } from '../ui/TextField.tsx'
+import { IconButton } from '../ui/IconButton.tsx'
 import AddIcon from '~icons/material-symbols/add'
+import CloseIcon from '~icons/material-symbols/close'
 import './ItemsManager.css'
 
 export interface ItemsManagerProps {
   db: Firestore
+  /** Show only the Items with these ids; unknown ids are ignored. Every Item when empty or omitted. */
+  itemIds?: readonly core.ItemId[]
+  /** Called when the chip naming the id filter is dismissed. */
+  onClearFilter?: () => void
 }
 
-export function ItemsManager({ db }: ItemsManagerProps) {
+export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerProps) {
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
@@ -47,8 +53,17 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   const editedItem = dialog?.item && (items?.find((item) => item.id === dialog.item?.id) ?? dialog.item)
 
   const needle = search.trim().toLowerCase()
-  const loadedItems = items ?? []
-  const visibleItems = loadedItems.filter((item) => item.name.toLowerCase().includes(needle))
+  const scanFiltered = itemIds.length > 0
+  const candidateItems = (items ?? []).filter((item) => !scanFiltered || itemIds.includes(item.id))
+  const scannedLabel =
+    candidateItems.length === 0
+      ? 'no Items'
+      : candidateItems.length === 1
+        ? candidateItems[0]!.name
+        : `${candidateItems.length} Items`
+  const visibleItems = scanFiltered
+    ? candidateItems
+    : candidateItems.filter((item) => item.name.toLowerCase().includes(needle))
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
@@ -62,9 +77,20 @@ export function ItemsManager({ db }: ItemsManagerProps) {
       {/* TODO[#169]: route the scanned barcode to its Items, or attach it. */}
       <ScanEntry onScan={() => {}} />
       {error !== null && <p role="alert">{error}</p>}
-      <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
+      {!scanFiltered ? (
+        <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
+      ) : (
+        items !== undefined && (
+          <span>
+            Scanned: {scannedLabel}
+            <IconButton symbol={CloseIcon} label="Clear scanned filter" onClick={onClearFilter} />
+          </span>
+        )
+      )}
       {items !== undefined && visibleItems.length === 0 && (
-        <p>{items.length === 0 ? 'No Items yet.' : 'No Items match your search.'}</p>
+        <p>
+          {items.length === 0 ? 'No Items yet.' : scanFiltered ? 'No scanned Items found.' : 'No Items match your search.'}
+        </p>
       )}
       {groups.map(({ category, items: categoryItems }) => (
         <ItemGroup key={category.id} heading={category.name} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />

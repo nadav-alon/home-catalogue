@@ -1,3 +1,4 @@
+import type { core } from 'data-platform'
 import type { Firestore } from 'firebase/firestore'
 import { WriteRejectionBanner } from './catalogue/WriteRejectionBanner.tsx'
 import { CategoriesManager } from './catalogue/CategoriesManager.tsx'
@@ -8,8 +9,8 @@ import { SettingsScreen } from './settings/SettingsScreen.tsx'
 import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
 import { titleOf } from './shell/titles.ts'
-import type { Route } from './ui/route.ts'
-import { useRoute } from './ui/useRoute.ts'
+import { route, type Route } from './ui/route.ts'
+import { navigate, useItemIds, useRoute } from './ui/useRoute.ts'
 import './app.css'
 import type { FirebaseWebConfig } from './firebase/webConfig.ts'
 
@@ -22,7 +23,7 @@ export interface AppProps {
 
 export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
   const current = useRoute()
-
+  const itemIds = useItemIds()
 
   return (
     <>
@@ -31,7 +32,7 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
         <TopAppBar title={titleOf(current)}>
           <main>
             <WriteRejectionBanner />
-            <Screen route={current} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
+            <Screen route={current} itemIds={itemIds} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
           </main>
         </TopAppBar>
       </div>
@@ -40,12 +41,19 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
 }
 
 /** The screen for a route. */
-function Screen({ route: current, db, config, onResetConfig, onSignOut }: { route: Route } & AppProps) {
+function Screen({
+  route: current,
+  itemIds,
+  db,
+  config,
+  onResetConfig,
+  onSignOut,
+}: { route: Route; itemIds: readonly core.ItemId[] } & AppProps) {
   switch (current) {
     case '/list':
       return <ShoppingList db={db} />
     case '/items':
-      return <ItemsManager db={db} />
+      return <ItemsManager db={db} itemIds={itemIds} onClearFilter={() => navigate(route('/items'))} />
     case '/settings':
       return <SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
     case '/settings/shops':
