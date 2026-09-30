@@ -367,6 +367,17 @@ describe('editing an Item', () => {
     expect(updateItem.mock.calls[0]![2]).not.toHaveProperty('removedBarcodes')
   })
 
+  it('lists a barcode attached to the Item while the dialog is open', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    const pushItems = watchItems.mock.calls[0]![1] as (items: ItemRecord[]) => void
+
+    openRow('Bandages')
+    expect(screen.queryByRole('region', { name: 'Barcodes' })).not.toBeInTheDocument()
+    act(() => pushItems([bandagesWithBarcodes]))
+
+    expect(screen.getByText('12345678')).toBeInTheDocument()
+  })
+
   it('hides the barcodes section when the Item has none', () => {
     renderWith([bandages, { ...bandages, id: core.itemId('gauze'), name: 'Gauze', barcodes: [] }], [medicine], [pharmacy])
 

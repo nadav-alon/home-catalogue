@@ -43,6 +43,9 @@ export function ItemsManager({ db }: ItemsManagerProps) {
     }
   }
 
+  // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.
+  const editedItem = dialog?.item && (items?.find((item) => item.id === dialog.item?.id) ?? dialog.item)
+
   const needle = search.trim().toLowerCase()
   const loadedItems = items ?? []
   const visibleItems = loadedItems.filter((item) => item.name.toLowerCase().includes(needle))
@@ -72,15 +75,13 @@ export function ItemsManager({ db }: ItemsManagerProps) {
       <Fab symbol={AddIcon} label="Add Item" onClick={() => openDialog(undefined)} />
       <ItemDialog
         open={dialog !== null}
-        item={dialog?.item}
+        item={editedItem}
         categories={categories}
         shops={shops}
         onSave={async (input) => {
-          if (!dialog?.item) return createItem(db, input)
-          const editedId = dialog.item.id
-          // The Item may have changed elsewhere since the dialog opened; its reference counts move from the current record.
-          const previous = items?.find((item) => item.id === editedId) ?? dialog.item
-          await updateItem(db, previous, input)
+          if (!editedItem) return createItem(db, input)
+          // Its reference counts move from the current record.
+          await updateItem(db, editedItem, input)
         }}
         onClose={() => setDialog(null)}
       />
