@@ -1,5 +1,6 @@
 import type { JSX } from 'preact'
 import { useId } from 'preact/hooks'
+import { FieldError, useFieldError } from './FieldError.tsx'
 import './Field.css'
 
 export interface TextAreaProps extends Omit<JSX.TextareaHTMLAttributes<HTMLTextAreaElement>, 'class' | 'className'> {
@@ -12,8 +13,7 @@ export interface TextAreaProps extends Omit<JSX.TextareaHTMLAttributes<HTMLTextA
 export function TextArea({ label, error, id, 'aria-describedby': describedBy, ...rest }: TextAreaProps) {
   const generatedId = useId()
   const areaId = id ?? generatedId
-  const errorId = `${areaId}-error`
-  const description = [describedBy, error ? errorId : undefined].filter(Boolean).join(' ') || undefined
+  const field = useFieldError(areaId, error, describedBy)
   return (
     <div class="ui-field">
       <label class="ui-field__label" for={areaId}>
@@ -23,14 +23,10 @@ export function TextArea({ label, error, id, 'aria-describedby': describedBy, ..
         {...rest}
         id={areaId}
         class="ui-field__control ui-field__control--multiline"
-        aria-invalid={error ? true : undefined}
-        aria-describedby={description}
+        aria-invalid={field.invalid}
+        aria-describedby={field.describedBy}
       />
-      {error ? (
-        <p class="ui-field__error" id={errorId} role="alert">
-          {error}
-        </p>
-      ) : null}
+      <FieldError id={field.errorId} error={error} />
     </div>
   )
 }

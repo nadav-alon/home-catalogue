@@ -1,5 +1,6 @@
 import type { JSX } from 'preact'
 import { useId } from 'preact/hooks'
+import { FieldError, useFieldError } from './FieldError.tsx'
 import './Field.css'
 
 export interface SelectProps extends Omit<JSX.SelectHTMLAttributes<HTMLSelectElement>, 'class' | 'className'> {
@@ -12,8 +13,7 @@ export interface SelectProps extends Omit<JSX.SelectHTMLAttributes<HTMLSelectEle
 export function Select({ label, error, id, 'aria-describedby': describedBy, ...rest }: SelectProps) {
   const generatedId = useId()
   const selectId = id ?? generatedId
-  const errorId = `${selectId}-error`
-  const description = [describedBy, error ? errorId : undefined].filter(Boolean).join(' ') || undefined
+  const field = useFieldError(selectId, error, describedBy)
   return (
     <div class="ui-field">
       <label class="ui-field__label" for={selectId}>
@@ -23,14 +23,10 @@ export function Select({ label, error, id, 'aria-describedby': describedBy, ...r
         {...rest}
         id={selectId}
         class="ui-field__control"
-        aria-invalid={error ? true : undefined}
-        aria-describedby={description}
+        aria-invalid={field.invalid}
+        aria-describedby={field.describedBy}
       />
-      {error ? (
-        <p class="ui-field__error" id={errorId} role="alert">
-          {error}
-        </p>
-      ) : null}
+      <FieldError id={field.errorId} error={error} />
     </div>
   )
 }

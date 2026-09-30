@@ -1,5 +1,6 @@
 import type { JSX } from 'preact'
 import { useId } from 'preact/hooks'
+import { FieldError, useFieldError } from './FieldError.tsx'
 import './Field.css'
 
 export interface TextFieldProps extends Omit<JSX.InputHTMLAttributes<HTMLInputElement>, 'class' | 'className'> {
@@ -12,8 +13,7 @@ export interface TextFieldProps extends Omit<JSX.InputHTMLAttributes<HTMLInputEl
 export function TextField({ label, error, id, 'aria-describedby': describedBy, ...rest }: TextFieldProps) {
   const generatedId = useId()
   const inputId = id ?? generatedId
-  const errorId = `${inputId}-error`
-  const description = [describedBy, error ? errorId : undefined].filter(Boolean).join(' ') || undefined
+  const field = useFieldError(inputId, error, describedBy)
   return (
     <div class="ui-field">
       <label class="ui-field__label" for={inputId}>
@@ -23,14 +23,10 @@ export function TextField({ label, error, id, 'aria-describedby': describedBy, .
         {...rest}
         id={inputId}
         class="ui-field__control"
-        aria-invalid={error ? true : undefined}
-        aria-describedby={description}
+        aria-invalid={field.invalid}
+        aria-describedby={field.describedBy}
       />
-      {error ? (
-        <p class="ui-field__error" id={errorId} role="alert">
-          {error}
-        </p>
-      ) : null}
+      <FieldError id={field.errorId} error={error} />
     </div>
   )
 }
