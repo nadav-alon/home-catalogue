@@ -40,6 +40,21 @@ async function seedMember(): Promise<void> {
   })
 }
 
+/** Seeds a Pharmacy Shop and a Medicine Category defaulting to it, bypassing rules. */
+async function seedPharmacyAndMedicine(references: { shopReferences: number; categoryReferences: number }): Promise<void> {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
+      name: 'Pharmacy',
+      referenceCount: references.shopReferences,
+    })
+    await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
+      name: 'Medicine',
+      defaultShopId: 'pharmacy',
+      referenceCount: references.categoryReferences,
+    })
+  })
+}
+
 /** The same rules path the Firestore emulator itself loads, per `firebase.json`. */
 function rulesPath(): string {
   const { firestore } = JSON.parse(readFileSync('firebase.json', 'utf8')) as { firestore: { rules: string } }
@@ -191,17 +206,7 @@ describe('deleteCategory against the real rules', () => {
 
   it("soft-deletes a Category with no dependents and drops its default Shop's reference", async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
-        name: 'Pharmacy',
-        referenceCount: 1,
-      })
-      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
-        name: 'Medicine',
-        defaultShopId: 'pharmacy',
-        referenceCount: 0,
-      })
-    })
+    await seedPharmacyAndMedicine({ shopReferences: 1, categoryReferences: 0 })
 
     await expect(deleteCategory(db, medicine)).resolves.toBeUndefined()
     await waitForPendingWrites(db)
@@ -213,17 +218,7 @@ describe('deleteCategory against the real rules', () => {
 
   it("restores a soft-deleted Category and raises its default Shop's reference back", async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
-        name: 'Pharmacy',
-        referenceCount: 1,
-      })
-      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
-        name: 'Medicine',
-        defaultShopId: 'pharmacy',
-        referenceCount: 0,
-      })
-    })
+    await seedPharmacyAndMedicine({ shopReferences: 1, categoryReferences: 0 })
     await deleteCategory(db, medicine)
     await waitForPendingWrites(db)
 
@@ -238,17 +233,7 @@ describe('deleteCategory against the real rules', () => {
 
   it('refuses up front with CategoryInUseError when the cached referenceCount is above 0', async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
-        name: 'Pharmacy',
-        referenceCount: 1,
-      })
-      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
-        name: 'Medicine',
-        defaultShopId: 'pharmacy',
-        referenceCount: 1,
-      })
-    })
+    await seedPharmacyAndMedicine({ shopReferences: 1, categoryReferences: 1 })
 
     await expect(deleteCategory(db, { ...medicine, referenceCount: 1 })).rejects.toBeInstanceOf(CategoryInUseError)
     const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
@@ -257,17 +242,7 @@ describe('deleteCategory against the real rules', () => {
 
   it('has the rules refuse a stale-cache delete while an Item still belongs to it, and shows it in the banner', async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
-        name: 'Pharmacy',
-        referenceCount: 1,
-      })
-      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
-        name: 'Medicine',
-        defaultShopId: 'pharmacy',
-        referenceCount: 1,
-      })
-    })
+    await seedPharmacyAndMedicine({ shopReferences: 1, categoryReferences: 1 })
     await deleteCategory(db, medicine)
     await vi.waitFor(() => expect(rejected()).toEqual(['Could not save deleted Category Medicine']))
     const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
