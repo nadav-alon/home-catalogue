@@ -136,6 +136,57 @@ describe('Snackbar', () => {
     expect(status).toBeEmptyDOMElement()
   })
 
+  it('replaces a held message at once, and the replacement gets a fresh full time once the pointer leaves', () => {
+    vi.useFakeTimers()
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'First' }))
+    const status = screen.getByRole('status')
+    fireEvent.pointerEnter(status)
+    act(() => showSnackbar({ text: 'Second' }))
+    expect(status).toHaveTextContent('Second')
+    act(() => {
+      vi.advanceTimersByTime(60000)
+    })
+    expect(status).toHaveTextContent('Second')
+    fireEvent.pointerLeave(status)
+    act(() => {
+      vi.advanceTimersByTime(5900)
+    })
+    expect(status).toHaveTextContent('Second')
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    expect(status).toBeEmptyDOMElement()
+  })
+
+  it('does not carry a hold over to the next message once Undo is pressed', () => {
+    vi.useFakeTimers()
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'Deleted Bandages', action: { label: 'Undo', onAction: () => {} } }))
+    const status = screen.getByRole('status')
+    fireEvent.pointerEnter(status)
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    act(() => showSnackbar({ text: 'Saved' }))
+    act(() => {
+      vi.advanceTimersByTime(6100)
+    })
+    expect(status).toBeEmptyDOMElement()
+  })
+
+  it('does not carry a hold over to the next message once the held one is gone', () => {
+    vi.useFakeTimers()
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'First' }))
+    const status = screen.getByRole('status')
+    fireEvent.pointerEnter(status)
+    act(() => resetSnackbar())
+    act(() => showSnackbar({ text: 'Second' }))
+    act(() => {
+      vi.advanceTimersByTime(6100)
+    })
+    expect(status).toBeEmptyDOMElement()
+  })
+
   it('lets go of focus when the focused button is replaced by a message without one', () => {
     vi.useFakeTimers()
     render(<SnackbarHost />)
