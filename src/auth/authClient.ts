@@ -37,3 +37,9 @@ export function watchAuthState(app: FirebaseApp, callback: (user: AuthUser | nul
     callback(user === null ? null : toAuthUser(user))
   })
 }
+
+/** The signed-in user's Uid, or `null` when signed out. */
+export function currentUserUid(app: FirebaseApp): core.Uid | null {
+  const user = getAuth(app).currentUser
+  return user === null ? null : core.uid(user.uid)
+}

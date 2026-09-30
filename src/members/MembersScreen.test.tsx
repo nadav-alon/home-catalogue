@@ -9,9 +9,14 @@ import type { MemberRecord } from './members.ts'
 
 const watchMembers = vi.fn()
 const watchInvites = vi.fn()
+const currentUserUid = vi.fn()
 
 vi.mock('./members.ts', () => ({
   watchMembers: (db: unknown, cb: unknown) => watchMembers(db, cb),
+}))
+
+vi.mock('../auth/authClient.ts', () => ({
+  currentUserUid: (app: unknown) => currentUserUid(app),
 }))
 
 vi.mock('./invites.ts', () => ({
@@ -19,13 +24,15 @@ vi.mock('./invites.ts', () => ({
 }))
 
 const addedAt = { seconds: 0, nanoseconds: 0, toMillis: () => 0 }
-const fakeDb = { name: 'fake-db' } as unknown as Firestore
+const fakeApp = { name: 'fake-app' }
+const fakeDb = { name: 'fake-db', app: fakeApp } as unknown as Firestore
 const unsubscribe = vi.fn()
 
 beforeEach(() => {
   watchMembers.mockReset().mockReturnValue(unsubscribe)
   watchInvites.mockReset().mockReturnValue(unsubscribe)
   unsubscribe.mockClear()
+  currentUserUid.mockReset().mockReturnValue(core.uid('u1'))
 })
 
 afterEach(resetHash)
@@ -78,6 +85,31 @@ describe('MembersScreen', () => {
     expect(within(pending).getAllByRole('listitem')).toHaveLength(1)
     expect(pending).toHaveTextContent('c@example.com')
     expect(pending).not.toHaveTextContent('a@example.com')
+  })
+
+  it('offers the Owner Remove on every Member but their own', () => {
+    renderScreen([
+      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true },
+      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
+      { uid: core.uid('u3'), email: core.email('c@example.com'), addedAt, isOwner: false },
+    ])
+
+    expect(screen.getAllByRole('button', { name: /^Remove / }).map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Remove b@example.com',
+      'Remove c@example.com',
+    ])
+    expect(currentUserUid).toHaveBeenCalledWith(fakeApp)
+  })
+
+  it('offers a non-Owner Member no Remove', () => {
+    currentUserUid.mockReturnValue(core.uid('u2'))
+    renderScreen([
+      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true },
+      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
+      { uid: core.uid('u3'), email: core.email('c@example.com'), addedAt, isOwner: false },
+    ])
+
+    expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull()
   })
 
   it('stops watching when it closes', () => {
