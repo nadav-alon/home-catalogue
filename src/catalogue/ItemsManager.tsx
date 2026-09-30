@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, softDeleteItem, findItemsByBarcode, matchesName, restoreItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findDeletedItemByBarcode, softDeleteItem, findItemsByBarcode, matchesName, restoreItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
+import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { watchShops, type ShopRecord } from './shops.ts'
 import { navigateToItems } from '../ui/useRoute.ts'
@@ -37,6 +38,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
   const [unknownBarcode, setUnknownBarcode] = useState<core.Barcode | undefined>(undefined)
 
+  /** The deleted Item a scanned Barcode belongs to, and that Barcode, while the Member is deciding whether to bring it back. */
+  const [deletedMatch, setDeletedMatch] = useState<{ item: ItemRecord; barcode: core.Barcode } | undefined>(undefined)
+
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
@@ -45,11 +49,25 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     try {
       const found = await findItemsByBarcode(db, barcode)
       setError(null)
-      if (found.length === 0) setUnknownBarcode(barcode)
-      else navigateToItems(found.map((item) => item.id))
+      if (found.length > 0) return navigateToItems(found.map((item) => item.id))
+      const deleted = await findDeletedItemByBarcode(db, barcode)
+      if (deleted === undefined) setUnknownBarcode(barcode)
+      else setDeletedMatch({ item: deleted, barcode })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not look up the barcode')
     }
+  }
+
+  async function handleRestore(item: ItemRecord) {
+    await restoreItem(db, item)
+    setDeletedMatch(undefined)
+    navigateToItems([item.id])
+  }
+
+  function handleDeclineRestore() {
+    if (deletedMatch === undefined) return
+    setUnknownBarcode(deletedMatch.barcode)
+    setDeletedMatch(undefined)
   }
 
   async function handleAttach(item: ItemRecord) {
@@ -124,6 +142,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
       {uncategorisedItems.length > 0 && (
         <ItemGroup heading="Uncategorised" items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
+      <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={handleDeclineRestore} />
       <UnknownBarcodeChooser
         barcode={unknownBarcode}
         items={items ?? []}
