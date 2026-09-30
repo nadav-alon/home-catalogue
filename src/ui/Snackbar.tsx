@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import { Button } from './Button.tsx'
+import { milliseconds } from './milliseconds.ts'
 import './Snackbar.css'
 
 export interface SnackbarMessage {
@@ -10,7 +11,7 @@ export interface SnackbarMessage {
 }
 
 /** How long a snackbar stays before it disappears on its own. */
-const snackbarDurationMs = 6000
+const snackbarDurationMs = milliseconds(6000)
 
 type Listener = (current: SnackbarMessage | null) => void
 
