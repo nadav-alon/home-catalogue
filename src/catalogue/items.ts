@@ -290,3 +290,36 @@ export async function removeBarcode(
     },
   )
 }
+
+/**
+ * Soft-deletes the Item: one batch sets `deletedAt` on its core and catalogue docs and lowers the
+ * referenceCount of its Category, and of its Shop override when set. `stateHistory` is left
+ * untouched, so {@link restoreItem} brings the Item back whole. Resolves once the batch is queued,
+ * see {@link createItem}.
+ */
+export async function deleteItem(db: Firestore, item: ItemRecord): Promise<void> {
+  const batch = writeBatch(db)
+  batch.update(doc(db, core.ITEMS_COLLECTION, item.id), { deletedAt: serverTimestamp() })
+  batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, item.id), { deletedAt: serverTimestamp() })
+  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, item.categoryId), { referenceCount: increment(-1) })
+  if (item.shopId !== undefined) {
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, item.shopId), { referenceCount: increment(-1) })
+  }
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`deleted Item ${item.name}`, err)
+  })
+}
+
+/** Undoes {@link deleteItem}: clears `deletedAt` on both docs and raises the same referenceCounts back. */
+export async function restoreItem(db: Firestore, item: ItemRecord): Promise<void> {
+  const batch = writeBatch(db)
+  batch.update(doc(db, core.ITEMS_COLLECTION, item.id), { deletedAt: deleteField() })
+  batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, item.id), { deletedAt: deleteField() })
+  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, item.categoryId), { referenceCount: increment(1) })
+  if (item.shopId !== undefined) {
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, item.shopId), { referenceCount: increment(1) })
+  }
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`restored Item ${item.name}`, err)
+  })
+}

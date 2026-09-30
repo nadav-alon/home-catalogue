@@ -603,6 +603,17 @@ describe('a queued Item write the server rejects', () => {
     expect(latest()).toEqual(['Could not save State change for Dish soap'])
   })
 
+  it('reports a deleted Item by name', async () => {
+    const { deleteItem } = await import('./items.ts')
+    const latest = await rejections()
+    batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await deleteItem(fakeDb, { ...dishSoap, categoryId: catalogue.categoryId('cleaning') })
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save deleted Item Dish soap'])
+  })
+
   it('reports a new Item by name', async () => {
     const { createItem } = await import('./items.ts')
     const latest = await rejections()
@@ -775,5 +786,57 @@ describe('barcode write rejections', () => {
     await Promise.resolve()
 
     expect(latest()).toEqual(['Could not save barcode removal for Dish soap'])
+  })
+})
+
+describe('deleteItem and restoreItem', () => {
+  const dishSoap: ItemRecord = {
+    id: core.itemId('dish-soap'),
+    name: 'Dish soap',
+    state: 'enough',
+    categoryId: catalogue.categoryId('cleaning'),
+    necessity: 'essential',
+    shopId: catalogue.shopId('grocery'),
+  }
+
+  it('soft-deletes both docs and lowers the Category and Shop counts in one batch, leaving stateHistory alone', async () => {
+    const { deleteItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await deleteItem(fakeDb, dishSoap)
+
+    const stamp = { kind: 'serverTimestamp' }
+    expect(batchUpdate.mock.calls).toEqual([
+      [{ path: core.ITEMS_COLLECTION, id: 'dish-soap' }, { deletedAt: stamp }],
+      [{ path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' }, { deletedAt: stamp }],
+      [{ path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' }, { referenceCount: { kind: 'increment', delta: -1 } }],
+      [{ path: catalogue.SHOPS_COLLECTION, id: 'grocery' }, { referenceCount: { kind: 'increment', delta: -1 } }],
+    ])
+    expect(batchSet).not.toHaveBeenCalled()
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves Shop counts alone for an Item without a Shop override', async () => {
+    const { deleteItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await deleteItem(fakeDb, { ...dishSoap, shopId: undefined })
+
+    expect(batchUpdate).toHaveBeenCalledTimes(3)
+  })
+
+  it('restores by clearing deletedAt and raising the counts back', async () => {
+    const { restoreItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await restoreItem(fakeDb, dishSoap)
+
+    const cleared = { kind: 'deleteField' }
+    expect(batchUpdate.mock.calls).toEqual([
+      [{ path: core.ITEMS_COLLECTION, id: 'dish-soap' }, { deletedAt: cleared }],
+      [{ path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' }, { deletedAt: cleared }],
+      [{ path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' }, { referenceCount: { kind: 'increment', delta: 1 } }],
+      [{ path: catalogue.SHOPS_COLLECTION, id: 'grocery' }, { referenceCount: { kind: 'increment', delta: 1 } }],
+    ])
   })
 })
