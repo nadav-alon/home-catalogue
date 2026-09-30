@@ -2,18 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
-import { cleaning, grocery, medicine, pharmacy } from '../catalogue/testFixtures.ts'
+import { bandages, cleaning, grocery, medicine, pharmacy } from '../catalogue/testFixtures.ts'
 import { pendingItemsByShop } from './shopGroups.ts'
 
 describe('pendingItemsByShop', () => {
   it('groups pending Items under their resolved Shop, in Shop order', () => {
-    const bandages: ItemRecord = {
-      id: core.itemId('bandages'),
-      name: 'Bandages',
-      state: 'out',
-      categoryId: medicine.id,
-      necessity: 'essential',
-    }
+    const outBandages: ItemRecord = { ...bandages, state: 'out' }
     const soap: ItemRecord = {
       id: core.itemId('soap'),
       name: 'Dish soap',
@@ -22,28 +16,21 @@ describe('pendingItemsByShop', () => {
       necessity: 'important',
     }
 
-    const { groups, unresolvedCount } = pendingItemsByShop([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+    const { groups, unresolvedCount } = pendingItemsByShop([outBandages, soap], [medicine, cleaning], [pharmacy, grocery])
 
     expect(groups).toEqual([
-      { shop: pharmacy, items: [bandages] },
+      { shop: pharmacy, items: [outBandages] },
       { shop: grocery, items: [soap] },
     ])
     expect(unresolvedCount).toBe(0)
   })
 
   it('groups an Item under its own Shop override instead of its Category default', () => {
-    const bandages: ItemRecord = {
-      id: core.itemId('bandages'),
-      name: 'Bandages',
-      state: 'out',
-      categoryId: medicine.id,
-      necessity: 'essential',
-      shopId: grocery.id,
-    }
+    const bandagesAtGrocery: ItemRecord = { ...bandages, state: 'out', shopId: grocery.id }
 
-    const { groups } = pendingItemsByShop([bandages], [medicine], [pharmacy, grocery])
+    const { groups } = pendingItemsByShop([bandagesAtGrocery], [medicine], [pharmacy, grocery])
 
-    expect(groups).toEqual([{ shop: grocery, items: [bandages] }])
+    expect(groups).toEqual([{ shop: grocery, items: [bandagesAtGrocery] }])
   })
 
   it('leaves out a Shop with no pending Items', () => {
@@ -51,15 +38,7 @@ describe('pendingItemsByShop', () => {
   })
 
   it('leaves out an Item that is enough', () => {
-    const bandages: ItemRecord = {
-      id: core.itemId('bandages'),
-      name: 'Bandages',
-      state: 'enough',
-      categoryId: medicine.id,
-      necessity: 'essential',
-    }
-
-    expect(pendingItemsByShop([bandages], [medicine], [pharmacy]).groups).toEqual([])
+    expect(pendingItemsByShop([{ ...bandages, state: 'enough' }], [medicine], [pharmacy]).groups).toEqual([])
   })
 
   it('leaves out an Item with no resolved Shop, and counts it as unresolved', () => {
