@@ -35,6 +35,12 @@ describe('route', () => {
     expect(routeOf('#/items?item=a,b')).toBe(route('/items'))
   })
 
+  it('ignores a query on any route, not only /items', () => {
+    expect(routeOf('#/settings?item=a')).toBe(route('/settings'))
+    expect(routeOf('#/list?x')).toBe(route('/list'))
+    expect(routeOf('#/nowhere?item=a')).toBe(DEFAULT_ROUTE)
+  })
+
   it('reads the Item ids from the item query', () => {
     expect(itemIdsOf('#/items?item=a,b')).toEqual([core.itemId('a'), core.itemId('b')])
     expect(itemIdsOf('#/items?item=a')).toEqual([core.itemId('a')])
