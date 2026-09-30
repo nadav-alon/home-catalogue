@@ -52,3 +52,9 @@ export function itemIdsOf(hash: string): core.ItemId[] {
 export function hashOf(value: Route): string {
   return `#${value}`
 }
+
+/** The URL hash of the Items screen filtered to `ids`; the unfiltered Items screen's when there are none. */
+export function itemsHashOf(ids: readonly core.ItemId[]): string {
+  const items = hashOf(route('/items'))
+  return ids.length === 0 ? items : `${items}?item=${ids.join(',')}`
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { core } from 'data-platform'
-import { DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, route, routeOf } from './route.ts'
+import { DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, itemsHashOf, route, routeOf } from './route.ts'
 
 const ROUTE_HASHES = ['#/list', '#/items', '#/settings', '#/settings/shops', '#/settings/categories'] as const
 
@@ -50,5 +50,17 @@ describe('route', () => {
     expect(itemIdsOf('#/items')).toEqual([])
     expect(itemIdsOf('#/items?item=')).toEqual([])
     expect(itemIdsOf('')).toEqual([])
+  })
+})
+
+describe('itemsHashOf', () => {
+  it('names the Items screen filtered to the ids, which itemIdsOf reads back', () => {
+    const ids = [core.itemId('a'), core.itemId('b')]
+    expect(itemsHashOf(ids)).toBe('#/items?item=a,b')
+    expect(itemIdsOf(itemsHashOf(ids))).toEqual(ids)
+  })
+
+  it('names the unfiltered Items screen when there are no ids', () => {
+    expect(itemsHashOf([])).toBe('#/items')
   })
 })
