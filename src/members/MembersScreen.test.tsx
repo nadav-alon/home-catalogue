@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/preact'
+import { fireEvent, render, screen, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
@@ -8,9 +8,15 @@ import { MembersScreen } from './MembersScreen.tsx'
 import type { MemberRecord } from './members.ts'
 
 const watchMembers = vi.fn()
+const watchInvites = vi.fn()
 
 vi.mock('./members.ts', () => ({
   watchMembers: (db: unknown, cb: unknown) => watchMembers(db, cb),
+
+}))
+
+vi.mock('./invites.ts', () => ({
+  watchInvites: (db: unknown, cb: unknown) => watchInvites(db, cb),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -18,14 +24,19 @@ const unsubscribe = vi.fn()
 
 beforeEach(() => {
   watchMembers.mockReset().mockReturnValue(unsubscribe)
+  watchInvites.mockReset().mockReturnValue(unsubscribe)
   unsubscribe.mockClear()
 })
 
 afterEach(resetHash)
 
-function renderScreen(members: MemberRecord[] = []) {
+function renderScreen(members: MemberRecord[] = [], invites: core.Email[] = []) {
   watchMembers.mockImplementation((_db, cb: (members: MemberRecord[]) => void) => {
     cb(members)
+    return unsubscribe
+  })
+  watchInvites.mockImplementation((_db, cb: (emails: core.Email[]) => void) => {
+    cb(invites)
     return unsubscribe
   })
   return render(
@@ -57,9 +68,21 @@ describe('MembersScreen', () => {
     expect(member).not.toHaveTextContent('Owner')
   })
 
+  it('lists every pending invite by email, apart from the Members', () => {
+    renderScreen(
+      [{ uid: core.uid('u1'), email: core.email('a@example.com'), isOwner: true }],
+      [core.email('c@example.com')],
+    )
+
+    const pending = screen.getByRole('list', { name: 'Pending invites' })
+    expect(within(pending).getAllByRole('listitem')).toHaveLength(1)
+    expect(pending).toHaveTextContent('c@example.com')
+    expect(pending).not.toHaveTextContent('a@example.com')
+  })
+
   it('stops watching when it closes', () => {
     renderScreen().unmount()
 
-    expect(unsubscribe).toHaveBeenCalledTimes(1)
+    expect(unsubscribe).toHaveBeenCalledTimes(2)
   })
 })
