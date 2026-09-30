@@ -23,7 +23,8 @@ vi.mock('./items.ts', async (importOriginal) => ({
 
 const watchCategories = vi.fn()
 const createCategory = vi.fn()
-vi.mock('./categories.ts', () => ({
+vi.mock('./categories.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./categories.ts')>()),
   watchCategories: (db: unknown, cb: unknown) => watchCategories(db, cb),
   createCategory: (db: unknown, name: unknown, shopId: unknown) => createCategory(db, name, shopId),
 }))
