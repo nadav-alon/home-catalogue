@@ -1,9 +1,11 @@
 .ui-snackbar {
   position: fixed;
+  /* Above the shell bars and the FAB, which are z-index 1. */
   z-index: 2;
   left: var(--md-sys-spacing-4);
   right: var(--md-sys-spacing-4);
-  bottom: calc(var(--shell-bar-height) + var(--md-sys-spacing-4));
+  /* Clear of the bottom bar and of the FAB (3.5rem) floating above it. */
+  bottom: calc(var(--shell-bar-height) + var(--md-sys-spacing-4) + 3.5rem + var(--md-sys-spacing-4));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -33,7 +35,7 @@
   .ui-snackbar {
     left: calc(var(--shell-rail-width) + var(--md-sys-spacing-4));
     right: auto;
-    bottom: var(--md-sys-spacing-4);
+    bottom: calc(var(--md-sys-spacing-4) + 3.5rem + var(--md-sys-spacing-4));
     min-width: 20rem;
     max-width: 36rem;
   }
