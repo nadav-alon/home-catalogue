@@ -6,20 +6,14 @@ import { TopAppBar } from '../shell/TopAppBar.tsx'
 import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
-import { medicine, pharmacy } from '../catalogue/testFixtures.ts'
+import { bandages, medicine, pharmacy } from '../catalogue/testFixtures.ts'
 
 const exportShoppingList = vi.fn()
 vi.mock('./exportShoppingList.ts', () => ({
   exportShoppingList: (groups: unknown, date: unknown) => exportShoppingList(groups, date),
 }))
 
-const bandages: ItemRecord = {
-  id: core.itemId('bandages'),
-  name: 'Bandages',
-  state: 'out',
-  categoryId: medicine.id,
-  necessity: 'essential',
-}
+const outBandages: ItemRecord = { ...bandages, state: 'out' }
 
 /** jsdom has no modal dialog; stand in for the browser's open/close bookkeeping. */
 beforeEach(() => {
@@ -55,7 +49,7 @@ async function submit(dateValue: string) {
 
 describe('CalendarExport', () => {
   it('rejects submitting with no date chosen', async () => {
-    renderWith([bandages], [medicine], [pharmacy])
+    renderWith([outBandages], [medicine], [pharmacy])
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Export' }))
@@ -76,7 +70,7 @@ describe('CalendarExport', () => {
 
   it('rejects exporting while offline, without attempting the export', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
-    renderWith([bandages], [medicine], [pharmacy])
+    renderWith([outBandages], [medicine], [pharmacy])
 
     await submit('2026-03-05')
 
@@ -86,11 +80,11 @@ describe('CalendarExport', () => {
 
   it('exports the pending Items grouped by Shop, on the chosen date', async () => {
     exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
-    renderWith([bandages], [medicine], [pharmacy])
+    renderWith([outBandages], [medicine], [pharmacy])
 
     await submit('2026-03-05')
 
-    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [bandages] }], '2026-03-05')
+    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
     expect(screen.getByRole('status')).toHaveTextContent('Exported to Calendar.')
   })
 
@@ -102,7 +96,7 @@ describe('CalendarExport', () => {
       categoryId: catalogue.categoryId('deleted-category'),
       necessity: 'important',
     }
-    renderWith([bandages, orphan], [medicine], [pharmacy])
+    renderWith([outBandages, orphan], [medicine], [pharmacy])
 
     expect(screen.getByText("1 pending Item with no Shop won't be included in the export.")).toBeInTheDocument()
   })
@@ -112,7 +106,7 @@ describe('CalendarExport', () => {
       status: 'fallback',
       links: [{ shopName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }],
     })
-    renderWith([bandages], [medicine], [pharmacy])
+    renderWith([outBandages], [medicine], [pharmacy])
 
     await submit('2026-03-05')
 
