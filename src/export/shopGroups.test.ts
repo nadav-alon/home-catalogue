@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import type { ItemRecord } from '../catalogue/items.ts'
+import type { CategoryRecord } from '../catalogue/categories.ts'
 import { cleaning, grocery, medicine, pharmacy } from '../catalogue/testFixtures.ts'
 import { pendingItemsByShop } from './shopGroups.ts'
 
