@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/pre
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
+import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
 import { ShopsManager } from './ShopsManager.tsx'
 import type { ShopRecord } from './shops.ts'
 import { grocery, pharmacy } from './testFixtures.ts'
@@ -9,6 +10,7 @@ import { grocery, pharmacy } from './testFixtures.ts'
 const createShop = vi.fn()
 const renameShop = vi.fn()
 const deleteShop = vi.fn()
+const restoreShop = vi.fn()
 const watchShops = vi.fn()
 
 const { FakeShopInUseError } = vi.hoisted(() => ({
@@ -19,6 +21,7 @@ vi.mock('./shops.ts', () => ({
   createShop: (db: unknown, name: string) => createShop(db, name),
   renameShop: (db: unknown, shop: unknown, name: string) => renameShop(db, shop, name),
   deleteShop: (db: unknown, shop: unknown) => deleteShop(db, shop),
+  restoreShop: (db: unknown, shop: unknown) => restoreShop(db, shop),
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
   ShopInUseError: FakeShopInUseError,
 }))
@@ -38,6 +41,8 @@ beforeEach(() => {
   createShop.mockReset().mockResolvedValue(undefined)
   renameShop.mockReset().mockResolvedValue(undefined)
   deleteShop.mockReset().mockResolvedValue(undefined)
+  restoreShop.mockReset().mockResolvedValue(undefined)
+  resetSnackbar()
   watchShops.mockReset()
   unsubscribe.mockClear()
 })
@@ -48,6 +53,19 @@ function renderWithShops(shops: ShopRecord[]) {
     return unsubscribe
   })
   return render(<ShopsManager db={fakeDb} />)
+}
+
+function renderWithShopsAndSnackbar(shops: ShopRecord[]) {
+  watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
+    cb(shops)
+    return unsubscribe
+  })
+  return render(
+    <>
+      <ShopsManager db={fakeDb} />
+      <SnackbarHost />
+    </>,
+  )
 }
 
 function openEditor(shopName: string) {
@@ -143,6 +161,29 @@ describe('ShopsManager', () => {
 
     expect(deleteShop).toHaveBeenCalledWith(fakeDb, pharmacy)
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('offers Undo in a snackbar after deleting, which restores the Shop', async () => {
+    renderWithShopsAndSnackbar([pharmacy])
+    openEditor('Pharmacy')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    const status = screen.getByRole('status')
+    await waitFor(() => expect(status).toHaveTextContent('Deleted Pharmacy'))
+    fireEvent.click(within(status).getByRole('button', { name: 'Undo' }))
+    expect(restoreShop).toHaveBeenCalledWith(fakeDb, pharmacy)
+  })
+
+  it('shows no snackbar when deletion is refused', async () => {
+    deleteShop.mockRejectedValueOnce(new FakeShopInUseError('This Shop is in use.'))
+    renderWithShopsAndSnackbar([pharmacy])
+    openEditor('Pharmacy')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await screen.findByRole('alert')
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
   it('shows the ShopInUseError message when deletion is refused', async () => {

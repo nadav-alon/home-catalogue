@@ -8,11 +8,20 @@ import { Fab } from '../ui/Fab.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { route } from '../ui/route.ts'
+import { showSnackbar } from '../ui/Snackbar.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import { navigate } from '../ui/useRoute.ts'
 import AddIcon from '~icons/material-symbols/add'
 import ArrowBackIcon from '~icons/material-symbols/arrow-back'
-import { createShop, deleteShop, renameShop, watchShops, ShopInUseError, type ShopRecord } from './shops.ts'
+import {
+  createShop,
+  deleteShop,
+  renameShop,
+  restoreShop,
+  watchShops,
+  ShopInUseError,
+  type ShopRecord,
+} from './shops.ts'
 
 const SETTINGS = route('/settings')
 
@@ -87,6 +96,10 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
   async function handleDelete() {
     try {
       await deleteShop(db, shop)
+      showSnackbar({
+        text: `Deleted ${shop.name}`,
+        action: { label: 'Undo', onAction: () => void restoreShop(db, shop) },
+      })
       onClose()
     } catch (err) {
       setError(err instanceof ShopInUseError ? err.message : 'Could not delete Shop')
