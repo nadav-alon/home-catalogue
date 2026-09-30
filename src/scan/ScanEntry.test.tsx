@@ -61,4 +61,13 @@ describe('ScanEntry', () => {
     await waitFor(() => expect(document.querySelector('dialog')).not.toHaveAttribute('open'))
     expect(onScan).not.toHaveBeenCalled()
   })
+
+  it('closes with "Camera unavailable" when the camera cannot be opened for another reason', async () => {
+    getUserMedia.mockRejectedValueOnce(new DOMException('No camera', 'NotFoundError'))
+    const onScan = renderEntry()
+    fireEvent.click(screen.getByRole('button', { name: 'Scan barcode' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Camera unavailable')
+    await waitFor(() => expect(document.querySelector('dialog')).not.toHaveAttribute('open'))
+    expect(onScan).not.toHaveBeenCalled()
+  })
 })

@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks'
 import type { core } from 'data-platform'
 import { TopAppBarActions } from '../shell/TopAppBar.tsx'
 import { ScanButton } from './ScanButton.tsx'
-import { CAMERA_DENIED_MESSAGE, ScannerDialog } from './ScannerDialog.tsx'
+import { CAMERA_DENIED_MESSAGE, CAMERA_UNAVAILABLE_MESSAGE, ScannerDialog } from './ScannerDialog.tsx'
 
 export interface ScanEntryProps {
   onScan: (barcode: core.Barcode) => void
@@ -11,13 +11,13 @@ export interface ScanEntryProps {
 /** The Items screen's way into scanning: the icon in the top app bar, the dialog it opens, and why a scan could not start. */
 export function ScanEntry({ onScan }: ScanEntryProps) {
   const [open, setOpen] = useState(false)
-  const [denied, setDenied] = useState(false)
+  const [failure, setFailure] = useState<string>()
   return (
     <>
       <TopAppBarActions>
         <ScanButton
           onClick={() => {
-            setDenied(false)
+            setFailure(undefined)
             setOpen(true)
           }}
         />
@@ -30,11 +30,15 @@ export function ScanEntry({ onScan }: ScanEntryProps) {
         }}
         onDenied={() => {
           setOpen(false)
-          setDenied(true)
+          setFailure(CAMERA_DENIED_MESSAGE)
+        }}
+        onUnavailable={() => {
+          setOpen(false)
+          setFailure(CAMERA_UNAVAILABLE_MESSAGE)
         }}
         onClose={() => setOpen(false)}
       />
-      {denied && <p role="alert">{CAMERA_DENIED_MESSAGE}</p>}
+      {failure !== undefined && <p role="alert">{failure}</p>}
     </>
   )
 }
