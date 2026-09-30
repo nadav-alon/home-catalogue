@@ -55,7 +55,7 @@ function openEditor(shopName: string) {
 }
 
 describe('ShopsManager', () => {
-  it('has a back arrow in the top app bar that returns to Settings', () => {
+  it('has a back arrow in the top app bar’s leading slot that returns to Settings', () => {
     watchShops.mockReturnValue(unsubscribe)
     window.location.hash = '#/settings/shops'
     render(
@@ -64,7 +64,9 @@ describe('ShopsManager', () => {
       </TopAppBar>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Settings' }))
+    const back = screen.getByRole('button', { name: 'Back to Settings' })
+    expect(back.closest('.shell-top-bar__navigation')).not.toBeNull()
+    fireEvent.click(back)
 
     expect(window.location.hash).toBe('#/settings')
   })

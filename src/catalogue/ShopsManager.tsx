@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
-import { TopAppBarActions } from '../shell/TopAppBar.tsx'
+import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
@@ -116,10 +116,9 @@ export function ShopsManager({ db }: ShopsManagerProps) {
 
   return (
     <section>
-      {/* TODO[#217]: move the back arrow to TopAppBar's leading navigation slot. */}
-      <TopAppBarActions>
+      <TopAppBarNavigation>
         <IconButton symbol={ArrowBackIcon} label="Back to Settings" onClick={() => navigate(SETTINGS)} />
-      </TopAppBarActions>
+      </TopAppBarNavigation>
       <h2>Shops</h2>
       <ul>
         {shops.map((shop) => (
