@@ -87,8 +87,10 @@ describe('CategoriesManager', () => {
       </TopAppBar>,
     )
 
-    const back = screen.getByRole('button', { name: 'Back to Settings' })
-    expect(back.closest('.shell-top-bar__navigation')).not.toBeNull()
+    const banner = screen.getByRole('banner')
+    const back = within(banner).getByRole('button', { name: 'Back to Settings' })
+    const heading = within(banner).getByRole('heading', { level: 1 })
+    expect(back.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     fireEvent.click(back)
 
     expect(window.location.hash).toBe('#/settings')

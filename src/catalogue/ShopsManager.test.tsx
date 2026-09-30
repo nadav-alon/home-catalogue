@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
@@ -64,8 +64,10 @@ describe('ShopsManager', () => {
       </TopAppBar>,
     )
 
-    const back = screen.getByRole('button', { name: 'Back to Settings' })
-    expect(back.closest('.shell-top-bar__navigation')).not.toBeNull()
+    const banner = screen.getByRole('banner')
+    const back = within(banner).getByRole('button', { name: 'Back to Settings' })
+    const heading = within(banner).getByRole('heading', { level: 1 })
+    expect(back.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     fireEvent.click(back)
 
     expect(window.location.hash).toBe('#/settings')
