@@ -47,15 +47,7 @@ beforeEach(() => {
   unsubscribe.mockClear()
 })
 
-function renderWithShops(shops: ShopRecord[]) {
-  watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
-    cb(shops)
-    return unsubscribe
-  })
-  return render(<ShopsManager db={fakeDb} />)
-}
-
-function renderWithShopsAndSnackbar(shops: ShopRecord[]) {
+function renderWithShops(shops: ShopRecord[], { withSnackbar = false } = {}) {
   watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
     cb(shops)
     return unsubscribe
@@ -63,7 +55,7 @@ function renderWithShopsAndSnackbar(shops: ShopRecord[]) {
   return render(
     <>
       <ShopsManager db={fakeDb} />
-      <SnackbarHost />
+      {withSnackbar && <SnackbarHost />}
     </>,
   )
 }
@@ -164,7 +156,7 @@ describe('ShopsManager', () => {
   })
 
   it('offers Undo in a snackbar after deleting, which restores the Shop', async () => {
-    renderWithShopsAndSnackbar([pharmacy])
+    renderWithShops([pharmacy], { withSnackbar: true })
     openEditor('Pharmacy')
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
@@ -177,7 +169,7 @@ describe('ShopsManager', () => {
 
   it('shows no snackbar when deletion is refused', async () => {
     deleteShop.mockRejectedValueOnce(new FakeShopInUseError('This Shop is in use.'))
-    renderWithShopsAndSnackbar([pharmacy])
+    renderWithShops([pharmacy], { withSnackbar: true })
     openEditor('Pharmacy')
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
