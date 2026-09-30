@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/preact'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
@@ -11,6 +11,7 @@ const watchMembers = vi.fn()
 const watchInvites = vi.fn()
 const currentUserUid = vi.fn()
 const removeMember = vi.fn()
+const reportFailure = vi.fn()
 
 vi.mock('./members.ts', () => ({
   watchMembers: (db: unknown, cb: unknown) => watchMembers(db, cb),
@@ -19,6 +20,10 @@ vi.mock('./members.ts', () => ({
 
 vi.mock('../auth/authClient.ts', () => ({
   currentUserUid: (app: unknown) => currentUserUid(app),
+}))
+
+vi.mock('../catalogue/writeRejections.ts', () => ({
+  reportFailure: (message: unknown, err: unknown) => reportFailure(message, err),
 }))
 
 vi.mock('./invites.ts', () => ({
@@ -35,6 +40,7 @@ beforeEach(() => {
   watchInvites.mockReset().mockReturnValue(unsubscribe)
   unsubscribe.mockClear()
   removeMember.mockReset().mockResolvedValue(undefined)
+  reportFailure.mockReset()
   currentUserUid.mockReset().mockReturnValue(core.uid('u1'))
 })
 
@@ -132,6 +138,20 @@ describe('MembersScreen', () => {
     const publish = watchMembers.mock.calls[0][1] as (members: MemberRecord[]) => void
     act(() => publish([owner]))
     expect(screen.queryByText('b@example.com')).toBeNull()
+  })
+
+  it('reports a failed removal instead of dropping it', async () => {
+    const failure = new Error('permission-denied')
+    removeMember.mockRejectedValue(failure)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderScreen([
+      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true },
+      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
+    ])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove b@example.com' }))
+
+    await waitFor(() => expect(reportFailure).toHaveBeenCalledWith('Could not remove b@example.com', failure))
   })
 
   it('offers no Remove when no Member is flagged Owner', () => {
