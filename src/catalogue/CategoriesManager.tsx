@@ -130,7 +130,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     }
   }
 
-  /** Deleting is queued, not awaited, so the dialog closes at once even offline; Undo restores the Category. */
+  /** deleteCategory resolves once queued, so the dialog closes at once even offline; Undo restores the Category. */
   async function handleDelete(category: CategoryRecord) {
     setError(null)
     try {
