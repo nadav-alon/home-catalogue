@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { createItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findItemsByBarcode, matchesName, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
+import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { watchShops, type ShopRecord } from './shops.ts'
+import { navigateToItems } from '../ui/useRoute.ts'
 import { ItemDialog } from './ItemDialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
@@ -27,17 +29,37 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
-  /** `null` while the Item dialog is closed; `item` is the Item being edited, absent when adding. */
-  const [dialog, setDialog] = useState<{ item?: ItemRecord } | null>(null)
+  /** `null` while the Item dialog is closed; otherwise editing `item`, or adding an Item that may carry `barcode`. */
+  const [dialog, setDialog] = useState<{ item: ItemRecord } | { item?: undefined; barcode?: core.Barcode } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
+  const [unknownBarcode, setUnknownBarcode] = useState<core.Barcode | undefined>(undefined)
 
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
 
+  async function handleScan(barcode: core.Barcode) {
+    try {
+      const found = await findItemsByBarcode(db, barcode)
+      setError(null)
+      if (found.length === 0) setUnknownBarcode(barcode)
+      else navigateToItems(found.map((item) => item.id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not look up the barcode')
+    }
+  }
+
+  async function handleAttach(item: ItemRecord) {
+    if (unknownBarcode === undefined) return
+    await attachBarcode(db, item, unknownBarcode)
+    setUnknownBarcode(undefined)
+    navigateToItems([item.id])
+  }
+
   function openDialog(item: ItemRecord | undefined) {
-    setDialog({ item })
+    setDialog(item ? { item } : {})
   }
 
   async function handleSetState(item: ItemRecord, state: core.State) {
@@ -52,7 +74,6 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.
   const editedItem = dialog?.item && (items?.find((item) => item.id === dialog.item?.id) ?? dialog.item)
 
-  const needle = search.trim().toLowerCase()
   const scanFiltered = itemIds.length > 0
   const candidateItems = (items ?? []).filter((item) => !scanFiltered || itemIds.includes(item.id))
   const scannedLabel =
@@ -63,7 +84,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         : `${candidateItems.length} Items`
   const visibleItems = scanFiltered
     ? candidateItems
-    : candidateItems.filter((item) => item.name.toLowerCase().includes(needle))
+    : candidateItems.filter((item) => matchesName(item, search))
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
@@ -74,8 +95,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   return (
     <section class="items-manager">
       <h2>Items</h2>
-      {/* TODO[#169]: route the scanned barcode to its Items, or attach it. */}
-      <ScanEntry onScan={() => {}} />
+      <ScanEntry onScan={(barcode) => void handleScan(barcode)} />
       {error !== null && <p role="alert">{error}</p>}
       {!scanFiltered ? (
         <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
@@ -98,6 +118,16 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
       {uncategorisedItems.length > 0 && (
         <ItemGroup heading="Uncategorised" items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
+      <UnknownBarcodeChooser
+        barcode={unknownBarcode}
+        items={items ?? []}
+        onAttach={(item) => void handleAttach(item)}
+        onNewItem={() => {
+          setDialog({ barcode: unknownBarcode })
+          setUnknownBarcode(undefined)
+        }}
+        onClose={() => setUnknownBarcode(undefined)}
+      />
       <Fab symbol={AddIcon} label="Add Item" onClick={() => openDialog(undefined)} />
       <ItemDialog
         open={dialog !== null}
@@ -106,7 +136,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         shops={shops}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
         onSave={async (input) => {
-          if (!editedItem) return createItem(db, input)
+          if (!editedItem) return createItem(db, { ...input, barcode: dialog && 'barcode' in dialog ? dialog.barcode : undefined })
           // Its reference counts move from the current record.
           await updateItem(db, editedItem, input)
         }}

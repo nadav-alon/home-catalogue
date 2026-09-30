@@ -1,7 +1,8 @@
 import { act, renderHook } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { core } from 'data-platform'
 import { DEFAULT_ROUTE, hashOf, route } from './route.ts'
-import { navigate, useRoute } from './useRoute.ts'
+import { navigate, navigateToItems, useItemIds, useRoute } from './useRoute.ts'
 import { resetHash } from '../testing/hash.ts'
 
 afterEach(resetHash)
@@ -104,5 +105,18 @@ describe('navigate', () => {
     navigate(DEFAULT_ROUTE)
     expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
     expect(window.history.length).toBe(entries)
+  })
+})
+
+describe('navigateToItems', () => {
+  it('pushes the Items screen filtered to the ids, so back returns to where the Member was', async () => {
+    const { result } = renderHook(() => ({ route: useRoute(), ids: useItemIds() }))
+    const ids = [core.itemId('a'), core.itemId('b')]
+    await act(async () => {
+      navigateToItems(ids)
+      await nextHashChange()
+    })
+    expect(result.current).toEqual({ route: route('/items'), ids })
+    expect(window.location.hash).toBe('#/items?item=a,b')
   })
 })

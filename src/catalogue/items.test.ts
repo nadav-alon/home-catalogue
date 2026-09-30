@@ -174,6 +174,23 @@ describe('watchItems', () => {
 })
 
 describe('createItem', () => {
+  it('writes the Barcode the new Item carries into its core doc', async () => {
+    const { createItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await createItem(fakeDb, {
+      name: 'Dish soap',
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+      barcode: core.barcode('12345678'),
+    })
+
+    expect(batchSet).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'generated-id' },
+      { name: 'Dish soap', state: 'enough', barcodes: ['12345678'] },
+    )
+  })
+
   it('writes the core Item and catalogue CatalogueItem docs as one batch, starting at State enough', async () => {
     const { createItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
