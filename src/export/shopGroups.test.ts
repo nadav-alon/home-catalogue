@@ -1,24 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { catalogue, core } from 'data-platform'
-import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ItemRecord } from '../catalogue/items.ts'
-import type { ShopRecord } from '../catalogue/shops.ts'
+import { cleaning, grocery, medicine, pharmacy } from '../catalogue/testFixtures.ts'
 import { pendingItemsByShop } from './shopGroups.ts'
-
-const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 1 }
-const grocery: ShopRecord = { id: catalogue.shopId('grocery'), name: 'Grocery', referenceCount: 1 }
-const medicine: CategoryRecord = {
-  id: catalogue.categoryId('medicine'),
-  name: 'Medicine',
-  defaultShopId: pharmacy.id,
-  referenceCount: 1,
-}
-const cleaning: CategoryRecord = {
-  id: catalogue.categoryId('cleaning'),
-  name: 'Cleaning',
-  defaultShopId: grocery.id,
-  referenceCount: 1,
-}
 
 describe('pendingItemsByShop', () => {
   it('groups pending Items under their resolved Shop, in Shop order', () => {
@@ -94,10 +78,10 @@ describe('pendingItemsByShop', () => {
 
   it('leaves out an Item whose resolved Shop has no record, without counting it as unresolved', () => {
     const garden: CategoryRecord = {
+      ...medicine,
       id: catalogue.categoryId('garden'),
       name: 'Garden',
       defaultShopId: catalogue.shopId('deleted-shop'),
-      referenceCount: 1,
     }
     const seeds: ItemRecord = {
       id: core.itemId('seeds'),
