@@ -285,6 +285,14 @@ async function queryCoreItemsByBarcode(
 }
 
 /**
+ * Every Item in `items` carrying `barcode` in its `barcodes`; empty when none does. Answers from
+ * the Items already in memory, so it never waits on the server.
+ */
+export function itemsWithBarcode(items: readonly ItemRecord[], barcode: core.Barcode): ItemRecord[] {
+  return items.filter((item) => item.barcodes?.includes(barcode))
+}
+
+/**
  * Every Item whose core `items` doc carries `barcode` in its `barcodes`, answered from the local
  * cache when offline. Empty when none does; a soft-deleted Item (`deletedAt` set) is not found.
  * Only the core half is returned, so an Item whose catalogue half has not synced yet is found here

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import type { ItemRecord } from './items.ts'
+import { bandages, bandagesWithBarcodes } from './testFixtures.ts'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
 /** Mirrors both overloads used in items.ts: `doc(collectionRef)` generates an id; `doc(db, path, id)` targets one. */
@@ -656,6 +657,25 @@ describe('a queued Item write the server rejects', () => {
     await Promise.resolve()
 
     expect(latest()).toEqual(['Could not save changes to Dish soap'])
+  })
+})
+
+describe('itemsWithBarcode', () => {
+  const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape', barcodes: [core.barcode('12345678')] }
+
+  it('returns every Item carrying the barcode, leaving the others', async () => {
+    const { itemsWithBarcode } = await import('./items.ts')
+
+    expect(itemsWithBarcode([bandages, bandagesWithBarcodes, tape], core.barcode('12345678'))).toEqual([
+      bandagesWithBarcodes,
+      tape,
+    ])
+  })
+
+  it('returns an empty list when no Item carries the barcode', async () => {
+    const { itemsWithBarcode } = await import('./items.ts')
+
+    expect(itemsWithBarcode([bandages, bandagesWithBarcodes], core.barcode('4006381333931'))).toEqual([])
   })
 })
 
