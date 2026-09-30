@@ -32,11 +32,11 @@ function publish(next: SnackbarMessage | null): void {
 /** Shows `message` in the app's one snackbar, from any screen. */
 export function showSnackbar(message: SnackbarMessage): void {
   publish(message)
-  startTimer(message)
+  restartTimeout(message)
 }
 
 /** Gives `message` a fresh full timeout, unless a hold keeps it up. */
-function startTimer(message: SnackbarMessage): void {
+function restartTimeout(message: SnackbarMessage): void {
   clearTimeout(timer)
   if (holds.size === 0) timer = setTimeout(() => dismiss(message), snackbarDurationMs)
 }
@@ -49,7 +49,7 @@ function setHold(hold: Hold, active: boolean): void {
     clearTimeout(timer)
   } else {
     holds.delete(hold)
-    startTimer(current)
+    restartTimeout(current)
   }
 }
 
