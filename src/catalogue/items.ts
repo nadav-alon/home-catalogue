@@ -24,6 +24,11 @@ export interface ItemRecord extends core.Item, catalogue.CatalogueItem {
   id: core.ItemId
 }
 
+/** Whether `item`'s name contains `search`, ignoring case and surrounding whitespace; every Item matches an empty search. */
+export function matchesName(item: ItemRecord, search: string): boolean {
+  return item.name.toLowerCase().includes(search.trim().toLowerCase())
+}
+
 export interface ItemInput {
   name: string
   brandNote?: string
@@ -122,10 +127,11 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
 /**
  * Validates against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema} before
  * writing a new Item's two docs, core `items` plus catalogue `catalogueItems`, keyed by the same
- * generated id, as one batch. A new Item always starts at State `enough`, carrying `barcode` when given. The batch also bumps
- * the referenced Category's referenceCount, and the Shop override's when set, matching the
- * platform's create rule. Resolves once the batch is queued, not once Firestore acknowledges it,
- * so a caller offline is not left waiting; a batch the server later rejects is reported through {@link reportWriteRejection}.
+ * generated id, as one batch. A new Item always starts at State `enough`, carrying `barcode`
+ * when given. The batch also bumps the referenced Category's referenceCount, and the Shop
+ * override's when set, matching the platform's create rule. Resolves once the batch is queued,
+ * not once Firestore acknowledges it, so a caller offline is not left waiting; a batch the
+ * server later rejects is reported through {@link reportWriteRejection}.
  */
 export async function createItem(db: Firestore, input: NewItemInput): Promise<void> {
   const item = core.itemSchema.parse({

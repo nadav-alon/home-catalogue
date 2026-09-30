@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, findItemsByBarcode, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findItemsByBarcode, matchesName, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
@@ -74,7 +74,6 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.
   const editedItem = dialog?.item && (items?.find((item) => item.id === dialog.item?.id) ?? dialog.item)
 
-  const needle = search.trim().toLowerCase()
   const scanFiltered = itemIds.length > 0
   const candidateItems = (items ?? []).filter((item) => !scanFiltered || itemIds.includes(item.id))
   const scannedLabel =
@@ -85,7 +84,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         : `${candidateItems.length} Items`
   const visibleItems = scanFiltered
     ? candidateItems
-    : candidateItems.filter((item) => item.name.toLowerCase().includes(needle))
+    : candidateItems.filter((item) => matchesName(item, search))
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)

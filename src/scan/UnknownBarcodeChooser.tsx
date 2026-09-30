@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks'
 import type { core } from 'data-platform'
-import type { ItemRecord } from '../catalogue/items.ts'
+import { matchesName, type ItemRecord } from '../catalogue/items.ts'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
@@ -22,15 +22,14 @@ export interface UnknownBarcodeChooserProps {
 export function UnknownBarcodeChooser({ barcode, items, onAttach, onNewItem, onClose }: UnknownBarcodeChooserProps) {
   return (
     <Dialog open={barcode !== undefined} title="Unknown barcode" onClose={onClose}>
-      {barcode !== undefined && <Choice barcode={barcode} items={items} onAttach={onAttach} onNewItem={onNewItem} onClose={onClose} />}
+      {barcode !== undefined && <UnknownBarcodeChoice barcode={barcode} items={items} onAttach={onAttach} onNewItem={onNewItem} onClose={onClose} />}
     </Dialog>
   )
 }
 
-function Choice({ barcode, items, onAttach, onNewItem, onClose }: UnknownBarcodeChooserProps & { barcode: core.Barcode }) {
+function UnknownBarcodeChoice({ barcode, items, onAttach, onNewItem, onClose }: UnknownBarcodeChooserProps & { barcode: core.Barcode }) {
   const [picking, setPicking] = useState(false)
   const [search, setSearch] = useState('')
-  const needle = search.trim().toLowerCase()
   return (
     <>
       <p>No Item carries {barcode}.</p>
@@ -46,7 +45,7 @@ function Choice({ barcode, items, onAttach, onNewItem, onClose }: UnknownBarcode
           <TextField type="search" label="Find an Item" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
           <ul>
             {items
-              .filter((item) => item.name.toLowerCase().includes(needle))
+              .filter((item) => matchesName(item, search))
               .map((item) => (
                 <ListRow key={item.id} headline={item.name} supporting={item.brandNote} onActivate={() => onAttach(item)} />
               ))}
