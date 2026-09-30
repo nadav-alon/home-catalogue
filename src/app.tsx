@@ -56,7 +56,6 @@ function Screen({ route: current, db, config }: { route: Route } & AppProps) {
         </>
       )
     case '/items':
-      // TODO[#136]: the Items screen.
       return <ItemsManager db={db} />
     case '/settings':
       // TODO[#139]: the Settings screen.

@@ -1,5 +1,6 @@
-import { catalogue } from 'data-platform'
+import { catalogue, core } from 'data-platform'
 import type { CategoryRecord } from './categories.ts'
+import type { ItemRecord } from './items.ts'
 import type { ShopRecord } from './shops.ts'
 
 /**
@@ -19,4 +20,13 @@ export const cleaning: CategoryRecord = {
   name: 'Cleaning',
   defaultShopId: grocery.id,
   referenceCount: 0,
+}
+
+/** A shared Item record for tests; a test that needs a variation spreads over it: `{ ...bandages, brandNote }`. */
+export const bandages: ItemRecord = {
+  id: core.itemId('bandages'),
+  name: 'Bandages',
+  state: 'enough',
+  categoryId: medicine.id,
+  necessity: 'essential',
 }

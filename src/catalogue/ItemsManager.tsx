@@ -2,32 +2,19 @@ import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
-import {
-  createItem,
-  resolvedShopId,
-  setItemState,
-  updateItem,
-  watchItems,
-  type ItemInput,
-  type ItemRecord,
-} from './items.ts'
+import { createItem, setItemState, watchItems, type ItemInput, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
-import { shopName, UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
+import { watchShops, type ShopRecord } from './shops.ts'
+import { ListRow } from '../ui/ListRow.tsx'
+import { SegmentedButton } from '../ui/SegmentedButton.tsx'
+import { TextField } from '../ui/TextField.tsx'
 
 export interface ItemsManagerProps {
   db: Firestore
 }
 
 const NO_SHOP_OVERRIDE = ''
-
-const visuallyHiddenStyle: JSX.CSSProperties = {
-  position: 'absolute',
-  width: '1px',
-  height: '1px',
-  overflow: 'hidden',
-  clip: 'rect(0, 0, 0, 0)',
-}
 
 interface ItemFormValues {
   name: string
@@ -62,7 +49,7 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 }
 
 export function ItemsManager({ db }: ItemsManagerProps) {
-  const [items, setItems] = useState<ItemRecord[]>([])
+  const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [newName, setNewName] = useState('')
@@ -71,15 +58,11 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   const [newNecessity, setNewNecessity] = useState('')
   const [newShopId, setNewShopId] = useState(NO_SHOP_OVERRIDE)
   const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
-
-  function resolveShopName(item: ItemRecord, category: CategoryRecord | undefined): string {
-    const shopId = resolvedShopId(item, category)
-    return shopId !== undefined ? shopName(shops, shopId) : UNKNOWN_SHOP_NAME
-  }
 
   async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -116,24 +99,13 @@ export function ItemsManager({ db }: ItemsManagerProps) {
     }
   }
 
-  async function handleUpdate(item: ItemRecord, values: ItemFormValues) {
-    const result = parseItemFormValues(values)
-    if ('error' in result) {
-      setError(result.error)
-      return
-    }
-    try {
-      await updateItem(db, item, result.input)
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not update Item')
-    }
-  }
-
+  const needle = search.trim().toLowerCase()
+  const loadedItems = items ?? []
+  const visibleItems = loadedItems.filter((item) => item.name.toLowerCase().includes(needle))
   const groups = categories
-    .map((category) => ({ category, items: items.filter((item) => item.categoryId === category.id) }))
+    .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
-  const uncategorisedItems = items.filter(
+  const uncategorisedItems = visibleItems.filter(
     (item) => !categories.some((category) => category.id === item.categoryId),
   )
 
@@ -143,41 +115,15 @@ export function ItemsManager({ db }: ItemsManagerProps) {
       {/* TODO[#169]: route the scanned barcode to its Items, or attach it. */}
       <ScanEntry onScan={() => {}} />
       {error !== null && <p role="alert">{error}</p>}
+      <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
+      {items !== undefined && visibleItems.length === 0 && (
+        <p>{items.length === 0 ? 'No Items yet.' : 'No Items match your search.'}</p>
+      )}
       {groups.map(({ category, items: categoryItems }) => (
-        <div key={category.id}>
-          <h3>{category.name}</h3>
-          <ul>
-            {categoryItems.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                categories={categories}
-                shops={shops}
-                resolvedShopName={resolveShopName(item, category)}
-                onSetState={(state) => void handleSetState(item, state)}
-                onUpdate={(values) => void handleUpdate(item, values)}
-              />
-            ))}
-          </ul>
-        </div>
+        <ItemGroup key={category.id} heading={category.name} items={categoryItems} onSetState={handleSetState} />
       ))}
       {uncategorisedItems.length > 0 && (
-        <div>
-          <h3>Uncategorised</h3>
-          <ul>
-            {uncategorisedItems.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                categories={categories}
-                shops={shops}
-                resolvedShopName={resolveShopName(item, undefined)}
-                onSetState={(state) => void handleSetState(item, state)}
-                onUpdate={(values) => void handleUpdate(item, values)}
-              />
-            ))}
-          </ul>
-        </div>
+        <ItemGroup heading="Uncategorised" items={uncategorisedItems} onSetState={handleSetState} />
       )}
       <form onSubmit={handleCreate}>
         <label htmlFor="new-item-name">New Item name</label>
@@ -234,110 +180,36 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   )
 }
 
-interface ItemRowProps {
-  item: ItemRecord
-  categories: CategoryRecord[]
-  shops: ShopRecord[]
-  resolvedShopName: string
-  onSetState: (state: core.State) => void
-  onUpdate: (values: ItemFormValues) => void
+interface ItemGroupProps {
+  heading: string
+  items: ItemRecord[]
+  onSetState: (item: ItemRecord, state: core.State) => Promise<void>
 }
 
-function ItemRow({ item, categories, shops, resolvedShopName, onSetState, onUpdate }: ItemRowProps) {
-  const [name, setName] = useState(item.name)
-  const [brandNote, setBrandNote] = useState(item.brandNote ?? '')
-  const [categoryId, setCategoryId] = useState<string>(item.categoryId)
-  const [necessity, setNecessity] = useState<string>(item.necessity)
-  const [shopId, setShopId] = useState<string>(item.shopId ?? NO_SHOP_OVERRIDE)
-
-  useEffect(() => {
-    setName(item.name)
-    setBrandNote(item.brandNote ?? '')
-    setCategoryId(item.categoryId)
-    setNecessity(item.necessity)
-    setShopId(item.shopId ?? NO_SHOP_OVERRIDE)
-  }, [item.name, item.brandNote, item.categoryId, item.necessity, item.shopId])
-
+function ItemGroup({ heading, items, onSetState }: ItemGroupProps) {
   return (
-    <li>
-      <span>{item.name}</span>
-      {item.brandNote !== undefined && <span>{item.brandNote}</span>}
-      <span>{item.necessity}</span>
-      <span>Shop: {resolvedShopName}</span>
-      <fieldset>
-        <legend style={visuallyHiddenStyle}>State for {item.name}</legend>
-        {core.stateSchema.options.map((state) => (
-          <button
-            key={state}
-            type="button"
-            aria-pressed={item.state === state}
-            aria-disabled={item.state === state}
-            onClick={() => {
-              if (item.state === state) return
-              onSetState(state)
-            }}
-          >
-            {state}
-          </button>
+    <div>
+      <h3>{heading}</h3>
+      <ul>
+        {items.map((item) => (
+          // TODO[#137]: open the Item dialog on row tap.
+          <ListRow
+            key={item.id}
+            headline={item.name}
+            supporting={[item.brandNote, item.necessity].filter((part) => part !== undefined).join(' · ')}
+            trailing={
+              <SegmentedButton
+                label={`State for ${item.name}`}
+                options={core.stateSchema.options.map((state) => ({ value: state, label: state }))}
+                value={item.state}
+                onChange={(state) => {
+                  if (state !== item.state) void onSetState(item, state)
+                }}
+              />
+            }
+          />
         ))}
-      </fieldset>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          onUpdate({ name, brandNote, categoryId, necessity, shopId })
-        }}
-      >
-        <label htmlFor={`item-name-${item.id}`}>Edit {item.name}</label>
-        <input id={`item-name-${item.id}`} value={name} onInput={(event) => setName(event.currentTarget.value)} />
-
-        <label htmlFor={`item-brand-note-${item.id}`}>Brand note for {item.name}</label>
-        <input
-          id={`item-brand-note-${item.id}`}
-          value={brandNote}
-          onInput={(event) => setBrandNote(event.currentTarget.value)}
-        />
-
-        <label htmlFor={`item-category-${item.id}`}>Category for {item.name}</label>
-        <select
-          id={`item-category-${item.id}`}
-          value={categoryId}
-          onChange={(event) => setCategoryId(event.currentTarget.value)}
-        >
-          {!categories.some((category) => category.id === categoryId) && (
-            <option value={categoryId}>Unknown Category</option>
-          )}
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor={`item-necessity-${item.id}`}>Necessity for {item.name}</label>
-        <select
-          id={`item-necessity-${item.id}`}
-          value={necessity}
-          onChange={(event) => setNecessity(event.currentTarget.value)}
-        >
-          {catalogue.necessitySchema.options.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor={`item-shop-${item.id}`}>Shop override for {item.name}</label>
-        <select id={`item-shop-${item.id}`} value={shopId} onChange={(event) => setShopId(event.currentTarget.value)}>
-          <option value={NO_SHOP_OVERRIDE}>Use Category default</option>
-          {shops.map((shop) => (
-            <option key={shop.id} value={shop.id}>
-              {shop.name}
-            </option>
-          ))}
-        </select>
-
-        <button type="submit">Save {item.name}</button>
-      </form>
-    </li>
+      </ul>
+    </div>
   )
 }
