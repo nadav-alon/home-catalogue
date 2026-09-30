@@ -19,7 +19,7 @@ export interface MembersScreenProps {
   db: Firestore
 }
 
-/** The Household's Members and pending invites; every Member can open it, and only the Owner can remove a Member. */
+/** The Household's Members and pending Invites; every Member can open it, and only the Owner can remove a Member. */
 export function MembersScreen({ db }: MembersScreenProps) {
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [invites, setInvites] = useState<core.Email[]>([])

@@ -11,8 +11,8 @@ exporting shopping trips to Google Calendar. Stores its data on the data platfor
 The one group of people sharing this Catalogue. Has one Owner and any number of Members.
 
 **Member**:
-A person who belongs to the Household and can read and change its data, including who else is a
-Member and which Invites are pending. Listed by email.
+A person who belongs to the Household and can read and change its data, including which Invites are
+pending. Only the Owner can remove a Member. Listed by email.
 
 **Owner**:
 The Member who claimed the Household. The only one who creates or revokes Invites. Immutable once
