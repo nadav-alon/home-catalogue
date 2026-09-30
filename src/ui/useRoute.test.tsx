@@ -37,6 +37,22 @@ describe('useRoute', () => {
     expect(window.history.length).toBe(entries)
   })
 
+  it('replaces a later change to an unknown hash the same way', async () => {
+    const { result } = renderHook(() => useRoute())
+    window.location.hash = '#/items'
+    await act(async () => {
+      await nextHashChange()
+    })
+    const entries = window.history.length
+    await act(async () => {
+      window.location.hash = '#/nowhere'
+      await nextHashChange()
+    })
+    expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
+    expect(window.history.length).toBe(entries + 1)
+    expect(result.current).toBe(DEFAULT_ROUTE)
+  })
+
   it('re-renders on hashchange', async () => {
     const { result } = renderHook(() => useRoute())
     await act(async () => {

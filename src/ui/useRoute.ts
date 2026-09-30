@@ -14,7 +14,10 @@ export function useRoute(): Route {
   const [current, setCurrent] = useState(() => routeOf(window.location.hash))
   useEffect(() => {
     normaliseHash()
-    const onHashChange = () => setCurrent(routeOf(window.location.hash))
+    const onHashChange = () => {
+      normaliseHash()
+      setCurrent(routeOf(window.location.hash))
+    }
     window.addEventListener('hashchange', onHashChange)
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
