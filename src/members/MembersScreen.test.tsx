@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/preact'
+import { act, fireEvent, render, screen, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
@@ -10,9 +10,11 @@ import type { MemberRecord } from './members.ts'
 const watchMembers = vi.fn()
 const watchInvites = vi.fn()
 const currentUserUid = vi.fn()
+const removeMember = vi.fn()
 
 vi.mock('./members.ts', () => ({
   watchMembers: (db: unknown, cb: unknown) => watchMembers(db, cb),
+  removeMember: (db: unknown, uid: unknown) => removeMember(db, uid),
 }))
 
 vi.mock('../auth/authClient.ts', () => ({
@@ -32,6 +34,7 @@ beforeEach(() => {
   watchMembers.mockReset().mockReturnValue(unsubscribe)
   watchInvites.mockReset().mockReturnValue(unsubscribe)
   unsubscribe.mockClear()
+  removeMember.mockReset().mockResolvedValue(undefined)
   currentUserUid.mockReset().mockReturnValue(core.uid('u1'))
 })
 
@@ -110,6 +113,25 @@ describe('MembersScreen', () => {
     ])
 
     expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull()
+  })
+
+  it('removes a Member only after the Owner confirms, and the row goes when the watch reports it', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+    const owner: MemberRecord = { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true }
+    const member: MemberRecord = { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false }
+    renderScreen([owner, member])
+    const remove = screen.getByRole('button', { name: 'Remove b@example.com' })
+
+    fireEvent.click(remove)
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    expect(removeMember).not.toHaveBeenCalled()
+
+    fireEvent.click(remove)
+    expect(removeMember).toHaveBeenCalledWith(fakeDb, member.uid)
+
+    const publish = watchMembers.mock.calls[0][1] as (members: MemberRecord[]) => void
+    act(() => publish([owner]))
+    expect(screen.queryByText('b@example.com')).toBeNull()
   })
 
   it('stops watching when it closes', () => {

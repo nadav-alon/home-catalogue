@@ -10,7 +10,8 @@ import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 import { currentUserUid } from '../auth/authClient.ts'
 import { Button } from '../ui/Button.tsx'
 import { watchInvites } from './invites.ts'
-import { watchMembers, type MemberRecord } from './members.ts'
+import { reportFailure } from '../catalogue/writeRejections.ts'
+import { removeMember, watchMembers, type MemberRecord } from './members.ts'
 
 const SETTINGS = route('/settings')
 
@@ -24,6 +25,12 @@ export function MembersScreen({ db }: MembersScreenProps) {
   const [invites, setInvites] = useState<core.Email[]>([])
 
   const viewerIsOwner = members.some((member) => member.isOwner && member.uid === currentUserUid(db.app))
+
+  /** The row disappears when the Members watch reports the deletion, not on click. */
+  function handleRemove(member: MemberRecord) {
+    if (!confirm(`Remove ${member.email} from the Household?`)) return
+    removeMember(db, member.uid).catch((err: unknown) => reportFailure(`Could not remove ${member.email}`, err))
+  }
 
   useEffect(() => watchMembers(db, setMembers), [db])
   useEffect(() => watchInvites(db, setInvites), [db])
@@ -42,7 +49,7 @@ export function MembersScreen({ db }: MembersScreenProps) {
             supporting={member.isOwner ? 'Owner' : undefined}
             control={
               viewerIsOwner && !member.isOwner ? (
-                <Button variant="text" aria-label={`Remove ${member.email}`}>
+                <Button variant="text" aria-label={`Remove ${member.email}`} onClick={() => handleRemove(member)}>
                   Remove
                 </Button>
               ) : undefined
