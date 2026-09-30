@@ -12,7 +12,6 @@ const watchInvites = vi.fn()
 
 vi.mock('./members.ts', () => ({
   watchMembers: (db: unknown, cb: unknown) => watchMembers(db, cb),
-
 }))
 
 vi.mock('./invites.ts', () => ({
