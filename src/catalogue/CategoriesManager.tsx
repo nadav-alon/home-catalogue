@@ -13,7 +13,7 @@ import {
   type CategoryRecord,
 } from './categories.ts'
 import { shopName, watchShops, type ShopRecord } from './shops.ts'
-import { TopAppBarActions } from '../shell/TopAppBar.tsx'
+import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
@@ -145,9 +145,9 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
 
   return (
     <section>
-      <TopAppBarActions>
+      <TopAppBarNavigation>
         <IconButton symbol={ArrowBackIcon} label="Back to Settings" onClick={() => navigate(SETTINGS)} />
-      </TopAppBarActions>
+      </TopAppBarNavigation>
       <ul>
         {categories.map((category) => (
           <ListRow

@@ -77,7 +77,7 @@ function renderWith(categories: CategoryRecord[], shops: ShopRecord[]) {
 }
 
 describe('CategoriesManager', () => {
-  it('has a back arrow in the top app bar that returns to Settings', () => {
+  it('has a back arrow in the top app bar’s leading slot that returns to Settings', () => {
     watchCategories.mockReturnValue(categoriesUnsubscribe)
     watchShops.mockReturnValue(shopsUnsubscribe)
     window.location.hash = '#/settings/categories'
@@ -87,7 +87,11 @@ describe('CategoriesManager', () => {
       </TopAppBar>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Settings' }))
+    const banner = screen.getByRole('banner')
+    const back = within(banner).getByRole('button', { name: 'Back to Settings' })
+    const heading = within(banner).getByRole('heading', { level: 1 })
+    expect(back.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(back)
 
     expect(window.location.hash).toBe('#/settings')
   })

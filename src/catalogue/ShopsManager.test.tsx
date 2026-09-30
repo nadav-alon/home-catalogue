@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
@@ -55,7 +55,7 @@ function openEditor(shopName: string) {
 }
 
 describe('ShopsManager', () => {
-  it('has a back arrow in the top app bar that returns to Settings', () => {
+  it('has a back arrow in the top app bar’s leading slot that returns to Settings', () => {
     watchShops.mockReturnValue(unsubscribe)
     window.location.hash = '#/settings/shops'
     render(
@@ -64,7 +64,11 @@ describe('ShopsManager', () => {
       </TopAppBar>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back to Settings' }))
+    const banner = screen.getByRole('banner')
+    const back = within(banner).getByRole('button', { name: 'Back to Settings' })
+    const heading = within(banner).getByRole('heading', { level: 1 })
+    expect(back.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(back)
 
     expect(window.location.hash).toBe('#/settings')
   })
