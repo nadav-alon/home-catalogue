@@ -156,7 +156,10 @@ function InviteForm({ db, members, invites }: InviteFormProps) {
         inputMode="email"
         value={value}
         error={error}
-        onInput={(event) => setValue(event.currentTarget.value)}
+        onInput={(event) => {
+          setValue(event.currentTarget.value)
+          setError(undefined)
+        }}
       />
       <Button type="submit">Invite</Button>
     </form>

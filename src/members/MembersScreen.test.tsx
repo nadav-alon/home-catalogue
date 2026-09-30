@@ -215,6 +215,16 @@ describe('MembersScreen', () => {
       expect(createInvite).not.toHaveBeenCalled()
     })
 
+    it('clears a refusal once the user types again', async () => {
+      renderScreen([owner, member])
+      invite('B@example.com')
+      await screen.findByRole('alert')
+
+      fireEvent.input(screen.getByLabelText('Invite by email'), { target: { value: 'new@example.com' } })
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    })
+
     it('refuses an email that is already invited, on the field', async () => {
       renderScreen([owner], [core.email('c@example.com')])
 
