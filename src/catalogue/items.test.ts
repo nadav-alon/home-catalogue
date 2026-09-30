@@ -173,18 +173,21 @@ describe('watchItems', () => {
   })
 })
 
-describe('watchItems with soft-deleted Items', () => {
-  const deletedAt = { seconds: 1, nanoseconds: 0 }
+const deletedAt = { seconds: 1, nanoseconds: 0 }
 
+describe('watchItems with soft-deleted Items', () => {
   /** Feeds `watchItems` one core snapshot and one catalogue snapshot, returning what it emitted last. */
   async function emitted(coreDocs: Record<string, object>, catalogueDocs: Record<string, object>) {
     const { watchItems } = await import('./items.ts')
     const callback = vi.fn()
-    onSnapshot.mockImplementation((snapshotQuery: { ref?: { path: string } }, cb: (snapshot: unknown) => void) => {
-      const docs = snapshotQuery.ref !== undefined ? coreDocs : catalogueDocs
-      cb({ docs: Object.entries(docs).map(([id, data]) => ({ id, data: () => data })) })
-      return vi.fn()
-    })
+    onSnapshot.mockImplementation(
+      (source: { path?: string; ref?: { path: string } }, cb: (snapshot: unknown) => void) => {
+        const path = source.ref?.path ?? source.path
+        const docs = path === core.ITEMS_COLLECTION ? coreDocs : catalogueDocs
+        cb({ docs: Object.entries(docs).map(([id, data]) => ({ id, data: () => data })) })
+        return vi.fn()
+      },
+    )
     watchItems(fakeDb, callback)
     return callback.mock.lastCall?.[0] as ItemRecord[]
   }
@@ -657,7 +660,7 @@ describe('findItemsByBarcode', () => {
       docs: [
         {
           id: 'dish-soap',
-          data: () => ({ name: 'Dish soap', state: 'enough', barcodes: ['12345678'], deletedAt: { seconds: 1, nanoseconds: 0 } }),
+          data: () => ({ name: 'Dish soap', state: 'enough', barcodes: ['12345678'], deletedAt }),
         },
         { id: 'sponge', data: () => ({ name: 'Sponge', state: 'out', barcodes: ['12345678'] }) },
       ],
