@@ -13,12 +13,14 @@ const watchItems = vi.fn()
 const createItem = vi.fn()
 const setItemState = vi.fn()
 const updateItem = vi.fn()
+const removeBarcode = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
+  removeBarcode: (db: unknown, item: unknown, barcode: unknown) => removeBarcode(db, item, barcode),
 }))
 
 const watchCategories = vi.fn()
@@ -46,6 +48,7 @@ beforeEach(() => {
   createItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
+  removeBarcode.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
 })
@@ -339,6 +342,20 @@ describe('editing an Item', () => {
     expect(within(list).getAllByRole('listitem').map((row) => row.textContent)).toEqual(['12345678', '1234567890123'])
   })
 
+  it('removes a barcode on save, leaving the others', async () => {
+    const scanned = { ...bandages, barcodes: [core.barcode('12345678'), core.barcode('1234567890123')] }
+    renderWith([scanned], [medicine], [pharmacy])
+
+    openRow('Bandages')
+    fireEvent.click(screen.getByRole('button', { name: 'Remove barcode 12345678' }))
+    expect(screen.queryByText('12345678')).not.toBeInTheDocument()
+    expect(removeBarcode).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(removeBarcode).toHaveBeenCalledTimes(1))
+    expect(removeBarcode).toHaveBeenCalledWith(fakeDb, scanned, '12345678')
+  })
+
   it('hides the barcodes section when the Item has none', () => {
     renderWith([bandages, { ...bandages, id: core.itemId('gauze'), name: 'Gauze', barcodes: [] }], [medicine], [pharmacy])
 
@@ -403,6 +420,20 @@ describe('leaving the Item dialog without saving', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(updateItem).not.toHaveBeenCalled()
     expect(createItem).not.toHaveBeenCalled()
+  })
+
+  it('keeps a removed barcode on Cancel', async () => {
+    const scanned = { ...bandages, barcodes: [core.barcode('12345678')] }
+    renderWith([scanned], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove barcode 12345678' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+
+    expect(removeBarcode).not.toHaveBeenCalled()
+    expect(screen.getByText('12345678')).toBeInTheDocument()
   })
 
   it('reopens on the Item as saved, not as edited', async () => {

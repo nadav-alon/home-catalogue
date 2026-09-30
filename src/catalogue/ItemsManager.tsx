@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { createItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { createItem, setItemState, removeBarcode, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { watchShops, type ShopRecord } from './shops.ts'
@@ -75,12 +75,13 @@ export function ItemsManager({ db }: ItemsManagerProps) {
         item={dialog?.item}
         categories={categories}
         shops={shops}
-        onSave={(input) => {
+        onSave={async (input, removedBarcodes) => {
           if (!dialog?.item) return createItem(db, input)
           const editedId = dialog.item.id
           // The Item may have changed elsewhere since the dialog opened; its reference counts move from the current record.
           const previous = items?.find((item) => item.id === editedId) ?? dialog.item
-          return updateItem(db, previous, input)
+          await updateItem(db, previous, input)
+          for (const barcode of removedBarcodes) await removeBarcode(db, previous, barcode)
         }}
         onClose={() => setDialog(null)}
       />

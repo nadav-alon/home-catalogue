@@ -1,13 +1,15 @@
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
-import { catalogue } from 'data-platform'
+import { catalogue, type core } from 'data-platform'
 import type { ItemInput, ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
+import { IconButton } from '../ui/IconButton.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { Select } from '../ui/Select.tsx'
 import { TextField } from '../ui/TextField.tsx'
+import CloseIcon from '~icons/material-symbols/close'
 
 export interface ItemDialogProps {
   open: boolean
@@ -15,8 +17,11 @@ export interface ItemDialogProps {
   item?: ItemRecord
   categories: CategoryRecord[]
   shops: ShopRecord[]
-  /** Called with the validated fields when the Member saves; a rejection is shown in the dialog and keeps it open. */
-  onSave: (input: ItemInput) => Promise<void>
+  /**
+   * Called with the validated fields and the Item's barcodes the Member removed when they save; a rejection
+   * is shown in the dialog and keeps it open.
+   */
+  onSave: (input: ItemInput, removedBarcodes: core.Barcode[]) => Promise<void>
   onClose: () => void
 }
 
@@ -54,7 +59,7 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
   }
 }
 
-/** The form for an Item's name, brand note, Category, Necessity and Shop override, in a dialog that starts from `item`, or empty, on each open. */
+/** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its barcodes when editing, in a dialog that starts from `item`, or empty, on each open. */
 export function ItemDialog({ open, item, categories, shops, onSave, onClose }: ItemDialogProps) {
   return (
     <Dialog open={open} title={item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
@@ -72,11 +77,14 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
     shopId: item?.shopId ?? NO_SHOP_OVERRIDE,
   })
   const [errors, setErrors] = useState<ItemFormErrors>({})
+  const [removedBarcodes, setRemovedBarcodes] = useState<core.Barcode[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
 
   function set(field: keyof ItemFormValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }))
   }
+
+  const keptBarcodes = (item?.barcodes ?? []).filter((barcode) => !removedBarcodes.includes(barcode))
 
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -88,7 +96,7 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
     setErrors({})
     setSaveError(null)
     try {
-      await onSave(result.input)
+      await onSave(result.input, removedBarcodes)
       onClose()
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not save Item')
@@ -128,12 +136,19 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
           </option>
         ))}
       </Select>
-      {item?.barcodes !== undefined && item.barcodes.length > 0 && (
+      {keptBarcodes.length > 0 && (
         <section aria-labelledby="item-barcodes-heading">
           <h3 id="item-barcodes-heading">Barcodes</h3>
           <ul>
-            {item.barcodes.map((barcode) => (
-              <li key={barcode}>{barcode}</li>
+            {keptBarcodes.map((barcode) => (
+              <li key={barcode}>
+                {barcode}
+                <IconButton
+                  symbol={CloseIcon}
+                  label={`Remove barcode ${barcode}`}
+                  onClick={() => setRemovedBarcodes((current) => [...current, barcode])}
+                />
+              </li>
             ))}
           </ul>
         </section>
