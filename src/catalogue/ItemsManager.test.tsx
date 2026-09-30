@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/preact'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
@@ -32,6 +32,13 @@ vi.mock('./shops.ts', async (importOriginal) => ({
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
 beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  })
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute('open')
+    this.dispatchEvent(new Event('close'))
+  })
   watchItems.mockReset()
   createItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)
@@ -135,8 +142,23 @@ describe('an Item whose Category is not in the local list', () => {
 })
 
 describe('adding an Item', () => {
+  function openDialog() {
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+  }
+
+  it('opens the dialog empty from the FAB', () => {
+    renderWith([], [medicine], [pharmacy])
+
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
+    openDialog()
+
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('')
+  })
+
   it('offers every Category and Necessity, and every Shop as an override choice', () => {
     renderWith([], [medicine, cleaning], [pharmacy, grocery])
+    openDialog()
 
     expect(screen.getByRole('option', { name: 'Medicine' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Cleaning' })).toBeInTheDocument()
@@ -147,12 +169,13 @@ describe('adding an Item', () => {
 
   it('creates a new Item with the chosen Category, Necessity and an optional brand note', async () => {
     renderWith([], [medicine, cleaning], [pharmacy, grocery])
+    openDialog()
 
-    fireEvent.input(screen.getByLabelText('New Item name'), { target: { value: 'Bandages' } })
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
     fireEvent.input(screen.getByLabelText('Brand note'), { target: { value: 'the waterproof ones' } })
     choose(screen.getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
-    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(createItem).toHaveBeenCalledWith(fakeDb, {
       name: 'Bandages',
@@ -163,14 +186,27 @@ describe('adding an Item', () => {
     })
   })
 
+  it('closes the dialog once the Item is saved', async () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
   it('creates a new Item with a Shop override', async () => {
     renderWith([], [medicine, cleaning], [pharmacy, grocery])
+    openDialog()
 
-    fireEvent.input(screen.getByLabelText('New Item name'), { target: { value: 'Bandages' } })
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
     choose(screen.getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
     choose(screen.getByLabelText('Shop override'), grocery.id)
-    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(createItem).toHaveBeenCalledWith(fakeDb, {
       name: 'Bandages',
@@ -183,10 +219,11 @@ describe('adding an Item', () => {
 
   it('refuses to add an Item with a blank name, without calling createItem', () => {
     renderWith([], [medicine], [pharmacy])
+    openDialog()
 
     choose(screen.getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
-    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('An Item needs a name.')
     expect(createItem).not.toHaveBeenCalled()
@@ -194,10 +231,11 @@ describe('adding an Item', () => {
 
   it('refuses to add an Item without choosing a Category', () => {
     renderWith([], [medicine], [pharmacy])
+    openDialog()
 
-    fireEvent.input(screen.getByLabelText('New Item name'), { target: { value: 'Bandages' } })
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
     choose(screen.getByLabelText('Necessity'), 'essential')
-    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a Category.')
     expect(createItem).not.toHaveBeenCalled()
@@ -205,10 +243,11 @@ describe('adding an Item', () => {
 
   it('refuses to add an Item without choosing a Necessity', () => {
     renderWith([], [medicine], [pharmacy])
+    openDialog()
 
-    fireEvent.input(screen.getByLabelText('New Item name'), { target: { value: 'Bandages' } })
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
     choose(screen.getByLabelText('Category'), medicine.id)
-    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a Necessity.')
     expect(createItem).not.toHaveBeenCalled()
