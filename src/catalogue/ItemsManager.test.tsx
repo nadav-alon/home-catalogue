@@ -647,4 +647,17 @@ describe('adding a Category from the Item dialog', () => {
     expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
   })
+
+  it('restores the previous selection when the prompt is cancelled', () => {
+    renderWith([], [medicine, cleaning], [pharmacy])
+    openDialog()
+    choose(screen.getByLabelText('Category'), cleaning.id)
+
+    chooseNewCategory()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel new Category' }))
+
+    expect(screen.getByLabelText('Category')).toHaveValue(cleaning.id)
+    expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
+    expect(createCategory).not.toHaveBeenCalled()
+  })
 })

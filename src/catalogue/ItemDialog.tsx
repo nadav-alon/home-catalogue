@@ -108,6 +108,11 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onClose }
     else set('categoryId', value)
   }
 
+  function closeCategoryPrompt() {
+    setCategoryDraft(null)
+    setCategoryError(null)
+  }
+
   async function handleCreateCategory() {
     if (categoryDraft === null) return
     const name = categoryDraft.name.trim()
@@ -117,7 +122,7 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onClose }
     setCategoryError(null)
     try {
       set('categoryId', await onCreateCategory(name, shop.id))
-      setCategoryDraft(null)
+      closeCategoryPrompt()
     } catch (err) {
       setCategoryError(err instanceof Error ? err.message : 'Could not add Category')
     }
@@ -181,6 +186,9 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onClose }
             ))}
           </Select>
           <Button onClick={handleCreateCategory}>Create Category</Button>
+          <Button variant="text" onClick={closeCategoryPrompt}>
+            Cancel new Category
+          </Button>
         </>
       )}
       <Select label="Necessity" error={errors.necessity} value={values.necessity} onChange={(event) => set('necessity', event.currentTarget.value)}>
