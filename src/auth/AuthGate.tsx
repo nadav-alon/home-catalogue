@@ -3,6 +3,7 @@ import type { ComponentChildren } from 'preact'
 import type { FirebaseClient } from '../firebase/client.ts'
 import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
 import { claimHousehold, householdExists, isHouseholdMember, joinFromInvite } from './household.ts'
+import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 import { Button } from '../ui/Button.tsx'
 import { ResetConfigButton, type ResetConfigButtonProps } from '../setup/ResetConfigButton.tsx'
 import { CentredCard } from '../ui/CentredCard.tsx'
@@ -30,8 +31,8 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
     async (user: AuthUser) => {
       try {
         setState(await lookUpMembership(client, user))
-      } catch {
-        setState({ status: 'unreachable', user })
+      } catch (error) {
+        setState(isRulesRefusal(error) ? { status: 'non-member', user } : { status: 'unreachable', user })
       }
     },
     [client],
