@@ -183,6 +183,29 @@ describe('AuthGate', () => {
     expect(signOutUser).toHaveBeenCalledWith('fake-app')
   })
 
+  it.each([
+    ['householdExists', () => householdExists.mockRejectedValue(new Error('unavailable'))],
+    ['isHouseholdMember', () => isHouseholdMember.mockRejectedValue(new Error('unavailable'))],
+    ['joinFromInvite', () => joinFromInvite.mockRejectedValue(new Error('unavailable'))],
+  ])('shows an error card instead of a blank screen when %s rejects', async (_name, fail) => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockResolvedValue(true)
+    isHouseholdMember.mockResolvedValue(false)
+    fail()
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+
+    expect(await screen.findByText("Couldn't reach your Household")).toBeInTheDocument()
+    expect(screen.queryByText('App content')).not.toBeInTheDocument()
+  })
+
   it('offers Reset Firebase configuration on the non-member card, only after the user confirms', async () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
