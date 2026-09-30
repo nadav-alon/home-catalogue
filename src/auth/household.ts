@@ -19,3 +19,28 @@ export async function claimHousehold(db: Firestore, uid: core.Uid, email: core.E
   batch.set(doc(db, core.memberDocPath(uid)), { email, addedAt: serverTimestamp() })
   await batch.commit()
 }
+
+/**
+ * Turns the invite addressed to `email` into membership: one batch creates `members/{uid}` and
+ * deletes the invite. Resolves `false` when there is no invite, or when the rules refuse the join
+ * (for example the invite was revoked in the meantime); any other failure rejects.
+ */
+export async function joinFromInvite(db: Firestore, uid: core.Uid, email: core.Email): Promise<boolean> {
+  const inviteRef = doc(db, core.inviteDocPath(email))
+  if (!(await getDoc(inviteRef)).exists()) return false
+
+  const batch = writeBatch(db)
+  batch.set(doc(db, core.memberDocPath(uid)), { email, addedAt: serverTimestamp() })
+  batch.delete(inviteRef)
+  try {
+    await batch.commit()
+  } catch (error) {
+    if (isPermissionDenied(error)) return false
+    throw error
+  }
+  return true
+}
+
+function isPermissionDenied(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'permission-denied'
+}
