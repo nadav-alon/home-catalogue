@@ -128,6 +128,16 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
           </option>
         ))}
       </Select>
+      {item?.barcodes !== undefined && item.barcodes.length > 0 && (
+        <section aria-labelledby="item-barcodes-heading">
+          <h3 id="item-barcodes-heading">Barcodes</h3>
+          <ul>
+            {item.barcodes.map((barcode) => (
+              <li key={barcode}>{barcode}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       <Button variant="text" onClick={onClose}>
         Cancel
       </Button>

@@ -330,6 +330,25 @@ describe('editing an Item', () => {
     expect(updateItem).toHaveBeenCalledWith(fakeDb, movedElsewhere, expect.anything())
   })
 
+  it("lists the Item's barcodes as digits", () => {
+    renderWith([{ ...bandages, barcodes: [core.barcode('12345678'), core.barcode('1234567890123')] }], [medicine], [pharmacy])
+
+    openRow('Bandages')
+
+    const list = within(screen.getByRole('region', { name: 'Barcodes' })).getByRole('list')
+    expect(within(list).getAllByRole('listitem').map((row) => row.textContent)).toEqual(['12345678', '1234567890123'])
+  })
+
+  it('hides the barcodes section when the Item has none', () => {
+    renderWith([bandages, { ...bandages, id: core.itemId('gauze'), name: 'Gauze', barcodes: [] }], [medicine], [pharmacy])
+
+    openRow('Bandages')
+    expect(screen.queryByRole('region', { name: 'Barcodes' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    openRow('Gauze')
+    expect(screen.queryByRole('region', { name: 'Barcodes' })).not.toBeInTheDocument()
+  })
+
   it('does not open from the State buttons on the row', () => {
     renderWith([bandages], [medicine], [pharmacy])
 
