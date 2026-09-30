@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { ItemsManager } from './ItemsManager.tsx'
@@ -314,6 +314,43 @@ describe('editing an Item', () => {
 
     expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
     expect(screen.getByLabelText('Name')).toHaveValue('')
+  })
+})
+
+describe('leaving the Item dialog without saving', () => {
+  async function fillAndLeave(leave: () => void) {
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: /^Bandages/ }))
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+    await waitFor(() => expect(history.state).toHaveProperty('ui-dialog'))
+    leave()
+  }
+
+  afterEach(() => history.replaceState(null, ''))
+
+  it('discards the edit on Cancel', async () => {
+    await fillAndLeave(() => fireEvent.click(screen.getByRole('button', { name: 'Cancel' })))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(updateItem).not.toHaveBeenCalled()
+    expect(createItem).not.toHaveBeenCalled()
+  })
+
+  it('discards the edit on back', async () => {
+    await fillAndLeave(() => window.dispatchEvent(new PopStateEvent('popstate')))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(updateItem).not.toHaveBeenCalled()
+    expect(createItem).not.toHaveBeenCalled()
+  })
+
+  it('reopens on the Item as saved, not as edited', async () => {
+    await fillAndLeave(() => fireEvent.click(screen.getByRole('button', { name: 'Cancel' })))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: /^Bandages/ }))
+
+    expect(screen.getByLabelText('Name')).toHaveValue('Bandages')
   })
 })
 
