@@ -1,5 +1,6 @@
 import { doc, getDoc, serverTimestamp, writeBatch, type Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
+import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 
 /** Whether this household's `meta/household` has been claimed by anyone yet. */
 export async function householdExists(db: Firestore): Promise<boolean> {
@@ -35,12 +36,8 @@ export async function joinFromInvite(db: Firestore, uid: core.Uid, email: core.E
   try {
     await batch.commit()
   } catch (error) {
-    if (isPermissionDenied(error)) return false
+    if (isRulesRefusal(error)) return false
     throw error
   }
   return true
-}
-
-function isPermissionDenied(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'permission-denied'
 }

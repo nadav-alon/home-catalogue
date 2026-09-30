@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
+import { FirebaseError } from 'firebase/app'
 import { core } from 'data-platform'
 
 const doc = vi.fn((_db: unknown, path: string) => ({ path }))
@@ -114,7 +115,7 @@ describe('joinFromInvite', () => {
     writeBatch.mockReturnValueOnce({
       set: vi.fn(),
       delete: vi.fn(),
-      commit: vi.fn().mockRejectedValue(Object.assign(new Error('denied'), { code: 'permission-denied' })),
+      commit: vi.fn().mockRejectedValue(new FirebaseError('permission-denied', 'denied')),
     })
 
     await expect(joinFromInvite(fakeDb, uid, invitee)).resolves.toBe(false)
@@ -126,7 +127,7 @@ describe('joinFromInvite', () => {
     writeBatch.mockReturnValueOnce({
       set: vi.fn(),
       delete: vi.fn(),
-      commit: vi.fn().mockRejectedValue(Object.assign(new Error('offline'), { code: 'unavailable' })),
+      commit: vi.fn().mockRejectedValue(new FirebaseError('unavailable', 'offline')),
     })
 
     await expect(joinFromInvite(fakeDb, uid, invitee)).rejects.toThrow('offline')
