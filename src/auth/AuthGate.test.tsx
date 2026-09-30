@@ -16,10 +16,12 @@ vi.mock('./authClient.ts', () => ({
 const householdExists = vi.fn()
 const isHouseholdMember = vi.fn()
 const claimHousehold = vi.fn()
+const joinFromInvite = vi.fn()
 vi.mock('./household.ts', () => ({
   householdExists: (db: unknown) => householdExists(db),
   isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
   claimHousehold: (db: unknown, uid: unknown, email: unknown) => claimHousehold(db, uid, email),
+  joinFromInvite: (db: unknown, uid: unknown, email: unknown) => joinFromInvite(db, uid, email),
 }))
 
 const fakeClient = { app: 'fake-app', db: 'fake-db' } as unknown as FirebaseClient
@@ -34,6 +36,7 @@ beforeEach(() => {
   householdExists.mockReset()
   isHouseholdMember.mockReset()
   claimHousehold.mockReset().mockResolvedValue(undefined)
+  joinFromInvite.mockReset().mockResolvedValue(false)
   unsubscribe.mockClear()
   onResetConfig.mockReset()
 })
@@ -120,6 +123,43 @@ describe('AuthGate', () => {
 
     expect(claimHousehold).toHaveBeenCalledWith('fake-db', 'user-1', 'owner@example.com')
     expect(await screen.findByText('App content')).toBeInTheDocument()
+  })
+
+  it('joins an invited user as a member on sign-in and shows the app', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockResolvedValue(true)
+    isHouseholdMember.mockResolvedValue(false)
+    joinFromInvite.mockResolvedValue(true)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+
+    expect(await screen.findByText('App content')).toBeInTheDocument()
+    expect(joinFromInvite).toHaveBeenCalledWith('fake-db', 'user-1', 'owner@example.com')
+  })
+
+  it('does not look for an invite when already a member', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockResolvedValue(true)
+    isHouseholdMember.mockResolvedValue(true)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+
+    expect(await screen.findByText('App content')).toBeInTheDocument()
+    expect(joinFromInvite).not.toHaveBeenCalled()
   })
 
   it('shows a non-member screen with the signed-in email and a sign-out button', async () => {

@@ -31,6 +31,7 @@ vi.mock('./auth/household.ts', () => ({
   householdExists: (db: unknown) => householdExists(db),
   isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
   claimHousehold: vi.fn(),
+  joinFromInvite: vi.fn().mockResolvedValue(false),
 }))
 
 vi.mock('./catalogue/shops.ts', () => ({
