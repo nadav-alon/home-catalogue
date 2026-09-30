@@ -206,6 +206,25 @@ describe('AuthGate', () => {
     expect(screen.queryByText('App content')).not.toBeInTheDocument()
   })
 
+  it('runs the resolution again on Retry and lands a now-reachable member in the app', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockRejectedValueOnce(new Error('unavailable')).mockResolvedValue(true)
+    isHouseholdMember.mockResolvedValue(true)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('App content')).toBeInTheDocument()
+    expect(householdExists).toHaveBeenCalledTimes(2)
+  })
+
   it('offers Reset Firebase configuration on the non-member card, only after the user confirms', async () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)

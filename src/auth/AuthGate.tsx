@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useCallback, useEffect, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import type { FirebaseClient } from '../firebase/client.ts'
 import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
@@ -26,6 +26,17 @@ type AuthGateState =
 export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   const [state, setState] = useState<AuthGateState>({ status: 'checking' })
 
+  const resolveMembership = useCallback(
+    async (user: AuthUser) => {
+      try {
+        setState(await lookUpMembership(client, user))
+      } catch {
+        setState({ status: 'unreachable', user })
+      }
+    },
+    [client],
+  )
+
   useEffect(() => {
     return watchAuthState(client.app, (user) => {
       if (user === null) {
@@ -34,15 +45,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
       }
       void resolveMembership(user)
     })
-
-    async function resolveMembership(user: AuthUser) {
-      try {
-        setState(await lookUpMembership(client, user))
-      } catch {
-        setState({ status: 'unreachable', user })
-      }
-    }
-  }, [client])
+  }, [client, resolveMembership])
 
   switch (state.status) {
     case 'checking':
@@ -85,6 +88,14 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
       return (
         <CentredCard title="Couldn't reach your Household">
           <p>Check your connection and try again.</p>
+          <Button
+            onClick={() => {
+              setState({ status: 'checking' })
+              void resolveMembership(state.user)
+            }}
+          >
+            Retry
+          </Button>
         </CentredCard>
       )
 
