@@ -31,6 +31,9 @@ vi.mock('./invites.ts', () => ({
 }))
 
 const addedAt = { seconds: 0, nanoseconds: 0, toMillis: () => 0 }
+const owner: MemberRecord = { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true }
+const member: MemberRecord = { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false }
+const other: MemberRecord = { uid: core.uid('u3'), email: core.email('c@example.com'), addedAt, isOwner: false }
 const fakeApp = { name: 'fake-app' }
 const fakeDb = { name: 'fake-db', app: fakeApp } as unknown as Firestore
 const unsubscribe = vi.fn()
@@ -76,20 +79,20 @@ describe('MembersScreen', () => {
 
   it('lists every Member by email, marking the Owner', () => {
     renderScreen([
-      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true },
-      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
+      owner,
+      member,
     ])
 
-    const [owner, member] = screen.getAllByRole('listitem')
-    expect(owner).toHaveTextContent('a@example.com')
-    expect(owner).toHaveTextContent('Owner')
-    expect(member).toHaveTextContent('b@example.com')
-    expect(member).not.toHaveTextContent('Owner')
+    const [ownerRow, memberRow] = screen.getAllByRole('listitem')
+    expect(ownerRow).toHaveTextContent('a@example.com')
+    expect(ownerRow).toHaveTextContent('Owner')
+    expect(memberRow).toHaveTextContent('b@example.com')
+    expect(memberRow).not.toHaveTextContent('Owner')
   })
 
   it('lists every pending invite by email, apart from the Members', () => {
     renderScreen(
-      [{ uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true }],
+      [owner],
       [core.email('c@example.com')],
     )
 
@@ -101,9 +104,9 @@ describe('MembersScreen', () => {
 
   it('offers the Owner Remove on every Member but their own', () => {
     renderScreen([
-      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true },
-      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
-      { uid: core.uid('u3'), email: core.email('c@example.com'), addedAt, isOwner: false },
+      owner,
+      member,
+      other,
     ])
 
     expect(screen.getAllByRole('button', { name: /^Remove / }).map((button) => button.getAttribute('aria-label'))).toEqual([
@@ -116,9 +119,9 @@ describe('MembersScreen', () => {
   it('offers a non-Owner Member no Remove', () => {
     currentUserUid.mockReturnValue(core.uid('u2'))
     renderScreen([
-      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true },
-      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
-      { uid: core.uid('u3'), email: core.email('c@example.com'), addedAt, isOwner: false },
+      owner,
+      member,
+      other,
     ])
 
     expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull()
@@ -126,8 +129,6 @@ describe('MembersScreen', () => {
 
   it('removes a Member only after the Owner confirms, and the row goes when the watch reports it', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
-    const owner: MemberRecord = { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true }
-    const member: MemberRecord = { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false }
     renderScreen([owner, member])
     const remove = screen.getByRole('button', { name: 'Remove b@example.com' })
 
@@ -148,8 +149,8 @@ describe('MembersScreen', () => {
     removeMember.mockRejectedValue(failure)
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderScreen([
-      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true },
-      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
+      owner,
+      member,
     ])
 
     fireEvent.click(screen.getByRole('button', { name: 'Remove b@example.com' }))
@@ -159,8 +160,8 @@ describe('MembersScreen', () => {
 
   it('offers no Remove when no Member is flagged Owner', () => {
     renderScreen([
-      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: false },
-      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
+      { ...owner, isOwner: false },
+      member,
     ])
 
     expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull()
