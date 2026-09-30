@@ -14,6 +14,7 @@ export interface ScannerDialogProps {
   onDenied: () => void
   /** Called instead of `onScan` when the camera cannot be opened or read for any reason other than denial; the caller closes the dialog. */
   onUnavailable: () => void
+  /** The Member dismissed the dialog (✕ or browser back); nothing was scanned. */
   onClose: () => void
 }
 
