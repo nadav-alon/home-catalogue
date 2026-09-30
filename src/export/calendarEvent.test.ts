@@ -24,7 +24,7 @@ describe('buildShopEvent', () => {
   it('lists every pending Item name in the description', () => {
     const group: ShopGroup = {
       shop: pharmacy,
-      items: [item({}), item({ id: core.itemId('soap'), name: 'Dish soap' })],
+      items: [item({ name: 'Bandages' }), item({ id: core.itemId('soap'), name: 'Dish soap' })],
     }
 
     const event = buildShopEvent(group, exportDate('2026-03-05'))
