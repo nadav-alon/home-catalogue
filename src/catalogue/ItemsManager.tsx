@@ -29,8 +29,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
-  /** `null` while the Item dialog is closed; `item` is the Item being edited, absent when adding. */
-  const [dialog, setDialog] = useState<{ item?: ItemRecord } | null>(null)
+  /** `null` while the Item dialog is closed; `item` is the Item being edited, absent when adding; `barcode` is carried by the Item being added. */
+  const [dialog, setDialog] = useState<{ item?: ItemRecord; barcode?: core.Barcode } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
@@ -128,6 +128,10 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         barcode={unknownBarcode}
         items={items ?? []}
         onAttach={(item) => void handleAttach(item)}
+        onNewItem={() => {
+          setDialog({ barcode: unknownBarcode })
+          setUnknownBarcode(undefined)
+        }}
         onClose={() => setUnknownBarcode(undefined)}
       />
       <Fab symbol={AddIcon} label="Add Item" onClick={() => openDialog(undefined)} />
@@ -138,7 +142,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         shops={shops}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
         onSave={async (input) => {
-          if (!editedItem) return createItem(db, input)
+          if (!editedItem) return createItem(db, { ...input, barcode: dialog?.barcode })
           // Its reference counts move from the current record.
           await updateItem(db, editedItem, input)
         }}

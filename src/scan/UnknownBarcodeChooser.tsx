@@ -13,19 +13,21 @@ export interface UnknownBarcodeChooserProps {
   items: readonly ItemRecord[]
   /** Called with the Item the Member picked to carry the Barcode. */
   onAttach: (item: ItemRecord) => void
+  /** Called when the Member chooses to add a new Item carrying the Barcode. */
+  onNewItem: () => void
   onClose: () => void
 }
 
 /** What to do with a scanned Barcode no Item carries yet. */
-export function UnknownBarcodeChooser({ barcode, items, onAttach, onClose }: UnknownBarcodeChooserProps) {
+export function UnknownBarcodeChooser({ barcode, items, onAttach, onNewItem, onClose }: UnknownBarcodeChooserProps) {
   return (
     <Dialog open={barcode !== undefined} title="Unknown barcode" onClose={onClose}>
-      {barcode !== undefined && <Choice barcode={barcode} items={items} onAttach={onAttach} onClose={onClose} />}
+      {barcode !== undefined && <Choice barcode={barcode} items={items} onAttach={onAttach} onNewItem={onNewItem} onClose={onClose} />}
     </Dialog>
   )
 }
 
-function Choice({ barcode, items, onAttach, onClose }: UnknownBarcodeChooserProps & { barcode: core.Barcode }) {
+function Choice({ barcode, items, onAttach, onNewItem, onClose }: UnknownBarcodeChooserProps & { barcode: core.Barcode }) {
   const [picking, setPicking] = useState(false)
   const [search, setSearch] = useState('')
   const needle = search.trim().toLowerCase()
@@ -33,7 +35,12 @@ function Choice({ barcode, items, onAttach, onClose }: UnknownBarcodeChooserProp
     <>
       <p>No Item carries {barcode}.</p>
       {!picking ? (
-        <Button onClick={() => setPicking(true)}>Add to existing Item</Button>
+        <>
+          <Button onClick={() => setPicking(true)}>Add to existing Item</Button>
+          <Button variant="tonal" onClick={onNewItem}>
+            New Item
+          </Button>
+        </>
       ) : (
         <>
           <TextField type="search" label="Find an Item" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
