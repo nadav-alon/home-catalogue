@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { render, screen, within } from '@testing-library/preact'
 import { TopAppBar, TopAppBarActions, TopAppBarNavigation } from './TopAppBar.tsx'
-import { tokenUsage } from '../testing/css.ts'
+import { read, tokenUsage } from '../testing/css.ts'
 
 describe('TopAppBar', () => {
   it('shows the title as the page heading inside a banner', () => {
@@ -51,11 +50,11 @@ describe('TopAppBar', () => {
     expect(back.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('hides the navigation slot when a screen puts nothing in it', () => {
+  it('leaves the navigation slot empty and styles an empty one `display: none` when a screen puts nothing in it', () => {
     render(<TopAppBar title="Items" />)
     const slot = screen.getByRole('banner').querySelector('.shell-top-bar__navigation')
     expect(slot).toBeEmptyDOMElement()
-    expect(readFileSync('src/shell/TopAppBar.css', 'utf8')).toMatch(/__navigation:empty\s*\{\s*display:\s*none/)
+    expect(read('src/shell/TopAppBar.css')).toMatch(/__navigation:empty\s*\{\s*display:\s*none/)
   })
 
   it('is styled only from defined tokens', () => {
