@@ -309,6 +309,26 @@ describe('updateItem', () => {
     expect(batchCommit).toHaveBeenCalled()
   })
 
+  it('removes the removed barcodes from the core Item in the same batch, leaving its other barcodes', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await updateItem(fakeDb, dishSoap, {
+      name: 'Dish soap',
+      categoryId: dishSoap.categoryId,
+      necessity: catalogue.necessitySchema.parse('essential'),
+      shopId: dishSoap.shopId,
+      removedBarcodes: [core.barcode('12345678')],
+    })
+
+    expect(arrayRemove).toHaveBeenCalledWith('12345678')
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
+      expect.objectContaining({ barcodes: { kind: 'arrayRemove', values: ['12345678'] } }),
+    )
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
   it('leaves every referenceCount untouched when the Category and Shop override are unchanged', async () => {
     const { updateItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)

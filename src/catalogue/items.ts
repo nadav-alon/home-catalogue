@@ -32,6 +32,11 @@ export interface ItemInput {
   shopId?: catalogue.ShopId
 }
 
+/** What saving an edit to an Item carries: its fields, plus the Barcodes the Member removed. */
+export interface ItemEdit extends ItemInput {
+  removedBarcodes?: core.Barcode[]
+}
+
 function toItemRecord(id: core.ItemId, item: core.Item, catalogueItem: catalogue.CatalogueItem): ItemRecord {
   return { id, ...item, ...catalogueItem }
 }
@@ -151,9 +156,10 @@ export async function createItem(db: Firestore, input: ItemInput): Promise<void>
  * through their own write. Omitting `brandNote` or `shopId` clears that field rather than leaving
  * it stale. When the Category or Shop override changes, the batch moves the old and new
  * referenceCount by one each, matching the platform's update rule; `previous` supplies the
- * references being moved away from. Resolves once the batch is queued, see {@link createItem}.
+ * references being moved away from. Any `removedBarcodes` leave the Item's `barcodes` in the same
+ * batch with `arrayRemove`, leaving its other Barcodes. Resolves once the batch is queued, see {@link createItem}.
  */
-export async function updateItem(db: Firestore, previous: ItemRecord, input: ItemInput): Promise<void> {
+export async function updateItem(db: Firestore, previous: ItemRecord, input: ItemEdit): Promise<void> {
   const { name, brandNote } = core.itemSchema.pick({ name: true, brandNote: true }).parse({
     name: input.name,
     ...(input.brandNote !== undefined ? { brandNote: input.brandNote } : {}),
@@ -167,7 +173,11 @@ export async function updateItem(db: Firestore, previous: ItemRecord, input: Ite
     })
 
   const batch = writeBatch(db)
-  batch.update(doc(db, core.ITEMS_COLLECTION, previous.id), { name, brandNote: brandNote ?? deleteField() })
+  batch.update(doc(db, core.ITEMS_COLLECTION, previous.id), {
+    name,
+    brandNote: brandNote ?? deleteField(),
+    ...(input.removedBarcodes?.length ? { barcodes: arrayRemove(...input.removedBarcodes) } : {}),
+  })
   batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, previous.id), {
     categoryId,
     necessity,

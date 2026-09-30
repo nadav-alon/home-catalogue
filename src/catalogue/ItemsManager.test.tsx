@@ -6,7 +6,7 @@ import { ItemsManager } from './ItemsManager.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
-import { bandages, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
+import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 import { choose } from '../testing/select.ts'
 
 const watchItems = vi.fn()
@@ -330,6 +330,73 @@ describe('editing an Item', () => {
     expect(updateItem).toHaveBeenCalledWith(fakeDb, movedElsewhere, expect.anything())
   })
 
+  it("lists the Item's barcodes as digits", () => {
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
+
+    openRow('Bandages')
+
+    const list = within(screen.getByRole('region', { name: 'Barcodes' })).getByRole('list')
+    expect(within(list).getAllByRole('listitem').map((row) => row.textContent)).toEqual(['12345678', '1234567890123'])
+  })
+
+  it('removes a barcode on save, leaving the others', async () => {
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
+
+    openRow('Bandages')
+    fireEvent.click(screen.getByRole('button', { name: 'Remove barcode 12345678' }))
+    expect(screen.queryByText('12345678')).not.toBeInTheDocument()
+    expect(updateItem).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(updateItem).toHaveBeenCalledTimes(1))
+    expect(updateItem).toHaveBeenCalledWith(
+      fakeDb,
+      bandagesWithBarcodes,
+      expect.objectContaining({ removedBarcodes: [core.barcode('12345678')] }),
+    )
+  })
+
+  it('leaves the barcodes alone when the Item is saved without pressing ✕', async () => {
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
+
+    openRow('Bandages')
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(updateItem).toHaveBeenCalledTimes(1))
+    expect(updateItem.mock.calls[0]![2]).not.toHaveProperty('removedBarcodes')
+  })
+
+  it('lists a barcode attached to the Item while the dialog is open', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    const pushItems = watchItems.mock.calls[0]![1] as (items: ItemRecord[]) => void
+
+    openRow('Bandages')
+    expect(screen.queryByRole('region', { name: 'Barcodes' })).not.toBeInTheDocument()
+    act(() => pushItems([bandagesWithBarcodes]))
+
+    expect(screen.getByText('12345678')).toBeInTheDocument()
+  })
+
+  it('hides the barcodes section when the Item has none', () => {
+    renderWith([bandages, { ...bandages, id: core.itemId('gauze'), name: 'Gauze', barcodes: [] }], [medicine], [pharmacy])
+
+    openRow('Bandages')
+    expect(screen.queryByRole('region', { name: 'Barcodes' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    openRow('Gauze')
+    expect(screen.queryByRole('region', { name: 'Barcodes' })).not.toBeInTheDocument()
+  })
+
+  it('has no barcodes section when adding an Item', () => {
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Barcodes' })).not.toBeInTheDocument()
+  })
+
   it('does not open from the State buttons on the row', () => {
     renderWith([bandages], [medicine], [pharmacy])
 
@@ -384,6 +451,19 @@ describe('leaving the Item dialog without saving', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(updateItem).not.toHaveBeenCalled()
     expect(createItem).not.toHaveBeenCalled()
+  })
+
+  it('keeps a removed barcode on Cancel', async () => {
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove barcode 12345678' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+
+    expect(updateItem).not.toHaveBeenCalled()
+    expect(screen.getByText('12345678')).toBeInTheDocument()
   })
 
   it('reopens on the Item as saved, not as edited', async () => {
