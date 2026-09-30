@@ -73,11 +73,13 @@ export async function renameShop(db: Firestore, shop: ShopRecord, name: string):
 }
 
 /**
- * Soft-deletes the Shop by setting `deletedAt` to the server's commit time. Resolves once the write
- * is queued, see {@link createShop}; a write the rules refuse is reported through
- * {@link reportWriteRejection}.
+ * Refuses with {@link ShopInUseError}, writing nothing, while the cached `referenceCount` is above 0;
+ * the platform's rules refuse a stale count too. Otherwise soft-deletes the Shop by setting
+ * `deletedAt` to the server's commit time. Resolves once the write is queued, see {@link createShop};
+ * a write the rules refuse is reported through {@link reportWriteRejection}.
  */
 export async function deleteShop(db: Firestore, shop: ShopRecord): Promise<void> {
+  if (shop.referenceCount > 0) throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
   void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id), { deletedAt: serverTimestamp() }).catch(
     (err: unknown) => {
       reportWriteRejection(`deleted Shop ${shop.name}`, err)

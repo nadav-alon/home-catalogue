@@ -175,6 +175,13 @@ describe('deleteShop', () => {
     )
   })
 
+  it('refuses with ShopInUseError and writes nothing while the Shop is referenced', async () => {
+    const { deleteShop, ShopInUseError } = await import('./shops.ts')
+
+    await expect(deleteShop(fakeDb, { ...pharmacy, referenceCount: 1 })).rejects.toBeInstanceOf(ShopInUseError)
+    expect(updateDoc).not.toHaveBeenCalled()
+  })
+
   it('resolves without waiting for Firestore to acknowledge the write', async () => {
     const { deleteShop } = await import('./shops.ts')
     updateDoc.mockReturnValueOnce(new Promise(() => {}))
