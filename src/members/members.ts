@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot, type Firestore } from 'firebase/firestore'
+import { collection, deleteDoc, doc, onSnapshot, type Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 
 export interface MemberRecord extends core.Member {
@@ -49,4 +49,13 @@ export function watchMembers(db: Firestore, callback: (members: MemberRecord[]) 
     stopMembers()
     stopHousehold()
   }
+}
+
+/**
+ * Removes the Member from the Household by deleting `members/{uid}`. Resolves once the server has
+ * accepted it and rejects if the rules refuse: only the Owner may remove a Member, and never the
+ * Owner's own.
+ */
+export async function removeMember(db: Firestore, uid: core.Uid): Promise<void> {
+  await deleteDoc(doc(db, core.memberDocPath(uid)))
 }
