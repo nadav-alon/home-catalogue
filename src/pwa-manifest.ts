@@ -8,7 +8,7 @@ export const manifest: Partial<ManifestOptions> = {
   short_name: 'Catalogue',
   description: "Tracks what the household has, is running low on, or is out of",
   theme_color: themeColor,
-  background_color: colourRoleHex(themeColor, 'background', false),
+  background_color: colourRoleHex(themeColor, 'background', 'light'),
   display: 'standalone',
   start_url: '.',
   icons: appIcons.flatMap(({ purpose, output }) =>

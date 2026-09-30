@@ -27,7 +27,7 @@ describe('manifest', () => {
 
   it("takes background_color from the light scheme's background role", () => {
     expect(manifest.background_color).toBe('#fff8f6')
-    expect(manifest.background_color).toBe(colourRoleHex(themeColor, 'background', false))
+    expect(manifest.background_color).toBe(colourRoleHex(themeColor, 'background', 'light'))
     expect(readFileSync(fromRepo('src/ui/theme.css'), 'utf8')).toContain(
       `--md-sys-color-background: ${manifest.background_color};`,
     )
