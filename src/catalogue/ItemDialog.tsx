@@ -35,21 +35,19 @@ type ItemFormErrors = Partial<Record<'name' | 'categoryId' | 'necessity', string
 function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { errors: ItemFormErrors } {
   const trimmedName = values.name.trim()
   const necessity = catalogue.necessitySchema.safeParse(values.necessity)
-  if (trimmedName.length === 0 || !catalogue.isCategoryId(values.categoryId) || !necessity.success) {
-    return {
-      errors: {
-        ...(trimmedName.length === 0 ? { name: 'An Item needs a name.' } : {}),
-        ...(catalogue.isCategoryId(values.categoryId) ? {} : { categoryId: 'Choose a Category.' }),
-        ...(necessity.success ? {} : { necessity: 'Choose a Necessity.' }),
-      },
-    }
-  }
+  const categoryId = catalogue.isCategoryId(values.categoryId) ? values.categoryId : undefined
+  const errors: ItemFormErrors = {}
+  if (trimmedName.length === 0) errors.name = 'An Item needs a name.'
+  if (categoryId === undefined) errors.categoryId = 'Choose a Category.'
+  if (!necessity.success) errors.necessity = 'Choose a Necessity.'
+  // Narrows `categoryId` and `necessity`; `errors` is non-empty whenever either is missing.
+  if (Object.keys(errors).length > 0 || categoryId === undefined || !necessity.success) return { errors }
   const trimmedBrandNote = values.brandNote.trim()
   return {
     input: {
       name: trimmedName,
       brandNote: trimmedBrandNote.length === 0 ? undefined : trimmedBrandNote,
-      categoryId: values.categoryId,
+      categoryId,
       necessity: necessity.data,
       shopId: catalogue.isShopId(values.shopId) ? values.shopId : undefined,
     },
