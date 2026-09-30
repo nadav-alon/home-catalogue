@@ -70,4 +70,20 @@ describe('ScanEntry', () => {
     await waitFor(() => expect(document.querySelector('dialog')).not.toHaveAttribute('open'))
     expect(onScan).not.toHaveBeenCalled()
   })
+
+  it('closes with "Camera unavailable" when detection fails', async () => {
+    vi.stubGlobal(
+      'BarcodeDetector',
+      class {
+        detect = async () => {
+          throw new DOMException('No frame', 'InvalidStateError')
+        }
+      },
+    )
+    renderEntry()
+    fireEvent.click(screen.getByRole('button', { name: 'Scan barcode' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Camera unavailable')
+    await waitFor(() => expect(document.querySelector('dialog')).not.toHaveAttribute('open'))
+    expect(track.stop).toHaveBeenCalled()
+  })
 })

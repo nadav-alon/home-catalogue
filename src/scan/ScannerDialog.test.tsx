@@ -107,7 +107,7 @@ describe('ScannerDialog', () => {
     expect(onDenied).not.toHaveBeenCalled()
   })
 
-  it('releases the camera and closes when detection fails', async () => {
+  it('releases the camera and reports the camera unavailable when detection fails', async () => {
     vi.stubGlobal(
       'BarcodeDetector',
       class {
@@ -116,9 +116,9 @@ describe('ScannerDialog', () => {
         })
       },
     )
-    const onClose = vi.fn()
-    render(<ScannerDialog open onScan={() => {}} onDenied={() => {}} onUnavailable={() => {}} onClose={onClose} />)
-    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    const onUnavailable = vi.fn()
+    render(<ScannerDialog open onScan={() => {}} onDenied={() => {}} onUnavailable={onUnavailable} onClose={() => {}} />)
+    await waitFor(() => expect(onUnavailable).toHaveBeenCalledOnce())
     expect(track.stop).toHaveBeenCalled()
   })
 })

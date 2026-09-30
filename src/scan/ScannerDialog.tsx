@@ -10,9 +10,9 @@ export interface ScannerDialogProps {
   open: boolean
   /** Called once with the first detected value that is a Barcode; the camera is already released. */
   onScan: (barcode: core.Barcode) => void
-  /** Called instead of `onScan` when the Member refuses camera access; the caller closes the dialog. A detector failure calls `onClose`. */
+  /** Called instead of `onScan` when the Member refuses camera access; the caller closes the dialog. */
   onDenied: () => void
-  /** Called instead of `onScan` when the camera cannot be opened for any reason other than denial; the caller closes the dialog. */
+  /** Called instead of `onScan` when the camera cannot be opened or read for any reason other than denial; the caller closes the dialog. */
   onUnavailable: () => void
   onClose: () => void
 }
@@ -33,7 +33,7 @@ export function ScannerDialog({ open, onScan, onDenied, onUnavailable, onClose }
   return (
     <Dialog open={open} title="Scan barcode" class="scan-dialog" onClose={onClose}>
       <IconButton symbol={CloseIcon} label="Close" onClick={onClose} />
-      {open && <CameraReader onScan={onScan} onDenied={onDenied} onUnavailable={onUnavailable} onClose={onClose} />}
+      {open && <CameraReader onScan={onScan} onDenied={onDenied} onUnavailable={onUnavailable} />}
     </Dialog>
   )
 }
@@ -42,8 +42,7 @@ function CameraReader({
   onScan,
   onDenied,
   onUnavailable,
-  onClose,
-}: Pick<ScannerDialogProps, 'onScan' | 'onDenied' | 'onUnavailable' | 'onClose'>) {
+}: Pick<ScannerDialogProps, 'onScan' | 'onDenied' | 'onUnavailable'>) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const onScanRef = useRef(onScan)
   onScanRef.current = onScan
@@ -51,8 +50,6 @@ function CameraReader({
   onDeniedRef.current = onDenied
   const onUnavailableRef = useRef(onUnavailable)
   onUnavailableRef.current = onUnavailable
-  const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
 
   useEffect(() => {
     let stopped = false
@@ -91,7 +88,7 @@ function CameraReader({
         if (stopped) return
         stopped = true
         release()
-        onCloseRef.current()
+        onUnavailableRef.current()
       }
     }
 
