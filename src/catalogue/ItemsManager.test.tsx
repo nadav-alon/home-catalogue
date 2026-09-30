@@ -6,6 +6,7 @@ import { ItemsManager } from './ItemsManager.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import { resetHash } from '../testing/hash.ts'
 import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 import { choose } from '../testing/select.ts'
 
@@ -77,6 +78,8 @@ function renderWith(
   return { ...render(<ItemsManager db={fakeDb} itemIds={itemIds} />), publishCategories }
 }
 
+afterEach(resetHash)
+
 describe('ItemsManager', () => {
   it('shows exactly the Items whose ids are given, ignoring unknown ids', () => {
     const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
@@ -100,6 +103,15 @@ describe('ItemsManager', () => {
     renderWith([bandages, tape], [medicine], [pharmacy], [bandages.id, tape.id, core.itemId('gone')])
 
     expect(screen.getByText('Scanned: 2 Items')).toBeInTheDocument()
+  })
+
+  it('returns to the unfiltered #/items when the chip is dismissed', () => {
+    window.location.hash = '#/items?item=bandages'
+    renderWith([bandages], [medicine], [pharmacy], [bandages.id])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear scanned filter' }))
+
+    expect(window.location.hash).toBe('#/items')
   })
 
   it('changes State on a filtered row', () => {

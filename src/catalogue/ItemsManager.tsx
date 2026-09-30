@@ -10,6 +10,8 @@ import { Fab } from '../ui/Fab.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { SegmentedButton } from '../ui/SegmentedButton.tsx'
 import { TextField } from '../ui/TextField.tsx'
+import { route } from '../ui/route.ts'
+import { navigate } from '../ui/useRoute.ts'
 import AddIcon from '~icons/material-symbols/add'
 import './ItemsManager.css'
 
@@ -68,7 +70,14 @@ export function ItemsManager({ db, itemIds }: ItemsManagerProps) {
       {itemIds === undefined ? (
         <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
       ) : (
-        items !== undefined && <span>Scanned: {scannedLabel}</span>
+        items !== undefined && (
+          <span>
+            Scanned: {scannedLabel}
+            <button type="button" aria-label="Clear scanned filter" onClick={() => navigate(route('/items'))}>
+              ✕
+            </button>
+          </span>
+        )
       )}
       {items !== undefined && visibleItems.length === 0 && (
         <p>{items.length === 0 ? 'No Items yet.' : 'No Items match your search.'}</p>
