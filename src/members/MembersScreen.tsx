@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
-import QRCode from 'qrcode'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { currentUserUid } from '../auth/authClient.ts'
@@ -14,7 +13,7 @@ import { TextField } from '../ui/TextField.tsx'
 import { route } from '../ui/route.ts'
 import { navigate } from '../ui/useRoute.ts'
 import ArrowBackIcon from '~icons/material-symbols/arrow-back'
-import { deviceTransferUrl } from '../firebase/deviceTransfer.ts'
+import { DeviceTransferQrCode } from '../firebase/DeviceTransferQrCode.tsx'
 import { inviteShareMessage } from './shareInvite.ts'
 import { createInvite, revokeInvite, watchInvites } from './invites.ts'
 import { removeMember, watchMembers, type MemberRecord } from './members.ts'
@@ -104,7 +103,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
       </ul>
       {qrInviteEmail !== null && (
         <div>
-          <InviteQrCode config={config} email={qrInviteEmail} />
+          <DeviceTransferQrCode config={config} label={`Scan with the device of ${qrInviteEmail} to join`} />
           <Button variant="text" onClick={() => setQrInviteEmail(null)}>
             Close QR code
           </Button>
@@ -180,27 +179,4 @@ async function shareInvite(config: FirebaseWebConfig, email: core.Email, showQr:
   } catch (err) {
     if (!(err instanceof DOMException && err.name === 'AbortError')) showQr(email)
   }
-}
-
-/** The invite link as a QR code, for the invitee to scan. */
-function InviteQrCode({ config, email }: { config: FirebaseWebConfig; email: core.Email }) {
-  const [svg, setSvg] = useState<string | null>(null)
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    setSvg(null)
-    setFailed(false)
-    QRCode.toString(deviceTransferUrl(config), { type: 'svg' }).then(
-      (result) => !cancelled && setSvg(result),
-      () => !cancelled && setFailed(true),
-    )
-    return () => {
-      cancelled = true
-    }
-  }, [config, email])
-
-  if (failed) return <p role="alert">Could not generate the QR code.</p>
-  if (svg === null) return null
-  return <div role="img" aria-label={`Scan with the device of ${email} to join`} dangerouslySetInnerHTML={{ __html: svg }} />
 }
