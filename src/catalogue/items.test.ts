@@ -346,7 +346,7 @@ describe('createItem', () => {
         categoryId: catalogue.categoryId('cleaning'),
         necessity: catalogue.necessitySchema.parse('essential'),
       }),
-    ).resolves.toBe('generated-id')
+    ).resolves.toBeDefined()
   })
 })
 

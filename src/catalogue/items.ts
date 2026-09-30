@@ -149,9 +149,9 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
  * writing a new Item's two docs, core `items` plus catalogue `catalogueItems`, keyed by the same
  * generated id, as one batch. A new Item always starts at State `enough`, carrying `barcode`
  * when given. The batch also bumps the referenced Category's referenceCount, and the Shop
- * override's when set, matching the platform's create rule. Resolves with the new Item's id once the batch is queued,
- * not once Firestore acknowledges it, so a caller offline is not left waiting; a batch the
- * server later rejects is reported through {@link reportWriteRejection}.
+ * override's when set, matching the platform's create rule. Resolves with the new Item's id
+ * once the batch is queued, not once Firestore acknowledges it, so a caller offline is not
+ * left waiting; a batch the server later rejects is reported through {@link reportWriteRejection}.
  */
 export async function createItem(db: Firestore, input: NewItemInput): Promise<core.ItemId> {
   const item = core.itemSchema.parse({
