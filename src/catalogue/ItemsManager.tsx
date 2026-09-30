@@ -10,18 +10,20 @@ import { Fab } from '../ui/Fab.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { SegmentedButton } from '../ui/SegmentedButton.tsx'
 import { TextField } from '../ui/TextField.tsx'
-import { route } from '../ui/route.ts'
-import { navigate } from '../ui/useRoute.ts'
+import { IconButton } from '../ui/IconButton.tsx'
 import AddIcon from '~icons/material-symbols/add'
+import CloseIcon from '~icons/material-symbols/close'
 import './ItemsManager.css'
 
 export interface ItemsManagerProps {
   db: Firestore
   /** Show only the Items with these ids; unknown ids are ignored. Every Item when empty or omitted. */
   itemIds?: readonly core.ItemId[]
+  /** Called when the chip naming the id filter is dismissed. */
+  onClearFilter?: () => void
 }
 
-export function ItemsManager({ db, itemIds = [] }: ItemsManagerProps) {
+export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerProps) {
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
@@ -81,9 +83,7 @@ export function ItemsManager({ db, itemIds = [] }: ItemsManagerProps) {
         items !== undefined && (
           <span>
             Scanned: {scannedLabel}
-            <button type="button" aria-label="Clear scanned filter" onClick={() => navigate(route('/items'))}>
-              ✕
-            </button>
+            <IconButton symbol={CloseIcon} label="Clear scanned filter" onClick={onClearFilter} />
           </span>
         )
       )}

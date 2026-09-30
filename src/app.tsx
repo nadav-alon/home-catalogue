@@ -9,8 +9,8 @@ import { SettingsScreen } from './settings/SettingsScreen.tsx'
 import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
 import { titleOf } from './shell/titles.ts'
-import type { Route } from './ui/route.ts'
-import { useItemIds, useRoute } from './ui/useRoute.ts'
+import { route, type Route } from './ui/route.ts'
+import { navigate, useItemIds, useRoute } from './ui/useRoute.ts'
 import './app.css'
 import type { FirebaseWebConfig } from './firebase/webConfig.ts'
 
@@ -53,7 +53,7 @@ function Screen({
     case '/list':
       return <ShoppingList db={db} />
     case '/items':
-      return <ItemsManager db={db} itemIds={itemIds} />
+      return <ItemsManager db={db} itemIds={itemIds} onClearFilter={() => navigate(route('/items'))} />
     case '/settings':
       return <SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
     case '/settings/shops':

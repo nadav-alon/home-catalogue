@@ -90,6 +90,24 @@ describe('App', () => {
     expect(screen.queryByText('Tape')).toBeNull()
   })
 
+  it('returns to every Item and the search box when the scanned chip is dismissed', async () => {
+    window.location.hash = '#/items?item=bandages'
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+    await act(async () => {
+      const other: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+      for (const cb of watchItemsCallbacks) cb([bandages, other])
+    })
+
+    await act(async () => {
+      screen.getByRole('button', { name: 'Clear scanned filter' }).click()
+      await new Promise((resolve) => setTimeout(resolve))
+    })
+
+    expect(window.location.hash).toBe('#/items')
+    expect(screen.getByText('Tape')).toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: 'Search Items' })).toBeInTheDocument()
+  })
+
   it('puts the scan icon in the top app bar on the Items screen when BarcodeDetector exists', () => {
     vi.stubGlobal('BarcodeDetector', class {})
     window.location.hash = '#/items'

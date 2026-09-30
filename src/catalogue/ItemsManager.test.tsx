@@ -60,6 +60,7 @@ function renderWith(
   categories: CategoryRecord[],
   shops: ShopRecord[],
   itemIds?: readonly core.ItemId[],
+  onClearFilter?: () => void,
 ) {
   let publishCategories: (categories: CategoryRecord[]) => void = () => {}
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
@@ -75,7 +76,10 @@ function renderWith(
     cb(shops)
     return vi.fn()
   })
-  return { ...render(<ItemsManager db={fakeDb} itemIds={itemIds} />), publishCategories }
+  return {
+    ...render(<ItemsManager db={fakeDb} itemIds={itemIds} onClearFilter={onClearFilter} />),
+    publishCategories,
+  }
 }
 
 afterEach(resetHash)
@@ -122,13 +126,13 @@ describe('ItemsManager', () => {
     expect(screen.queryByText('No Items match your search.')).not.toBeInTheDocument()
   })
 
-  it('returns to the unfiltered #/items when the chip is dismissed', () => {
-    window.location.hash = '#/items?item=bandages'
-    renderWith([bandages], [medicine], [pharmacy], [bandages.id])
+  it('calls onClearFilter when the chip is dismissed', () => {
+    const onClearFilter = vi.fn()
+    renderWith([bandages], [medicine], [pharmacy], [bandages.id], onClearFilter)
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear scanned filter' }))
 
-    expect(window.location.hash).toBe('#/items')
+    expect(onClearFilter).toHaveBeenCalledOnce()
   })
 
   it('changes State on a filtered row', () => {
