@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/preact'
 import { SnackbarHost, showSnackbar } from './Snackbar.tsx'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 describe('Snackbar', () => {
   it('shows a message from any screen in a status region', () => {
@@ -24,6 +27,20 @@ describe('Snackbar', () => {
     act(() => showSnackbar({ text: 'Deleted Bandages', action: { label: 'Undo', onAction } }))
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(onAction).toHaveBeenCalledOnce()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
+
+  it('disappears after about 6 seconds', () => {
+    vi.useFakeTimers()
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'Saved' }))
+    act(() => {
+      vi.advanceTimersByTime(5900)
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('Saved')
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 })

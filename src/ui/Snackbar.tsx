@@ -8,12 +8,17 @@ export interface SnackbarMessage {
   action?: { label: string; onAction: () => void }
 }
 
+/** How long a snackbar stays before it disappears on its own. */
+const snackbarDurationMs = 6000
+
 type Listener = (current: SnackbarMessage | null) => void
 
 let current: SnackbarMessage | null = null
+let timer: ReturnType<typeof setTimeout> | undefined
 const listeners = new Set<Listener>()
 
 function publish(next: SnackbarMessage | null): void {
+  clearTimeout(timer)
   current = next
   for (const listener of listeners) listener(current)
 }
@@ -21,6 +26,7 @@ function publish(next: SnackbarMessage | null): void {
 /** Shows `message` in the app's one snackbar, from any screen. */
 export function showSnackbar(message: SnackbarMessage): void {
   publish(message)
+  timer = setTimeout(() => dismiss(message), snackbarDurationMs)
 }
 
 /** Dismisses the snackbar if `message` is still the one showing. */
