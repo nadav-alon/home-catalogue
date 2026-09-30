@@ -29,8 +29,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
-  /** `null` while the Item dialog is closed; `item` is the Item being edited, absent when adding; `barcode` is carried by the Item being added. */
-  const [dialog, setDialog] = useState<{ item?: ItemRecord; barcode?: core.Barcode } | null>(null)
+  /** `null` while the Item dialog is closed; otherwise editing `item`, or adding an Item that may carry `barcode`. */
+  const [dialog, setDialog] = useState<{ item: ItemRecord } | { item?: undefined; barcode?: core.Barcode } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
@@ -59,7 +59,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   }
 
   function openDialog(item: ItemRecord | undefined) {
-    setDialog({ item })
+    setDialog(item ? { item } : {})
   }
 
   async function handleSetState(item: ItemRecord, state: core.State) {
@@ -137,7 +137,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         shops={shops}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
         onSave={async (input) => {
-          if (!editedItem) return createItem(db, { ...input, barcode: dialog?.barcode })
+          if (!editedItem) return createItem(db, { ...input, barcode: dialog && 'barcode' in dialog ? dialog.barcode : undefined })
           // Its reference counts move from the current record.
           await updateItem(db, editedItem, input)
         }}
