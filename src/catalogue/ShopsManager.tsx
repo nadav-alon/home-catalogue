@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
+import { TopAppBarActions } from '../shell/TopAppBar.tsx'
+import { IconButton } from '../ui/IconButton.tsx'
+import { route } from '../ui/route.ts'
+import { navigate } from '../ui/useRoute.ts'
+import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 import { createShop, deleteShop, renameShop, watchShops, ShopInUseError, type ShopRecord } from './shops.ts'
+
+const SETTINGS = route('/settings')
 
 export interface ShopsManagerProps {
   db: Firestore
@@ -55,6 +62,9 @@ export function ShopsManager({ db }: ShopsManagerProps) {
 
   return (
     <section>
+      <TopAppBarActions>
+        <IconButton symbol={ArrowBackIcon} label="Back to Settings" onClick={() => navigate(SETTINGS)} />
+      </TopAppBarActions>
       <h2>Shops</h2>
       {error !== null && <p role="alert">{error}</p>}
       <ul>

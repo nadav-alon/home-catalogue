@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
+import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { ShopsManager } from './ShopsManager.tsx'
 import type { ShopRecord } from './shops.ts'
 import { grocery, pharmacy } from './testFixtures.ts'
@@ -42,6 +43,20 @@ function renderWithShops(shops: ShopRecord[]) {
 }
 
 describe('ShopsManager', () => {
+  it('has a back arrow in the top app bar that returns to Settings', () => {
+    watchShops.mockReturnValue(unsubscribe)
+    window.location.hash = '#/settings/shops'
+    render(
+      <TopAppBar title="Shops">
+        <ShopsManager db={fakeDb} />
+      </TopAppBar>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Settings' }))
+
+    expect(window.location.hash).toBe('#/settings')
+  })
+
   it('lists every Shop from watchShops', () => {
     renderWithShops([pharmacy, grocery])
 
