@@ -32,9 +32,9 @@ function toShopRecord(id: string, data: catalogue.Shop): ShopRecord {
 }
 
 /**
- * Notifies `callback` with every live Shop (no `deletedAt`), ordered by name. A document failing
- * {@link catalogue.shopSchema} is skipped and logged rather than breaking the whole list.
- * Returns the unsubscribe function.
+ * Notifies `callback` with every Shop that isn't soft-deleted (`deletedAt` unset), ordered by name. A
+ * document failing {@link catalogue.shopSchema} is skipped and logged rather than breaking the
+ * whole list. Returns the unsubscribe function.
  */
 export function watchShops(db: Firestore, callback: (shops: ShopRecord[]) => void): () => void {
   const shopsQuery = query(collection(db, catalogue.SHOPS_COLLECTION), orderBy('name'))
