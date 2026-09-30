@@ -6,19 +6,13 @@ import { TopAppBar } from '../shell/TopAppBar.tsx'
 import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
+import { medicine, pharmacy } from '../catalogue/testFixtures.ts'
 
 const exportShoppingList = vi.fn()
 vi.mock('./exportShoppingList.ts', () => ({
   exportShoppingList: (groups: unknown, date: unknown) => exportShoppingList(groups, date),
 }))
 
-const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 1 }
-const medicine: CategoryRecord = {
-  id: catalogue.categoryId('medicine'),
-  name: 'Medicine',
-  defaultShopId: pharmacy.id,
-  referenceCount: 1,
-}
 const bandages: ItemRecord = {
   id: core.itemId('bandages'),
   name: 'Bandages',
