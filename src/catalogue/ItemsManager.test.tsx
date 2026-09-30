@@ -16,7 +16,7 @@ const watchItems = vi.fn()
 const createItem = vi.fn()
 const setItemState = vi.fn()
 const updateItem = vi.fn()
-const deleteItem = vi.fn()
+const softDeleteItem = vi.fn()
 const restoreItem = vi.fn()
 const findItemsByBarcode = vi.fn()
 const attachBarcode = vi.fn()
@@ -26,7 +26,7 @@ vi.mock('./items.ts', async (importOriginal) => ({
   createItem: (db: unknown, input: unknown) => createItem(db, input),
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
-  deleteItem: (db: unknown, item: unknown) => deleteItem(db, item),
+  softDeleteItem: (db: unknown, item: unknown) => softDeleteItem(db, item),
   restoreItem: (db: unknown, item: unknown) => restoreItem(db, item),
   findItemsByBarcode: (db: unknown, barcode: unknown) => findItemsByBarcode(db, barcode),
   attachBarcode: (db: unknown, item: unknown, barcode: unknown) => attachBarcode(db, item, barcode),
@@ -60,7 +60,7 @@ beforeEach(() => {
   createItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
-  deleteItem.mockReset().mockResolvedValue(undefined)
+  softDeleteItem.mockReset().mockResolvedValue(undefined)
   restoreItem.mockReset().mockResolvedValue(undefined)
   findItemsByBarcode.mockReset().mockResolvedValue([])
   attachBarcode.mockReset().mockResolvedValue(undefined)
@@ -417,13 +417,13 @@ describe('editing an Item', () => {
   })
 
   it('deletes that Item and closes the dialog at once, without waiting on the write', () => {
-    deleteItem.mockReturnValue(new Promise(() => {}))
+    softDeleteItem.mockReturnValue(new Promise(() => {}))
     renderWith([waterproofBandages], [medicine, cleaning], [pharmacy, grocery])
 
     openRow('Bandages')
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
-    expect(deleteItem).toHaveBeenCalledWith(fakeDb, waterproofBandages)
+    expect(softDeleteItem).toHaveBeenCalledWith(fakeDb, waterproofBandages)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 

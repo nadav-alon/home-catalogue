@@ -604,11 +604,11 @@ describe('a queued Item write the server rejects', () => {
   })
 
   it('reports a deleted Item by name', async () => {
-    const { deleteItem } = await import('./items.ts')
+    const { softDeleteItem } = await import('./items.ts')
     const latest = await rejections()
     batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
 
-    await deleteItem(fakeDb, { ...dishSoap, categoryId: catalogue.categoryId('cleaning') })
+    await softDeleteItem(fakeDb, { ...dishSoap, categoryId: catalogue.categoryId('cleaning') })
     await Promise.resolve()
 
     expect(latest()).toEqual(['Could not save deleted Item Dish soap'])
@@ -800,7 +800,7 @@ describe('barcode write rejections', () => {
   })
 })
 
-describe('deleteItem and restoreItem', () => {
+describe('softDeleteItem and restoreItem', () => {
   const dishSoap: ItemRecord = {
     id: core.itemId('dish-soap'),
     name: 'Dish soap',
@@ -811,10 +811,10 @@ describe('deleteItem and restoreItem', () => {
   }
 
   it('soft-deletes both docs and lowers the Category and Shop counts in one batch, leaving stateHistory alone', async () => {
-    const { deleteItem } = await import('./items.ts')
+    const { softDeleteItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
-    await deleteItem(fakeDb, dishSoap)
+    await softDeleteItem(fakeDb, dishSoap)
 
     const stamp = { kind: 'serverTimestamp' }
     expect(batchUpdate.mock.calls).toEqual([
@@ -828,10 +828,10 @@ describe('deleteItem and restoreItem', () => {
   })
 
   it('leaves Shop counts alone for an Item without a Shop override', async () => {
-    const { deleteItem } = await import('./items.ts')
+    const { softDeleteItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
-    await deleteItem(fakeDb, { ...dishSoap, shopId: undefined })
+    await softDeleteItem(fakeDb, { ...dishSoap, shopId: undefined })
 
     expect(batchUpdate).toHaveBeenCalledTimes(3)
   })

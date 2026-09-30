@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, deleteItem, findItemsByBarcode, matchesName, restoreItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, softDeleteItem, findItemsByBarcode, matchesName, restoreItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
@@ -73,7 +73,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   }
 
   function handleDelete(item: ItemRecord) {
-    void deleteItem(db, item)
+    void softDeleteItem(db, item)
     showSnackbar({ text: `Deleted ${item.name}`, action: { label: 'Undo', onAction: () => void restoreItem(db, item) } })
   }
 
