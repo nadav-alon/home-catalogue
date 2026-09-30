@@ -20,8 +20,8 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<ItemRecord | undefined>(undefined)
+  /** `null` while the Item dialog is closed; `item` is the Item being edited, absent when adding. */
+  const [dialog, setDialog] = useState<{ item?: ItemRecord } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
@@ -30,8 +30,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   useEffect(() => watchShops(db, setShops), [db])
 
   function openDialog(item: ItemRecord | undefined) {
-    setEditing(item)
-    setDialogOpen(true)
+    setDialog({ item })
   }
 
   async function handleSetState(item: ItemRecord, state: core.State) {
@@ -71,12 +70,12 @@ export function ItemsManager({ db }: ItemsManagerProps) {
       )}
       <Fab symbol={AddIcon} label="Add Item" onClick={() => openDialog(undefined)} />
       <ItemDialog
-        open={dialogOpen}
-        item={editing}
+        open={dialog !== null}
+        item={dialog?.item}
         categories={categories}
         shops={shops}
-        onSave={(input) => (editing ? updateItem(db, editing, input) : createItem(db, input))}
-        onClose={() => setDialogOpen(false)}
+        onSave={(input) => (dialog?.item ? updateItem(db, dialog.item, input) : createItem(db, input))}
+        onClose={() => setDialog(null)}
       />
     </section>
   )
