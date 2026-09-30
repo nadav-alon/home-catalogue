@@ -12,3 +12,17 @@
   box-shadow: var(--md-sys-elevation-level3);
   cursor: pointer;
 }
+
+/* Floats over the screen at the bottom-end corner, clear of the bottom nav bar, which becomes a side rail from 600px. */
+.ui-fab {
+  position: fixed;
+  z-index: 1;
+  right: var(--md-sys-spacing-4);
+  bottom: calc(var(--shell-bar-height) + var(--md-sys-spacing-4));
+}
+
+@media (min-width: 600px) {
+  .ui-fab {
+    bottom: var(--md-sys-spacing-4);
+  }
+}

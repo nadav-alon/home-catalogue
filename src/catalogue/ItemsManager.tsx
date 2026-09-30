@@ -11,6 +11,7 @@ import { ListRow } from '../ui/ListRow.tsx'
 import { SegmentedButton } from '../ui/SegmentedButton.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import AddIcon from '~icons/material-symbols/add'
+import './ItemsManager.css'
 
 export interface ItemsManagerProps {
   db: Firestore
@@ -53,7 +54,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   )
 
   return (
-    <section>
+    <section class="items-manager">
       <h2>Items</h2>
       {/* TODO[#169]: route the scanned barcode to its Items, or attach it. */}
       <ScanEntry onScan={() => {}} />
