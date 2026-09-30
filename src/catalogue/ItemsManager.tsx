@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, findItemsByBarcode, matchesName, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, softDeleteItem, findItemsByBarcode, matchesName, restoreItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
@@ -9,6 +9,7 @@ import { watchShops, type ShopRecord } from './shops.ts'
 import { navigateToItems } from '../ui/useRoute.ts'
 import { ItemDialog } from './ItemDialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
+import { showSnackbar } from '../ui/Snackbar.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { SegmentedButton } from '../ui/SegmentedButton.tsx'
 import { TextField } from '../ui/TextField.tsx'
@@ -69,6 +70,11 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update State')
     }
+  }
+
+  function handleDelete(item: ItemRecord) {
+    void softDeleteItem(db, item)
+    showSnackbar({ text: `Deleted ${item.name}`, action: { label: 'Undo', onAction: () => void restoreItem(db, item) } })
   }
 
   // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.
@@ -140,6 +146,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
           // Its reference counts move from the current record.
           await updateItem(db, editedItem, input)
         }}
+        onDelete={handleDelete}
         onClose={() => setDialog(null)}
       />
     </section>

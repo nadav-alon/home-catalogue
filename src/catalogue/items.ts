@@ -13,6 +13,7 @@ import {
   updateDoc,
   where,
   writeBatch,
+  type FieldValue,
   type Firestore,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore'
@@ -289,4 +290,48 @@ export async function removeBarcode(
       reportWriteRejection(`barcode removal for ${item.name}`, err)
     },
   )
+}
+
+/**
+ * One batch moving an Item in or out of the soft-deleted state: `deletedAt` on its core and catalogue
+ * docs, and the referenceCount of its Category, and of its Shop override when set, by `delta`.
+ * Shared by {@link softDeleteItem} and {@link restoreItem} so the counts they move stay in step.
+ */
+function commitItemDeletion(
+  db: Firestore,
+  item: ItemRecord,
+  deletedAt: FieldValue,
+  delta: 1 | -1,
+  rejectionLabel: string,
+): void {
+  const batch = writeBatch(db)
+  batch.update(doc(db, core.ITEMS_COLLECTION, item.id), { deletedAt })
+  batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, item.id), { deletedAt })
+  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, item.categoryId), { referenceCount: increment(delta) })
+  if (item.shopId !== undefined) {
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, item.shopId), { referenceCount: increment(delta) })
+  }
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`${rejectionLabel} ${item.name}`, err)
+  })
+}
+
+/**
+ * Soft-deletes the Item: one batch sets `deletedAt` on its core and catalogue docs and lowers the
+ * referenceCount of its Category, and of its Shop override when set. `stateHistory` is left
+ * untouched, so {@link restoreItem} brings the Item back whole. Resolves once the batch is queued,
+ * see {@link createItem}; unlike `deleteCategory` and `deleteShop` it never throws.
+ */
+export async function softDeleteItem(db: Firestore, item: ItemRecord): Promise<void> {
+  commitItemDeletion(db, item, serverTimestamp(), -1, 'deleted Item')
+}
+
+/**
+ * Undoes {@link softDeleteItem}: clears `deletedAt` on both docs and raises the same referenceCounts
+ * back. Undo can fail: the delete frees the Category and Shop for deletion, and `deleteCategory` and
+ * `deleteShop` hard-delete the doc, so a restore after that is refused, the Item stays deleted and
+ * only the write-rejection banner says so.
+ */
+export async function restoreItem(db: Firestore, item: ItemRecord): Promise<void> {
+  commitItemDeletion(db, item, deleteField(), 1, 'restored Item')
 }

@@ -24,6 +24,8 @@ export interface ItemDialogProps {
    * is shown in the dialog and keeps it open.
    */
   onSave: (input: ItemEdit) => Promise<void>
+  /** Called when they delete the Item being edited, just before the dialog closes; the Delete button shows only when editing. */
+  onDelete: (item: ItemRecord) => void
   onClose: () => void
 }
 
@@ -64,7 +66,7 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 }
 
 /** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its Barcodes when editing, in a dialog that starts from `item`, or empty, on each open. */
-export function ItemDialog({ open, item, categories, shops, onCreateCategory, onSave, onClose }: ItemDialogProps) {
+export function ItemDialog({ open, item, categories, shops, onCreateCategory, onSave, onDelete, onClose }: ItemDialogProps) {
   return (
     <Dialog open={open} title={item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
       {open && (
@@ -74,6 +76,7 @@ export function ItemDialog({ open, item, categories, shops, onCreateCategory, on
           shops={shops}
           onCreateCategory={onCreateCategory}
           onSave={onSave}
+          onDelete={onDelete}
           onClose={onClose}
         />
       )}
@@ -81,7 +84,7 @@ export function ItemDialog({ open, item, categories, shops, onCreateCategory, on
   )
 }
 
-function ItemForm({ item, categories, shops, onCreateCategory, onSave, onClose }: Omit<ItemDialogProps, 'open'>) {
+function ItemForm({ item, categories, shops, onCreateCategory, onSave, onDelete, onClose }: Omit<ItemDialogProps, 'open'>) {
   const [values, setValues] = useState<ItemFormValues>({
     name: item?.name ?? '',
     brandNote: item?.brandNote ?? '',
@@ -153,6 +156,12 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onClose }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not save Item')
     }
+  }
+
+  function handleDelete() {
+    if (!item) return
+    onDelete(item)
+    onClose()
   }
 
   return (
@@ -239,6 +248,11 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onClose }
             ))}
           </ul>
         </section>
+      )}
+      {item && (
+        <Button variant="text" onClick={handleDelete}>
+          Delete
+        </Button>
       )}
       <Button variant="text" onClick={onClose}>
         Cancel
