@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, softDeleteItem, findItemsByBarcode, matchesName, restoreItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findDeletedItemByBarcode, softDeleteItem, findItemsByBarcode, matchesName, isLiveReference, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
+import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { watchShops, type ShopRecord } from './shops.ts'
 import { navigateToItems } from '../ui/useRoute.ts'
@@ -30,26 +31,72 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
-  /** `null` while the Item dialog is closed; otherwise editing `item`, or adding an Item that may carry `barcode`. */
-  const [dialog, setDialog] = useState<{ item: ItemRecord } | { item?: undefined; barcode?: core.Barcode } | null>(null)
+  /**
+   * `null` while the Item dialog is closed; otherwise editing `item`, restoring the deleted `item` with a live
+   * Category and Shop, or adding an Item that may carry `barcode`.
+   */
+  const [dialog, setDialog] = useState<
+    | { kind: 'edit'; item: ItemRecord }
+    | { kind: 'restore'; item: ItemRecord }
+    | { kind: 'add'; barcode?: core.Barcode }
+    | null
+  >(null)
+  /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
+  const [listsLoaded, setListsLoaded] = useState({ categories: false, shops: false })
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
   const [unknownBarcode, setUnknownBarcode] = useState<core.Barcode | undefined>(undefined)
 
+  /** The deleted Item a scanned Barcode belongs to, and that Barcode, while the Member is deciding whether to bring it back. */
+  const [deletedMatch, setDeletedMatch] = useState<{ item: ItemRecord; barcode: core.Barcode } | undefined>(undefined)
+
   useEffect(() => watchItems(db, setItems), [db])
-  useEffect(() => watchCategories(db, setCategories), [db])
-  useEffect(() => watchShops(db, setShops), [db])
+  useEffect(
+    () =>
+      watchCategories(db, (records) => {
+        setCategories(records)
+        setListsLoaded((current) => ({ ...current, categories: true }))
+      }),
+    [db],
+  )
+  useEffect(
+    () =>
+      watchShops(db, (records) => {
+        setShops(records)
+        setListsLoaded((current) => ({ ...current, shops: true }))
+      }),
+    [db],
+  )
 
   async function handleScan(barcode: core.Barcode) {
     try {
       const found = await findItemsByBarcode(db, barcode)
       setError(null)
-      if (found.length === 0) setUnknownBarcode(barcode)
-      else navigateToItems(found.map((item) => item.id))
+      if (found.length > 0) return navigateToItems(found.map((item) => item.id))
+      const deleted = await findDeletedItemByBarcode(db, barcode)
+      if (deleted === undefined) setUnknownBarcode(barcode)
+      else setDeletedMatch({ item: deleted, barcode })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not look up the barcode')
     }
+  }
+
+  async function handleRestore(item: ItemRecord) {
+    // Until both lists have loaded, a Category or Shop cannot be told from a deleted one; the offer stays open.
+    if (!listsLoaded.categories || !listsLoaded.shops) return
+    setDeletedMatch(undefined)
+    if (!isLiveReference(categories, item.categoryId) || !isLiveReference(shops, item.shopId)) {
+      return setDialog({ kind: 'restore', item })
+    }
+    await restoreItem(db, item)
+    navigateToItems([item.id])
+  }
+
+  function handleDeclineRestore() {
+    if (deletedMatch === undefined) return
+    setUnknownBarcode(deletedMatch.barcode)
+    setDeletedMatch(undefined)
   }
 
   async function handleAttach(item: ItemRecord) {
@@ -60,7 +107,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   }
 
   function openDialog(item: ItemRecord | undefined) {
-    setDialog(item ? { item } : {})
+    setDialog(item ? { kind: 'edit', item } : { kind: 'add' })
   }
 
   async function handleSetState(item: ItemRecord, state: core.State) {
@@ -78,7 +125,10 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   }
 
   // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.
-  const editedItem = dialog?.item && (items?.find((item) => item.id === dialog.item?.id) ?? dialog.item)
+  const editedItem =
+    dialog !== null && dialog.kind !== 'add'
+      ? (items?.find((item) => item.id === dialog.item.id) ?? dialog.item)
+      : undefined
 
   const scanFiltered = itemIds.length > 0
   const candidateItems = (items ?? []).filter((item) => !scanFiltered || itemIds.includes(item.id))
@@ -124,12 +174,13 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
       {uncategorisedItems.length > 0 && (
         <ItemGroup heading="Uncategorised" items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
+      <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={handleDeclineRestore} />
       <UnknownBarcodeChooser
         barcode={unknownBarcode}
         items={items ?? []}
         onAttach={(item) => void handleAttach(item)}
         onNewItem={() => {
-          setDialog({ barcode: unknownBarcode })
+          setDialog({ kind: 'add', barcode: unknownBarcode })
           setUnknownBarcode(undefined)
         }}
         onClose={() => setUnknownBarcode(undefined)}
@@ -138,15 +189,21 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
       <ItemDialog
         open={dialog !== null}
         item={editedItem}
+        restoring={dialog?.kind === 'restore'}
         categories={categories}
         shops={shops}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
         onSave={async (input) => {
-          if (!editedItem) return createItem(db, { ...input, barcode: dialog && 'barcode' in dialog ? dialog.barcode : undefined })
+          if (dialog?.kind === 'restore' && editedItem) {
+            await restoreItemWithEdit(db, editedItem, input)
+            navigateToItems([editedItem.id])
+            return
+          }
+          if (!editedItem) return createItem(db, { ...input, barcode: dialog?.kind === 'add' ? dialog.barcode : undefined })
           // Its reference counts move from the current record.
           await updateItem(db, editedItem, input)
         }}
-        onDelete={handleDelete}
+        onDelete={dialog?.kind === 'restore' ? undefined : handleDelete}
         onClose={() => setDialog(null)}
       />
     </section>

@@ -25,6 +25,7 @@ const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
 const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
 const where = vi.fn((field: string, op: string, value: unknown) => ({ kind: 'where', field, op, value }))
 const getDocs = vi.fn()
+const getDoc = vi.fn()
 const updateDoc = vi.fn()
 const arrayRemove = vi.fn((...values: unknown[]) => ({ kind: 'arrayRemove', values }))
 const arrayUnion = vi.fn((...values: unknown[]) => ({ kind: 'arrayUnion', values }))
@@ -41,6 +42,7 @@ vi.mock('firebase/firestore', () => ({
   increment: (n: number) => increment(n),
   where: (field: string, op: string, value: unknown) => where(field, op, value),
   getDocs: (q: unknown) => getDocs(q),
+  getDoc: (ref: unknown) => getDoc(ref),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
   arrayUnion: (...values: unknown[]) => arrayUnion(...values),
   arrayRemove: (...values: unknown[]) => arrayRemove(...values),
@@ -63,6 +65,7 @@ beforeEach(() => {
   increment.mockClear()
   where.mockClear()
   getDocs.mockReset()
+  getDoc.mockReset()
   updateDoc.mockReset()
   arrayUnion.mockClear()
   arrayRemove.mockClear()
@@ -709,6 +712,71 @@ describe('findItemsByBarcode', () => {
   })
 })
 
+describe('findDeletedItemByBarcode', () => {
+  const coreDoc = (id: string, extra: object = {}) => ({
+    id,
+    data: () => ({ name: 'Dish soap', state: 'enough', barcodes: ['12345678'], deletedAt, ...extra }),
+  })
+  const catalogueDoc = { exists: () => true, data: () => ({ categoryId: 'cleaning', necessity: 'essential', deletedAt }) }
+
+  it('returns the deleted Item joined with its catalogue doc', async () => {
+    const { findDeletedItemByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({ docs: [coreDoc('dish-soap')] })
+    getDoc.mockResolvedValueOnce(catalogueDoc)
+
+    const found = await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))
+
+    expect(where).toHaveBeenCalledWith('barcodes', 'array-contains', '12345678')
+    expect(getDoc).toHaveBeenCalledWith({ path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' })
+    expect(found).toEqual({
+      id: 'dish-soap',
+      name: 'Dish soap',
+      state: 'enough',
+      barcodes: ['12345678'],
+      deletedAt,
+      categoryId: 'cleaning',
+      necessity: 'essential',
+    })
+  })
+
+  it('picks the most recently deleted Item when several hold the barcode', async () => {
+    const { findDeletedItemByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        coreDoc('old-soap', { deletedAt: { seconds: 1, nanoseconds: 0 } }),
+        coreDoc('new-soap', { deletedAt: { seconds: 5, nanoseconds: 0 } }),
+        coreDoc('mid-soap', { deletedAt: { seconds: 3, nanoseconds: 0 } }),
+      ],
+    })
+    getDoc.mockResolvedValue(catalogueDoc)
+
+    expect((await findDeletedItemByBarcode(fakeDb, core.barcode('12345678')))?.id).toBe('new-soap')
+  })
+
+  it('ignores a live Item', async () => {
+    const { findDeletedItemByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({ docs: [coreDoc('dish-soap', { deletedAt: undefined })] })
+
+    expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
+    expect(getDoc).not.toHaveBeenCalled()
+  })
+
+  it('is undefined when no Item carries the barcode', async () => {
+    const { findDeletedItemByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({ docs: [] })
+
+    expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
+  })
+
+  it('skips an Item whose catalogue doc is missing', async () => {
+    const { findDeletedItemByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({ docs: [coreDoc('dish-soap')] })
+    getDoc.mockResolvedValueOnce({ exists: () => false, data: () => undefined })
+
+    expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
+  })
+})
+
 describe('attachBarcode', () => {
   const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
 
@@ -836,6 +904,40 @@ describe('softDeleteItem and restoreItem', () => {
     expect(batchUpdate).toHaveBeenCalledTimes(3)
   })
 
+  it('restores with an edit in one batch, raising the counts of the Category and Shop it names', async () => {
+    const { restoreItemWithEdit } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await restoreItemWithEdit(fakeDb, dishSoap, {
+      name: 'Dish soap',
+      categoryId: catalogue.categoryId('kitchen'),
+      necessity: catalogue.necessitySchema.parse('important'),
+      shopId: catalogue.shopId('market'),
+      removedBarcodes: [core.barcode('12345678')],
+    })
+
+    const cleared = { kind: 'deleteField' }
+    expect(batchUpdate.mock.calls).toEqual([
+      [
+        { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
+        {
+          deletedAt: cleared,
+          name: 'Dish soap',
+          brandNote: cleared,
+          barcodes: { kind: 'arrayRemove', values: ['12345678'] },
+        },
+      ],
+      [
+        { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' },
+        { deletedAt: cleared, categoryId: 'kitchen', necessity: 'important', shopId: 'market' },
+      ],
+      [{ path: catalogue.CATEGORIES_COLLECTION, id: 'kitchen' }, { referenceCount: { kind: 'increment', delta: 1 } }],
+      [{ path: catalogue.SHOPS_COLLECTION, id: 'market' }, { referenceCount: { kind: 'increment', delta: 1 } }],
+    ])
+    expect(JSON.stringify(batchUpdate.mock.calls)).not.toContain('stateHistory')
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
   it('restores by clearing deletedAt and raising the counts back', async () => {
     const { restoreItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
@@ -849,5 +951,6 @@ describe('softDeleteItem and restoreItem', () => {
       [{ path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' }, { referenceCount: { kind: 'increment', delta: 1 } }],
       [{ path: catalogue.SHOPS_COLLECTION, id: 'grocery' }, { referenceCount: { kind: 'increment', delta: 1 } }],
     ])
+    expect(JSON.stringify(batchUpdate.mock.calls)).not.toContain('stateHistory')
   })
 })

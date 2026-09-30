@@ -4,6 +4,7 @@ import {
   collection,
   deleteField,
   doc,
+  getDoc,
   getDocs,
   increment,
   onSnapshot,
@@ -14,8 +15,10 @@ import {
   where,
   writeBatch,
   type FieldValue,
+  type DocumentSnapshot,
   type Firestore,
   type QueryDocumentSnapshot,
+  type WriteBatch,
 } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import type { CategoryRecord } from './categories.ts'
@@ -62,6 +65,21 @@ function parseCoreItemDocs(docs: readonly QueryDocumentSnapshot[]): (core.Item &
     }
     return [{ id: core.itemId(snapshotDoc.id), ...parsed.data }]
   })
+}
+
+/** The CatalogueItem in a catalogue `items` doc; a document failing its schema is logged and is undefined. */
+function parseCatalogueItemDoc(snapshotDoc: DocumentSnapshot): catalogue.CatalogueItem | undefined {
+  const parsed = catalogue.catalogueItemSchema.safeParse(snapshotDoc.data())
+  if (!parsed.success) {
+    console.error(`Skipping invalid CatalogueItem document ${snapshotDoc.id}`, parsed.error)
+    return undefined
+  }
+  return parsed.data
+}
+
+/** Whether `id` names one of the live `records`; an Item without that reference (`undefined`) counts as live. */
+export function isLiveReference(records: readonly { id: string }[], id: string | undefined): boolean {
+  return id === undefined || records.some((record) => record.id === id)
 }
 
 /** The Item's own Shop, else its Category's default; the Item's own Shop alone when its Category isn't loaded. */
@@ -112,12 +130,8 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
   const unsubscribeCatalogueItems = onSnapshot(collection(db, catalogue.CATALOGUE_ITEMS_COLLECTION), (snapshot) => {
     catalogueItems = new Map(
       snapshot.docs.flatMap((snapshotDoc) => {
-        const parsed = catalogue.catalogueItemSchema.safeParse(snapshotDoc.data())
-        if (!parsed.success) {
-          console.error(`Skipping invalid CatalogueItem document ${snapshotDoc.id}`, parsed.error)
-          return []
-        }
-        return [[core.itemId(snapshotDoc.id), parsed.data] as const]
+        const parsed = parseCatalogueItemDoc(snapshotDoc)
+        return parsed === undefined ? [] : [[core.itemId(snapshotDoc.id), parsed] as const]
       }),
     )
     catalogueLoaded = true
@@ -169,6 +183,45 @@ export async function createItem(db: Firestore, input: NewItemInput): Promise<vo
 }
 
 /**
+ * Validates `edit` and stages its fields on the Item's two docs in `batch`, with `extraFields`
+ * added to both updates. Returns the validated Category and Shop override for the caller's
+ * referenceCounts. Shared by {@link updateItem} and {@link restoreItemWithEdit} so both write the same fields.
+ */
+function stageItemEdit(
+  db: Firestore,
+  batch: WriteBatch,
+  id: core.ItemId,
+  edit: ItemEdit,
+  extraFields: Record<string, FieldValue>,
+): { categoryId: catalogue.CategoryId; shopId: catalogue.ShopId | undefined } {
+  const { name, brandNote } = core.itemSchema.pick({ name: true, brandNote: true }).parse({
+    name: edit.name,
+    ...(edit.brandNote !== undefined ? { brandNote: edit.brandNote } : {}),
+  })
+  const { categoryId, necessity, shopId } = catalogue.catalogueItemSchema
+    .pick({ categoryId: true, necessity: true, shopId: true })
+    .parse({
+      categoryId: edit.categoryId,
+      necessity: edit.necessity,
+      ...(edit.shopId !== undefined ? { shopId: edit.shopId } : {}),
+    })
+
+  batch.update(doc(db, core.ITEMS_COLLECTION, id), {
+    ...extraFields,
+    name,
+    brandNote: brandNote ?? deleteField(),
+    ...(edit.removedBarcodes?.length ? { barcodes: arrayRemove(...edit.removedBarcodes) } : {}),
+  })
+  batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, id), {
+    ...extraFields,
+    categoryId,
+    necessity,
+    shopId: shopId ?? deleteField(),
+  })
+  return { categoryId, shopId }
+}
+
+/**
  * Validates the new fields against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema}
  * before updating an Item's two docs as one batch. State is left untouched; State changes go
  * through their own write. Omitting `brandNote` or `shopId` clears that field rather than leaving
@@ -178,29 +231,8 @@ export async function createItem(db: Firestore, input: NewItemInput): Promise<vo
  * batch with `arrayRemove`, leaving its other Barcodes. Resolves once the batch is queued, see {@link createItem}.
  */
 export async function updateItem(db: Firestore, previous: ItemRecord, input: ItemEdit): Promise<void> {
-  const { name, brandNote } = core.itemSchema.pick({ name: true, brandNote: true }).parse({
-    name: input.name,
-    ...(input.brandNote !== undefined ? { brandNote: input.brandNote } : {}),
-  })
-  const { categoryId, necessity, shopId } = catalogue.catalogueItemSchema
-    .pick({ categoryId: true, necessity: true, shopId: true })
-    .parse({
-      categoryId: input.categoryId,
-      necessity: input.necessity,
-      ...(input.shopId !== undefined ? { shopId: input.shopId } : {}),
-    })
-
   const batch = writeBatch(db)
-  batch.update(doc(db, core.ITEMS_COLLECTION, previous.id), {
-    name,
-    brandNote: brandNote ?? deleteField(),
-    ...(input.removedBarcodes?.length ? { barcodes: arrayRemove(...input.removedBarcodes) } : {}),
-  })
-  batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, previous.id), {
-    categoryId,
-    necessity,
-    shopId: shopId ?? deleteField(),
-  })
+  const { categoryId, shopId } = stageItemEdit(db, batch, previous.id, input, {})
   if (categoryId !== previous.categoryId) {
     batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, previous.categoryId), { referenceCount: increment(-1) })
     batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, categoryId), { referenceCount: increment(1) })
@@ -241,6 +273,17 @@ export async function setItemState(
   })
 }
 
+/** Every Item, live or soft-deleted, whose core `items` doc carries `barcode` in its `barcodes`. */
+async function queryCoreItemsByBarcode(
+  db: Firestore,
+  barcode: core.Barcode,
+): Promise<(core.Item & { id: core.ItemId })[]> {
+  const snapshot = await getDocs(
+    query(collection(db, core.ITEMS_COLLECTION), where('barcodes', 'array-contains', barcode)),
+  )
+  return parseCoreItemDocs(snapshot.docs)
+}
+
 /**
  * Every Item whose core `items` doc carries `barcode` in its `barcodes`, answered from the local
  * cache when offline. Empty when none does; a soft-deleted Item (`deletedAt` set) is not found.
@@ -251,10 +294,31 @@ export async function findItemsByBarcode(
   db: Firestore,
   barcode: core.Barcode,
 ): Promise<(core.Item & { id: core.ItemId })[]> {
-  const snapshot = await getDocs(
-    query(collection(db, core.ITEMS_COLLECTION), where('barcodes', 'array-contains', barcode)),
+  return (await queryCoreItemsByBarcode(db, barcode)).filter((item) => item.deletedAt === undefined)
+}
+
+/**
+ * The soft-deleted Item (`deletedAt` set on its core doc) whose `barcodes` contain `barcode`, joined
+ * with its catalogue half so it can be restored. Undefined when none does, or when its catalogue doc
+ * is missing or fails its schema. With several, the most recently deleted one that can be restored.
+ * Answered from the local cache when offline.
+ */
+export async function findDeletedItemByBarcode(db: Firestore, barcode: core.Barcode): Promise<ItemRecord | undefined> {
+  const deleted = (await queryCoreItemsByBarcode(db, barcode)).flatMap((found) =>
+    found.deletedAt === undefined ? [] : [{ ...found, deletedAt: found.deletedAt }],
   )
-  return parseCoreItemDocs(snapshot.docs).filter((item) => item.deletedAt === undefined)
+  const mostRecentFirst = deleted.sort(
+    (a, b) => b.deletedAt.seconds - a.deletedAt.seconds || b.deletedAt.nanoseconds - a.deletedAt.nanoseconds,
+  )
+  for (const item of mostRecentFirst) {
+    const catalogueSnapshot = await getDoc(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, item.id))
+    if (!catalogueSnapshot.exists()) continue
+    const parsed = parseCatalogueItemDoc(catalogueSnapshot)
+    if (parsed === undefined) continue
+    const { id, ...coreItem } = item
+    return toItemRecord(id, coreItem, parsed)
+  }
+  return undefined
 }
 
 /**
@@ -292,6 +356,20 @@ export async function removeBarcode(
   )
 }
 
+/** Stages `delta` on the referenceCount of `categoryId`, and of `shopId` when set. */
+function stageReferenceCounts(
+  db: Firestore,
+  batch: WriteBatch,
+  categoryId: catalogue.CategoryId,
+  shopId: catalogue.ShopId | undefined,
+  delta: 1 | -1,
+): void {
+  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, categoryId), { referenceCount: increment(delta) })
+  if (shopId !== undefined) {
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, shopId), { referenceCount: increment(delta) })
+  }
+}
+
 /**
  * One batch moving an Item in or out of the soft-deleted state: `deletedAt` on its core and catalogue
  * docs, and the referenceCount of its Category, and of its Shop override when set, by `delta`.
@@ -307,10 +385,7 @@ function commitItemDeletion(
   const batch = writeBatch(db)
   batch.update(doc(db, core.ITEMS_COLLECTION, item.id), { deletedAt })
   batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, item.id), { deletedAt })
-  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, item.categoryId), { referenceCount: increment(delta) })
-  if (item.shopId !== undefined) {
-    batch.update(doc(db, catalogue.SHOPS_COLLECTION, item.shopId), { referenceCount: increment(delta) })
-  }
+  stageReferenceCounts(db, batch, item.categoryId, item.shopId, delta)
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`${rejectionLabel} ${item.name}`, err)
   })
@@ -330,8 +405,23 @@ export async function softDeleteItem(db: Firestore, item: ItemRecord): Promise<v
  * Undoes {@link softDeleteItem}: clears `deletedAt` on both docs and raises the same referenceCounts
  * back. Undo can fail: the delete frees the Category and Shop for deletion, and `deleteCategory` and
  * `deleteShop` hard-delete the doc, so a restore after that is refused, the Item stays deleted and
- * only the write-rejection banner says so.
+ * only the write-rejection banner says so. See {@link restoreItemWithEdit} for picking a live Category.
  */
 export async function restoreItem(db: Firestore, item: ItemRecord): Promise<void> {
   commitItemDeletion(db, item, deleteField(), 1, 'restored Item')
+}
+
+/**
+ * Restores the Item as {@link restoreItem} does, with `edit` written in the same batch as
+ * {@link updateItem} would write it. The referenceCounts raised are those of the Category and Shop
+ * override `edit` names, since the delete already lowered the old ones; this is how a restore picks
+ * a live Category (and Shop) when the old ones are gone. `stateHistory` is left untouched.
+ */
+export async function restoreItemWithEdit(db: Firestore, item: ItemRecord, edit: ItemEdit): Promise<void> {
+  const batch = writeBatch(db)
+  const { categoryId, shopId } = stageItemEdit(db, batch, item.id, edit, { deletedAt: deleteField() })
+  stageReferenceCounts(db, batch, categoryId, shopId, 1)
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`restored Item ${item.name}`, err)
+  })
 }

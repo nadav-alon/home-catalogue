@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { catalogue, type core } from 'data-platform'
-import type { ItemEdit, ItemInput, ItemRecord } from './items.ts'
+import { isLiveReference, type ItemEdit, type ItemInput, type ItemRecord } from './items.ts'
 import { validateCategoryDraft, type CategoryDraft, type CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
@@ -15,6 +15,8 @@ export interface ItemDialogProps {
   open: boolean
   /** The Item being edited; without one the dialog adds an Item. */
   item?: ItemRecord
+  /** The Item is deleted and saving restores it; its Category and Shop override that are gone then start unset for the Member to choose again. */
+  restoring?: boolean
   categories: CategoryRecord[]
   shops: ShopRecord[]
   /** Creates a Category and resolves with its id; a rejection is shown in the dialog's Category prompt. */
@@ -24,8 +26,11 @@ export interface ItemDialogProps {
    * is shown in the dialog and keeps it open.
    */
   onSave: (input: ItemEdit) => Promise<void>
-  /** Called when they delete the Item being edited, just before the dialog closes; the Delete button shows only when editing. */
-  onDelete: (item: ItemRecord) => void
+  /**
+   * Called when they delete the Item being edited, just before the dialog closes; the Delete button shows only when
+   * editing and this is given, so a dialog restoring a deleted Item omits it.
+   */
+  onDelete?: (item: ItemRecord) => void
   onClose: () => void
 }
 
@@ -66,12 +71,13 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 }
 
 /** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its Barcodes when editing, in a dialog that starts from `item`, or empty, on each open. */
-export function ItemDialog({ open, item, categories, shops, onCreateCategory, onSave, onDelete, onClose }: ItemDialogProps) {
+export function ItemDialog({ open, item, restoring, categories, shops, onCreateCategory, onSave, onDelete, onClose }: ItemDialogProps) {
   return (
-    <Dialog open={open} title={item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
+    <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
       {open && (
         <ItemForm
           item={item}
+          restoring={restoring}
           categories={categories}
           shops={shops}
           onCreateCategory={onCreateCategory}
@@ -84,13 +90,13 @@ export function ItemDialog({ open, item, categories, shops, onCreateCategory, on
   )
 }
 
-function ItemForm({ item, categories, shops, onCreateCategory, onSave, onDelete, onClose }: Omit<ItemDialogProps, 'open'>) {
+function ItemForm({ item, restoring, categories, shops, onCreateCategory, onSave, onDelete, onClose }: Omit<ItemDialogProps, 'open'>) {
   const [values, setValues] = useState<ItemFormValues>({
     name: item?.name ?? '',
     brandNote: item?.brandNote ?? '',
-    categoryId: item?.categoryId ?? '',
+    categoryId: item === undefined || (restoring && !isLiveReference(categories, item.categoryId)) ? '' : item.categoryId,
     necessity: item?.necessity ?? '',
-    shopId: item?.shopId ?? NO_SHOP_OVERRIDE,
+    shopId: restoring && !isLiveReference(shops, item?.shopId) ? NO_SHOP_OVERRIDE : (item?.shopId ?? NO_SHOP_OVERRIDE),
   })
   const [errors, setErrors] = useState<ItemFormErrors>({})
   const [removedBarcodes, setRemovedBarcodes] = useState<core.Barcode[]>([])
@@ -159,7 +165,7 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onDelete,
   }
 
   function handleDelete() {
-    if (!item) return
+    if (!item || !onDelete) return
     onDelete(item)
     onClose()
   }
@@ -249,7 +255,7 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onDelete,
           </ul>
         </section>
       )}
-      {item && (
+      {item && onDelete && (
         <Button variant="text" onClick={handleDelete}>
           Delete
         </Button>
