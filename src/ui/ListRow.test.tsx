@@ -65,7 +65,7 @@ describe('ListRow', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Out' }))
     expect(onActivate).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'MilkGrocery' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Milk Grocery' }))
     expect(onActivate).toHaveBeenCalledOnce()
   })
 

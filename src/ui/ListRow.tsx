@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact'
+import { useId } from 'preact/hooks'
 import './ListRow.css'
 
 export interface ListRowProps {
@@ -16,16 +17,31 @@ export interface ListRowProps {
 
 /** A native `<li>`; render inside a `<ul>` or `<ol>`. */
 export function ListRow({ headline, supporting, trailing, control, muted = false, onActivate }: ListRowProps) {
+  const id = useId()
+  const headlineId = `${id}-headline`
+  const supportingId = `${id}-supporting`
   const text = (
     <>
-      <span class="ui-list-row__headline">{headline}</span>
-      {supporting ? <span class="ui-list-row__supporting">{supporting}</span> : null}
+      <span class="ui-list-row__headline" id={headlineId}>
+        {headline}
+      </span>
+      {supporting ? (
+        <span class="ui-list-row__supporting" id={supportingId}>
+          {supporting}
+        </span>
+      ) : null}
     </>
   )
   const content = (
     <>
       {onActivate ? (
-        <button type="button" class="ui-list-row__text ui-list-row__activate" onClick={onActivate}>
+        <button
+          type="button"
+          class="ui-list-row__text ui-list-row__activate"
+          // The spans are inline, so their text would otherwise run together in the button's name.
+          aria-labelledby={supporting ? `${headlineId} ${supportingId}` : undefined}
+          onClick={onActivate}
+        >
           {text}
         </button>
       ) : (

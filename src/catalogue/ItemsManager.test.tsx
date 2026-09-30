@@ -362,7 +362,7 @@ describe('editing an Item', () => {
 describe('leaving the Item dialog without saving', () => {
   async function fillAndLeave(leave: () => void) {
     renderWith([bandages], [medicine], [pharmacy])
-    fireEvent.click(screen.getByRole('button', { name: /^Bandages/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
     fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
     await waitFor(() => expect(history.state).toHaveProperty('ui-dialog'))
     leave()
@@ -398,7 +398,7 @@ describe('leaving the Item dialog without saving', () => {
     await fillAndLeave(() => fireEvent.click(screen.getByRole('button', { name: 'Cancel' })))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: /^Bandages/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
 
     expect(screen.getByLabelText('Name')).toHaveValue('Bandages')
   })
