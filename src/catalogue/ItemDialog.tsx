@@ -72,7 +72,7 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
   }
 }
 
-/** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its Barcodes when editing, in a dialog that starts from `item`, or empty, on each open. */
+/** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its Barcodes when editing or, when adding from a scan, the pending `barcode` shown read-only, in a dialog that starts from `item`, or empty, on each open. */
 export function ItemDialog({ open, item, restoring, barcode, categories, shops, onCreateCategory, onSave, onDelete, onClose }: ItemDialogProps) {
   return (
     <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
@@ -242,9 +242,9 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
         ))}
       </Select>
       {!item && barcode !== undefined && (
-        <p>
-          Barcode: <output>{barcode}</output>
-        </p>
+        <label>
+          Barcode <input readOnly value={barcode} />
+        </label>
       )}
       {keptBarcodes.length > 0 && (
         <section aria-labelledby="item-barcodes-heading">

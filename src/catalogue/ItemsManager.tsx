@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { attachBarcode, createItem, findDeletedItemByBarcode, softDeleteItem, findItemsByBarcode, matchesName, isLiveReference, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
@@ -50,6 +50,18 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
 
   /** The deleted Item a scanned Barcode belongs to, and that Barcode, while the Member is deciding whether to bring it back. */
   const [deletedMatch, setDeletedMatch] = useState<{ item: ItemRecord; barcode: core.Barcode } | undefined>(undefined)
+
+  /** The Item just created from a scan, whose scanned filter opens once the Item dialog has closed. */
+  const createdFromScan = useRef<core.ItemId | undefined>(undefined)
+
+  // A layout effect, so it runs after the closed dialog's cleanup has issued its history pop in the same commit: the filter's
+  // push then waits for that pop rather than landing on top of the dialog's entry.
+  useLayoutEffect(() => {
+    if (dialog !== null || createdFromScan.current === undefined) return
+    const id = createdFromScan.current
+    createdFromScan.current = undefined
+    navigateToItems([id])
+  }, [dialog])
 
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(
@@ -125,6 +137,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   }
 
   // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.
+  const pendingBarcode = dialog?.kind === 'add' ? dialog.barcode : undefined
   const editedItem =
     dialog !== null && dialog.kind !== 'add'
       ? (items?.find((item) => item.id === dialog.item.id) ?? dialog.item)
@@ -190,7 +203,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         open={dialog !== null}
         item={editedItem}
         restoring={dialog?.kind === 'restore'}
-        barcode={dialog?.kind === 'add' ? dialog.barcode : undefined}
+        barcode={pendingBarcode}
         categories={categories}
         shops={shops}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
@@ -201,9 +214,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
             return
           }
           if (!editedItem) {
-            const barcode = dialog?.kind === 'add' ? dialog.barcode : undefined
-            const id = await createItem(db, { ...input, barcode })
-            if (barcode !== undefined) navigateToItems([id])
+            const id = await createItem(db, { ...input, barcode: pendingBarcode })
+            if (pendingBarcode !== undefined) createdFromScan.current = id
             return
           }
           // Its reference counts move from the current record.

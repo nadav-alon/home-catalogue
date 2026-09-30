@@ -1099,8 +1099,9 @@ describe('a scanned barcode', () => {
     fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
-    expect(within(dialog).getByText('4006381333931')).toBeInTheDocument()
-    expect(within(dialog).queryByRole('textbox', { name: /barcode/i })).not.toBeInTheDocument()
+    const barcode = within(dialog).getByRole('textbox', { name: 'Barcode' })
+    expect(barcode).toHaveValue('4006381333931')
+    expect(barcode).toHaveAttribute('readonly')
     expect(within(dialog).queryByRole('button', { name: /Remove barcode/ })).not.toBeInTheDocument()
   })
 
@@ -1110,7 +1111,7 @@ describe('a scanned barcode', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
-    expect(within(dialog).queryByText(/Barcode/)).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('textbox', { name: 'Barcode' })).not.toBeInTheDocument()
   })
 
   it('creates the Item carrying the barcode from "New Item"', async () => {
@@ -1148,6 +1149,35 @@ describe('a scanned barcode', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(window.location.hash).toBe('#/items?item=dish-soap'))
+  })
+
+  it('issues the Item dialog\'s pop before pushing the new Item\'s scanned filter', async () => {
+    createItem.mockResolvedValue(core.itemId('dish-soap'))
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    fireEvent.input(within(dialog).getByLabelText('Name'), { target: { value: 'Dish soap' } })
+    choose(within(dialog).getByLabelText('Category'), medicine.id)
+    choose(within(dialog).getByLabelText('Necessity'), 'essential')
+    // Let the dialog's own history push land before recording.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const order: string[] = []
+    const back = history.back.bind(history)
+    vi.spyOn(history, 'back').mockImplementation(() => {
+      order.push('back')
+      back()
+    })
+    const onHashChange = () => order.push(window.location.hash)
+    window.addEventListener('hashchange', onHashChange)
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(order).toContain('#/items?item=dish-soap'))
+    window.removeEventListener('hashchange', onHashChange)
+    expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
+    expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=dish-soap'))
   })
 
   it('leaves the route alone when an Item is added from the FAB', async () => {
