@@ -74,7 +74,13 @@ export function ItemsManager({ db }: ItemsManagerProps) {
         item={dialog?.item}
         categories={categories}
         shops={shops}
-        onSave={(input) => (dialog?.item ? updateItem(db, dialog.item, input) : createItem(db, input))}
+        onSave={(input) => {
+          if (!dialog?.item) return createItem(db, input)
+          const editedId = dialog.item.id
+          // The Item may have changed elsewhere since the dialog opened; its reference counts move from the current record.
+          const previous = items?.find((item) => item.id === editedId) ?? dialog.item
+          return updateItem(db, previous, input)
+        }}
         onClose={() => setDialog(null)}
       />
     </section>

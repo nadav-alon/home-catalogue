@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
@@ -307,6 +307,18 @@ describe('editing an Item', () => {
     })
     expect(createItem).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('updates from the Item as it is at save time when it changed while the dialog was open', () => {
+    renderWith([waterproofBandages], [medicine, cleaning], [pharmacy, grocery])
+    const pushItems = watchItems.mock.calls[0]![1] as (items: ItemRecord[]) => void
+
+    openRow('Bandages')
+    const movedElsewhere: ItemRecord = { ...waterproofBandages, categoryId: cleaning.id, shopId: undefined }
+    act(() => pushItems([movedElsewhere]))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, movedElsewhere, expect.anything())
   })
 
   it('does not open from the State buttons on the row', () => {
