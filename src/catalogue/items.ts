@@ -32,6 +32,11 @@ export interface ItemInput {
   shopId?: catalogue.ShopId
 }
 
+/** What adding an Item carries: its fields, plus a Barcode it carries from the start. */
+export interface NewItemInput extends ItemInput {
+  barcode?: core.Barcode
+}
+
 /** What saving an edit to an Item carries: its fields, plus the Barcodes the Member removed. */
 export interface ItemEdit extends ItemInput {
   removedBarcodes?: core.Barcode[]
@@ -117,16 +122,17 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
 /**
  * Validates against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema} before
  * writing a new Item's two docs, core `items` plus catalogue `catalogueItems`, keyed by the same
- * generated id, as one batch. A new Item always starts at State `enough`. The batch also bumps
+ * generated id, as one batch. A new Item always starts at State `enough`, carrying `barcode` when given. The batch also bumps
  * the referenced Category's referenceCount, and the Shop override's when set, matching the
  * platform's create rule. Resolves once the batch is queued, not once Firestore acknowledges it,
  * so a caller offline is not left waiting; a batch the server later rejects is reported through {@link reportWriteRejection}.
  */
-export async function createItem(db: Firestore, input: ItemInput): Promise<void> {
+export async function createItem(db: Firestore, input: NewItemInput): Promise<void> {
   const item = core.itemSchema.parse({
     name: input.name,
     state: 'enough',
     ...(input.brandNote !== undefined ? { brandNote: input.brandNote } : {}),
+    ...(input.barcode !== undefined ? { barcodes: [input.barcode] } : {}),
   })
   const catalogueItem = catalogue.catalogueItemSchema.parse({
     categoryId: input.categoryId,
