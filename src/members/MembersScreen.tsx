@@ -15,7 +15,7 @@ import { navigate } from '../ui/useRoute.ts'
 import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 import { DeviceTransferQrCode } from '../firebase/DeviceTransferQrCode.tsx'
 import { inviteShareMessage } from './shareInvite.ts'
-import { createInvite, revokeInvite, watchInvites } from './invites.ts'
+import { createInvite, inviteKey, revokeInvite, watchInvites } from './invites.ts'
 import { removeMember, watchMembers, type MemberRecord } from './members.ts'
 
 const SETTINGS = route('/settings')
@@ -130,20 +130,20 @@ function InviteForm({ db, members, invites }: InviteFormProps) {
 
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
-    const lowercased = value.trim().toLowerCase()
-    if (!core.isEmail(lowercased)) {
+    const key = inviteKey(value)
+    if (key === null) {
       setError(INVALID_EMAIL_MESSAGE)
       return
     }
-    if (members.some((member) => member.email.toLowerCase() === lowercased)) {
+    if (members.some((member) => inviteKey(member.email) === key)) {
       setError(ALREADY_MEMBER_MESSAGE)
       return
     }
-    if (invites.includes(lowercased)) {
+    if (invites.includes(key)) {
       setError(ALREADY_INVITED_MESSAGE)
       return
     }
-    await createInvite(db, lowercased)
+    await createInvite(db, key)
     setValue('')
     setError(undefined)
   }

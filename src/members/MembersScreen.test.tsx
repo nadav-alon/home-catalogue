@@ -29,7 +29,8 @@ vi.mock('../catalogue/writeRejections.ts', () => ({
   reportFailure: (message: unknown, err: unknown) => reportFailure(message, err),
 }))
 
-vi.mock('./invites.ts', () => ({
+vi.mock('./invites.ts', async (importOriginal) => ({
+  inviteKey: (await importOriginal<typeof import('./invites.ts')>()).inviteKey,
   watchInvites: (db: unknown, cb: unknown) => watchInvites(db, cb),
   createInvite: vi.fn(),
   revokeInvite: vi.fn(),

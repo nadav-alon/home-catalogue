@@ -26,6 +26,16 @@ export function watchInvites(db: Firestore, callback: (emails: core.Email[]) => 
 }
 
 /**
+ * The key an invite to `value` is stored under: the trimmed, lowercased address, or `null` when
+ * that is not an email. Every invite and every comparison against one goes through it, so two
+ * spellings of one address can't be two invites.
+ */
+export function inviteKey(value: string): core.Email | null {
+  const key = value.trim().toLowerCase()
+  return core.isEmail(key) ? key : null
+}
+
+/**
  * Invites `email` by writing `invites/{email}` with `invitedAt` set to the server's commit time.
  * Resolves once the write is queued, not once Firestore acknowledges it; a write the rules refuse
  * is reported through {@link reportWriteRejection}.

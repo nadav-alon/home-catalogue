@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { reportWriteRejection } from '../catalogue/writeRejections.ts'
-import { createInvite, revokeInvite, watchInvites } from './invites.ts'
+import { createInvite, inviteKey, revokeInvite, watchInvites } from './invites.ts'
 
 let listener: (snapshot: unknown) => void
 const unsubscribe = vi.fn()
@@ -70,6 +70,16 @@ describe('watchInvites', () => {
 
   it('returns the unsubscribe function', () => {
     expect(watchInvites(fakeDb, vi.fn())).toBe(unsubscribe)
+  })
+})
+
+describe('inviteKey', () => {
+  it('trims and lowercases an address', () => {
+    expect(inviteKey('  New@Example.com ')).toBe('new@example.com')
+  })
+
+  it('is null for something that is not an email', () => {
+    expect(inviteKey('nope')).toBeNull()
   })
 })
 
