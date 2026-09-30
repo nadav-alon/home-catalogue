@@ -900,4 +900,25 @@ describe('a scanned barcode', () => {
 
     await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages,tape'))
   })
+
+  it('opens the chooser naming an unknown barcode, leaving the route alone', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    scan()
+
+    expect(await screen.findByRole('dialog', { name: 'Unknown barcode' })).toHaveTextContent('4006381333931')
+    expect(window.location.hash).toBe('')
+  })
+
+  it('closes the chooser on Cancel, writing nothing', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(chooser).not.toHaveAttribute('open'))
+    expect(createItem).not.toHaveBeenCalled()
+    expect(updateItem).not.toHaveBeenCalled()
+  })
 })

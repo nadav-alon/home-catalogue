@@ -4,6 +4,7 @@ import { core } from 'data-platform'
 import { createItem, findItemsByBarcode, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
+import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { watchShops, type ShopRecord } from './shops.ts'
 import { navigateToItems } from '../ui/useRoute.ts'
 import { ItemDialog } from './ItemDialog.tsx'
@@ -32,6 +33,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   const [dialog, setDialog] = useState<{ item?: ItemRecord } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
+  const [unknownBarcode, setUnknownBarcode] = useState<core.Barcode | undefined>(undefined)
 
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(() => watchCategories(db, setCategories), [db])
@@ -41,7 +44,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     try {
       const found = await findItemsByBarcode(db, barcode)
       setError(null)
-      navigateToItems(found.map((item) => item.id))
+      if (found.length === 0) setUnknownBarcode(barcode)
+      else navigateToItems(found.map((item) => item.id))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not look up the barcode')
     }
@@ -108,6 +112,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
       {uncategorisedItems.length > 0 && (
         <ItemGroup heading="Uncategorised" items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
+      <UnknownBarcodeChooser barcode={unknownBarcode} onClose={() => setUnknownBarcode(undefined)} />
       <Fab symbol={AddIcon} label="Add Item" onClick={() => openDialog(undefined)} />
       <ItemDialog
         open={dialog !== null}
