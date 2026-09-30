@@ -12,19 +12,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { catalogue, core } from 'data-platform'
 import { deleteShop, restoreShop } from '../../src/catalogue/shops.ts'
 import { resetWriteRejections, watchWriteRejections } from '../../src/catalogue/writeRejections.ts'
+import { useRejectedMessages } from './rejectedMessages.ts'
 import { CategoryInUseError, deleteCategory, restoreCategory, type CategoryRecord } from '../../src/catalogue/categories.ts'
 
 const alice = core.uid('alice')
 
 let testEnv: RulesTestEnvironment
 
-let rejectedMessages: string[] = []
-function rejected(): string[] {
-  return rejectedMessages
-}
-watchWriteRejections((list) => {
-  rejectedMessages = list.map((rejection) => rejection.message)
-})
+const rejected = useRejectedMessages()
 
 /**
  * `RulesTestContext.firestore()` is typed as the compat SDK's `Firestore`, but the object it
@@ -273,8 +268,6 @@ describe('deleteCategory against the real rules', () => {
         referenceCount: 1,
       })
     })
-    resetWriteRejections()
-
     await deleteCategory(db, medicine)
     await vi.waitFor(() => expect(rejected()).toEqual(['Could not save deleted Category Medicine']))
     const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
