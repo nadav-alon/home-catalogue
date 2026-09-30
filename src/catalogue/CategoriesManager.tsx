@@ -31,68 +31,130 @@ export interface CategoriesManagerProps {
   db: Firestore
 }
 
+interface Draft {
+  name: string
+  shopId: string
+}
+
+const EMPTY_DRAFT: Draft = { name: '', shopId: '' }
+
+/** The trimmed name and the default Shop, or the message to show; the Shop must be one currently in `shops`. */
+function validateDraft(
+  draft: Draft,
+  shops: ShopRecord[],
+): { name: string; shopId: catalogue.ShopId } | { error: string } {
+  const name = draft.name.trim()
+  if (name.length === 0) return { error: 'A Category needs a name.' }
+  const shop = shops.find((candidate) => candidate.id === draft.shopId)
+  if (shop === undefined || !catalogue.isShopId(shop.id)) return { error: 'Choose a default Shop.' }
+  return { name, shopId: shop.id }
+}
+
+interface CategoryFieldsProps {
+  nameLabel: string
+  draft: Draft
+  shops: ShopRecord[]
+  onChange: (draft: Draft) => void
+}
+
+function CategoryFields({ nameLabel, draft, shops, onChange }: CategoryFieldsProps) {
+  const shopId = shops.some((shop) => shop.id === draft.shopId) ? draft.shopId : ''
+  return (
+    <>
+      <TextField
+        label={nameLabel}
+        value={draft.name}
+        onInput={(event) => onChange({ ...draft, name: event.currentTarget.value })}
+      />
+      <Select
+        label="Default Shop"
+        value={shopId}
+        onChange={(event) => onChange({ ...draft, shopId: event.currentTarget.value })}
+      >
+        <option value="" disabled>
+          Choose a Shop
+        </option>
+        {shops.map((shop) => (
+          <option key={shop.id} value={shop.id}>
+            {shop.name}
+          </option>
+        ))}
+      </Select>
+    </>
+  )
+}
+
 export function CategoriesManager({ db }: CategoriesManagerProps) {
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<CategoryRecord | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editShopId, setEditShopId] = useState('')
-  const [newName, setNewName] = useState('')
-  const [newShopId, setNewShopId] = useState('')
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
 
+  function openAdd() {
+    setDraft(EMPTY_DRAFT)
+    setError(null)
+    setAdding(true)
+  }
+
+  function openEdit(category: CategoryRecord) {
+    setDraft({ name: category.name, shopId: category.defaultShopId })
+    setError(null)
+    setEditing(category)
+  }
+
+  function closeDialogs() {
+    setAdding(false)
+    setEditing(null)
+    setDeleting(false)
+    setDraft(EMPTY_DRAFT)
+    setError(null)
+  }
+
   async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
-    const trimmedName = newName.trim()
-    if (trimmedName.length === 0) {
-      setError('A Category needs a name.')
-      return
-    }
-    if (!catalogue.isShopId(newShopId)) {
-      setError('Choose a default Shop.')
+    const valid = validateDraft(draft, shops)
+    if ('error' in valid) {
+      setError(valid.error)
       return
     }
     try {
-      await createCategory(db, trimmedName, newShopId)
-      setNewName('')
-      setNewShopId('')
-      setError(null)
-      setAdding(false)
+      await createCategory(db, valid.name, valid.shopId)
+      closeDialogs()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add Category')
     }
   }
 
   async function handleSave(category: CategoryRecord) {
-    const trimmedName = editName.trim()
-    if (trimmedName.length === 0) {
-      setError('A Category needs a name.')
-      return
-    }
-    if (!catalogue.isShopId(editShopId)) {
-      setError('Choose a default Shop.')
+    const valid = validateDraft(draft, shops)
+    if ('error' in valid) {
+      setError(valid.error)
       return
     }
     try {
-      if (trimmedName !== category.name) await renameCategory(db, category, trimmedName)
-      await changeCategoryDefaultShop(db, category, editShopId)
-      setError(null)
-      setEditing(null)
+      if (valid.name !== category.name) await renameCategory(db, category, valid.name)
+      await changeCategoryDefaultShop(db, category, valid.shopId)
+      closeDialogs()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save Category')
     }
   }
 
+  /** Deleting waits for the server to confirm, so it can surface the rules refusal; `deleting` covers that wait. */
   async function handleDelete(category: CategoryRecord) {
+    setError(null)
+    setDeleting(true)
     try {
       await deleteCategory(db, category)
-      setError(null)
-      setEditing(null)
+      closeDialogs()
     } catch (err) {
+      setDeleting(false)
       setError(err instanceof CategoryInUseError ? err.message : 'Could not delete Category')
     }
   }
@@ -102,7 +164,6 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
       <TopAppBarActions>
         <IconButton symbol={ArrowBackIcon} label="Back to Settings" onClick={() => navigate(SETTINGS)} />
       </TopAppBarActions>
-      {error !== null && <p role="alert">{error}</p>}
       <ul>
         {categories.map((category) => (
           <ListRow
@@ -110,47 +171,24 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
             headline={category.name}
             supporting={shopName(shops, category.defaultShopId)}
             control={
-              <Button
-                variant="text"
-                aria-label={`Edit ${category.name}`}
-                onClick={() => {
-                  setEditName(category.name)
-                  setEditShopId(category.defaultShopId)
-                  setEditing(category)
-                }}
-              >
+              <Button variant="text" aria-label={`Edit ${category.name}`} onClick={() => openEdit(category)}>
                 Edit
               </Button>
             }
           />
         ))}
       </ul>
-      <Fab symbol={AddIcon} label="Add Category" onClick={() => setAdding(true)} />
-      <Dialog open={adding} title="Add Category" onClose={() => setAdding(false)}>
+      <Fab symbol={AddIcon} label="Add Category" onClick={openAdd} />
+      <Dialog open={adding} title="Add Category" onClose={closeDialogs}>
         {adding && (
           <form onSubmit={handleCreate}>
-            <TextField
-              label="New Category name"
-              value={newName}
-              onInput={(event) => setNewName(event.currentTarget.value)}
-            />
-            <Select
-              label="Default Shop"
-              value={newShopId}
-              onChange={(event) => setNewShopId(event.currentTarget.value)}
-            >
-              <option value="">Choose a Shop</option>
-              {shops.map((shop) => (
-                <option key={shop.id} value={shop.id}>
-                  {shop.name}
-                </option>
-              ))}
-            </Select>
+            {error !== null && <p role="alert">{error}</p>}
+            <CategoryFields nameLabel="New Category name" draft={draft} shops={shops} onChange={setDraft} />
             <Button type="submit">Add</Button>
           </form>
         )}
       </Dialog>
-      <Dialog open={editing !== null} title="Edit Category" onClose={() => setEditing(null)}>
+      <Dialog open={editing !== null} title="Edit Category" onClose={closeDialogs}>
         {editing !== null && (
           <form
             onSubmit={(event) => {
@@ -158,25 +196,13 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
               void handleSave(editing)
             }}
           >
-            <TextField
-              label="Category name"
-              value={editName}
-              onInput={(event) => setEditName(event.currentTarget.value)}
-            />
-            <Select
-              label="Default Shop"
-              value={editShopId}
-              onChange={(event) => setEditShopId(event.currentTarget.value)}
-            >
-              {shops.map((shop) => (
-                <option key={shop.id} value={shop.id}>
-                  {shop.name}
-                </option>
-              ))}
-            </Select>
-            <Button type="submit">Save</Button>
-            <Button variant="text" onClick={() => void handleDelete(editing)}>
-              Delete
+            {error !== null && <p role="alert">{error}</p>}
+            <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} />
+            <Button type="submit" disabled={deleting}>
+              Save
+            </Button>
+            <Button variant="text" disabled={deleting} onClick={() => void handleDelete(editing)}>
+              {deleting ? 'Deleting…' : 'Delete'}
             </Button>
           </form>
         )}

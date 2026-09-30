@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { CategoriesManager } from './CategoriesManager.tsx'
@@ -143,7 +143,7 @@ describe('CategoriesManager', () => {
     choose(screen.getByLabelText('Default Shop'), pharmacy.id)
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent('A Category needs a name.')
+    expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('A Category needs a name.')
     expect(createCategory).not.toHaveBeenCalled()
   })
 
@@ -189,7 +189,7 @@ describe('CategoriesManager', () => {
     fireEvent.input(screen.getByLabelText('Category name'), { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent('A Category needs a name.')
+    expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('A Category needs a name.')
     expect(renameCategory).not.toHaveBeenCalled()
     expect(changeCategoryDefaultShop).not.toHaveBeenCalled()
   })
@@ -211,7 +211,46 @@ describe('CategoriesManager', () => {
     openEditor('Medicine')
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('This Category is in use.')
+    expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent('This Category is in use.')
+  })
+
+  it('shows the Choose a Shop placeholder when the default Shop is not among the Shops', () => {
+    renderWith([medicine], [grocery])
+    openEditor('Medicine')
+
+    expect(screen.getByLabelText('Default Shop')).toHaveValue('')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Choose a default Shop.')
+    expect(changeCategoryDefaultShop).not.toHaveBeenCalled()
+  })
+
+  it('clears the draft and the error when the Add dialog is cancelled', () => {
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Snacks' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByLabelText('New Category name')).toHaveValue('')
+  })
+
+  it('disables Delete and shows it pending until the server answers', async () => {
+    let settle: () => void = () => {}
+    deleteCategory.mockReturnValueOnce(new Promise<void>((resolve) => (settle = resolve)))
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(await screen.findByRole('button', { name: 'Deleting…' })).toBeDisabled()
+    settle()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it('unsubscribes from Categories and Shops on unmount', () => {
