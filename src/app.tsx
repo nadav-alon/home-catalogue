@@ -5,6 +5,7 @@ import { CategoriesManager } from './catalogue/CategoriesManager.tsx'
 import { ShopsManager } from './catalogue/ShopsManager.tsx'
 import { ItemsManager } from './catalogue/ItemsManager.tsx'
 import { ShoppingList } from './catalogue/ShoppingList.tsx'
+import { MembersScreen } from './members/MembersScreen.tsx'
 import { SettingsScreen } from './settings/SettingsScreen.tsx'
 import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
@@ -62,5 +63,7 @@ function Screen({
       return <ShopsManager db={db} />
     case '/settings/categories':
       return <CategoriesManager db={db} />
+    case '/settings/members':
+      return <MembersScreen db={db} />
   }
 }

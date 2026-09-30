@@ -7,6 +7,21 @@ exporting shopping trips to Google Calendar. Stores its data on the data platfor
 
 ## Language
 
+**Household**:
+The one group of people sharing this Catalogue. Has one Owner and any number of Members.
+
+**Member**:
+A person who belongs to the Household and can read and change its data, including who else is a
+Member and which Invites are pending. Listed by email.
+
+**Owner**:
+The Member who claimed the Household. The only one who creates or revokes Invites. Immutable once
+claimed.
+
+**Invite**:
+An email the Owner has let join the Household, keyed by that email. Pending until its person joins
+or the Owner revokes it; it never expires, so every stored Invite is pending.
+
 **Item**:
 A generic product (not a brand), with an optional brand note. Has one Category, one Necessity, one
 State. Its Shop comes from its Category, overridable per Item. A platform Core entity.

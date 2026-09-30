@@ -27,6 +27,7 @@ describe('SettingsScreen', () => {
   it.each([
     ['Shops', '#/settings/shops'],
     ['Categories', '#/settings/categories'],
+    ['Members', '#/settings/members'],
   ])('navigates to %s', (name, hash) => {
     render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
@@ -35,6 +36,15 @@ describe('SettingsScreen', () => {
     fireEvent.click(link)
 
     expect(window.location.hash).toBe(hash)
+  })
+
+  it('lists Members above Add device', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    const members = screen.getByRole('link', { name: 'Open Members' })
+    const addDevice = screen.getByRole('button', { name: 'Show QR code' })
+
+    expect(members.compareDocumentPosition(addDevice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('shows the QR code from Add a device', async () => {
