@@ -27,7 +27,7 @@ const DETECT_INTERVAL_MS = 150
 
 /**
  * A full-screen dialog showing the rear camera until it reads one Barcode. The camera is released
- * when a Barcode is read and whenever the dialog closes, whichever comes first.
+ * when a Barcode is read, when the camera fails, or whenever the dialog closes, whichever comes first.
  */
 export function ScannerDialog({ open, onScan, onDenied, onUnavailable, onClose }: ScannerDialogProps) {
   return (
