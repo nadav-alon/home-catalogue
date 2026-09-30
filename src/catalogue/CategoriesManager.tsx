@@ -136,7 +136,8 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     try {
       await deleteCategory(db, category)
     } catch (err) {
-      setError(err instanceof CategoryInUseError ? err.message : 'Could not delete Category')
+      if (!(err instanceof CategoryInUseError)) throw err
+      setError(err.message)
       return
     }
     closeDialogs()
