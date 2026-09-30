@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DEFAULT_ROUTE, route } from './route.ts'
+import { DEFAULT_ROUTE, hashOf, route } from './route.ts'
 import { navigate, useRoute } from './useRoute.ts'
 import { resetHash } from '../testing/hash.ts'
 
@@ -20,6 +20,21 @@ describe('useRoute', () => {
   it('starts on the default route when the hash is empty', () => {
     const { result } = renderHook(() => useRoute())
     expect(result.current).toBe(DEFAULT_ROUTE)
+  })
+
+  it('replaces an unknown hash with the default route without a history entry', () => {
+    window.location.hash = '#/nowhere'
+    const entries = window.history.length
+    renderHook(() => useRoute())
+    expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
+    expect(window.history.length).toBe(entries)
+  })
+
+  it('replaces an empty hash with the default route without a history entry', () => {
+    const entries = window.history.length
+    renderHook(() => useRoute())
+    expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
+    expect(window.history.length).toBe(entries)
   })
 
   it('re-renders on hashchange', async () => {
