@@ -48,13 +48,21 @@ export function colourRoleProperty(role: ColourRoleName): string {
 
 /** The `#rrggbb` a colour role takes in the light or dark scheme derived from `seed`. */
 export function colourRoleHex(seed: SeedColour, role: ColourRoleName, isDark: boolean): string {
-  const scheme = new SchemeFidelity(Hct.fromInt(argbFromHex(seed)), isDark, 0)
-  return hexFromArgb(MaterialDynamicColors[role].getArgb(scheme))
+  return roleHex(scheme(seed, isDark), role)
+}
+
+function scheme(seed: SeedColour, isDark: boolean): SchemeFidelity {
+  return new SchemeFidelity(Hct.fromInt(argbFromHex(seed)), isDark, 0)
+}
+
+function roleHex(derived: SchemeFidelity, role: ColourRoleName): string {
+  return hexFromArgb(MaterialDynamicColors[role].getArgb(derived))
 }
 
 function declarations(seed: SeedColour, isDark: boolean): string {
+  const derived = scheme(seed, isDark)
   return colourRoleNames
-    .map((role) => `  ${colourRoleProperty(role)}: ${colourRoleHex(seed, role, isDark)};`)
+    .map((role) => `  ${colourRoleProperty(role)}: ${roleHex(derived, role)};`)
     .join('\n')
 }
 
