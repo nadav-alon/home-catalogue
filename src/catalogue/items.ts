@@ -353,10 +353,44 @@ export async function softDeleteItem(db: Firestore, item: ItemRecord): Promise<v
 
 /**
  * Undoes {@link softDeleteItem}: clears `deletedAt` on both docs and raises the same referenceCounts
- * back. Undo can fail: the delete frees the Category and Shop for deletion, and `deleteCategory` and
+ * back. With `edit`, the same batch also writes its fields as {@link updateItem} would, and raises the
+ * counts of the Category and Shop override it names instead, since the delete already lowered the old
+ * ones; this is how a restore picks a live Category (and Shop) when the old ones are gone. Undo can fail: the delete frees the Category and Shop for deletion, and `deleteCategory` and
  * `deleteShop` hard-delete the doc, so a restore after that is refused, the Item stays deleted and
  * only the write-rejection banner says so.
  */
-export async function restoreItem(db: Firestore, item: ItemRecord): Promise<void> {
-  commitItemDeletion(db, item, deleteField(), 1, 'restored Item')
+export async function restoreItem(db: Firestore, item: ItemRecord, edit?: ItemEdit): Promise<void> {
+  if (edit === undefined) return commitItemDeletion(db, item, deleteField(), 1, 'restored Item')
+  const { name, brandNote } = core.itemSchema.pick({ name: true, brandNote: true }).parse({
+    name: edit.name,
+    ...(edit.brandNote !== undefined ? { brandNote: edit.brandNote } : {}),
+  })
+  const { categoryId, necessity, shopId } = catalogue.catalogueItemSchema
+    .pick({ categoryId: true, necessity: true, shopId: true })
+    .parse({
+      categoryId: edit.categoryId,
+      necessity: edit.necessity,
+      ...(edit.shopId !== undefined ? { shopId: edit.shopId } : {}),
+    })
+
+  const batch = writeBatch(db)
+  batch.update(doc(db, core.ITEMS_COLLECTION, item.id), {
+    deletedAt: deleteField(),
+    name,
+    brandNote: brandNote ?? deleteField(),
+    ...(edit.removedBarcodes?.length ? { barcodes: arrayRemove(...edit.removedBarcodes) } : {}),
+  })
+  batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, item.id), {
+    deletedAt: deleteField(),
+    categoryId,
+    necessity,
+    shopId: shopId ?? deleteField(),
+  })
+  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, categoryId), { referenceCount: increment(1) })
+  if (shopId !== undefined) {
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, shopId), { referenceCount: increment(1) })
+  }
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`restored Item ${item.name}`, err)
+  })
 }

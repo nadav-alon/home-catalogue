@@ -890,6 +890,39 @@ describe('softDeleteItem and restoreItem', () => {
     expect(batchUpdate).toHaveBeenCalledTimes(3)
   })
 
+  it('restores with an edit in one batch, raising the counts of the Category and Shop it names', async () => {
+    const { restoreItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await restoreItem(fakeDb, dishSoap, {
+      name: 'Dish soap',
+      categoryId: catalogue.categoryId('kitchen'),
+      necessity: catalogue.necessitySchema.parse('important'),
+      shopId: catalogue.shopId('market'),
+      removedBarcodes: [core.barcode('12345678')],
+    })
+
+    const cleared = { kind: 'deleteField' }
+    expect(batchUpdate.mock.calls).toEqual([
+      [
+        { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
+        {
+          deletedAt: cleared,
+          name: 'Dish soap',
+          brandNote: cleared,
+          barcodes: { kind: 'arrayRemove', values: ['12345678'] },
+        },
+      ],
+      [
+        { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' },
+        { deletedAt: cleared, categoryId: 'kitchen', necessity: 'important', shopId: 'market' },
+      ],
+      [{ path: catalogue.CATEGORIES_COLLECTION, id: 'kitchen' }, { referenceCount: { kind: 'increment', delta: 1 } }],
+      [{ path: catalogue.SHOPS_COLLECTION, id: 'market' }, { referenceCount: { kind: 'increment', delta: 1 } }],
+    ])
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
   it('restores by clearing deletedAt and raising the counts back', async () => {
     const { restoreItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
