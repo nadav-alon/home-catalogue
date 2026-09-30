@@ -121,6 +121,7 @@ describe('claimHousehold against the real rules', () => {
 
 describe('joinFromInvite against the real rules', () => {
   const guestEmail = core.email('guest@example.com')
+  const signedInEmail = core.email('Guest@Example.com')
 
   async function seedInvite(): Promise<void> {
     await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -128,8 +129,8 @@ describe('joinFromInvite against the real rules', () => {
     })
   }
 
-  function guestDb(): Firestore {
-    return dbFor(testEnv.authenticatedContext(guest, { email: 'Guest@Example.com', email_verified: true }))
+  function guestDb(emailVerified = true): Firestore {
+    return dbFor(testEnv.authenticatedContext(guest, { email: signedInEmail, email_verified: emailVerified }))
   }
 
   it('makes an invited user a Member and consumes the invite', async () => {
@@ -137,7 +138,7 @@ describe('joinFromInvite against the real rules', () => {
     await seedInvite()
 
     const db = guestDb()
-    await expect(joinFromInvite(db, guest, guestEmail)).resolves.toBe(true)
+    await expect(joinFromInvite(db, guest, signedInEmail)).resolves.toBe(true)
 
     await expect(isHouseholdMember(db, guest)).resolves.toBe(true)
     await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -150,7 +151,21 @@ describe('joinFromInvite against the real rules', () => {
     await seedClaimedHousehold()
 
     const db = guestDb()
-    await expect(joinFromInvite(db, guest, guestEmail)).resolves.toBe(false)
+    await expect(joinFromInvite(db, guest, signedInEmail)).resolves.toBe(false)
     await expect(isHouseholdMember(db, guest)).resolves.toBe(false)
+  })
+
+  it('falls back to false, keeping the invite, when the rules refuse the join', async () => {
+    await seedClaimedHousehold()
+    await seedInvite()
+
+    const db = guestDb(false)
+    await expect(joinFromInvite(db, guest, signedInEmail)).resolves.toBe(false)
+
+    await expect(isHouseholdMember(db, guest)).resolves.toBe(false)
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const invite = await context.firestore().doc(core.inviteDocPath(guestEmail)).get()
+      expect(invite.exists).toBe(true)
+    })
   })
 })
