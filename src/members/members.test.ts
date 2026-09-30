@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { watchMembers } from './members.ts'
+import { removeMember, watchMembers } from './members.ts'
 
 type Listener = (snapshot: unknown) => void
+const deleteDoc = vi.hoisted(() => vi.fn())
 const listeners = new Map<string, Listener>()
 const unsubscribes = new Map<string, ReturnType<typeof vi.fn>>()
 
 vi.mock('firebase/firestore', () => ({
   collection: (_db: unknown, path: string) => ({ path }),
   doc: (_db: unknown, path: string) => ({ path }),
+  deleteDoc: (ref: unknown) => deleteDoc(ref),
   onSnapshot: (ref: { path: string }, listener: Listener) => {
     listeners.set(ref.path, listener)
     const unsubscribe = vi.fn()
@@ -106,5 +108,21 @@ describe('watchMembers', () => {
 
     expect(unsubscribes.get('members')).toHaveBeenCalledTimes(1)
     expect(unsubscribes.get('meta/household')).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('removeMember', () => {
+  it('deletes the Member document', async () => {
+    deleteDoc.mockResolvedValue(undefined)
+
+    await removeMember(fakeDb, core.uid('u2'))
+
+    expect(deleteDoc).toHaveBeenCalledWith({ path: core.memberDocPath(core.uid('u2')) })
+  })
+
+  it('rejects when the rules refuse', async () => {
+    deleteDoc.mockRejectedValue(new Error('permission-denied'))
+
+    await expect(removeMember(fakeDb, core.uid('u2'))).rejects.toThrow('permission-denied')
   })
 })
