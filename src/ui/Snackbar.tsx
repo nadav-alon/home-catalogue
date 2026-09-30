@@ -41,16 +41,18 @@ function restartTimeout(message: SnackbarMessage): void {
   if (holds.size === 0) timer = setTimeout(() => dismiss(message), snackbarDurationMs)
 }
 
-/** Keeps the snackbar up while `hold` is active; once every hold is released the message gets a fresh full timeout. */
-function setHold(hold: Hold, active: boolean): void {
+/** Keeps the snackbar up until `reason` is released. */
+function hold(reason: Hold): void {
   if (!current) return
-  if (active) {
-    holds.add(hold)
-    clearTimeout(timer)
-  } else {
-    holds.delete(hold)
-    restartTimeout(current)
-  }
+  holds.add(reason)
+  clearTimeout(timer)
+}
+
+/** Releases `reason`; once every hold is released the message gets a fresh full timeout. */
+function release(reason: Hold): void {
+  if (!current) return
+  holds.delete(reason)
+  restartTimeout(current)
 }
 
 /** Dismisses the snackbar if `message` is still the one showing. */
@@ -83,10 +85,10 @@ export function SnackbarHost() {
     <div
       class="ui-snackbar"
       role="status"
-      onPointerEnter={() => setHold('pointer', true)}
-      onPointerLeave={() => setHold('pointer', false)}
-      onFocusIn={() => setHold('focus', true)}
-      onFocusOut={() => setHold('focus', false)}
+      onPointerEnter={() => hold('pointer')}
+      onPointerLeave={() => release('pointer')}
+      onFocusIn={() => hold('focus')}
+      onFocusOut={() => release('focus')}
     >
       {message && <p class="ui-snackbar__text">{message.text}</p>}
       {message?.action && (
