@@ -134,6 +134,15 @@ describe('MembersScreen', () => {
     expect(screen.queryByText('b@example.com')).toBeNull()
   })
 
+  it('offers no Remove when no Member is flagged Owner', () => {
+    renderScreen([
+      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: false },
+      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
+    ])
+
+    expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull()
+  })
+
   it('stops watching when it closes', () => {
     renderScreen().unmount()
 

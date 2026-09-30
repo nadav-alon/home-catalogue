@@ -24,7 +24,10 @@ export function MembersScreen({ db }: MembersScreenProps) {
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [invites, setInvites] = useState<core.Email[]>([])
 
-  const viewerIsOwner = members.some((member) => member.isOwner && member.uid === currentUserUid(db.app))
+  // Read once per render; safe because AuthGate only mounts this screen for a signed-in Member.
+  const viewerUid = currentUserUid(db.app)
+  // When `meta/household` fails its schema no Member is flagged Owner, so the real Owner sees no Remove.
+  const viewerIsOwner = members.some((member) => member.isOwner && member.uid === viewerUid)
 
   /** The row disappears when the Members watch reports the deletion, not on click. */
   function handleRemove(member: MemberRecord) {
