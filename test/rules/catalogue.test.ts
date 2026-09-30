@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs'
-import { doc, getDoc, increment, setDoc, writeBatch, type Firestore } from 'firebase/firestore'
+import { doc, getDoc, increment, setDoc, waitForPendingWrites, writeBatch, type Firestore } from 'firebase/firestore'
 import {
   assertFails,
   assertSucceeds,
@@ -17,6 +17,19 @@ import { CategoryInUseError, deleteCategory, type CategoryRecord } from '../../s
 const alice = core.uid('alice')
 
 let testEnv: RulesTestEnvironment
+
+/** Waits until every write queued on `db` has been acknowledged by the emulator. */
+function waitForWrites(db: Firestore): Promise<void> {
+  return waitForPendingWrites(db)
+}
+
+let rejectedMessages: string[] = []
+function rejected(): string[] {
+  return rejectedMessages
+}
+watchWriteRejections((list) => {
+  rejectedMessages = list.map((rejection) => rejection.message)
+})
 
 /**
  * `RulesTestContext.firestore()` is typed as the compat SDK's `Firestore`, but the object it
@@ -186,7 +199,7 @@ describe('deleteCategory against the real rules', () => {
     referenceCount: 0,
   }
 
-  it("deletes a Category with no dependents and drops its default Shop's reference", async () => {
+  it("soft-deletes a Category with no dependents and drops its default Shop's reference", async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
@@ -201,13 +214,14 @@ describe('deleteCategory against the real rules', () => {
     })
 
     await expect(deleteCategory(db, medicine)).resolves.toBeUndefined()
+    await waitForWrites(db)
     const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
-    expect(categorySnapshot.exists()).toBe(false)
+    expect(categorySnapshot.data()?.deletedAt).toBeDefined()
     const shopSnapshot = await getDoc(doc(db, catalogue.SHOPS_COLLECTION, 'pharmacy'))
     expect(shopSnapshot.data()?.referenceCount).toBe(0)
   })
 
-  it('refuses with CategoryInUseError while a catalogue Item still belongs to it, independent of the local cache', async () => {
+  it('refuses up front with CategoryInUseError when the cached referenceCount is above 0', async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
@@ -221,9 +235,30 @@ describe('deleteCategory against the real rules', () => {
       })
     })
 
-    await expect(deleteCategory(db, medicine)).rejects.toBeInstanceOf(CategoryInUseError)
+    await expect(deleteCategory(db, { ...medicine, referenceCount: 1 })).rejects.toBeInstanceOf(CategoryInUseError)
     const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
-    expect(categorySnapshot.exists()).toBe(true)
+    expect(categorySnapshot.data()?.deletedAt).toBeUndefined()
+  })
+
+  it('has the rules refuse a stale-cache delete while an Item still belongs to it, and shows it in the banner', async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
+        name: 'Pharmacy',
+        referenceCount: 1,
+      })
+      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
+        name: 'Medicine',
+        defaultShopId: 'pharmacy',
+        referenceCount: 1,
+      })
+    })
+    resetWriteRejections()
+
+    await deleteCategory(db, medicine)
+    await vi.waitFor(() => expect(rejected()).toEqual(['Could not save deleted Category Medicine']))
+    const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
+    expect(categorySnapshot.data()?.deletedAt).toBeUndefined()
   })
 })
 
