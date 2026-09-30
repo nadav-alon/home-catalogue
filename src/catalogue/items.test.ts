@@ -614,6 +614,17 @@ describe('a queued Item write the server rejects', () => {
     expect(latest()).toEqual(['Could not save deleted Item Dish soap'])
   })
 
+  it('reports a restored Item by name', async () => {
+    const { restoreItem } = await import('./items.ts')
+    const latest = await rejections()
+    batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+
+    await restoreItem(fakeDb, { ...dishSoap, categoryId: catalogue.categoryId('cleaning') })
+    await Promise.resolve()
+
+    expect(latest()).toEqual(['Could not save restored Item Dish soap'])
+  })
+
   it('reports a new Item by name', async () => {
     const { createItem } = await import('./items.ts')
     const latest = await rejections()
