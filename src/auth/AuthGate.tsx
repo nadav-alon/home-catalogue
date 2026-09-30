@@ -108,7 +108,10 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
 }
 
 /** Resolves which gate state `user` belongs in; rejects when the Household cannot be reached. */
-async function lookUpMembership({ db }: FirebaseClient, user: AuthUser): Promise<AuthGateState> {
+async function lookUpMembership(
+  { db }: FirebaseClient,
+  user: AuthUser,
+): Promise<Extract<AuthGateState, { status: 'claim-available' | 'member' | 'non-member' }>> {
   if (!(await householdExists(db))) return { status: 'claim-available', user }
   if (await isHouseholdMember(db, user.uid)) return { status: 'member' }
   const joined = await joinFromInvite(db, user.uid, user.email)
