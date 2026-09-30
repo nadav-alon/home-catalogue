@@ -13,11 +13,16 @@ export async function isHouseholdMember(db: Firestore, uid: core.Uid): Promise<b
   return snapshot.exists()
 }
 
+/** The Member doc's shape, shared by every writer of `members/{uid}`. */
+function memberDoc(email: core.Email) {
+  return { email, addedAt: serverTimestamp() }
+}
+
 /** First-claim: writes `meta/household` and the claimant's `members/{uid}` doc in one batch. */
 export async function claimHousehold(db: Firestore, uid: core.Uid, email: core.Email): Promise<void> {
   const batch = writeBatch(db)
   batch.set(doc(db, core.HOUSEHOLD_DOC_PATH), { owner: uid })
-  batch.set(doc(db, core.memberDocPath(uid)), { email, addedAt: serverTimestamp() })
+  batch.set(doc(db, core.memberDocPath(uid)), memberDoc(email))
   await batch.commit()
 }
 
@@ -31,7 +36,7 @@ export async function joinFromInvite(db: Firestore, uid: core.Uid, email: core.E
   if (!(await getDoc(inviteRef)).exists()) return false
 
   const batch = writeBatch(db)
-  batch.set(doc(db, core.memberDocPath(uid)), { email, addedAt: serverTimestamp() })
+  batch.set(doc(db, core.memberDocPath(uid)), memberDoc(email))
   batch.delete(inviteRef)
   try {
     await batch.commit()
