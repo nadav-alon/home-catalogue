@@ -95,4 +95,12 @@ describe('navigate', () => {
     navigate(route('/items'))
     expect(window.history.length).toBe(entries)
   })
+
+  it('pushes nothing when navigating to the default route from an unknown hash', () => {
+    window.location.hash = '#/nowhere'
+    renderHook(() => useRoute())
+    const entries = window.history.length
+    navigate(DEFAULT_ROUTE)
+    expect(window.history.length).toBe(entries)
+  })
 })
