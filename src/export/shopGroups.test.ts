@@ -26,11 +26,11 @@ describe('pendingItemsByShop', () => {
   })
 
   it('groups an Item under its own Shop override instead of its Category default', () => {
-    const overridden: ItemRecord = { ...bandages, state: 'out', shopId: grocery.id }
+    const bandagesAtGrocery: ItemRecord = { ...bandages, state: 'out', shopId: grocery.id }
 
-    const { groups } = pendingItemsByShop([overridden], [medicine], [pharmacy, grocery])
+    const { groups } = pendingItemsByShop([bandagesAtGrocery], [medicine], [pharmacy, grocery])
 
-    expect(groups).toEqual([{ shop: grocery, items: [overridden] }])
+    expect(groups).toEqual([{ shop: grocery, items: [bandagesAtGrocery] }])
   })
 
   it('leaves out a Shop with no pending Items', () => {
