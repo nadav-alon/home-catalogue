@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/preact'
+import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { CategoriesManager } from './CategoriesManager.tsx'
@@ -34,6 +34,14 @@ const categoriesUnsubscribe = vi.fn()
 const shopsUnsubscribe = vi.fn()
 
 beforeEach(() => {
+  // jsdom has no modal dialog; stand in for the browser's open/close bookkeeping.
+  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  })
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute('open')
+    this.dispatchEvent(new Event('close'))
+  })
   createCategory.mockReset().mockResolvedValue(undefined)
   renameCategory.mockReset().mockResolvedValue(undefined)
   deleteCategory.mockReset().mockResolvedValue(undefined)
@@ -71,6 +79,7 @@ describe('CategoriesManager', () => {
 
   it('offers every Shop as a default Shop choice', () => {
     renderWith([], [pharmacy, grocery])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
 
     const select = screen.getByLabelText('Default Shop')
     expect(screen.getByRole('option', { name: 'Pharmacy' })).toBeInTheDocument()
@@ -80,19 +89,20 @@ describe('CategoriesManager', () => {
 
   it('adds a new Category with the chosen default Shop', async () => {
     renderWith([], [pharmacy, grocery])
-
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
     fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Snacks' } })
     fireEvent.change(screen.getByLabelText('Default Shop'), { target: { value: grocery.id } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(createCategory).toHaveBeenCalledWith(fakeDb, 'Snacks', grocery.id)
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it('refuses to add a Category without choosing a default Shop', () => {
     renderWith([], [pharmacy])
-
-    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Snacks' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Snacks' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a default Shop.')
     expect(createCategory).not.toHaveBeenCalled()
@@ -100,10 +110,11 @@ describe('CategoriesManager', () => {
 
   it('refuses to add a Category with a blank name, without calling createCategory', () => {
     renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
 
     fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: '   ' } })
     fireEvent.change(screen.getByLabelText('Default Shop'), { target: { value: pharmacy.id } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('A Category needs a name.')
     expect(createCategory).not.toHaveBeenCalled()

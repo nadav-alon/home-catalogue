@@ -11,6 +11,12 @@ import {
   type CategoryRecord,
 } from './categories.ts'
 import { shopName, watchShops, type ShopRecord } from './shops.ts'
+import { Button } from '../ui/Button.tsx'
+import { Dialog } from '../ui/Dialog.tsx'
+import { Fab } from '../ui/Fab.tsx'
+import { Select } from '../ui/Select.tsx'
+import { TextField } from '../ui/TextField.tsx'
+import AddIcon from '~icons/material-symbols/add'
 
 export interface CategoriesManagerProps {
   db: Firestore
@@ -19,6 +25,7 @@ export interface CategoriesManagerProps {
 export function CategoriesManager({ db }: CategoriesManagerProps) {
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
+  const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [newShopId, setNewShopId] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -42,6 +49,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
       setNewName('')
       setNewShopId('')
       setError(null)
+      setAdding(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add Category')
     }
@@ -85,28 +93,29 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           />
         ))}
       </ul>
-      <form onSubmit={handleCreate}>
-        <label htmlFor="new-category-name">New Category name</label>
-        <input
-          id="new-category-name"
-          value={newName}
-          onInput={(event) => setNewName(event.currentTarget.value)}
-        />
-        <label htmlFor="new-category-shop">Default Shop</label>
-        <select
-          id="new-category-shop"
-          value={newShopId}
-          onChange={(event) => setNewShopId(event.currentTarget.value)}
-        >
-          <option value="">Choose a Shop</option>
-          {shops.map((shop) => (
-            <option key={shop.id} value={shop.id}>
-              {shop.name}
-            </option>
-          ))}
-        </select>
-        <button type="submit">Add Category</button>
-      </form>
+      <Fab symbol={AddIcon} label="Add Category" onClick={() => setAdding(true)} />
+      <Dialog open={adding} title="Add Category" onClose={() => setAdding(false)}>
+        <form onSubmit={handleCreate}>
+          <TextField
+            label="New Category name"
+            value={newName}
+            onInput={(event) => setNewName(event.currentTarget.value)}
+          />
+          <Select
+            label="Default Shop"
+            value={newShopId}
+            onChange={(event) => setNewShopId(event.currentTarget.value)}
+          >
+            <option value="">Choose a Shop</option>
+            {shops.map((shop) => (
+              <option key={shop.id} value={shop.id}>
+                {shop.name}
+              </option>
+            ))}
+          </Select>
+          <Button type="submit">Add</Button>
+        </form>
+      </Dialog>
     </section>
   )
 }
