@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact'
 import { useEffect, useId, useRef } from 'preact/hooks'
+import { afterPendingPop, popEntry } from './pendingPop.ts'
 import './Dialog.css'
 
 export interface DialogProps {
@@ -14,30 +15,6 @@ export interface DialogProps {
 }
 
 const historyMarker = 'ui-dialog'
-
-/** Set while a `history.back()` issued here has not yet produced its `popstate`. */
-let pendingBack: Promise<void> | null = null
-
-function popEntry() {
-  const settled: Promise<void> = new Promise((resolve) => {
-    window.addEventListener(
-      'popstate',
-      () => {
-        if (pendingBack === settled) pendingBack = null
-        resolve()
-      },
-      { once: true },
-    )
-  })
-  pendingBack = settled
-  history.back()
-}
-
-/** Runs `run` at once, or once the `history.back()` a closing Dialog issued has landed, so a history entry pushed by `run` is not undone by that pending traversal. */
-export function afterPendingPop(run: () => void): void {
-  if (pendingBack) void pendingBack.then(run)
-  else run()
-}
 
 /**
  * A native modal `<dialog>`: the browser traps focus and inerts the page behind it. Opening pushes a
@@ -72,8 +49,7 @@ export function Dialog({ open, title, onClose, class: className, children }: Dia
       pushed = true
       window.addEventListener('popstate', onPopState)
     }
-    if (pendingBack) void pendingBack.then(push)
-    else push()
+    afterPendingPop(push)
     return () => {
       cancelled = true
       window.removeEventListener('popstate', onPopState)
