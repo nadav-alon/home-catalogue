@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { catalogue, type core } from 'data-platform'
-import type { ItemInput, ItemRecord } from './items.ts'
+import type { ItemEdit, ItemInput, ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
@@ -18,10 +18,10 @@ export interface ItemDialogProps {
   categories: CategoryRecord[]
   shops: ShopRecord[]
   /**
-   * Called with the validated fields and the Item's barcodes the Member removed when they save; a rejection
+   * Called with the validated fields, and the Item's Barcodes the Member removed, when they save; a rejection
    * is shown in the dialog and keeps it open.
    */
-  onSave: (input: ItemInput, removedBarcodes: core.Barcode[]) => Promise<void>
+  onSave: (input: ItemEdit) => Promise<void>
   onClose: () => void
 }
 
@@ -59,7 +59,7 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
   }
 }
 
-/** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its barcodes when editing, in a dialog that starts from `item`, or empty, on each open. */
+/** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its Barcodes when editing, in a dialog that starts from `item`, or empty, on each open. */
 export function ItemDialog({ open, item, categories, shops, onSave, onClose }: ItemDialogProps) {
   return (
     <Dialog open={open} title={item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
@@ -96,7 +96,7 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
     setErrors({})
     setSaveError(null)
     try {
-      await onSave(result.input, removedBarcodes)
+      await onSave(removedBarcodes.length > 0 ? { ...result.input, removedBarcodes } : result.input)
       onClose()
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not save Item')

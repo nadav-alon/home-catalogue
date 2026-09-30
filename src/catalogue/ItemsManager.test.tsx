@@ -13,14 +13,12 @@ const watchItems = vi.fn()
 const createItem = vi.fn()
 const setItemState = vi.fn()
 const updateItem = vi.fn()
-const removeBarcode = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
-  removeBarcode: (db: unknown, item: unknown, barcode: unknown) => removeBarcode(db, item, barcode),
 }))
 
 const watchCategories = vi.fn()
@@ -48,7 +46,6 @@ beforeEach(() => {
   createItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
-  removeBarcode.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
 })
@@ -349,11 +346,15 @@ describe('editing an Item', () => {
     openRow('Bandages')
     fireEvent.click(screen.getByRole('button', { name: 'Remove barcode 12345678' }))
     expect(screen.queryByText('12345678')).not.toBeInTheDocument()
-    expect(removeBarcode).not.toHaveBeenCalled()
+    expect(updateItem).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    await waitFor(() => expect(removeBarcode).toHaveBeenCalledTimes(1))
-    expect(removeBarcode).toHaveBeenCalledWith(fakeDb, scanned, '12345678')
+    await waitFor(() => expect(updateItem).toHaveBeenCalledTimes(1))
+    expect(updateItem).toHaveBeenCalledWith(
+      fakeDb,
+      scanned,
+      expect.objectContaining({ removedBarcodes: [core.barcode('12345678')] }),
+    )
   })
 
   it('hides the barcodes section when the Item has none', () => {
@@ -432,7 +433,7 @@ describe('leaving the Item dialog without saving', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
 
-    expect(removeBarcode).not.toHaveBeenCalled()
+    expect(updateItem).not.toHaveBeenCalled()
     expect(screen.getByText('12345678')).toBeInTheDocument()
   })
 
