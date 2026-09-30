@@ -8,7 +8,7 @@ import { ItemsManager } from './catalogue/ItemsManager.tsx'
 import { ShoppingList } from './catalogue/ShoppingList.tsx'
 import { watchItems, type ItemRecord } from './catalogue/items.ts'
 import { CalendarExport } from './export/CalendarExport.tsx'
-import { AddDeviceQrCode } from './setup/AddDeviceQrCode.tsx'
+import { SettingsScreen } from './settings/SettingsScreen.tsx'
 import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
 import { titleOf } from './shell/titles.ts'
@@ -20,9 +20,11 @@ import type { FirebaseWebConfig } from './firebase/webConfig.ts'
 export interface AppProps {
   db: Firestore
   config: FirebaseWebConfig
+  onResetConfig: () => void | Promise<void>
+  onSignOut: () => void | Promise<void>
 }
 
-export function App({ db, config }: AppProps) {
+export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
   const [items, setItems] = useState<ItemRecord[]>([])
   const current = useRoute()
 
@@ -36,7 +38,7 @@ export function App({ db, config }: AppProps) {
           <main>
             <WriteRejectionBanner />
             <AlertBanner items={items} />
-            <Screen route={current} db={db} config={config} />
+            <Screen route={current} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
           </main>
         </TopAppBar>
       </div>
@@ -45,7 +47,7 @@ export function App({ db, config }: AppProps) {
 }
 
 /** The screen for a route. */
-function Screen({ route: current, db, config }: { route: Route } & AppProps) {
+function Screen({ route: current, db, config, onResetConfig, onSignOut }: { route: Route } & AppProps) {
   switch (current) {
     case '/list':
       // TODO[#135]: the Shopping list screen.
@@ -58,14 +60,7 @@ function Screen({ route: current, db, config }: { route: Route } & AppProps) {
     case '/items':
       return <ItemsManager db={db} />
     case '/settings':
-      // TODO[#139]: the Settings screen.
-      return (
-        <>
-          <AddDeviceQrCode config={config} />
-          <ShopsManager db={db} />
-          <CategoriesManager db={db} />
-        </>
-      )
+      return <SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
     case '/settings/shops':
       // TODO[#140]: the Shops screen.
       return <ShopsManager db={db} />

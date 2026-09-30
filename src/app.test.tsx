@@ -50,7 +50,7 @@ async function goTo(hash: string) {
 
 describe('App', () => {
   it('shows the Shopping list screen by default, titled in the top app bar, with the main navigation', () => {
-    render(<App db={fakeDb} config={config} />)
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Shopping list' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Export to Calendar' })).toBeInTheDocument()
@@ -60,7 +60,7 @@ describe('App', () => {
 
   it('shows the Items screen on #/items', () => {
     window.location.hash = '#/items'
-    render(<App db={fakeDb} config={config} />)
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Items' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Export to Calendar' })).toBeNull()
@@ -69,30 +69,31 @@ describe('App', () => {
   it('puts the scan icon in the top app bar on the Items screen when BarcodeDetector exists', () => {
     vi.stubGlobal('BarcodeDetector', class {})
     window.location.hash = '#/items'
-    render(<App db={fakeDb} config={config} />)
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     expect(within(screen.getByRole('banner')).getByRole('button', { name: 'Scan barcode' })).toBeInTheDocument()
   })
 
   it('has no scan icon on the Items screen without BarcodeDetector', () => {
     window.location.hash = '#/items'
-    render(<App db={fakeDb} config={config} />)
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     expect(screen.queryByRole('button', { name: 'Scan barcode' })).toBeNull()
   })
 
-  it('shows the Settings screen with device transfer, Shops and Categories, and follows the route', async () => {
-    render(<App db={fakeDb} config={config} />)
+  it('shows the Settings screen with device transfer and links to Shops and Categories, and follows the route', async () => {
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
     await goTo('#/settings')
 
     expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Add a device' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Shops' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 2, name: 'Categories' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open Shops' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open Categories' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2, name: 'Shops' })).toBeNull()
   })
 
   it('shows one management screen on each Settings sub-route', async () => {
-    render(<App db={fakeDb} config={config} />)
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
     await goTo('#/settings/shops')
     expect(screen.getByRole('heading', { level: 1, name: 'Shops' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2, name: 'Categories' })).toBeNull()
@@ -103,7 +104,7 @@ describe('App', () => {
   })
 
   it('shows a red AlertBanner when a watched Item is now', () => {
-    render(<App db={fakeDb} config={config} />)
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     const items: ItemRecord[] = [
       {

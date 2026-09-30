@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Root } from './root.tsx'
 import { saveFirebaseConfig } from './firebase/configStorage.ts'
 import { deviceTransferUrl } from './firebase/deviceTransfer.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
+import { resetHash } from './testing/hash.ts'
 import type { AuthUser } from './auth/authClient.ts'
 
 const initFirebase = vi.fn()
@@ -17,10 +18,11 @@ vi.mock('./firebase/client.ts', () => ({
 // stubbed as an already-signed-in member throughout.
 const member: AuthUser = { uid: 'owner-uid', email: 'owner@example.com' } as unknown as AuthUser
 const watchAuthState = vi.fn()
+const signOutUser = vi.fn()
 vi.mock('./auth/authClient.ts', () => ({
   watchAuthState: (app: unknown, cb: (user: AuthUser | null) => void) => watchAuthState(app, cb),
   signInWithGoogle: vi.fn(),
-  signOutUser: vi.fn(),
+  signOutUser: (app: unknown) => signOutUser(app),
 }))
 
 const householdExists = vi.fn()
@@ -74,6 +76,21 @@ function hashOf(url: string): string {
   return url.slice(url.indexOf('#'))
 }
 
+/** Settings is chosen by the URL, so the hash is set before rendering: the router reads it on mount. */
+function startOnSettings() {
+  window.location.hash = '#/settings'
+}
+
+async function resetFromSettings() {
+  vi.spyOn(window, 'confirm').mockReturnValue(true)
+  fireEvent.click(await screen.findByRole('button', { name: 'Reset' }))
+}
+
+afterEach(async () => {
+  vi.restoreAllMocks()
+  await resetHash()
+})
+
 beforeEach(() => {
   localStorage.clear()
   history.replaceState(null, '', '/')
@@ -125,28 +142,22 @@ describe('Root', () => {
 
   it('returns to the setup screen and clears storage when reset', async () => {
     saveFirebaseConfig(validConfig)
+    startOnSettings()
     render(<Root />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
+    await resetFromSettings()
 
     expect(await screen.findByRole('heading', { name: 'Set up' })).toBeInTheDocument()
     expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
   })
 
-  it('renders the reset button as a text-variant ui-button', () => {
-    saveFirebaseConfig(validConfig)
-    render(<Root />)
-
-    const button = screen.getByRole('button', { name: 'Reset Firebase configuration' })
-    expect(button).toHaveClass('ui-button', 'ui-button--text')
-  })
-
   it('tears down the previous client before initialising a new one after reset', async () => {
     saveFirebaseConfig(validConfig)
+    startOnSettings()
     render(<Root />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
+    await resetFromSettings()
     await screen.findByRole('heading', { name: 'Set up' })
 
     const otherConfig = firebaseWebConfig({ ...validConfig, projectId: 'other-household' })
@@ -158,6 +169,21 @@ describe('Root', () => {
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
     expect(initFirebase).toHaveBeenLastCalledWith(otherConfig)
+  })
+
+  it('signs out the connected client from Settings, and nowhere else', async () => {
+    saveFirebaseConfig(validConfig)
+    const { unmount } = render(<Root />)
+    await screen.findByRole('navigation', { name: 'Main' })
+    expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
+    unmount()
+
+    startOnSettings()
+    render(<Root />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+
+    expect(signOutUser).toHaveBeenCalledWith(fakeClient.app)
   })
 
   it('checks the deployed platform version against the connected client', async () => {

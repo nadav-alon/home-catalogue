@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { core } from 'data-platform'
-import { Button } from './ui/Button.tsx'
 import { App } from './app.tsx'
+import { signOutUser } from './auth/authClient.ts'
 import { AuthGate } from './auth/AuthGate.tsx'
 import { SetupScreen } from './setup/SetupScreen.tsx'
 import { clearFirebaseConfig, getStoredFirebaseConfig, saveFirebaseConfig } from './firebase/configStorage.ts'
@@ -78,18 +78,17 @@ function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: ()
     <>
       <AuthGate client={client}>
         <PlatformGuard db={client.db} />
-        <App db={client.db} config={config} />
+        <App
+          db={client.db}
+          config={config}
+          onSignOut={() => signOutUser(client.app)}
+          onResetConfig={async () => {
+            await terminateFirebase(client)
+            clearFirebaseConfig()
+            onReset()
+          }}
+        />
       </AuthGate>
-      <Button
-        variant="text"
-        onClick={async () => {
-          await terminateFirebase(client)
-          clearFirebaseConfig()
-          onReset()
-        }}
-      >
-        Reset Firebase configuration
-      </Button>
     </>
   )
 }
