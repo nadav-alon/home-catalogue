@@ -173,6 +173,44 @@ describe('watchItems', () => {
   })
 })
 
+describe('watchItems with soft-deleted Items', () => {
+  const deletedAt = { seconds: 1, nanoseconds: 0 }
+
+  /** Feeds `watchItems` one core snapshot and one catalogue snapshot, returning what it emitted last. */
+  async function emitted(coreDocs: Record<string, object>, catalogueDocs: Record<string, object>) {
+    const { watchItems } = await import('./items.ts')
+    const callback = vi.fn()
+    onSnapshot.mockImplementation((snapshotQuery: { ref?: { path: string } }, cb: (snapshot: unknown) => void) => {
+      const docs = snapshotQuery.ref !== undefined ? coreDocs : catalogueDocs
+      cb({ docs: Object.entries(docs).map(([id, data]) => ({ id, data: () => data })) })
+      return vi.fn()
+    })
+    watchItems(fakeDb, callback)
+    return callback.mock.lastCall?.[0] as ItemRecord[]
+  }
+
+  const live = { name: 'Sponge', state: 'out' }
+  const liveCatalogue = { categoryId: 'cleaning', necessity: 'essential' }
+
+  it('leaves out an Item whose core doc carries deletedAt', async () => {
+    const records = await emitted(
+      { 'dish-soap': { name: 'Dish soap', state: 'enough', deletedAt }, sponge: live },
+      { 'dish-soap': liveCatalogue, sponge: liveCatalogue },
+    )
+
+    expect(records.map((record) => record.id)).toEqual(['sponge'])
+  })
+
+  it('leaves out an Item whose catalogue doc carries deletedAt', async () => {
+    const records = await emitted(
+      { 'dish-soap': { name: 'Dish soap', state: 'enough' }, sponge: live },
+      { 'dish-soap': { ...liveCatalogue, deletedAt }, sponge: liveCatalogue },
+    )
+
+    expect(records.map((record) => record.id)).toEqual(['sponge'])
+  })
+})
+
 describe('createItem', () => {
   it('writes the Barcode the new Item carries into its core doc', async () => {
     const { createItem } = await import('./items.ts')

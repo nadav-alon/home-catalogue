@@ -76,7 +76,8 @@ export function isPending(state: core.State): boolean {
 /**
  * Notifies `callback` with every Item whose core `items` doc and catalogue `catalogueItems` doc
  * have both synced, ordered by name. An Item missing either half — not yet written, or a document
- * failing its schema — is left out of the list rather than shown incomplete. Returns the
+ * failing its schema — is left out of the list rather than shown incomplete, as is an Item
+ * soft-deleted on either doc (`deletedAt` set). Returns the
  * unsubscribe function that stops both underlying subscriptions.
  */
 export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => void): () => void {
@@ -90,7 +91,7 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
     const records: ItemRecord[] = []
     for (const [id, item] of coreItems) {
       const catalogueItem = catalogueItems.get(id)
-      if (catalogueItem !== undefined) {
+      if (catalogueItem !== undefined && item.deletedAt === undefined && catalogueItem.deletedAt === undefined) {
         records.push(toItemRecord(id, item, catalogueItem))
       }
     }
