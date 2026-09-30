@@ -201,6 +201,23 @@ describe('adding an Item', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
+  it('keeps the dialog open with the error and the typed values when saving fails', async () => {
+    createItem.mockRejectedValue(new Error('Could not reach the database'))
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the database')
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Bandages')
+    expect(screen.getByLabelText('Category')).toHaveValue(medicine.id)
+    expect(screen.getByLabelText('Necessity')).toHaveValue('essential')
+  })
+
   it('creates a new Item with a Shop override', async () => {
     renderWith([], [medicine, cleaning], [pharmacy, grocery])
     openDialog()
@@ -363,6 +380,14 @@ describe('leaving the Item dialog without saving', () => {
 
   it('discards the edit on back', async () => {
     await fillAndLeave(() => window.dispatchEvent(new PopStateEvent('popstate')))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(updateItem).not.toHaveBeenCalled()
+    expect(createItem).not.toHaveBeenCalled()
+  })
+
+  it('discards the edit on Escape', async () => {
+    await fillAndLeave(() => fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true })))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(updateItem).not.toHaveBeenCalled()
