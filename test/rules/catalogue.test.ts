@@ -18,11 +18,6 @@ const alice = core.uid('alice')
 
 let testEnv: RulesTestEnvironment
 
-/** Waits until every write queued on `db` has been acknowledged by the emulator. */
-function waitForWrites(db: Firestore): Promise<void> {
-  return waitForPendingWrites(db)
-}
-
 let rejectedMessages: string[] = []
 function rejected(): string[] {
   return rejectedMessages
@@ -214,7 +209,7 @@ describe('deleteCategory against the real rules', () => {
     })
 
     await expect(deleteCategory(db, medicine)).resolves.toBeUndefined()
-    await waitForWrites(db)
+    await waitForPendingWrites(db)
     const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
     expect(categorySnapshot.data()?.deletedAt).toBeDefined()
     const shopSnapshot = await getDoc(doc(db, catalogue.SHOPS_COLLECTION, 'pharmacy'))
@@ -235,10 +230,10 @@ describe('deleteCategory against the real rules', () => {
       })
     })
     await deleteCategory(db, medicine)
-    await waitForWrites(db)
+    await waitForPendingWrites(db)
 
     await restoreCategory(db, medicine)
-    await waitForWrites(db)
+    await waitForPendingWrites(db)
 
     const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
     expect(categorySnapshot.data()?.deletedAt).toBeUndefined()
