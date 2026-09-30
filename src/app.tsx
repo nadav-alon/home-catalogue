@@ -52,7 +52,6 @@ function Screen({ route: current, db, config, onResetConfig, onSignOut }: { rout
       // TODO[#140]: the Shops screen.
       return <ShopsManager db={db} />
     case '/settings/categories':
-      // TODO[#141]: the Categories screen.
       return <CategoriesManager db={db} />
   }
 }

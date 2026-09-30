@@ -12,13 +12,20 @@ import {
   type CategoryRecord,
 } from './categories.ts'
 import { shopName, watchShops, type ShopRecord } from './shops.ts'
+import { TopAppBarActions } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
+import { IconButton } from '../ui/IconButton.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
+import { route } from '../ui/route.ts'
 import { Select } from '../ui/Select.tsx'
 import { TextField } from '../ui/TextField.tsx'
+import { navigate } from '../ui/useRoute.ts'
 import AddIcon from '~icons/material-symbols/add'
+import ArrowBackIcon from '~icons/material-symbols/arrow-back'
+
+const SETTINGS = route('/settings')
 
 export interface CategoriesManagerProps {
   db: Firestore
@@ -92,7 +99,9 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
 
   return (
     <section>
-      <h2>Categories</h2>
+      <TopAppBarActions>
+        <IconButton symbol={ArrowBackIcon} label="Back to Settings" onClick={() => navigate(SETTINGS)} />
+      </TopAppBarActions>
       {error !== null && <p role="alert">{error}</p>}
       <ul>
         {categories.map((category) => (

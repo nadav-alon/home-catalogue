@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { CategoriesManager } from './CategoriesManager.tsx'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import { TopAppBar } from '../shell/TopAppBar.tsx'
+import { resetHash } from '../testing/hash.ts'
 import { grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const createCategory = vi.fn()
@@ -35,6 +37,8 @@ const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const categoriesUnsubscribe = vi.fn()
 const shopsUnsubscribe = vi.fn()
 
+afterEach(resetHash)
+
 beforeEach(() => {
   // jsdom has no modal dialog; stand in for the browser's open/close bookkeeping.
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
@@ -54,6 +58,15 @@ beforeEach(() => {
   shopsUnsubscribe.mockClear()
 })
 
+/**
+ * Picks an option the way a browser does. Once `preact/compat` is loaded (the top app bar's portal
+ * pulls it in), Testing Library's `fireEvent.change` no longer reaches a `<select>`'s `onChange`.
+ */
+function choose(select: HTMLElement, value: string) {
+  ;(select as HTMLSelectElement).value = value
+  fireEvent(select, new Event('change', { bubbles: true }))
+}
+
 function openEditor(categoryName: string) {
   fireEvent.click(screen.getByRole('button', { name: `Edit ${categoryName}` }))
 }
@@ -71,6 +84,21 @@ function renderWith(categories: CategoryRecord[], shops: ShopRecord[]) {
 }
 
 describe('CategoriesManager', () => {
+  it('has a back arrow in the top app bar that returns to Settings', () => {
+    watchCategories.mockReturnValue(categoriesUnsubscribe)
+    watchShops.mockReturnValue(shopsUnsubscribe)
+    window.location.hash = '#/settings/categories'
+    render(
+      <TopAppBar title="Categories">
+        <CategoriesManager db={fakeDb} />
+      </TopAppBar>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Settings' }))
+
+    expect(window.location.hash).toBe('#/settings')
+  })
+
   it('lists every Category as a row with its default Shop name', () => {
     renderWith([medicine], [pharmacy, grocery])
 
@@ -98,7 +126,7 @@ describe('CategoriesManager', () => {
     renderWith([], [pharmacy, grocery])
     fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
     fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Snacks' } })
-    fireEvent.change(screen.getByLabelText('Default Shop'), { target: { value: grocery.id } })
+    choose(screen.getByLabelText('Default Shop'), grocery.id)
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(createCategory).toHaveBeenCalledWith(fakeDb, 'Snacks', grocery.id)
@@ -120,7 +148,7 @@ describe('CategoriesManager', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
 
     fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: '   ' } })
-    fireEvent.change(screen.getByLabelText('Default Shop'), { target: { value: pharmacy.id } })
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
     fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('A Category needs a name.')
@@ -154,7 +182,7 @@ describe('CategoriesManager', () => {
     renderWith([medicine], [pharmacy, grocery])
     openEditor('Medicine')
 
-    fireEvent.change(screen.getByLabelText('Default Shop'), { target: { value: grocery.id } })
+    choose(screen.getByLabelText('Default Shop'), grocery.id)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(changeCategoryShop).toHaveBeenCalledWith(fakeDb, medicine, grocery.id)
