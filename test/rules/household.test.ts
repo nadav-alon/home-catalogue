@@ -9,7 +9,7 @@ import {
 } from '@firebase/rules-unit-testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { core } from 'data-platform'
-import { claimHousehold, householdExists, isHouseholdMember } from '../../src/auth/household.ts'
+import { claimHousehold, householdExists, isHouseholdMember, joinFromInvite } from '../../src/auth/household.ts'
 
 const alice = core.uid('alice')
 const mallory = core.uid('mallory')
@@ -115,5 +115,41 @@ describe('claimHousehold against the real rules', () => {
 
     const db = dbFor(testEnv.authenticatedContext(mallory))
     await assertFails(claimHousehold(db, mallory, core.email('mallory@example.com')))
+  })
+})
+
+describe('joinFromInvite against the real rules', () => {
+  const guestEmail = core.email('guest@example.com')
+
+  async function seedInvite(): Promise<void> {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(core.inviteDocPath(guestEmail)).set({ invitedAt: new Date() })
+    })
+  }
+
+  function guestDb(): Firestore {
+    return dbFor(testEnv.authenticatedContext(mallory, { email: 'Guest@Example.com', email_verified: true }))
+  }
+
+  it('makes an invited user a Member and consumes the invite', async () => {
+    await seedClaimedHousehold()
+    await seedInvite()
+
+    const db = guestDb()
+    await expect(joinFromInvite(db, mallory, guestEmail)).resolves.toBe(true)
+
+    await expect(isHouseholdMember(db, mallory)).resolves.toBe(true)
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const invite = await context.firestore().doc(core.inviteDocPath(guestEmail)).get()
+      expect(invite.exists).toBe(false)
+    })
+  })
+
+  it('does not join a user with no invite', async () => {
+    await seedClaimedHousehold()
+
+    const db = guestDb()
+    await expect(joinFromInvite(db, mallory, guestEmail)).resolves.toBe(false)
+    await expect(isHouseholdMember(db, mallory)).resolves.toBe(false)
   })
 })
