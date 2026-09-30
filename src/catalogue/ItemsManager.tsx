@@ -200,7 +200,12 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
             navigateToItems([editedItem.id])
             return
           }
-          if (!editedItem) return createItem(db, { ...input, barcode: dialog?.kind === 'add' ? dialog.barcode : undefined })
+          if (!editedItem) {
+            const barcode = dialog?.kind === 'add' ? dialog.barcode : undefined
+            const id = await createItem(db, { ...input, barcode })
+            if (barcode !== undefined) navigateToItems([id])
+            return
+          }
           // Its reference counts move from the current record.
           await updateItem(db, editedItem, input)
         }}

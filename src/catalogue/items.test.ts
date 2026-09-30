@@ -235,6 +235,19 @@ describe('createItem', () => {
     )
   })
 
+  it('resolves with the generated id of the new Item', async () => {
+    const { createItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    const id = await createItem(fakeDb, {
+      name: 'Dish soap',
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+    })
+
+    expect(id).toBe('generated-id')
+  })
+
   it('writes the core Item and catalogue CatalogueItem docs as one batch, starting at State enough', async () => {
     const { createItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
@@ -333,7 +346,7 @@ describe('createItem', () => {
         categoryId: catalogue.categoryId('cleaning'),
         necessity: catalogue.necessitySchema.parse('essential'),
       }),
-    ).resolves.toBeUndefined()
+    ).resolves.toBe('generated-id')
   })
 })
 
