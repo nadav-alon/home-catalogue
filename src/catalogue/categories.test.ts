@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { FirebaseError } from 'firebase/app'
 import { catalogue } from 'data-platform'
+import { medicine } from './testFixtures.ts'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
 /** Mirrors both overloads used in categories.ts: `doc(collectionRef)` generates an id; `doc(db, path, id)` targets one. */
@@ -184,13 +185,6 @@ describe('createCategory', () => {
 })
 
 describe('renameCategory', () => {
-  const medicine = {
-    id: catalogue.categoryId('medicine'),
-    name: 'Medicine',
-    defaultShopId: catalogue.shopId('pharmacy'),
-    referenceCount: 0,
-  }
-
   it('validates the new name and updates it', async () => {
     const { renameCategory } = await import('./categories.ts')
     updateDoc.mockResolvedValueOnce(undefined)
@@ -222,12 +216,6 @@ describe('renameCategory', () => {
 })
 
 describe('changeCategoryDefaultShop', () => {
-  const medicine = {
-    id: catalogue.categoryId('medicine'),
-    name: 'Medicine',
-    defaultShopId: catalogue.shopId('pharmacy'),
-    referenceCount: 0,
-  }
   const grocery = catalogue.shopId('grocery')
 
   it('points the Category at the new Shop and moves one reference between the two Shops in one batch', async () => {
@@ -272,13 +260,6 @@ describe('changeCategoryDefaultShop', () => {
 })
 
 describe('deleteCategory', () => {
-  const medicine = {
-    id: catalogue.categoryId('medicine'),
-    name: 'Medicine',
-    defaultShopId: catalogue.shopId('pharmacy'),
-    referenceCount: 0,
-  }
-
   it("soft-deletes a Category and drops its default Shop's reference in one batch", async () => {
     const { deleteCategory } = await import('./categories.ts')
     batchCommit.mockResolvedValueOnce(undefined)
@@ -323,13 +304,6 @@ describe('deleteCategory', () => {
 })
 
 describe('restoreCategory', () => {
-  const medicine = {
-    id: catalogue.categoryId('medicine'),
-    name: 'Medicine',
-    defaultShopId: catalogue.shopId('pharmacy'),
-    referenceCount: 0,
-  }
-
   it("clears deletedAt and raises its default Shop's reference in one batch", async () => {
     const { restoreCategory } = await import('./categories.ts')
     batchCommit.mockResolvedValueOnce(undefined)
@@ -372,12 +346,6 @@ describe('a queued Category write the server rejects', () => {
   it('reports a rename by its old and new name', async () => {
     const { renameCategory } = await import('./categories.ts')
     const latest = await rejections()
-    const medicine = {
-      id: catalogue.categoryId('medicine'),
-      name: 'Medicine',
-      defaultShopId: catalogue.shopId('pharmacy'),
-      referenceCount: 0,
-    }
     updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
 
     await renameCategory(fakeDb, medicine, 'Meds')
