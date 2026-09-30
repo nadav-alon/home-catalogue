@@ -9,6 +9,7 @@ import { grocery, medicine, pharmacy } from './testFixtures.ts'
 const createCategory = vi.fn()
 const renameCategory = vi.fn()
 const deleteCategory = vi.fn()
+const changeCategoryShop = vi.fn()
 const watchCategories = vi.fn()
 
 const { FakeCategoryInUseError } = vi.hoisted(() => ({
@@ -16,6 +17,7 @@ const { FakeCategoryInUseError } = vi.hoisted(() => ({
 }))
 
 vi.mock('./categories.ts', () => ({
+  changeCategoryShop: (db: unknown, category: unknown, shopId: unknown) => changeCategoryShop(db, category, shopId),
   createCategory: (db: unknown, name: string, shopId: unknown) => createCategory(db, name, shopId),
   renameCategory: (db: unknown, category: unknown, name: string) => renameCategory(db, category, name),
   deleteCategory: (db: unknown, category: unknown) => deleteCategory(db, category),
@@ -45,11 +47,16 @@ beforeEach(() => {
   createCategory.mockReset().mockResolvedValue(undefined)
   renameCategory.mockReset().mockResolvedValue(undefined)
   deleteCategory.mockReset().mockResolvedValue(undefined)
+  changeCategoryShop.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
   categoriesUnsubscribe.mockClear()
   shopsUnsubscribe.mockClear()
 })
+
+function openEditor(categoryName: string) {
+  fireEvent.click(screen.getByRole('button', { name: `Edit ${categoryName}` }))
+}
 
 function renderWith(categories: CategoryRecord[], shops: ShopRecord[]) {
   watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
@@ -64,17 +71,17 @@ function renderWith(categories: CategoryRecord[], shops: ShopRecord[]) {
 }
 
 describe('CategoriesManager', () => {
-  it('lists every Category with its default Shop name', () => {
+  it('lists every Category as a row with its default Shop name', () => {
     renderWith([medicine], [pharmacy, grocery])
 
-    expect(screen.getByText('Delete Medicine')).toBeInTheDocument()
-    expect(screen.getByText('Default: Pharmacy')).toBeInTheDocument()
+    expect(screen.getByText('Medicine')).toBeInTheDocument()
+    expect(screen.getByText('Pharmacy')).toBeInTheDocument()
   })
 
   it("falls back to 'Unknown Shop' instead of the raw id when the default Shop is missing", () => {
     renderWith([medicine], [])
 
-    expect(screen.getByText('Default: Unknown Shop')).toBeInTheDocument()
+    expect(screen.getByText('Unknown Shop')).toBeInTheDocument()
   })
 
   it('offers every Shop as a default Shop choice', () => {
@@ -120,38 +127,69 @@ describe('CategoriesManager', () => {
     expect(createCategory).not.toHaveBeenCalled()
   })
 
-  it('renames a Category', () => {
-    renderWith([medicine], [pharmacy])
+  it('opens a row into a dialog holding its name and default Shop', () => {
+    renderWith([medicine], [pharmacy, grocery])
 
-    fireEvent.input(screen.getByLabelText('Rename Medicine'), { target: { value: 'Medicine & First aid' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
+    openEditor('Medicine')
 
-    expect(renameCategory).toHaveBeenCalledWith(fakeDb, medicine, 'Medicine & First aid')
+    expect(screen.getByRole('dialog', { name: 'Edit Category' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Category name')).toHaveValue('Medicine')
+    expect(screen.getByLabelText('Default Shop')).toHaveValue(pharmacy.id)
   })
 
-  it('refuses to rename a Category to a blank name, without calling renameCategory', () => {
+  it('renames a Category and closes the dialog', async () => {
     renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
 
-    fireEvent.input(screen.getByLabelText('Rename Medicine'), { target: { value: '   ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Medicine & First aid' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(renameCategory).toHaveBeenCalledWith(fakeDb, medicine, 'Medicine & First aid')
+    expect(changeCategoryShop).toHaveBeenCalledWith(fakeDb, medicine, pharmacy.id)
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('changes the default Shop without renaming', async () => {
+    renderWith([medicine], [pharmacy, grocery])
+    openEditor('Medicine')
+
+    fireEvent.change(screen.getByLabelText('Default Shop'), { target: { value: grocery.id } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(changeCategoryShop).toHaveBeenCalledWith(fakeDb, medicine, grocery.id)
+    expect(renameCategory).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('refuses to rename a Category to a blank name, without writing', () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('A Category needs a name.')
     expect(renameCategory).not.toHaveBeenCalled()
+    expect(changeCategoryShop).not.toHaveBeenCalled()
   })
 
-  it('deletes a Category', () => {
+  it('deletes a Category and closes the dialog', async () => {
     renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Medicine' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(deleteCategory).toHaveBeenCalledWith(fakeDb, medicine)
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it('shows the CategoryInUseError message when deletion is refused', async () => {
     deleteCategory.mockRejectedValueOnce(new FakeCategoryInUseError('This Category is in use.'))
     renderWith([medicine], [pharmacy])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Medicine' }))
+    openEditor('Medicine')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('This Category is in use.')
   })

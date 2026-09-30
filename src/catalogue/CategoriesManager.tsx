@@ -3,6 +3,7 @@ import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import {
+  changeCategoryShop,
   createCategory,
   deleteCategory,
   renameCategory,
@@ -14,6 +15,7 @@ import { shopName, watchShops, type ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
+import { ListRow } from '../ui/ListRow.tsx'
 import { Select } from '../ui/Select.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import AddIcon from '~icons/material-symbols/add'
@@ -26,6 +28,9 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<CategoryRecord | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editShopId, setEditShopId] = useState('')
   const [newName, setNewName] = useState('')
   const [newShopId, setNewShopId] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -55,17 +60,23 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     }
   }
 
-  async function handleRename(category: CategoryRecord, name: string) {
-    const trimmedName = name.trim()
+  async function handleSave(category: CategoryRecord) {
+    const trimmedName = editName.trim()
     if (trimmedName.length === 0) {
       setError('A Category needs a name.')
       return
     }
+    if (!catalogue.isShopId(editShopId)) {
+      setError('Choose a default Shop.')
+      return
+    }
     try {
-      await renameCategory(db, category, trimmedName)
+      if (trimmedName !== category.name) await renameCategory(db, category, trimmedName)
+      await changeCategoryShop(db, category, editShopId)
       setError(null)
+      setEditing(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not rename Category')
+      setError(err instanceof Error ? err.message : 'Could not save Category')
     }
   }
 
@@ -73,6 +84,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     try {
       await deleteCategory(db, category)
       setError(null)
+      setEditing(null)
     } catch (err) {
       setError(err instanceof CategoryInUseError ? err.message : 'Could not delete Category')
     }
@@ -84,74 +96,82 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
       {error !== null && <p role="alert">{error}</p>}
       <ul>
         {categories.map((category) => (
-          <CategoryRow
+          <ListRow
             key={category.id}
-            category={category}
-            defaultShopName={shopName(shops, category.defaultShopId)}
-            onRename={(name) => void handleRename(category, name)}
-            onDelete={() => void handleDelete(category)}
+            headline={category.name}
+            supporting={shopName(shops, category.defaultShopId)}
+            control={
+              <Button
+                variant="text"
+                aria-label={`Edit ${category.name}`}
+                onClick={() => {
+                  setEditName(category.name)
+                  setEditShopId(category.defaultShopId)
+                  setEditing(category)
+                }}
+              >
+                Edit
+              </Button>
+            }
           />
         ))}
       </ul>
       <Fab symbol={AddIcon} label="Add Category" onClick={() => setAdding(true)} />
       <Dialog open={adding} title="Add Category" onClose={() => setAdding(false)}>
-        <form onSubmit={handleCreate}>
-          <TextField
-            label="New Category name"
-            value={newName}
-            onInput={(event) => setNewName(event.currentTarget.value)}
-          />
-          <Select
-            label="Default Shop"
-            value={newShopId}
-            onChange={(event) => setNewShopId(event.currentTarget.value)}
+        {adding && (
+          <form onSubmit={handleCreate}>
+            <TextField
+              label="New Category name"
+              value={newName}
+              onInput={(event) => setNewName(event.currentTarget.value)}
+            />
+            <Select
+              label="Default Shop"
+              value={newShopId}
+              onChange={(event) => setNewShopId(event.currentTarget.value)}
+            >
+              <option value="">Choose a Shop</option>
+              {shops.map((shop) => (
+                <option key={shop.id} value={shop.id}>
+                  {shop.name}
+                </option>
+              ))}
+            </Select>
+            <Button type="submit">Add</Button>
+          </form>
+        )}
+      </Dialog>
+      <Dialog open={editing !== null} title="Edit Category" onClose={() => setEditing(null)}>
+        {editing !== null && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              void handleSave(editing)
+            }}
           >
-            <option value="">Choose a Shop</option>
-            {shops.map((shop) => (
-              <option key={shop.id} value={shop.id}>
-                {shop.name}
-              </option>
-            ))}
-          </Select>
-          <Button type="submit">Add</Button>
-        </form>
+            <TextField
+              label="Category name"
+              value={editName}
+              onInput={(event) => setEditName(event.currentTarget.value)}
+            />
+            <Select
+              label="Default Shop"
+              value={editShopId}
+              onChange={(event) => setEditShopId(event.currentTarget.value)}
+            >
+              {shops.map((shop) => (
+                <option key={shop.id} value={shop.id}>
+                  {shop.name}
+                </option>
+              ))}
+            </Select>
+            <Button type="submit">Save</Button>
+            <Button variant="text" onClick={() => void handleDelete(editing)}>
+              Delete
+            </Button>
+          </form>
+        )}
       </Dialog>
     </section>
-  )
-}
-
-interface CategoryRowProps {
-  category: CategoryRecord
-  defaultShopName: string
-  onRename: (name: string) => void
-  onDelete: () => void
-}
-
-function CategoryRow({ category, defaultShopName, onRename, onDelete }: CategoryRowProps) {
-  const [name, setName] = useState(category.name)
-
-  useEffect(() => setName(category.name), [category.name])
-
-  return (
-    <li>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          onRename(name)
-        }}
-      >
-        <label htmlFor={`category-name-${category.id}`}>Rename {category.name}</label>
-        <input
-          id={`category-name-${category.id}`}
-          value={name}
-          onInput={(event) => setName(event.currentTarget.value)}
-        />
-        <button type="submit">Rename</button>
-      </form>
-      <span>Default: {defaultShopName}</span>
-      <button type="button" onClick={onDelete}>
-        Delete {category.name}
-      </button>
-    </li>
   )
 }
