@@ -105,6 +105,15 @@ describe('ItemsManager', () => {
     expect(screen.getByText('Scanned: 2 Items')).toBeInTheDocument()
   })
 
+  it('ignores earlier search text once the Items are filtered by id', () => {
+    const { rerender } = renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'zzz' } })
+
+    rerender(<ItemsManager db={fakeDb} itemIds={[bandages.id]} />)
+
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+
   it('returns to the unfiltered #/items when the chip is dismissed', () => {
     window.location.hash = '#/items?item=bandages'
     renderWith([bandages], [medicine], [pharmacy], [bandages.id])

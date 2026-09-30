@@ -54,7 +54,9 @@ export function ItemsManager({ db, itemIds = [] }: ItemsManagerProps) {
   const scanFiltered = itemIds.length > 0
   const candidateItems = (items ?? []).filter((item) => !scanFiltered || itemIds.includes(item.id))
   const scannedLabel = candidateItems.length === 1 ? candidateItems[0]!.name : `${candidateItems.length} Items`
-  const visibleItems = candidateItems.filter((item) => item.name.toLowerCase().includes(needle))
+  const visibleItems = scanFiltered
+    ? candidateItems
+    : candidateItems.filter((item) => item.name.toLowerCase().includes(needle))
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
