@@ -2,9 +2,14 @@ import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import { TopAppBarActions } from '../shell/TopAppBar.tsx'
+import { Button } from '../ui/Button.tsx'
+import { Dialog } from '../ui/Dialog.tsx'
+import { Fab } from '../ui/Fab.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
 import { route } from '../ui/route.ts'
+import { TextField } from '../ui/TextField.tsx'
 import { navigate } from '../ui/useRoute.ts'
+import AddIcon from '~icons/material-symbols/add'
 import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 import { createShop, deleteShop, renameShop, watchShops, ShopInUseError, type ShopRecord } from './shops.ts'
 
@@ -16,6 +21,7 @@ export interface ShopsManagerProps {
 
 export function ShopsManager({ db }: ShopsManagerProps) {
   const [shops, setShops] = useState<ShopRecord[]>([])
+  const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -32,6 +38,7 @@ export function ShopsManager({ db }: ShopsManagerProps) {
       await createShop(db, trimmedName)
       setNewName('')
       setError(null)
+      setAdding(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add Shop')
     }
@@ -77,11 +84,13 @@ export function ShopsManager({ db }: ShopsManagerProps) {
           />
         ))}
       </ul>
-      <form onSubmit={handleCreate}>
-        <label htmlFor="new-shop-name">New Shop name</label>
-        <input id="new-shop-name" value={newName} onInput={(event) => setNewName(event.currentTarget.value)} />
-        <button type="submit">Add Shop</button>
-      </form>
+      <Fab symbol={AddIcon} label="Add Shop" onClick={() => setAdding(true)} />
+      <Dialog open={adding} title="Add Shop" onClose={() => setAdding(false)}>
+        <form onSubmit={handleCreate}>
+          <TextField label="New Shop name" value={newName} onInput={(event) => setNewName(event.currentTarget.value)} />
+          <Button type="submit">Add</Button>
+        </form>
+      </Dialog>
     </section>
   )
 }

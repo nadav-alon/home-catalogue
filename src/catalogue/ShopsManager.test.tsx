@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/preact'
+import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
@@ -27,6 +27,14 @@ const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const unsubscribe = vi.fn()
 
 beforeEach(() => {
+  // jsdom has no modal dialog; stand in for the browser's open/close bookkeeping.
+  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  })
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute('open')
+    this.dispatchEvent(new Event('close'))
+  })
   createShop.mockReset().mockResolvedValue(undefined)
   renameShop.mockReset().mockResolvedValue(undefined)
   deleteShop.mockReset().mockResolvedValue(undefined)
@@ -64,23 +72,24 @@ describe('ShopsManager', () => {
     expect(screen.getByText('Delete Grocery')).toBeInTheDocument()
   })
 
-  it('adds a new Shop and clears the input', async () => {
+  it('adds a Shop through the FAB dialog and closes it', async () => {
     renderWithShops([])
-
-    fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: 'Hardware' } })
     fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
 
+    fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: 'Hardware' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
     expect(createShop).toHaveBeenCalledWith(fakeDb, 'Hardware')
-    await screen.findByLabelText('New Shop name')
-    expect(screen.getByLabelText('New Shop name')).toHaveValue('')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it('shows a message and keeps the input when adding fails', async () => {
     createShop.mockRejectedValueOnce(new Error('Could not add Shop'))
     renderWithShops([])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
 
     fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: 'Hardware' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not add Shop')
     expect(screen.getByLabelText('New Shop name')).toHaveValue('Hardware')
@@ -88,9 +97,10 @@ describe('ShopsManager', () => {
 
   it('refuses to add a Shop with a blank name, without calling createShop', () => {
     renderWithShops([])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
 
     fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: '   ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('A Shop needs a name.')
     expect(createShop).not.toHaveBeenCalled()
