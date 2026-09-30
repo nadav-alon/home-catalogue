@@ -36,6 +36,7 @@ function dismiss(message: SnackbarMessage): void {
   if (current === message) publish(null)
 }
 
+/** Notifies `listener` immediately, then on every change, with the current message or `null`. Returns the unsubscribe function. */
 function watchSnackbar(listener: Listener): () => void {
   listeners.add(listener)
   listener(current)
@@ -47,6 +48,9 @@ function watchSnackbar(listener: Listener): () => void {
 /**
  * Renders the current snackbar, if any. Mount it once, app-wide: the `role="status"` region stays
  * in the document while empty so that screen readers announce a message when it appears.
+ *
+ * Mounted inside `App`, so a message shown from the setup and sign-in screens, which `Root` renders
+ * outside it, is not displayed.
  */
 export function SnackbarHost() {
   const [message, setMessage] = useState<SnackbarMessage | null>(null)
