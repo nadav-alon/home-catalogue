@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DEFAULT_ROUTE, route } from './route.ts'
+import { DEFAULT_ROUTE, hashOf, route } from './route.ts'
 import { navigate, useRoute } from './useRoute.ts'
 import { resetHash } from '../testing/hash.ts'
 
@@ -18,8 +18,40 @@ describe('useRoute', () => {
   })
 
   it('starts on the default route when the hash is empty', () => {
+    window.location.hash = ''
     const { result } = renderHook(() => useRoute())
     expect(result.current).toBe(DEFAULT_ROUTE)
+  })
+
+  it.each(['#/nowhere', ''])('replaces the hash %j with the default route without a history entry', (hash) => {
+    window.location.hash = hash
+    const entries = window.history.length
+    renderHook(() => useRoute())
+    expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
+    expect(window.history.length).toBe(entries)
+  })
+
+  it("replaces a later change to an unknown hash with the default route's hash, keeping only the user's own entry", async () => {
+    const { result } = renderHook(() => useRoute())
+    window.location.hash = '#/items'
+    await act(async () => {
+      await nextHashChange()
+    })
+    const entries = window.history.length
+    await act(async () => {
+      window.location.hash = '#/nowhere'
+      await nextHashChange()
+    })
+    expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
+    expect(window.history.length).toBe(entries + 1)
+    expect(result.current).toBe(DEFAULT_ROUTE)
+
+    await act(async () => {
+      window.history.back()
+      await nextHashChange()
+    })
+    expect(window.location.hash).toBe('#/items')
+    expect(result.current).toBe(route('/items'))
   })
 
   it('re-renders on hashchange', async () => {
@@ -62,6 +94,15 @@ describe('navigate', () => {
     window.location.hash = '#/items'
     const entries = window.history.length
     navigate(route('/items'))
+    expect(window.history.length).toBe(entries)
+  })
+
+  it('pushes nothing when navigating to the default route from an unknown hash', () => {
+    window.location.hash = '#/nowhere'
+    renderHook(() => useRoute())
+    const entries = window.history.length
+    navigate(DEFAULT_ROUTE)
+    expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
     expect(window.history.length).toBe(entries)
   })
 })
