@@ -15,9 +15,11 @@ import './ItemsManager.css'
 
 export interface ItemsManagerProps {
   db: Firestore
+  /** Show only the Items with these ids; unknown ids are ignored. Every Item when omitted. */
+  itemIds?: readonly core.ItemId[]
 }
 
-export function ItemsManager({ db }: ItemsManagerProps) {
+export function ItemsManager({ db, itemIds }: ItemsManagerProps) {
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
@@ -47,7 +49,7 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   const editedItem = dialog?.item && (items?.find((item) => item.id === dialog.item?.id) ?? dialog.item)
 
   const needle = search.trim().toLowerCase()
-  const loadedItems = items ?? []
+  const loadedItems = (items ?? []).filter((item) => itemIds === undefined || itemIds.includes(item.id))
   const visibleItems = loadedItems.filter((item) => item.name.toLowerCase().includes(needle))
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))

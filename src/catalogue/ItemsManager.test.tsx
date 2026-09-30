@@ -54,7 +54,12 @@ beforeEach(() => {
   watchShops.mockReset()
 })
 
-function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
+function renderWith(
+  items: ItemRecord[],
+  categories: CategoryRecord[],
+  shops: ShopRecord[],
+  itemIds?: readonly core.ItemId[],
+) {
   let publishCategories: (categories: CategoryRecord[]) => void = () => {}
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
     cb(items)
@@ -69,10 +74,29 @@ function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: Sh
     cb(shops)
     return vi.fn()
   })
-  return { ...render(<ItemsManager db={fakeDb} />), publishCategories }
+  return { ...render(<ItemsManager db={fakeDb} itemIds={itemIds} />), publishCategories }
 }
 
 describe('ItemsManager', () => {
+  it('shows exactly the Items whose ids are given, ignoring unknown ids', () => {
+    const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
+    const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+    renderWith([bandages, soap, tape], [medicine, cleaning], [pharmacy, grocery], [soap.id, tape.id, core.itemId('gone')])
+
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+    expect(screen.getByText('Tape')).toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('changes State on a filtered row', () => {
+    const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery], [soap.id])
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'State for Dish soap' })).getByText('out'))
+
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, soap, 'out')
+  })
+
   it('groups Items by Category', () => {
     const soap: ItemRecord = {
       id: core.itemId('soap'),
