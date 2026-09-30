@@ -9,6 +9,7 @@ import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { resetHash } from '../testing/hash.ts'
 import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
+import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { choose } from '../testing/select.ts'
 
 const watchItems = vi.fn()
@@ -16,6 +17,7 @@ const createItem = vi.fn()
 const setItemState = vi.fn()
 const updateItem = vi.fn()
 const deleteItem = vi.fn()
+const restoreItem = vi.fn()
 const findItemsByBarcode = vi.fn()
 const attachBarcode = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
@@ -25,6 +27,7 @@ vi.mock('./items.ts', async (importOriginal) => ({
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
   deleteItem: (db: unknown, item: unknown) => deleteItem(db, item),
+  restoreItem: (db: unknown, item: unknown) => restoreItem(db, item),
   findItemsByBarcode: (db: unknown, barcode: unknown) => findItemsByBarcode(db, barcode),
   attachBarcode: (db: unknown, item: unknown, barcode: unknown) => attachBarcode(db, item, barcode),
 }))
@@ -58,6 +61,7 @@ beforeEach(() => {
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
   deleteItem.mockReset().mockResolvedValue(undefined)
+  restoreItem.mockReset().mockResolvedValue(undefined)
   findItemsByBarcode.mockReset().mockResolvedValue([])
   attachBarcode.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
@@ -96,7 +100,10 @@ function renderWith(
   }
 }
 
-afterEach(resetHash)
+afterEach(() => {
+  resetHash()
+  resetSnackbar()
+})
 
 describe('ItemsManager', () => {
   it('shows exactly the Items whose ids are given, ignoring unknown ids', () => {
@@ -418,6 +425,19 @@ describe('editing an Item', () => {
 
     expect(deleteItem).toHaveBeenCalledWith(fakeDb, waterproofBandages)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('offers Undo in a snackbar, which restores the deleted Item', () => {
+    renderWith([waterproofBandages], [medicine, cleaning], [pharmacy, grocery])
+    render(<SnackbarHost />)
+
+    openRow('Bandages')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(screen.getByRole('status')).toHaveTextContent('Deleted Bandages')
+    expect(restoreItem).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(restoreItem).toHaveBeenCalledWith(fakeDb, waterproofBandages)
   })
 
   it('offers no Delete when adding an Item', () => {
