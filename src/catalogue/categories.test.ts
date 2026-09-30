@@ -96,6 +96,25 @@ describe('watchCategories', () => {
     expect(unsub).toBe(unsubscribe)
   })
 
+  it('leaves out a Category that carries deletedAt', async () => {
+    const { watchCategories } = await import('./categories.ts')
+    const callback = vi.fn()
+    const cleaning = { name: 'Cleaning', defaultShopId: 'pharmacy', referenceCount: 1 }
+    onSnapshot.mockImplementation((_snapshotQuery: unknown, cb: (snapshot: unknown) => void) => {
+      cb({
+        docs: [
+          { id: 'gone', data: () => ({ ...cleaning, deletedAt: { seconds: 1, nanoseconds: 0 } }) },
+          { id: 'kept', data: () => cleaning },
+        ],
+      })
+      return vi.fn()
+    })
+
+    watchCategories(fakeDb, callback)
+
+    expect(callback.mock.lastCall?.[0].map((record: { id: string }) => record.id)).toEqual(['kept'])
+  })
+
   it('skips a document that fails categorySchema instead of trusting the cast', async () => {
     const { watchCategories } = await import('./categories.ts')
     const callback = vi.fn()
