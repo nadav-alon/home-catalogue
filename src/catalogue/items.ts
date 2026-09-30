@@ -77,8 +77,8 @@ export function isPending(state: core.State): boolean {
  * Notifies `callback` with every Item whose core `items` doc and catalogue `catalogueItems` doc
  * have both synced, ordered by name. An Item missing either half — not yet written, or a document
  * failing its schema — is left out of the list rather than shown incomplete, as is an Item
- * soft-deleted on either doc (`deletedAt` set). Returns the
- * unsubscribe function that stops both underlying subscriptions.
+ * soft-deleted on either doc (`deletedAt` set). Returns the unsubscribe function that stops both
+ * underlying subscriptions.
  */
 export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => void): () => void {
   let coreItems = new Map<core.ItemId, core.Item>()
@@ -91,7 +91,11 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
     const records: ItemRecord[] = []
     for (const [id, item] of coreItems) {
       const catalogueItem = catalogueItems.get(id)
-      if (catalogueItem !== undefined && item.deletedAt === undefined && catalogueItem.deletedAt === undefined) {
+      if (
+        catalogueItem !== undefined &&
+        item.deletedAt === undefined &&
+        catalogueItem.deletedAt === undefined
+      ) {
         records.push(toItemRecord(id, item, catalogueItem))
       }
     }
@@ -238,9 +242,9 @@ export async function setItemState(
 
 /**
  * Every Item whose core `items` doc carries `barcode` in its `barcodes`, answered from the local
- * cache when offline. Empty when none does; a soft-deleted Item (`deletedAt` set) is not found. Only the core half is returned, so an Item whose
- * catalogue half has not synced yet is found here though {@link watchItems} does not emit it; a
- * document failing its schema is left out.
+ * cache when offline. Empty when none does; a soft-deleted Item (`deletedAt` set) is not found.
+ * Only the core half is returned, so an Item whose catalogue half has not synced yet is found here
+ * though {@link watchItems} does not emit it; a document failing its schema is left out.
  */
 export async function findItemsByBarcode(
   db: Firestore,
