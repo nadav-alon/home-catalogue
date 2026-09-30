@@ -8,6 +8,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  type FieldValue,
   type Firestore,
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
@@ -81,16 +82,22 @@ export async function renameShop(db: Firestore, shop: ShopRecord, name: string):
  */
 export async function deleteShop(db: Firestore, shop: ShopRecord): Promise<void> {
   if (shop.referenceCount > 0) throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
-  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id), { deletedAt: serverTimestamp() }).catch(
-    (err: unknown) => {
-      reportWriteRejection(`deleted Shop ${shop.name}`, err)
-    },
-  )
+  commitShopDeletion(db, shop, serverTimestamp(), 'deleted')
 }
 
 /** Brings a soft-deleted Shop back by clearing `deletedAt`. Resolves once queued, see {@link createShop}. */
 export async function restoreShop(db: Firestore, shop: ShopRecord): Promise<void> {
-  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id), { deletedAt: deleteField() }).catch((err: unknown) => {
-    reportWriteRejection(`restored Shop ${shop.name}`, err)
+  commitShopDeletion(db, shop, deleteField(), 'restored')
+}
+
+/** The one write behind {@link deleteShop} and {@link restoreShop}, so the two stay in step. */
+function commitShopDeletion(
+  db: Firestore,
+  shop: ShopRecord,
+  deletedAt: FieldValue,
+  label: 'deleted' | 'restored',
+): void {
+  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id), { deletedAt }).catch((err: unknown) => {
+    reportWriteRejection(`${label} Shop ${shop.name}`, err)
   })
 }
