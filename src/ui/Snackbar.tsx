@@ -18,9 +18,13 @@ type Listener = (current: SnackbarMessage | null) => void
 let current: SnackbarMessage | null = null
 let timer: ReturnType<typeof setTimeout> | undefined
 const listeners = new Set<Listener>()
+/** What is keeping the snackbar up. While any hold is active the timeout does not run. */
+type Hold = 'pointer'
+const holds = new Set<Hold>()
 
 function publish(next: SnackbarMessage | null): void {
   clearTimeout(timer)
+  if (next === null) holds.clear()
   current = next
   for (const listener of listeners) listener(current)
 }
@@ -28,7 +32,25 @@ function publish(next: SnackbarMessage | null): void {
 /** Shows `message` in the app's one snackbar, from any screen. */
 export function showSnackbar(message: SnackbarMessage): void {
   publish(message)
-  timer = setTimeout(() => dismiss(message), snackbarDurationMs)
+  startTimer(message)
+}
+
+/** Gives `message` a fresh full timeout, unless a hold keeps it up. */
+function startTimer(message: SnackbarMessage): void {
+  clearTimeout(timer)
+  if (holds.size === 0) timer = setTimeout(() => dismiss(message), snackbarDurationMs)
+}
+
+/** Keeps the snackbar up while `hold` is active; once every hold is released the message gets a fresh full timeout. */
+function setHold(hold: Hold, active: boolean): void {
+  if (!current) return
+  if (active) {
+    holds.add(hold)
+    clearTimeout(timer)
+  } else {
+    holds.delete(hold)
+    startTimer(current)
+  }
 }
 
 /** Dismisses the snackbar if `message` is still the one showing. */
@@ -58,7 +80,12 @@ export function SnackbarHost() {
   useEffect(() => watchSnackbar(setMessage), [])
 
   return (
-    <div class="ui-snackbar" role="status">
+    <div
+      class="ui-snackbar"
+      role="status"
+      onPointerEnter={() => setHold('pointer', true)}
+      onPointerLeave={() => setHold('pointer', false)}
+    >
       {message && <p class="ui-snackbar__text">{message.text}</p>}
       {message?.action && (
         <Button

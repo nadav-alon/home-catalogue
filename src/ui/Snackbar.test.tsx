@@ -67,6 +67,30 @@ describe('Snackbar', () => {
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
+  it('stays up while the pointer is over it, then gets a fresh full time once the pointer leaves', () => {
+    vi.useFakeTimers()
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'Saved' }))
+    const status = screen.getByRole('status')
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+    fireEvent.pointerEnter(status)
+    act(() => {
+      vi.advanceTimersByTime(60000)
+    })
+    expect(status).toHaveTextContent('Saved')
+    fireEvent.pointerLeave(status)
+    act(() => {
+      vi.advanceTimersByTime(5900)
+    })
+    expect(status).toHaveTextContent('Saved')
+    act(() => {
+      vi.advanceTimersByTime(200)
+    })
+    expect(status).toBeEmptyDOMElement()
+  })
+
   it('is styled only from defined tokens', () => {
     const { used, undefinedTokens } = tokenUsage('src/ui/Snackbar.css')
     expect(used.length).toBeGreaterThan(0)
