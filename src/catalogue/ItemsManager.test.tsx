@@ -73,15 +73,17 @@ beforeEach(() => {
 })
 
 function renderWith(
-  items: ItemRecord[],
+  items: ItemRecord[] | undefined,
   categories: CategoryRecord[],
   shops: ShopRecord[],
   itemIds?: readonly core.ItemId[],
   onClearFilter?: () => void,
 ) {
   let publishCategories: (categories: CategoryRecord[]) => void = () => {}
+  let publishItems: (items: ItemRecord[]) => void = () => {}
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
-    cb(items)
+    publishItems = cb
+    if (items !== undefined) cb(items)
     return vi.fn()
   })
   watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
@@ -100,6 +102,7 @@ function renderWith(
       </TopAppBar>,
     ),
     publishCategories,
+    publishItems,
   }
 }
 
@@ -962,20 +965,17 @@ describe('a scanned barcode', () => {
   })
 
   it('asks the Member to scan again while the Items have not loaded', async () => {
-    watchItems.mockImplementation(() => vi.fn())
-    watchCategories.mockImplementation(() => vi.fn())
-    watchShops.mockImplementation(() => vi.fn())
-    render(
-      <TopAppBar title="Items">
-        <ItemsManager db={fakeDb} />
-      </TopAppBar>,
-    )
+    const { publishItems } = renderWith(undefined, [medicine], [pharmacy])
 
     scan()
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Items are still loading')
+    expect(await screen.findByRole('status')).toHaveTextContent('Items are still loading')
     expect(screen.queryByRole('dialog', { name: 'Unknown barcode' })).toBeNull()
     expect(window.location.hash).toBe('')
+
+    act(() => publishItems([bandages]))
+
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('opens the chooser naming an unknown barcode, leaving the route alone', async () => {

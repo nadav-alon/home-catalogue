@@ -44,6 +44,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
   const [listsLoaded, setListsLoaded] = useState({ categories: false, shops: false })
   const [error, setError] = useState<string | null>(null)
+  /** Set by a scan made before the Items arrived; shown only while they are still loading. */
+  const [scanWaiting, setScanWaiting] = useState(false)
   const [search, setSearch] = useState('')
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
   const [unknownBarcode, setUnknownBarcode] = useState<core.Barcode | undefined>(undefined)
@@ -71,7 +73,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
 
   async function handleScan(barcode: core.Barcode) {
     if (items === undefined) {
-      setError('Items are still loading, scan again in a moment')
+      setScanWaiting(true)
       return
     }
     setError(null)
@@ -157,6 +159,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
       <h2>Items</h2>
       <ScanEntry onScan={(barcode) => void handleScan(barcode)} />
       {error !== null && <p role="alert">{error}</p>}
+      {scanWaiting && items === undefined && <p role="status">Items are still loading, scan again in a moment</p>}
       {!scanFiltered ? (
         <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
       ) : (
