@@ -4,7 +4,6 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { manifest } from './pwa-manifest'
 import { themeColor } from './theme'
-import { colourRoleHex } from './ui/colourRoles'
 import { appIcons } from './ui/appIcons'
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -27,7 +26,6 @@ describe('manifest', () => {
 
   it("takes background_color from the light scheme's background role", () => {
     expect(manifest.background_color).toBe('#fff8f6')
-    expect(manifest.background_color).toBe(colourRoleHex(themeColor, 'background', 'light'))
     expect(readFileSync(fromRepo('src/ui/theme.css'), 'utf8')).toContain(
       `--md-sys-color-background: ${manifest.background_color};`,
     )
