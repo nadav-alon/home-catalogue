@@ -190,6 +190,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         open={dialog !== null}
         item={editedItem}
         restoring={dialog?.kind === 'restore'}
+        barcode={dialog?.kind === 'add' ? dialog.barcode : undefined}
         categories={categories}
         shops={shops}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}

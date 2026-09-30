@@ -17,6 +17,8 @@ export interface ItemDialogProps {
   item?: ItemRecord
   /** The Item is deleted and saving restores it; its Category and Shop override that are gone then start unset for the Member to choose again. */
   restoring?: boolean
+  /** The scanned Barcode the new Item will carry, shown read-only; ignored when editing. */
+  barcode?: core.Barcode
   categories: CategoryRecord[]
   shops: ShopRecord[]
   /** Creates a Category and resolves with its id; a rejection is shown in the dialog's Category prompt. */
@@ -71,13 +73,14 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 }
 
 /** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its Barcodes when editing, in a dialog that starts from `item`, or empty, on each open. */
-export function ItemDialog({ open, item, restoring, categories, shops, onCreateCategory, onSave, onDelete, onClose }: ItemDialogProps) {
+export function ItemDialog({ open, item, restoring, barcode, categories, shops, onCreateCategory, onSave, onDelete, onClose }: ItemDialogProps) {
   return (
     <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
       {open && (
         <ItemForm
           item={item}
           restoring={restoring}
+          barcode={barcode}
           categories={categories}
           shops={shops}
           onCreateCategory={onCreateCategory}
@@ -90,7 +93,7 @@ export function ItemDialog({ open, item, restoring, categories, shops, onCreateC
   )
 }
 
-function ItemForm({ item, restoring, categories, shops, onCreateCategory, onSave, onDelete, onClose }: Omit<ItemDialogProps, 'open'>) {
+function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategory, onSave, onDelete, onClose }: Omit<ItemDialogProps, 'open'>) {
   const [values, setValues] = useState<ItemFormValues>({
     name: item?.name ?? '',
     brandNote: item?.brandNote ?? '',
@@ -238,6 +241,11 @@ function ItemForm({ item, restoring, categories, shops, onCreateCategory, onSave
           </option>
         ))}
       </Select>
+      {!item && barcode !== undefined && (
+        <p>
+          Barcode: <output>{barcode}</output>
+        </p>
+      )}
       {keptBarcodes.length > 0 && (
         <section aria-labelledby="item-barcodes-heading">
           <h3 id="item-barcodes-heading">Barcodes</h3>

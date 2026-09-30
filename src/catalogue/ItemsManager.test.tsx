@@ -1091,6 +1091,28 @@ describe('a scanned barcode', () => {
     await waitFor(() => expect(chooser).not.toHaveAttribute('open'))
   })
 
+  it('shows the pending barcode read-only in the Item dialog opened from "New Item"', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    expect(within(dialog).getByText('4006381333931')).toBeInTheDocument()
+    expect(within(dialog).queryByRole('textbox', { name: /barcode/i })).not.toBeInTheDocument()
+    expect(within(dialog).queryByRole('button', { name: /Remove barcode/ })).not.toBeInTheDocument()
+  })
+
+  it('shows no barcode in the Item dialog opened from the FAB', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    expect(within(dialog).queryByText(/Barcode/)).not.toBeInTheDocument()
+  })
+
   it('creates the Item carrying the barcode from "New Item"', async () => {
     renderWith([bandages], [medicine], [pharmacy])
     scan()
