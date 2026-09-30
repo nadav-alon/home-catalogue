@@ -10,12 +10,16 @@ export interface ScannerDialogProps {
   open: boolean
   /** Called once with the first detected value that is a Barcode; the camera is already released. */
   onScan: (barcode: core.Barcode) => void
-  /** Called instead of `onScan` when the Member refuses camera access; the caller closes the dialog. Any other camera or detector failure calls `onClose`. */
+  /** Called instead of `onScan` when the Member refuses camera access; the caller closes the dialog. */
   onDenied: () => void
+  /** Called instead of `onScan` when the camera cannot be opened or read for any reason other than denial; the caller closes the dialog. */
+  onUnavailable: () => void
+  /** The Member dismissed the dialog (✕ or browser back); nothing was scanned. */
   onClose: () => void
 }
 
 export const CAMERA_DENIED_MESSAGE = 'Camera access needed to scan'
+export const CAMERA_UNAVAILABLE_MESSAGE = 'Camera unavailable'
 
 /** The symbologies a GTIN is printed in: EAN-8, UPC-A, EAN-13 and ITF-14. */
 const GTIN_FORMATS: BarcodeFormat[] = ['ean_8', 'upc_a', 'ean_13', 'itf']
@@ -24,25 +28,29 @@ const DETECT_INTERVAL_MS = 150
 
 /**
  * A full-screen dialog showing the rear camera until it reads one Barcode. The camera is released
- * when a Barcode is read and whenever the dialog closes, whichever comes first.
+ * when a Barcode is read, when the camera fails, or whenever the dialog closes, whichever comes first.
  */
-export function ScannerDialog({ open, onScan, onDenied, onClose }: ScannerDialogProps) {
+export function ScannerDialog({ open, onScan, onDenied, onUnavailable, onClose }: ScannerDialogProps) {
   return (
     <Dialog open={open} title="Scan barcode" class="scan-dialog" onClose={onClose}>
       <IconButton symbol={CloseIcon} label="Close" onClick={onClose} />
-      {open && <CameraReader onScan={onScan} onDenied={onDenied} onClose={onClose} />}
+      {open && <CameraReader onScan={onScan} onDenied={onDenied} onUnavailable={onUnavailable} />}
     </Dialog>
   )
 }
 
-function CameraReader({ onScan, onDenied, onClose }: Pick<ScannerDialogProps, 'onScan' | 'onDenied' | 'onClose'>) {
+function CameraReader({
+  onScan,
+  onDenied,
+  onUnavailable,
+}: Pick<ScannerDialogProps, 'onScan' | 'onDenied' | 'onUnavailable'>) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const onScanRef = useRef(onScan)
   onScanRef.current = onScan
   const onDeniedRef = useRef(onDenied)
   onDeniedRef.current = onDenied
-  const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+  const onUnavailableRef = useRef(onUnavailable)
+  onUnavailableRef.current = onUnavailable
 
   useEffect(() => {
     let stopped = false
@@ -58,7 +66,7 @@ function CameraReader({ onScan, onDenied, onClose }: Pick<ScannerDialogProps, 'o
       } catch (err) {
         if (stopped) return
         if (err instanceof DOMException && err.name === 'NotAllowedError') onDeniedRef.current()
-        else onCloseRef.current()
+        else onUnavailableRef.current()
         return
       }
       if (stopped) return release()
@@ -81,7 +89,7 @@ function CameraReader({ onScan, onDenied, onClose }: Pick<ScannerDialogProps, 'o
         if (stopped) return
         stopped = true
         release()
-        onCloseRef.current()
+        onUnavailableRef.current()
       }
     }
 
