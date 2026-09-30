@@ -155,11 +155,11 @@ describe('createCategory', () => {
     expect(batchSet).not.toHaveBeenCalled()
   })
 
-  it('resolves once the batch is queued, without waiting for Firestore to acknowledge it', async () => {
+  it('resolves with the new Category id once the batch is queued, without waiting for Firestore to acknowledge it', async () => {
     const { createCategory } = await import('./categories.ts')
     batchCommit.mockReturnValueOnce(new Promise(() => {}))
 
-    await expect(createCategory(fakeDb, 'Medicine', catalogue.shopId('pharmacy'))).resolves.toBeUndefined()
+    await expect(createCategory(fakeDb, 'Medicine', catalogue.shopId('pharmacy'))).resolves.toBe('generated-id')
   })
 })
 

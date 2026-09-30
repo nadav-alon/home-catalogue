@@ -19,7 +19,8 @@ const { FakeCategoryInUseError } = vi.hoisted(() => ({
   FakeCategoryInUseError: class extends Error {},
 }))
 
-vi.mock('./categories.ts', () => ({
+vi.mock('./categories.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./categories.ts')>()),
   changeCategoryDefaultShop: (db: unknown, category: unknown, shopId: unknown) => changeCategoryDefaultShop(db, category, shopId),
   createCategory: (db: unknown, name: string, shopId: unknown) => createCategory(db, name, shopId),
   renameCategory: (db: unknown, category: unknown, name: string) => renameCategory(db, category, name),

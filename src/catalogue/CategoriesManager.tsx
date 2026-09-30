@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
-import { catalogue } from 'data-platform'
 import {
   changeCategoryDefaultShop,
   createCategory,
   deleteCategory,
   renameCategory,
+  validateCategoryDraft,
   watchCategories,
   CategoryInUseError,
+  type CategoryDraft,
   type CategoryRecord,
 } from './categories.ts'
 import { shopName, watchShops, type ShopRecord } from './shops.ts'
@@ -31,30 +32,13 @@ export interface CategoriesManagerProps {
   db: Firestore
 }
 
-interface Draft {
-  name: string
-  shopId: string
-}
-
-const EMPTY_DRAFT: Draft = { name: '', shopId: '' }
-
-/** The trimmed name and the default Shop, or the message to show; the Shop must be one currently in `shops`. */
-function validateDraft(
-  draft: Draft,
-  shops: ShopRecord[],
-): { name: string; shopId: catalogue.ShopId } | { error: string } {
-  const name = draft.name.trim()
-  if (name.length === 0) return { error: 'A Category needs a name.' }
-  const shop = shops.find((candidate) => candidate.id === draft.shopId)
-  if (shop === undefined || !catalogue.isShopId(shop.id)) return { error: 'Choose a default Shop.' }
-  return { name, shopId: shop.id }
-}
+const EMPTY_DRAFT: CategoryDraft = { name: '', shopId: '' }
 
 interface CategoryFieldsProps {
   nameLabel: string
-  draft: Draft
+  draft: CategoryDraft
   shops: ShopRecord[]
-  onChange: (draft: Draft) => void
+  onChange: (draft: CategoryDraft) => void
 }
 
 function CategoryFields({ nameLabel, draft, shops, onChange }: CategoryFieldsProps) {
@@ -89,7 +73,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<CategoryRecord | null>(null)
-  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT)
+  const [draft, setDraft] = useState<CategoryDraft>(EMPTY_DRAFT)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -118,7 +102,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
 
   async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
-    const valid = validateDraft(draft, shops)
+    const valid = validateCategoryDraft(draft, shops)
     if ('error' in valid) {
       setError(valid.error)
       return
@@ -132,7 +116,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
   }
 
   async function handleSave(category: CategoryRecord) {
-    const valid = validateDraft(draft, shops)
+    const valid = validateCategoryDraft(draft, shops)
     if ('error' in valid) {
       setError(valid.error)
       return

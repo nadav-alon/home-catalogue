@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { catalogue, type core } from 'data-platform'
 import type { ItemEdit, ItemInput, ItemRecord } from './items.ts'
-import type { CategoryRecord } from './categories.ts'
+import { validateCategoryDraft, type CategoryDraft, type CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
@@ -17,6 +17,8 @@ export interface ItemDialogProps {
   item?: ItemRecord
   categories: CategoryRecord[]
   shops: ShopRecord[]
+  /** Creates a Category and resolves with its id; a rejection is shown in the dialog's Category prompt. */
+  onCreateCategory: (name: string, defaultShopId: catalogue.ShopId) => Promise<catalogue.CategoryId>
   /**
    * Called with the validated fields, and the Item's Barcodes the Member removed, when they save; a rejection
    * is shown in the dialog and keeps it open.
@@ -26,6 +28,8 @@ export interface ItemDialogProps {
 }
 
 const NO_SHOP_OVERRIDE = ''
+/** The Category picker's value for "+ New Category"; never a Category id. */
+const NEW_CATEGORY = '+new'
 
 interface ItemFormValues {
   name: string
@@ -60,15 +64,24 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 }
 
 /** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its Barcodes when editing, in a dialog that starts from `item`, or empty, on each open. */
-export function ItemDialog({ open, item, categories, shops, onSave, onClose }: ItemDialogProps) {
+export function ItemDialog({ open, item, categories, shops, onCreateCategory, onSave, onClose }: ItemDialogProps) {
   return (
     <Dialog open={open} title={item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
-      {open && <ItemForm item={item} categories={categories} shops={shops} onSave={onSave} onClose={onClose} />}
+      {open && (
+        <ItemForm
+          item={item}
+          categories={categories}
+          shops={shops}
+          onCreateCategory={onCreateCategory}
+          onSave={onSave}
+          onClose={onClose}
+        />
+      )}
     </Dialog>
   )
 }
 
-function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogProps, 'open'>) {
+function ItemForm({ item, categories, shops, onCreateCategory, onSave, onClose }: Omit<ItemDialogProps, 'open'>) {
   const [values, setValues] = useState<ItemFormValues>({
     name: item?.name ?? '',
     brandNote: item?.brandNote ?? '',
@@ -79,12 +92,51 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
   const [errors, setErrors] = useState<ItemFormErrors>({})
   const [removedBarcodes, setRemovedBarcodes] = useState<core.Barcode[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
+  /** Why the prompt's last submit failed, and the prompt field it belongs to; `create` is a rejection from `onCreateCategory`. */
+  const [categoryError, setCategoryError] = useState<{ field: keyof CategoryDraft | 'create'; message: string } | null>(null)
+  /** The "+ New Category" prompt: `null` while it is closed. */
+  const [categoryDraft, setCategoryDraft] = useState<CategoryDraft | null>(null)
 
   function set(field: keyof ItemFormValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }))
   }
 
   const keptBarcodes = (item?.barcodes ?? []).filter((barcode) => !removedBarcodes.includes(barcode))
+
+  function handleCategoryChange(event: JSX.TargetedEvent<HTMLSelectElement>) {
+    const { value } = event.currentTarget
+    if (value === NEW_CATEGORY) {
+      setCategoryDraft((current) => current ?? { name: '', shopId: '' })
+    } else {
+      set('categoryId', value)
+      closeCategoryPrompt()
+    }
+  }
+
+  function closeCategoryPrompt() {
+    setCategoryDraft(null)
+    setCategoryError(null)
+  }
+
+  /** Enter in the prompt's fields creates the Category instead of submitting the Item form around it. */
+  function handleCategoryPromptKeyDown(event: JSX.TargetedKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Enter' || event.target instanceof HTMLButtonElement) return
+    event.preventDefault()
+    void handleCreateCategory()
+  }
+
+  async function handleCreateCategory() {
+    if (categoryDraft === null) return
+    const valid = validateCategoryDraft(categoryDraft, shops)
+    if ('error' in valid) return setCategoryError({ field: valid.field, message: valid.error })
+    setCategoryError(null)
+    try {
+      set('categoryId', await onCreateCategory(valid.name, valid.shopId))
+      closeCategoryPrompt()
+    } catch (err) {
+      setCategoryError({ field: 'create', message: err instanceof Error ? err.message : 'Could not add Category' })
+    }
+  }
 
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -112,14 +164,49 @@ function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogP
         value={values.brandNote}
         onInput={(event) => set('brandNote', event.currentTarget.value)}
       />
-      <Select label="Category" error={errors.categoryId} value={values.categoryId} onChange={(event) => set('categoryId', event.currentTarget.value)}>
+      <Select label="Category" error={errors.categoryId} value={categoryDraft === null ? values.categoryId : NEW_CATEGORY} onChange={handleCategoryChange}>
         <option value="">Choose a Category</option>
         {categories.map((category) => (
           <option key={category.id} value={category.id}>
             {category.name}
           </option>
         ))}
+        <option value={NEW_CATEGORY}>+ New Category</option>
       </Select>
+      {categoryDraft !== null && (
+        <div onKeyDown={handleCategoryPromptKeyDown}>
+          {categoryError?.field === 'create' && <p role="alert">{categoryError.message}</p>}
+          <TextField
+            label="New Category name"
+            error={categoryError?.field === 'name' ? categoryError.message : undefined}
+            value={categoryDraft.name}
+            onInput={(event) => setCategoryDraft({ ...categoryDraft, name: event.currentTarget.value })}
+          />
+          {shops.length === 0 ? (
+            <p>Add a Shop in Settings before adding a Category.</p>
+          ) : (
+            <Select
+              label="Default Shop"
+              error={categoryError?.field === 'shopId' ? categoryError.message : undefined}
+              value={categoryDraft.shopId}
+              onChange={(event) => setCategoryDraft({ ...categoryDraft, shopId: event.currentTarget.value })}
+            >
+              <option value="" disabled>
+                Choose a Shop
+              </option>
+              {shops.map((shop) => (
+                <option key={shop.id} value={shop.id}>
+                  {shop.name}
+                </option>
+              ))}
+            </Select>
+          )}
+          <Button onClick={handleCreateCategory}>Create Category</Button>
+          <Button variant="text" onClick={closeCategoryPrompt}>
+            Cancel new Category
+          </Button>
+        </div>
+      )}
       <Select label="Necessity" error={errors.necessity} value={values.necessity} onChange={(event) => set('necessity', event.currentTarget.value)}>
         <option value="">Choose a Necessity</option>
         {catalogue.necessitySchema.options.map((necessity) => (

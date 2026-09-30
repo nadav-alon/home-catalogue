@@ -12,9 +12,28 @@ import {
 import { catalogue } from 'data-platform'
 import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 import { reportWriteRejection } from './writeRejections.ts'
+import type { ShopRecord } from './shops.ts'
 
 export interface CategoryRecord extends catalogue.Category {
   id: catalogue.CategoryId
+}
+
+/** A Category's name and default Shop as typed in a form, before validation. */
+export interface CategoryDraft {
+  name: string
+  shopId: string
+}
+
+/** The trimmed name and the default Shop, or the message to show and the field it belongs to; the Shop must be one currently in `shops`. */
+export function validateCategoryDraft(
+  draft: CategoryDraft,
+  shops: ShopRecord[],
+): { name: string; shopId: catalogue.ShopId } | { error: string; field: keyof CategoryDraft } {
+  const name = draft.name.trim()
+  if (name.length === 0) return { error: 'A Category needs a name.', field: 'name' }
+  const shop = shops.find((candidate) => candidate.id === draft.shopId)
+  if (shop === undefined) return { error: 'Choose a default Shop.', field: 'shopId' }
+  return { name, shopId: shop.id }
 }
 
 /** Thrown by {@link deleteCategory} while a catalogue Item still belongs to the Category. */
@@ -51,14 +70,15 @@ export function watchCategories(
 /**
  * Validates against {@link catalogue.categorySchema} before writing a new Category, starting at
  * referenceCount 0 and bumping its default Shop's referenceCount in the same batch, matching the
- * platform's create rule. Resolves once the batch is queued, not once Firestore acknowledges it,
- * so a caller offline is not left waiting; a batch the server later rejects is reported through {@link reportWriteRejection}.
+ * platform's create rule. Resolves with the new Category's id once the batch is queued, not once
+ * Firestore acknowledges it, so a caller offline is not left waiting; a batch the server later
+ * rejects is reported through {@link reportWriteRejection}.
  */
 export async function createCategory(
   db: Firestore,
   name: string,
   defaultShopId: catalogue.ShopId,
-): Promise<void> {
+): Promise<catalogue.CategoryId> {
   const data = catalogue.categorySchema.parse({ name, defaultShopId, referenceCount: 0 })
   const categoryRef = doc(collection(db, catalogue.CATEGORIES_COLLECTION))
   const batch = writeBatch(db)
@@ -67,6 +87,7 @@ export async function createCategory(
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`new Category ${data.name}`, err)
   })
+  return catalogue.categoryId(categoryRef.id)
 }
 
 /** Validates the new name against {@link catalogue.categorySchema} before writing it. Resolves once queued, see {@link createCategory}. */

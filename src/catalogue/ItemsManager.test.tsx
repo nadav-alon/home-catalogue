@@ -22,8 +22,11 @@ vi.mock('./items.ts', async (importOriginal) => ({
 }))
 
 const watchCategories = vi.fn()
-vi.mock('./categories.ts', () => ({
+const createCategory = vi.fn()
+vi.mock('./categories.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./categories.ts')>()),
   watchCategories: (db: unknown, cb: unknown) => watchCategories(db, cb),
+  createCategory: (db: unknown, name: unknown, shopId: unknown) => createCategory(db, name, shopId),
 }))
 
 const watchShops = vi.fn()
@@ -47,15 +50,18 @@ beforeEach(() => {
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
+  createCategory.mockReset()
   watchShops.mockReset()
 })
 
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
+  let publishCategories: (categories: CategoryRecord[]) => void = () => {}
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
     cb(items)
     return vi.fn()
   })
   watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
+    publishCategories = cb
     cb(categories)
     return vi.fn()
   })
@@ -63,7 +69,7 @@ function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: Sh
     cb(shops)
     return vi.fn()
   })
-  return render(<ItemsManager db={fakeDb} />)
+  return { ...render(<ItemsManager db={fakeDb} />), publishCategories }
 }
 
 describe('ItemsManager', () => {
@@ -583,5 +589,187 @@ describe('the empty state', () => {
     renderWith([bandages], [medicine], [pharmacy])
 
     expect(screen.queryByText(/^No Items/)).not.toBeInTheDocument()
+  })
+})
+
+describe('adding a Category from the Item dialog', () => {
+  function openDialog() {
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+  }
+
+  function chooseNewCategory() {
+    const option = screen.getByRole<HTMLOptionElement>('option', { name: '+ New Category' })
+    choose(screen.getByLabelText('Category'), option.value)
+  }
+
+  it('lists "+ New Category" in the Category picker', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+
+    expect(
+      within(screen.getByLabelText('Category')).getByRole('option', { name: '+ New Category' }),
+    ).toBeInTheDocument()
+  })
+
+  it('asks for a name and a default Shop when "+ New Category" is chosen', () => {
+    renderWith([], [medicine], [pharmacy, grocery])
+    openDialog()
+    expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
+
+    chooseNewCategory()
+
+    expect(screen.getByLabelText('New Category name')).toHaveValue('')
+    expect(screen.getByLabelText('Default Shop')).toBeInTheDocument()
+  })
+
+  it('creates the Category and selects it, keeping what was typed in the dialog', async () => {
+    const created: CategoryRecord = {
+      ...cleaning,
+      id: catalogue.categoryId('first-aid'),
+      name: 'First aid',
+      defaultShopId: pharmacy.id,
+    }
+    const { publishCategories } = renderWith([], [medicine], [pharmacy, grocery])
+    createCategory.mockImplementation(() => {
+      publishCategories([medicine, created])
+      return Promise.resolve(created.id)
+    })
+    openDialog()
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+
+    await waitFor(() => expect(screen.getByLabelText('Category')).toHaveValue(created.id))
+    expect(createCategory).toHaveBeenCalledWith(fakeDb, 'First aid', pharmacy.id)
+    expect(screen.getByLabelText('Name')).toHaveValue('Plasters')
+    expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+  })
+
+  it('shows "+ New Category" in the picker while the prompt is open and restores the previous selection when it is cancelled', () => {
+    renderWith([], [medicine, cleaning], [pharmacy])
+    openDialog()
+    choose(screen.getByLabelText('Category'), cleaning.id)
+
+    chooseNewCategory()
+    expect(screen.getByLabelText('Category')).toHaveValue('+new')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel new Category' }))
+
+    expect(screen.getByLabelText('Category')).toHaveValue(cleaning.id)
+    expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
+    expect(createCategory).not.toHaveBeenCalled()
+  })
+
+  it('closes the prompt when a real Category is chosen while it is open', () => {
+    renderWith([], [medicine, cleaning], [pharmacy])
+    openDialog()
+
+    chooseNewCategory()
+    choose(screen.getByLabelText('Category'), medicine.id)
+
+    expect(screen.getByLabelText('Category')).toHaveValue(medicine.id)
+    expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
+  })
+
+  it('keeps the typed draft when "+ New Category" is chosen again', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+
+    chooseNewCategory()
+
+    expect(screen.getByLabelText('New Category name')).toHaveValue('First aid')
+  })
+
+  it('creates the Category on Enter in the name field instead of submitting the Item', async () => {
+    const created: CategoryRecord = { ...cleaning, id: catalogue.categoryId('first-aid'), name: 'First aid' }
+    const { publishCategories } = renderWith([], [medicine], [pharmacy])
+    createCategory.mockImplementation(() => {
+      publishCategories([medicine, created])
+      return Promise.resolve(created.id)
+    })
+    openDialog()
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+
+    const notPrevented = fireEvent.keyDown(screen.getByLabelText('New Category name'), { key: 'Enter' })
+
+    expect(notPrevented).toBe(false)
+    await waitFor(() => expect(screen.getByLabelText('Category')).toHaveValue(created.id))
+    expect(createCategory).toHaveBeenCalledWith(fakeDb, 'First aid', pharmacy.id)
+    expect(createItem).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+  })
+
+  it('ends on the new Category when the snapshot listing it arrives after createCategory resolves', async () => {
+    const created: CategoryRecord = { ...cleaning, id: catalogue.categoryId('first-aid'), name: 'First aid' }
+    const { publishCategories } = renderWith([], [medicine], [pharmacy])
+    createCategory.mockResolvedValue(created.id)
+    openDialog()
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+    await waitFor(() => expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument())
+
+    act(() => publishCategories([medicine, created]))
+
+    expect(screen.getByLabelText('Category')).toHaveValue(created.id)
+  })
+
+  it('refuses a blank name on the name field, without calling createCategory', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+    chooseNewCategory()
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+
+    expect(screen.getByLabelText('New Category name')).toHaveAccessibleDescription('A Category needs a name.')
+    expect(createCategory).not.toHaveBeenCalled()
+  })
+
+  it('refuses a missing default Shop on the Shop field, without calling createCategory', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+
+    expect(screen.getByLabelText('Default Shop')).toHaveAccessibleDescription('Choose a default Shop.')
+    expect(createCategory).not.toHaveBeenCalled()
+  })
+
+  it('shows a createCategory rejection and keeps the prompt and the Item fields', async () => {
+    renderWith([], [medicine], [pharmacy])
+    createCategory.mockRejectedValue(new Error('Offline'))
+    openDialog()
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Offline')
+    expect(screen.getByLabelText('New Category name')).toHaveValue('First aid')
+    expect(screen.getByLabelText('Default Shop')).toHaveValue(pharmacy.id)
+    expect(screen.getByLabelText('Name')).toHaveValue('Plasters')
+  })
+
+  it('says a Shop is needed first when there are no Shops', () => {
+    renderWith([], [medicine], [])
+    openDialog()
+
+    chooseNewCategory()
+
+    expect(screen.getByText('Add a Shop in Settings before adding a Category.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Default Shop')).not.toBeInTheDocument()
   })
 })
