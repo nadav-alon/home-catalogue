@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
+import { firebaseWebConfig } from '../firebase/webConfig.ts'
+import { deviceTransferUrl } from '../firebase/deviceTransfer.ts'
 import { resetHash } from '../testing/hash.ts'
 import { createInvite, revokeInvite } from './invites.ts'
 import { MembersScreen } from './MembersScreen.tsx'
@@ -33,6 +35,15 @@ vi.mock('./invites.ts', () => ({
   revokeInvite: vi.fn(),
 }))
 
+const config = firebaseWebConfig({
+  apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',
+  authDomain: 'household.firebaseapp.com',
+  projectId: 'household',
+  storageBucket: 'household.appspot.com',
+  messagingSenderId: '123456789',
+  appId: '1:123456789:web:abcdef',
+})
+
 const addedAt = { seconds: 0, nanoseconds: 0, toMillis: () => 0 }
 const owner: MemberRecord = { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true }
 const member: MemberRecord = { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false }
@@ -54,6 +65,7 @@ beforeEach(() => {
 
 afterEach(() => {
   resetHash()
+  Reflect.deleteProperty(navigator, 'share')
   vi.restoreAllMocks()
 })
 
@@ -68,7 +80,7 @@ function renderScreen(members: MemberRecord[] = [], invites: core.Email[] = []) 
   })
   return render(
     <TopAppBar title="Members">
-      <MembersScreen db={fakeDb} />
+      <MembersScreen db={fakeDb} config={config} />
     </TopAppBar>,
   )
 }
@@ -227,6 +239,52 @@ describe('MembersScreen', () => {
 
       expect(screen.queryByLabelText('Invite by email')).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Invite' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('sharing', () => {
+    const invites = [core.email('c@example.com')]
+    const shareButton = () => screen.getByRole('button', { name: 'Share invite for c@example.com' })
+
+    it('opens the share sheet with the #config link', async () => {
+      const share = vi.fn().mockResolvedValue(undefined)
+      Object.defineProperty(navigator, 'share', { value: share, configurable: true })
+      renderScreen([owner], invites)
+
+      fireEvent.click(shareButton())
+
+      await waitFor(() =>
+        expect(share).toHaveBeenCalledWith({
+          text: `Join the household on Home Catalogue: ${deviceTransferUrl(config)}`,
+        }),
+      )
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    })
+
+    it('shows the QR code where the share sheet is missing', async () => {
+      renderScreen([owner], invites)
+
+      fireEvent.click(shareButton())
+
+      expect(await screen.findByRole('img', { name: /c@example\.com/ })).toBeInTheDocument()
+    })
+
+    it('does not fall back to the QR code when the user dismisses the share sheet', async () => {
+      const share = vi.fn().mockRejectedValue(new DOMException('dismissed', 'AbortError'))
+      Object.defineProperty(navigator, 'share', { value: share, configurable: true })
+      renderScreen([owner], invites)
+
+      fireEvent.click(shareButton())
+
+      await waitFor(() => expect(share).toHaveBeenCalled())
+      expect(screen.queryByRole('img')).not.toBeInTheDocument()
+    })
+
+    it('shows a non-Owner Member no share control', () => {
+      currentUserUid.mockReturnValue(member.uid)
+      renderScreen([owner, member], invites)
+
+      expect(screen.queryByRole('button', { name: /Share/ })).not.toBeInTheDocument()
     })
   })
 
