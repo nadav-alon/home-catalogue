@@ -51,14 +51,14 @@ export function watchCategories(
 /**
  * Validates against {@link catalogue.categorySchema} before writing a new Category, starting at
  * referenceCount 0 and bumping its default Shop's referenceCount in the same batch, matching the
- * platform's create rule. Resolves once the batch is queued, not once Firestore acknowledges it,
+ * platform's create rule. Resolves with the new Category's id once the batch is queued, not once Firestore acknowledges it,
  * so a caller offline is not left waiting; a batch the server later rejects is reported through {@link reportWriteRejection}.
  */
 export async function createCategory(
   db: Firestore,
   name: string,
   defaultShopId: catalogue.ShopId,
-): Promise<void> {
+): Promise<catalogue.CategoryId> {
   const data = catalogue.categorySchema.parse({ name, defaultShopId, referenceCount: 0 })
   const categoryRef = doc(collection(db, catalogue.CATEGORIES_COLLECTION))
   const batch = writeBatch(db)
@@ -67,6 +67,7 @@ export async function createCategory(
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`new Category ${data.name}`, err)
   })
+  return catalogue.categoryId(categoryRef.id)
 }
 
 /** Validates the new name against {@link catalogue.categorySchema} before writing it. Resolves once queued, see {@link createCategory}. */
