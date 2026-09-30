@@ -4,13 +4,13 @@ import type { FirebaseClient } from '../firebase/client.ts'
 import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
 import { claimHousehold, householdExists, isHouseholdMember } from './household.ts'
 import { Button } from '../ui/Button.tsx'
-import { ResetConfigButton } from '../setup/ResetConfigButton.tsx'
+import { ResetConfigButton, type ResetConfigButtonProps } from '../setup/ResetConfigButton.tsx'
 import { CentredCard } from '../ui/CentredCard.tsx'
 
 export interface AuthGateProps {
   client: FirebaseClient
   /** Forgets the stored Firebase configuration; offered on the screens a device with a bad configuration gets stuck on. */
-  onResetConfig: () => void | Promise<void>
+  onResetConfig: ResetConfigButtonProps['onResetConfig']
   children: ComponentChildren
 }
 
@@ -94,7 +94,7 @@ function SignOutButton({ app }: { app: FirebaseClient['app'] }) {
   )
 }
 
-function ResetConfigRow({ onResetConfig }: { onResetConfig: () => void | Promise<void> }) {
+function ResetConfigRow({ onResetConfig }: Pick<ResetConfigButtonProps, 'onResetConfig'>) {
   return (
     <p>
       Wrong Firebase configuration? <ResetConfigButton onResetConfig={onResetConfig} />
