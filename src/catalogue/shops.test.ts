@@ -9,9 +9,10 @@ const doc = vi.fn((_db: unknown, path: string, id: string) => ({ path, id }))
 const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constraints }))
 const orderBy = vi.fn((field: string) => ({ kind: 'orderBy', field }))
 const onSnapshot = vi.fn()
+const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
+const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
 const addDoc = vi.fn()
 const updateDoc = vi.fn()
-const deleteDoc = vi.fn()
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
@@ -19,9 +20,10 @@ vi.mock('firebase/firestore', () => ({
   query: (ref: unknown, ...constraints: unknown[]) => query(ref, ...constraints),
   orderBy: (field: string) => orderBy(field),
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
+  serverTimestamp: () => serverTimestamp(),
+  deleteField: () => deleteField(),
   addDoc: (ref: unknown, data: unknown) => addDoc(ref, data),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
-  deleteDoc: (ref: unknown) => deleteDoc(ref),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -46,7 +48,6 @@ beforeEach(() => {
   onSnapshot.mockReset()
   addDoc.mockReset()
   updateDoc.mockReset()
-  deleteDoc.mockReset()
 })
 
 describe('watchShops', () => {
@@ -164,29 +165,62 @@ describe('renameShop', () => {
 })
 
 describe('deleteShop', () => {
-  it('deletes a Shop once Firestore accepts the write', async () => {
+  it('soft-deletes a Shop by stamping deletedAt with the server time', async () => {
     const { deleteShop } = await import('./shops.ts')
-    deleteDoc.mockResolvedValueOnce(undefined)
+    updateDoc.mockResolvedValueOnce(undefined)
 
     await deleteShop(fakeDb, pharmacy)
 
-    expect(deleteDoc).toHaveBeenCalledWith({ path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' })
+    expect(updateDoc).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
+      { deletedAt: { kind: 'serverTimestamp' } },
+    )
   })
 
-  it("refuses with ShopInUseError when the platform's rules deny the delete", async () => {
+  it('refuses with ShopInUseError and writes nothing while the Shop is referenced', async () => {
     const { deleteShop, ShopInUseError } = await import('./shops.ts')
-    deleteDoc.mockRejectedValueOnce(new FirebaseError('permission-denied', 'Missing or insufficient permissions.'))
 
-    await expect(deleteShop(fakeDb, pharmacy)).rejects.toBeInstanceOf(ShopInUseError)
+    await expect(deleteShop(fakeDb, { ...pharmacy, referenceCount: 1 })).rejects.toBeInstanceOf(ShopInUseError)
+    expect(updateDoc).not.toHaveBeenCalled()
   })
 
-  it('reports to the write-rejection banner and resolves when the delete fails to sync for another reason', async () => {
+  it('resolves without waiting for Firestore to acknowledge the write', async () => {
     const { deleteShop } = await import('./shops.ts')
-    const latest = await rejections()
-    deleteDoc.mockRejectedValueOnce(new Error('offline'))
+    updateDoc.mockReturnValueOnce(new Promise(() => {}))
 
     await expect(deleteShop(fakeDb, pharmacy)).resolves.toBeUndefined()
-    expect(latest()).toEqual(['Could not save deleted Shop Pharmacy'])
+  })
+
+  it('reports to the write-rejection banner when the write is later rejected', async () => {
+    const { deleteShop } = await import('./shops.ts')
+    const latest = await rejections()
+    updateDoc.mockRejectedValueOnce(new FirebaseError('permission-denied', 'Missing or insufficient permissions.'))
+
+    await expect(deleteShop(fakeDb, pharmacy)).resolves.toBeUndefined()
+    await vi.waitFor(() => expect(latest()).toEqual(['Could not save deleted Shop Pharmacy']))
+  })
+})
+
+describe('restoreShop', () => {
+  it('clears deletedAt', async () => {
+    const { restoreShop } = await import('./shops.ts')
+    updateDoc.mockResolvedValueOnce(undefined)
+
+    await restoreShop(fakeDb, pharmacy)
+
+    expect(updateDoc).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
+      { deletedAt: { kind: 'deleteField' } },
+    )
+  })
+
+  it('reports to the write-rejection banner when the write is later rejected', async () => {
+    const { restoreShop } = await import('./shops.ts')
+    const latest = await rejections()
+    updateDoc.mockRejectedValueOnce(new Error('offline'))
+
+    await expect(restoreShop(fakeDb, pharmacy)).resolves.toBeUndefined()
+    await vi.waitFor(() => expect(latest()).toEqual(['Could not save restored Shop Pharmacy']))
   })
 })
 

@@ -1,16 +1,17 @@
 import {
   addDoc,
   collection,
-  deleteDoc,
+  deleteField,
   doc,
   onSnapshot,
   orderBy,
   query,
+  serverTimestamp,
   updateDoc,
+  type FieldValue,
   type Firestore,
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
-import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 import { reportWriteRejection } from './writeRejections.ts'
 
 export interface ShopRecord extends catalogue.Shop {
@@ -24,7 +25,7 @@ export function shopName(shops: ShopRecord[], shopId: catalogue.ShopId): string 
   return shops.find((shop) => shop.id === shopId)?.name ?? UNKNOWN_SHOP_NAME
 }
 
-/** Thrown by {@link deleteShop} while a Category still defaults to the Shop, or an Item still overrides to it. */
+/** Thrown by {@link deleteShop} when the cached `referenceCount` says the Shop is still in use. */
 export class ShopInUseError extends Error {}
 
 function toShopRecord(id: string, data: catalogue.Shop): ShopRecord {
@@ -74,17 +75,29 @@ export async function renameShop(db: Firestore, shop: ShopRecord, name: string):
 }
 
 /**
- * Refuses with {@link ShopInUseError} while any Category defaults to this Shop, or any Item
- * overrides to it. Enforced by the platform's Firestore rules against the Shop's own
- * `referenceCount`, so the refusal holds regardless of what this device has cached.
+ * Refuses with {@link ShopInUseError}, writing nothing, while the cached `referenceCount` is above 0;
+ * the platform's rules refuse a stale count too. Otherwise soft-deletes the Shop by setting
+ * `deletedAt` to the server's commit time. Resolves once the write is queued, see {@link createShop};
+ * a write the rules refuse is reported through {@link reportWriteRejection}.
  */
 export async function deleteShop(db: Firestore, shop: ShopRecord): Promise<void> {
-  try {
-    await deleteDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id))
-  } catch (err) {
-    if (isRulesRefusal(err)) {
-      throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
-    }
-    reportWriteRejection(`deleted Shop ${shop.name}`, err)
-  }
+  if (shop.referenceCount > 0) throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
+  commitShopDeletion(db, shop, serverTimestamp(), 'deleted')
+}
+
+/** Brings a soft-deleted Shop back by clearing `deletedAt`. Resolves once queued, see {@link createShop}. */
+export async function restoreShop(db: Firestore, shop: ShopRecord): Promise<void> {
+  commitShopDeletion(db, shop, deleteField(), 'restored')
+}
+
+/** The one write behind {@link deleteShop} and {@link restoreShop}, so the two stay in step. */
+function commitShopDeletion(
+  db: Firestore,
+  shop: ShopRecord,
+  deletedAt: FieldValue,
+  label: 'deleted' | 'restored',
+): void {
+  void updateDoc(doc(db, catalogue.SHOPS_COLLECTION, shop.id), { deletedAt }).catch((err: unknown) => {
+    reportWriteRejection(`${label} Shop ${shop.name}`, err)
+  })
 }
