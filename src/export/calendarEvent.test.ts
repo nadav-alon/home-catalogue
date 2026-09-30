@@ -1,20 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { catalogue, core } from 'data-platform'
+import { core } from 'data-platform'
 import type { ItemRecord } from '../catalogue/items.ts'
-import { pharmacy } from '../catalogue/testFixtures.ts'
+import { bandages, pharmacy } from '../catalogue/testFixtures.ts'
 import { buildShopEvent } from './calendarEvent.ts'
 import { exportDate } from './exportDate.ts'
 import type { ShopGroup } from './shopGroups.ts'
 
 function item(overrides: Partial<ItemRecord>): ItemRecord {
-  return {
-    id: core.itemId('bandages'),
-    name: 'Bandages',
-    state: 'out',
-    categoryId: catalogue.categoryId('medicine'),
-    necessity: 'essential',
-    ...overrides,
-  }
+  return { ...bandages, state: 'out', ...overrides }
 }
 
 describe('buildShopEvent', () => {
@@ -31,7 +24,7 @@ describe('buildShopEvent', () => {
   it('lists every pending Item name in the description', () => {
     const group: ShopGroup = {
       shop: pharmacy,
-      items: [item({ id: core.itemId('bandages'), name: 'Bandages' }), item({ id: core.itemId('soap'), name: 'Dish soap' })],
+      items: [item({}), item({ id: core.itemId('soap'), name: 'Dish soap' })],
     }
 
     const event = buildShopEvent(group, exportDate('2026-03-05'))
