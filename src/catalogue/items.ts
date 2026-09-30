@@ -4,6 +4,7 @@ import {
   collection,
   deleteField,
   doc,
+  getDoc,
   getDocs,
   increment,
   onSnapshot,
@@ -255,6 +256,30 @@ export async function findItemsByBarcode(
     query(collection(db, core.ITEMS_COLLECTION), where('barcodes', 'array-contains', barcode)),
   )
   return parseCoreItemDocs(snapshot.docs).filter((item) => item.deletedAt === undefined)
+}
+
+/**
+ * The soft-deleted Item (`deletedAt` set on its core doc) whose `barcodes` contain `barcode`, joined
+ * with its catalogue half so it can be restored. Undefined when none does, or when its catalogue doc
+ * is missing or fails its schema. With several, the first the query returns. Answered from the local
+ * cache when offline.
+ */
+export async function findDeletedItemByBarcode(db: Firestore, barcode: core.Barcode): Promise<ItemRecord | undefined> {
+  const snapshot = await getDocs(
+    query(collection(db, core.ITEMS_COLLECTION), where('barcodes', 'array-contains', barcode)),
+  )
+  for (const item of parseCoreItemDocs(snapshot.docs).filter((found) => found.deletedAt !== undefined)) {
+    const catalogueSnapshot = await getDoc(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, item.id))
+    if (!catalogueSnapshot.exists()) continue
+    const parsed = catalogue.catalogueItemSchema.safeParse(catalogueSnapshot.data())
+    if (!parsed.success) {
+      console.error(`Skipping invalid CatalogueItem document ${item.id}`, parsed.error)
+      continue
+    }
+    const { id, ...coreItem } = item
+    return toItemRecord(id, coreItem, parsed.data)
+  }
+  return undefined
 }
 
 /**
