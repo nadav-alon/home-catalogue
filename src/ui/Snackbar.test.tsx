@@ -43,4 +43,25 @@ describe('Snackbar', () => {
     })
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
+
+  it('replaces the current message with a second one, which gets its own full time', () => {
+    vi.useFakeTimers()
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'First', action: { label: 'Undo', onAction: () => {} } }))
+    act(() => {
+      vi.advanceTimersByTime(4000)
+    })
+    act(() => showSnackbar({ text: 'Second' }))
+    expect(screen.getByRole('status')).toHaveTextContent('Second')
+    expect(screen.getByRole('status')).not.toHaveTextContent('First')
+    expect(screen.queryByRole('button')).toBeNull()
+    act(() => {
+      vi.advanceTimersByTime(4000)
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('Second')
+    act(() => {
+      vi.advanceTimersByTime(2100)
+    })
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
 })
