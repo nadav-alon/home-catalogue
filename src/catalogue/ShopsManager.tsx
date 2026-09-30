@@ -6,6 +6,7 @@ import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
+import { ListRow } from '../ui/ListRow.tsx'
 import { route } from '../ui/route.ts'
 import { TextField } from '../ui/TextField.tsx'
 import { navigate } from '../ui/useRoute.ts'
@@ -22,6 +23,8 @@ export interface ShopsManagerProps {
 export function ShopsManager({ db }: ShopsManagerProps) {
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<ShopRecord | null>(null)
+  const [editName, setEditName] = useState('')
   const [newName, setNewName] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -53,6 +56,7 @@ export function ShopsManager({ db }: ShopsManagerProps) {
     try {
       await renameShop(db, shop, trimmedName)
       setError(null)
+      setEditing(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not rename Shop')
     }
@@ -62,6 +66,7 @@ export function ShopsManager({ db }: ShopsManagerProps) {
     try {
       await deleteShop(db, shop)
       setError(null)
+      setEditing(null)
     } catch (err) {
       setError(err instanceof ShopInUseError ? err.message : 'Could not delete Shop')
     }
@@ -76,11 +81,21 @@ export function ShopsManager({ db }: ShopsManagerProps) {
       {error !== null && <p role="alert">{error}</p>}
       <ul>
         {shops.map((shop) => (
-          <ShopRow
+          <ListRow
             key={shop.id}
-            shop={shop}
-            onRename={(name) => void handleRename(shop, name)}
-            onDelete={() => void handleDelete(shop)}
+            headline={shop.name}
+            control={
+              <Button
+                variant="text"
+                aria-label={`Edit ${shop.name}`}
+                onClick={() => {
+                  setEditName(shop.name)
+                  setEditing(shop)
+                }}
+              >
+                Edit
+              </Button>
+            }
           />
         ))}
       </ul>
@@ -91,36 +106,22 @@ export function ShopsManager({ db }: ShopsManagerProps) {
           <Button type="submit">Add</Button>
         </form>
       </Dialog>
+      <Dialog open={editing !== null} title="Edit Shop" onClose={() => setEditing(null)}>
+        {editing !== null && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              void handleRename(editing, editName)
+            }}
+          >
+            <TextField label="Shop name" value={editName} onInput={(event) => setEditName(event.currentTarget.value)} />
+            <Button type="submit">Rename</Button>
+            <Button variant="text" onClick={() => void handleDelete(editing)}>
+              Delete
+            </Button>
+          </form>
+        )}
+      </Dialog>
     </section>
-  )
-}
-
-interface ShopRowProps {
-  shop: ShopRecord
-  onRename: (name: string) => void
-  onDelete: () => void
-}
-
-function ShopRow({ shop, onRename, onDelete }: ShopRowProps) {
-  const [name, setName] = useState(shop.name)
-
-  useEffect(() => setName(shop.name), [shop.name])
-
-  return (
-    <li>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          onRename(name)
-        }}
-      >
-        <label htmlFor={`shop-name-${shop.id}`}>Rename {shop.name}</label>
-        <input id={`shop-name-${shop.id}`} value={name} onInput={(event) => setName(event.currentTarget.value)} />
-        <button type="submit">Rename</button>
-      </form>
-      <button type="button" onClick={onDelete}>
-        Delete {shop.name}
-      </button>
-    </li>
   )
 }

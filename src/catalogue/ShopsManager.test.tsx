@@ -50,6 +50,10 @@ function renderWithShops(shops: ShopRecord[]) {
   return render(<ShopsManager db={fakeDb} />)
 }
 
+function openEditor(shopName: string) {
+  fireEvent.click(screen.getByRole('button', { name: `Edit ${shopName}` }))
+}
+
 describe('ShopsManager', () => {
   it('has a back arrow in the top app bar that returns to Settings', () => {
     watchShops.mockReturnValue(unsubscribe)
@@ -68,8 +72,8 @@ describe('ShopsManager', () => {
   it('lists every Shop from watchShops', () => {
     renderWithShops([pharmacy, grocery])
 
-    expect(screen.getByText('Delete Pharmacy')).toBeInTheDocument()
-    expect(screen.getByText('Delete Grocery')).toBeInTheDocument()
+    expect(screen.getByText('Pharmacy')).toBeInTheDocument()
+    expect(screen.getByText('Grocery')).toBeInTheDocument()
   })
 
   it('adds a Shop through the FAB dialog and closes it', async () => {
@@ -108,8 +112,8 @@ describe('ShopsManager', () => {
 
   it('refuses to rename a Shop to a blank name, without calling renameShop', () => {
     renderWithShops([pharmacy])
-
-    fireEvent.input(screen.getByLabelText('Rename Pharmacy'), { target: { value: '   ' } })
+    openEditor('Pharmacy')
+    fireEvent.input(screen.getByLabelText('Shop name'), { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
 
     expect(screen.getByRole('alert')).toHaveTextContent('A Shop needs a name.')
@@ -118,26 +122,31 @@ describe('ShopsManager', () => {
 
   it('renames a Shop', async () => {
     renderWithShops([pharmacy])
+    openEditor('Pharmacy')
 
-    fireEvent.input(screen.getByLabelText('Rename Pharmacy'), { target: { value: 'Pharmacy & Health' } })
+    fireEvent.input(screen.getByLabelText('Shop name'), { target: { value: 'Pharmacy & Health' } })
     fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
 
     expect(renameShop).toHaveBeenCalledWith(fakeDb, pharmacy, 'Pharmacy & Health')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it('deletes a Shop', async () => {
     renderWithShops([pharmacy])
+    openEditor('Pharmacy')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Pharmacy' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(deleteShop).toHaveBeenCalledWith(fakeDb, pharmacy)
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it('shows the ShopInUseError message when deletion is refused', async () => {
     deleteShop.mockRejectedValueOnce(new FakeShopInUseError('This Shop is in use.'))
     renderWithShops([pharmacy])
+    openEditor('Pharmacy')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Pharmacy' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('This Shop is in use.')
   })
