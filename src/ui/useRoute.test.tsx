@@ -18,19 +18,13 @@ describe('useRoute', () => {
   })
 
   it('starts on the default route when the hash is empty', () => {
+    window.location.hash = ''
     const { result } = renderHook(() => useRoute())
     expect(result.current).toBe(DEFAULT_ROUTE)
   })
 
-  it('replaces an unknown hash with the default route without a history entry', () => {
-    window.location.hash = '#/nowhere'
-    const entries = window.history.length
-    renderHook(() => useRoute())
-    expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
-    expect(window.history.length).toBe(entries)
-  })
-
-  it('replaces an empty hash with the default route without a history entry', () => {
+  it.each(['#/nowhere', ''])('replaces the hash %j with the default route without a history entry', (hash) => {
+    window.location.hash = hash
     const entries = window.history.length
     renderHook(() => useRoute())
     expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
