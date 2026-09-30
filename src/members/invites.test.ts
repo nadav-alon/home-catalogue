@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { reportWriteRejection } from '../catalogue/writeRejections.ts'
-import { createInvite, watchInvites } from './invites.ts'
+import { createInvite, revokeInvite, watchInvites } from './invites.ts'
 
 let listener: (snapshot: unknown) => void
 const unsubscribe = vi.fn()
@@ -12,6 +12,7 @@ vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
   doc: (_db: unknown, path: string) => ({ path }),
   serverTimestamp: () => 'server-timestamp',
+  deleteDoc: (ref: unknown) => deleteDoc(ref),
   setDoc: (ref: unknown, data: unknown) => setDoc(ref, data),
   onSnapshot: (_ref: unknown, cb: (snapshot: unknown) => void) => {
     listener = cb
@@ -20,6 +21,7 @@ vi.mock('firebase/firestore', () => ({
 }))
 
 const setDoc = vi.fn()
+const deleteDoc = vi.fn()
 
 vi.mock('../catalogue/writeRejections.ts', () => ({ reportWriteRejection: vi.fn() }))
 
@@ -32,6 +34,7 @@ function inviteDocs(...entries: [id: string, data: unknown][]) {
 
 beforeEach(() => {
   setDoc.mockReset().mockResolvedValue(undefined)
+  deleteDoc.mockReset().mockResolvedValue(undefined)
   vi.mocked(reportWriteRejection).mockClear()
   vi.spyOn(console, 'error').mockImplementation(() => {})
 })
@@ -85,5 +88,23 @@ describe('createInvite', () => {
     await Promise.resolve()
 
     expect(reportWriteRejection).toHaveBeenCalledWith('invite for a@example.com', refusal)
+  })
+})
+
+describe('revokeInvite', () => {
+  it('deletes invites/{email}', async () => {
+    await revokeInvite(fakeDb, core.email('a@example.com'))
+
+    expect(deleteDoc).toHaveBeenCalledWith({ path: 'invites/a@example.com' })
+  })
+
+  it('reports a delete the rules refuse', async () => {
+    const refusal = new Error('denied')
+    deleteDoc.mockRejectedValue(refusal)
+
+    await revokeInvite(fakeDb, core.email('a@example.com'))
+    await Promise.resolve()
+
+    expect(reportWriteRejection).toHaveBeenCalledWith('revoke of invite for a@example.com', refusal)
   })
 })

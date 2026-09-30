@@ -12,7 +12,7 @@ import { TextField } from '../ui/TextField.tsx'
 import { route } from '../ui/route.ts'
 import { navigate } from '../ui/useRoute.ts'
 import ArrowBackIcon from '~icons/material-symbols/arrow-back'
-import { createInvite, watchInvites } from './invites.ts'
+import { createInvite, revokeInvite, watchInvites } from './invites.ts'
 import { removeMember, watchMembers, type MemberRecord } from './members.ts'
 
 const SETTINGS = route('/settings')
@@ -66,7 +66,17 @@ export function MembersScreen({ db }: MembersScreenProps) {
       <h3 id="pending-invites">Pending invites</h3>
       <ul aria-labelledby="pending-invites">
         {invites.map((email) => (
-          <ListRow key={email} headline={email} />
+          <ListRow
+            key={email}
+            headline={email}
+            trailing={
+              viewerIsOwner && (
+                <Button variant="text" aria-label={`Revoke invite for ${email}`} onClick={() => void revokeInvite(db, email)}>
+                  Revoke
+                </Button>
+              )
+            }
+          />
         ))}
       </ul>
     </section>

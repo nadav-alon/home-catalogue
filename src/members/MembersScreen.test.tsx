@@ -4,7 +4,7 @@ import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { resetHash } from '../testing/hash.ts'
-import { createInvite } from './invites.ts'
+import { createInvite, revokeInvite } from './invites.ts'
 import { MembersScreen } from './MembersScreen.tsx'
 import type { MemberRecord } from './members.ts'
 
@@ -30,6 +30,7 @@ vi.mock('../catalogue/writeRejections.ts', () => ({
 vi.mock('./invites.ts', () => ({
   watchInvites: (db: unknown, cb: unknown) => watchInvites(db, cb),
   createInvite: vi.fn(),
+  revokeInvite: vi.fn(),
 }))
 
 const addedAt = { seconds: 0, nanoseconds: 0, toMillis: () => 0 }
@@ -48,6 +49,7 @@ beforeEach(() => {
   reportFailure.mockReset()
   currentUserUid.mockReset().mockReturnValue(core.uid('u1'))
   vi.mocked(createInvite).mockReset().mockResolvedValue(undefined)
+  vi.mocked(revokeInvite).mockReset().mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -225,6 +227,23 @@ describe('MembersScreen', () => {
 
       expect(screen.queryByLabelText('Invite by email')).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Invite' })).not.toBeInTheDocument()
+    })
+  })
+
+  describe('revoking', () => {
+    it('lets the Owner revoke a pending invite', () => {
+      renderScreen([owner], [core.email('c@example.com')])
+
+      fireEvent.click(screen.getByRole('button', { name: 'Revoke invite for c@example.com' }))
+
+      expect(revokeInvite).toHaveBeenCalledWith(fakeDb, 'c@example.com')
+    })
+
+    it('shows a non-Owner Member no revoke control', () => {
+      currentUserUid.mockReturnValue(member.uid)
+      renderScreen([owner, member], [core.email('c@example.com')])
+
+      expect(screen.queryByRole('button', { name: /Revoke/ })).not.toBeInTheDocument()
     })
   })
 })

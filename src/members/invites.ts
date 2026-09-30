@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot, serverTimestamp, setDoc, type Firestore } from 'firebase/firestore'
+import { collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, type Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { reportWriteRejection } from '../catalogue/writeRejections.ts'
 
@@ -33,5 +33,12 @@ export function watchInvites(db: Firestore, callback: (emails: core.Email[]) => 
 export async function createInvite(db: Firestore, email: core.Email): Promise<void> {
   void setDoc(doc(db, core.inviteDocPath(email)), { invitedAt: serverTimestamp() }).catch((err: unknown) => {
     reportWriteRejection(`invite for ${email}`, err)
+  })
+}
+
+/** Revokes the pending invite to `email` by deleting it. Resolves once queued, see {@link createInvite}. */
+export async function revokeInvite(db: Firestore, email: core.Email): Promise<void> {
+  void deleteDoc(doc(db, core.inviteDocPath(email))).catch((err: unknown) => {
+    reportWriteRejection(`revoke of invite for ${email}`, err)
   })
 }
