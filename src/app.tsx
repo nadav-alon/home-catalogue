@@ -9,6 +9,7 @@ import { SettingsScreen } from './settings/SettingsScreen.tsx'
 import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
 import { titleOf } from './shell/titles.ts'
+import { SnackbarHost } from './ui/Snackbar.tsx'
 import { route, type Route } from './ui/route.ts'
 import { navigate, useItemIds, useRoute } from './ui/useRoute.ts'
 import './app.css'
@@ -36,6 +37,7 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
           </main>
         </TopAppBar>
       </div>
+      <SnackbarHost />
     </>
   )
 }

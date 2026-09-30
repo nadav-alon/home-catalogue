@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import { Button } from './Button.tsx'
+import './Snackbar.css'
 
 export interface SnackbarMessage {
   /** What happened, for example `Deleted Bandages`. */

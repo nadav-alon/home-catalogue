@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/preact'
+import { tokenUsage } from '../testing/css.ts'
 import { SnackbarHost, showSnackbar } from './Snackbar.tsx'
 
 afterEach(() => {
@@ -63,5 +64,11 @@ describe('Snackbar', () => {
       vi.advanceTimersByTime(2100)
     })
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
+
+  it('is styled only from defined tokens', () => {
+    const { used, undefinedTokens } = tokenUsage('src/ui/Snackbar.css')
+    expect(used.length).toBeGreaterThan(0)
+    expect(undefinedTokens).toEqual([])
   })
 })

@@ -1,0 +1,40 @@
+.ui-snackbar {
+  position: fixed;
+  z-index: 2;
+  left: var(--md-sys-spacing-4);
+  right: var(--md-sys-spacing-4);
+  bottom: calc(var(--shell-bar-height) + var(--md-sys-spacing-4));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--md-sys-spacing-2);
+  padding: 0 var(--md-sys-spacing-4);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+  box-shadow: var(--md-sys-elevation-level3);
+}
+
+/* An empty status region takes no room and is not painted. */
+.ui-snackbar:empty {
+  display: none;
+}
+
+.ui-snackbar__text {
+  margin: var(--md-sys-spacing-3) 0;
+}
+
+.ui-snackbar .ui-button--text {
+  color: var(--md-sys-color-inverse-primary);
+}
+
+/* Clear of the bottom bar, which becomes a side rail from 600px. */
+@media (min-width: 600px) {
+  .ui-snackbar {
+    left: calc(var(--shell-rail-width) + var(--md-sys-spacing-4));
+    right: auto;
+    bottom: var(--md-sys-spacing-4);
+    min-width: 20rem;
+    max-width: 36rem;
+  }
+}

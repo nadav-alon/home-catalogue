@@ -6,6 +6,7 @@ import { App } from './app'
 import type { ItemRecord } from './catalogue/items.ts'
 import { bandages } from './catalogue/testFixtures.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
+import { showSnackbar } from './ui/Snackbar.tsx'
 import { resetHash } from './testing/hash.ts'
 
 const watchItemsCallbacks: ((items: ItemRecord[]) => void)[] = []
@@ -57,6 +58,15 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Items', level: 2 })).toBeNull()
+  })
+
+  it('shows a snackbar over any screen', () => {
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+
+    act(() => showSnackbar({ text: 'Deleted Bandages', action: { label: 'Undo', onAction: vi.fn() } }))
+
+    expect(screen.getByText('Deleted Bandages')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
   })
 
   it('puts Calendar Export in the top app bar on the Shopping list screen', () => {
