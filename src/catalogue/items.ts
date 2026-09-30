@@ -285,8 +285,9 @@ async function queryCoreItemsByBarcode(
 }
 
 /**
- * Every Item in `items` carrying `barcode` in its `barcodes`; empty when none does. Answers from
- * the Items already in memory, so it never waits on the server.
+ * Every Item in `items` carrying `barcode` in its `barcodes`; empty when none does. It searches only
+ * what `watchItems` emitted, so a soft-deleted Item and an Item whose catalogue half has not synced are
+ * never matched.
  */
 export function itemsWithBarcode(items: readonly ItemRecord[], barcode: core.Barcode): ItemRecord[] {
   return items.filter((item) => item.barcodes?.includes(barcode))
