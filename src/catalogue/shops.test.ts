@@ -67,6 +67,24 @@ describe('watchShops', () => {
     expect(unsub).toBe(unsubscribe)
   })
 
+  it('leaves out a Shop that carries deletedAt', async () => {
+    const { watchShops } = await import('./shops.ts')
+    const callback = vi.fn()
+    onSnapshot.mockImplementation((_snapshotQuery: unknown, cb: (snapshot: unknown) => void) => {
+      cb({
+        docs: [
+          { id: 'gone', data: () => ({ ...{ name: 'Pharmacy', referenceCount: 0 }, deletedAt: { seconds: 1, nanoseconds: 0 } }) },
+          { id: 'kept', data: () => ({ name: 'Pharmacy', referenceCount: 0 }) },
+        ],
+      })
+      return vi.fn()
+    })
+
+    watchShops(fakeDb, callback)
+
+    expect(callback.mock.lastCall?.[0].map((record: { id: string }) => record.id)).toEqual(['kept'])
+  })
+
   it('skips a document that fails shopSchema instead of trusting the cast', async () => {
     const { watchShops } = await import('./shops.ts')
     const callback = vi.fn()

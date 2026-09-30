@@ -32,7 +32,7 @@ function toShopRecord(id: string, data: catalogue.Shop): ShopRecord {
 }
 
 /**
- * Notifies `callback` with every Shop, ordered by name. A document failing
+ * Notifies `callback` with every live Shop (no `deletedAt`), ordered by name. A document failing
  * {@link catalogue.shopSchema} is skipped and logged rather than breaking the whole list.
  * Returns the unsubscribe function.
  */
@@ -46,6 +46,7 @@ export function watchShops(db: Firestore, callback: (shops: ShopRecord[]) => voi
           console.error(`Skipping invalid Shop document ${snapshotDoc.id}`, parsed.error)
           return []
         }
+        if (parsed.data.deletedAt !== undefined) return []
         return [toShopRecord(snapshotDoc.id, parsed.data)]
       }),
     )
