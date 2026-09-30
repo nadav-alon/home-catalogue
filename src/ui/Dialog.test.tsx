@@ -3,17 +3,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/preact'
 import { Dialog } from './Dialog.tsx'
 import { readFileSync } from 'node:fs'
 import { tokenUsage } from '../testing/css.ts'
+import { stubModalDialog } from '../testing/dialog.ts'
 
-/** jsdom has no modal dialog; stand in for the browser's open/close bookkeeping. */
-beforeEach(() => {
-  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
-    this.setAttribute('open', '')
-  })
-  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
-    this.removeAttribute('open')
-    this.dispatchEvent(new Event('close'))
-  })
-})
+beforeEach(stubModalDialog)
 
 afterEach(async () => {
   cleanup()

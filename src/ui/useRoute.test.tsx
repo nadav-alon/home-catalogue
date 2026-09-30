@@ -1,12 +1,20 @@
 import { act, render, renderHook } from '@testing-library/preact'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { core } from 'data-platform'
 import { DEFAULT_ROUTE, hashOf, route } from './route.ts'
 import { navigate, navigateToItems, useItemIds, useRoute } from './useRoute.ts'
 import { Dialog } from './Dialog.tsx'
+import { stubModalDialog } from '../testing/dialog.ts'
 import { resetHash } from '../testing/hash.ts'
+import { resetPendingPop } from './pendingPop.ts'
 
-afterEach(resetHash)
+beforeEach(stubModalDialog)
+
+afterEach(async () => {
+  vi.restoreAllMocks()
+  resetPendingPop()
+  await resetHash()
+})
 
 function nextHashChange(): Promise<unknown> {
   return new Promise((resolve) => window.addEventListener('hashchange', resolve, { once: true }))
@@ -122,12 +130,6 @@ describe('navigateToItems', () => {
   })
 
   it("waits for a closing Dialog's history pop to land before pushing the filter", async () => {
-    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
-      this.setAttribute('open', '')
-    }
-    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
-      this.removeAttribute('open')
-    }
     const back = vi.spyOn(history, 'back').mockImplementation(() => {})
     const { rerender } = render(
       <Dialog open title="Scan" onClose={() => {}}>
@@ -140,8 +142,9 @@ describe('navigateToItems', () => {
       </Dialog>,
     )
     back.mockRestore()
+    const before = window.location.hash
     navigateToItems([core.itemId('a')])
-    expect(window.location.hash).not.toBe('#/items?item=a')
+    expect(window.location.hash).toBe(before)
     await act(async () => {
       window.dispatchEvent(new PopStateEvent('popstate', { state: null }))
       await nextHashChange()
