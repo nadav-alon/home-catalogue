@@ -53,9 +53,19 @@ describe('App', () => {
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Shopping list' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Export to Calendar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Items', level: 2 })).toBeNull()
+  })
+
+  it('puts Calendar Export in the top app bar on the Shopping list screen', () => {
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+
+    const bar = screen.getByRole('banner')
+    expect(within(bar).getByRole('button', { name: 'Export to Calendar' })).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).queryByRole('button', { name: 'Export to Calendar' })).toBeNull()
+    expect(within(bar).getAllByRole('heading')).toHaveLength(1)
+    expect(within(bar).queryByLabelText('Date')).toBeNull()
   })
 
   it('shows the Items screen on #/items', () => {
@@ -63,7 +73,7 @@ describe('App', () => {
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     expect(screen.getByRole('heading', { level: 1, name: 'Items' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Export to Calendar' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Export to Calendar' })).toBeNull()
   })
 
   it('puts the scan icon in the top app bar on the Items screen when BarcodeDetector exists', () => {
@@ -103,6 +113,27 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { level: 2, name: 'Shops' })).toBeNull()
   })
 
+  it('shows the AlertBanner on the Shopping list screen only', async () => {
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+    const items: ItemRecord[] = [
+      {
+        id: core.itemId('bandages'),
+        name: 'Bandages',
+        state: 'out',
+        categoryId: catalogue.categoryId('medicine'),
+        necessity: catalogue.necessitySchema.parse('essential'),
+      },
+    ]
+    act(() => watchItemsCallbacks.forEach((cb) => cb(items)))
+    expect(screen.getByRole('alert')).toHaveTextContent('1 urgent Item')
+
+    await goTo('#/items')
+    expect(screen.queryByText(/urgent Item/)).toBeNull()
+
+    await goTo('#/settings')
+    expect(screen.queryByText(/urgent Item/)).toBeNull()
+  })
+
   it('shows a red AlertBanner when a watched Item is now', () => {
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
@@ -118,6 +149,5 @@ describe('App', () => {
     act(() => watchItemsCallbacks.forEach((cb) => cb(items)))
 
     expect(screen.getByRole('alert')).toHaveTextContent('1')
-    expect(within(screen.getByRole('main')).getByRole('link', { name: /shopping list/i })).toHaveAttribute('href', '#/list')
   })
 })

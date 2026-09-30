@@ -1,35 +1,16 @@
 import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { CalendarExport } from './CalendarExport.tsx'
+import { TopAppBar } from '../shell/TopAppBar.tsx'
 import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
-
-const watchItems = vi.fn()
-vi.mock('../catalogue/items.ts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../catalogue/items.ts')>()),
-  watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
-}))
-
-const watchCategories = vi.fn()
-vi.mock('../catalogue/categories.ts', () => ({
-  watchCategories: (db: unknown, cb: unknown) => watchCategories(db, cb),
-}))
-
-const watchShops = vi.fn()
-vi.mock('../catalogue/shops.ts', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../catalogue/shops.ts')>()),
-  watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
-}))
 
 const exportShoppingList = vi.fn()
 vi.mock('./exportShoppingList.ts', () => ({
   exportShoppingList: (groups: unknown, date: unknown) => exportShoppingList(groups, date),
 }))
-
-const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
 const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 1 }
 const medicine: CategoryRecord = {
@@ -46,10 +27,15 @@ const bandages: ItemRecord = {
   necessity: 'essential',
 }
 
+/** jsdom has no modal dialog; stand in for the browser's open/close bookkeeping. */
 beforeEach(() => {
-  watchItems.mockReset()
-  watchCategories.mockReset()
-  watchShops.mockReset()
+  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  })
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute('open')
+    this.dispatchEvent(new Event('close'))
+  })
   exportShoppingList.mockReset()
 })
 
@@ -58,25 +44,18 @@ afterEach(() => {
 })
 
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
-  watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
-    cb(items)
-    return vi.fn()
-  })
-  watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
-    cb(categories)
-    return vi.fn()
-  })
-  watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
-    cb(shops)
-    return vi.fn()
-  })
-  return render(<CalendarExport db={fakeDb} />)
+  render(
+    <TopAppBar title="Shopping list">
+      <CalendarExport items={items} categories={categories} shops={shops} />
+    </TopAppBar>,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
 }
 
 async function submit(dateValue: string) {
   fireEvent.input(screen.getByLabelText('Date'), { target: { value: dateValue } })
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
   })
 }
 
@@ -85,7 +64,7 @@ describe('CalendarExport', () => {
     renderWith([bandages], [medicine], [pharmacy])
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Export' }))
     })
 
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a date to export to.')

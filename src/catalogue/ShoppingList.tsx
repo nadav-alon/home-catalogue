@@ -3,6 +3,9 @@ import type { Firestore } from 'firebase/firestore'
 import { setItemState, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
+import { AlertBanner } from './AlertBanner.tsx'
+import { CalendarExport } from '../export/CalendarExport.tsx'
+import { ListRow } from '../ui/ListRow.tsx'
 import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
 
 export interface ShoppingListProps {
@@ -16,7 +19,7 @@ interface ShopGroup {
 }
 
 export function ShoppingList({ db }: ShoppingListProps) {
-  const [items, setItems] = useState<ItemRecord[]>([])
+  const [items, setItems] = useState<ItemRecord[] | null>(null)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -34,7 +37,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
     }
   }
 
-  const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items, categories, shops)
+  const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops)
   const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
     key: shop.id,
     name: shop.name,
@@ -46,11 +49,13 @@ export function ShoppingList({ db }: ShoppingListProps) {
 
   return (
     <section>
-      <h2>Shopping list</h2>
+      <AlertBanner items={items ?? []} />
+      <CalendarExport items={items ?? []} categories={categories} shops={shops} />
       {error !== null && <p role="alert">{error}</p>}
+      {items !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
       {groups.map(({ key, name, items: groupItems }) => (
         <div key={key}>
-          <h3>{name}</h3>
+          <h2>{name}</h2>
           <ul>
             {groupItems.map((item) => (
               <ShoppingListRow key={item.id} item={item} onTick={() => void handleTick(item)} />
@@ -68,13 +73,13 @@ interface ShoppingListRowProps {
 }
 
 function ShoppingListRow({ item, onTick }: ShoppingListRowProps) {
+  const runningLow = item.state === 'running low'
   return (
-    <li>
-      <label>
-        <input type="checkbox" checked={false} onChange={onTick} />
-        {item.name}
-      </label>
-      {item.state === 'running low' && <span>optional</span>}
-    </li>
+    <ListRow
+      headline={item.name}
+      supporting={runningLow ? 'optional' : undefined}
+      muted={runningLow}
+      control={<input type="checkbox" checked={false} onChange={onTick} />}
+    />
   )
 }

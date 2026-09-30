@@ -1,13 +1,9 @@
-import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
-import { AlertBanner } from './catalogue/AlertBanner.tsx'
 import { WriteRejectionBanner } from './catalogue/WriteRejectionBanner.tsx'
 import { CategoriesManager } from './catalogue/CategoriesManager.tsx'
 import { ShopsManager } from './catalogue/ShopsManager.tsx'
 import { ItemsManager } from './catalogue/ItemsManager.tsx'
 import { ShoppingList } from './catalogue/ShoppingList.tsx'
-import { watchItems, type ItemRecord } from './catalogue/items.ts'
-import { CalendarExport } from './export/CalendarExport.tsx'
 import { SettingsScreen } from './settings/SettingsScreen.tsx'
 import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
@@ -25,10 +21,8 @@ export interface AppProps {
 }
 
 export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
-  const [items, setItems] = useState<ItemRecord[]>([])
   const current = useRoute()
 
-  useEffect(() => watchItems(db, setItems), [db])
 
   return (
     <>
@@ -37,7 +31,6 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
         <TopAppBar title={titleOf(current)}>
           <main>
             <WriteRejectionBanner />
-            <AlertBanner items={items} />
             <Screen route={current} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
           </main>
         </TopAppBar>
@@ -50,13 +43,7 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
 function Screen({ route: current, db, config, onResetConfig, onSignOut }: { route: Route } & AppProps) {
   switch (current) {
     case '/list':
-      // TODO[#135]: the Shopping list screen.
-      return (
-        <>
-          <ShoppingList db={db} />
-          <CalendarExport db={db} />
-        </>
-      )
+      return <ShoppingList db={db} />
     case '/items':
       return <ItemsManager db={db} />
     case '/settings':

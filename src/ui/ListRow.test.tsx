@@ -15,6 +15,18 @@ describe('ListRow', () => {
     expect(row).toHaveTextContent('Grocery')
   })
 
+  it('marks a muted row for a visual set-back', () => {
+    render(
+      <ul>
+        <ListRow headline="Milk" muted />
+        <ListRow headline="Eggs" />
+      </ul>,
+    )
+    const [milk, eggs] = screen.getAllByRole('listitem')
+    expect(milk).toHaveClass('ui-list-row--muted')
+    expect(eggs).not.toHaveClass('ui-list-row--muted')
+  })
+
   it('omits supporting text and trailing slot when not given', () => {
     const { container } = render(
       <ul>
@@ -32,6 +44,16 @@ describe('ListRow', () => {
       </ul>,
     )
     expect(screen.getByRole('listitem')).toContainElement(screen.getByRole('button', { name: 'Out' }))
+  })
+
+  it('makes the whole row the label of its control', () => {
+    render(
+      <ul>
+        <ListRow headline="Milk" supporting="optional" control={<input type="checkbox" />} />
+      </ul>,
+    )
+    expect(screen.getByRole('checkbox', { name: /Milk\s*optional/ })).toBeInTheDocument()
+    expect(screen.getByText('Milk').closest('label')).toContainElement(screen.getByRole('checkbox'))
   })
 
   it('is styled only from defined tokens', () => {

@@ -80,6 +80,19 @@ describe('ShoppingList', () => {
     expect(within(groceryGroup).queryByText('Bandages')).not.toBeInTheDocument()
   })
 
+  it('titles each Shop group with a level 2 heading, under the top app bar title', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Pharmacy' })).toBeInTheDocument()
+  })
+
   it('groups an Item under its own Shop override instead of its Category default', () => {
     const bandages: ItemRecord = {
       id: core.itemId('bandages'),
@@ -111,6 +124,55 @@ describe('ShoppingList', () => {
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
   })
 
+  it('shows an empty state when no Item is pending', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'enough',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    expect(screen.getByText('Nothing to buy — every Item is enough.')).toBeInTheDocument()
+  })
+
+  it('shows the AlertBanner above the list from the same Items', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    expect(screen.getByRole('alert')).toHaveTextContent('1 urgent Item')
+    expect(watchItems).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not show the empty state before the first snapshot of Items arrives', () => {
+    watchItems.mockReturnValue(vi.fn())
+    watchCategories.mockReturnValue(vi.fn())
+    watchShops.mockReturnValue(vi.fn())
+    render(<ShoppingList db={fakeDb} />)
+
+    expect(screen.queryByText(/Nothing to buy/)).not.toBeInTheDocument()
+  })
+
+  it('does not show the empty state while an Item is pending', () => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+
+    expect(screen.queryByText(/Nothing to buy/)).not.toBeInTheDocument()
+  })
+
   it('leaves out a Shop with no pending Items', () => {
     renderWith([], [medicine], [pharmacy, grocery])
 
@@ -129,6 +191,27 @@ describe('ShoppingList', () => {
     renderWith([soap], [cleaning], [grocery])
 
     expect(screen.getByText('Dish soap').closest('li')).toHaveTextContent('optional')
+  })
+
+  it('sets a running low row back visually from an out row', () => {
+    const soap: ItemRecord = {
+      id: core.itemId('soap'),
+      name: 'Dish soap',
+      state: 'running low',
+      categoryId: cleaning.id,
+      necessity: 'important',
+    }
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state: 'out',
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([soap, bandages], [cleaning, medicine], [grocery, pharmacy])
+
+    expect(screen.getByText('Dish soap').closest('li')).toHaveClass('ui-list-row--muted')
+    expect(screen.getByText('Bandages').closest('li')).not.toHaveClass('ui-list-row--muted')
   })
 
   it('does not flag an out Item as optional', () => {
@@ -221,6 +304,6 @@ describe('ticking an Item', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: 'Bandages' }))
     })
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Could not update State')
+    expect(screen.getByText('Could not update State')).toHaveAttribute('role', 'alert')
   })
 })
