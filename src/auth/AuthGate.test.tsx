@@ -25,6 +25,7 @@ vi.mock('./household.ts', () => ({
 const fakeClient = { app: 'fake-app', db: 'fake-db' } as unknown as FirebaseClient
 const user: AuthUser = { uid: 'user-1', email: 'owner@example.com' } as unknown as AuthUser
 const unsubscribe = vi.fn()
+const onResetConfig = vi.fn()
 
 beforeEach(() => {
   signInWithGoogle.mockReset()
@@ -34,6 +35,7 @@ beforeEach(() => {
   isHouseholdMember.mockReset()
   claimHousehold.mockReset().mockResolvedValue(undefined)
   unsubscribe.mockClear()
+  onResetConfig.mockReset()
 })
 
 describe('AuthGate', () => {
@@ -44,13 +46,35 @@ describe('AuthGate', () => {
     })
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }))
     expect(signInWithGoogle).toHaveBeenCalledWith('fake-app')
+  })
+
+  it('offers Reset Firebase configuration on the signed-out card, only after the user confirms', () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(null)
+      return unsubscribe
+    })
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    const reset = screen.getByRole('button', { name: 'Reset' })
+
+    fireEvent.click(reset)
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    expect(onResetConfig).not.toHaveBeenCalled()
+
+    fireEvent.click(reset)
+    expect(onResetConfig).toHaveBeenCalledTimes(1)
   })
 
   it('offers to claim the household when meta/household does not exist', async () => {
@@ -61,7 +85,7 @@ describe('AuthGate', () => {
     householdExists.mockResolvedValue(false)
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
@@ -78,7 +102,7 @@ describe('AuthGate', () => {
     householdExists.mockResolvedValue(false)
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
@@ -97,7 +121,7 @@ describe('AuthGate', () => {
     isHouseholdMember.mockResolvedValue(false)
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
@@ -118,7 +142,7 @@ describe('AuthGate', () => {
     isHouseholdMember.mockResolvedValue(true)
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
@@ -134,7 +158,7 @@ describe('AuthGate', () => {
     })
 
     const { unmount } = render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )
@@ -158,7 +182,7 @@ describe('AuthGate styling', () => {
     isHouseholdMember.mockResolvedValue(false)
 
     render(
-      <AuthGate client={fakeClient}>
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
         <p>App content</p>
       </AuthGate>,
     )

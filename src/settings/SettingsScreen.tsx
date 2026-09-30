@@ -5,6 +5,7 @@ import { Icon } from '../ui/Icon.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { hashOf, route, type Route } from '../ui/route.ts'
 import { navigate } from '../ui/useRoute.ts'
+import { ResetConfigButton } from './ResetConfigButton.tsx'
 import { titleOf } from '../shell/titles.ts'
 import ChevronRightIcon from '~icons/material-symbols/chevron-right'
 
@@ -29,16 +30,7 @@ export function SettingsScreen({ config, onResetConfig, onSignOut }: SettingsScr
       </li>
       <ListRow
         headline="Reset Firebase configuration"
-        trailing={
-          <Button
-            variant="text"
-            onClick={() => {
-              if (confirm('Reset the Firebase configuration on this device?')) void onResetConfig()
-            }}
-          >
-            Reset
-          </Button>
-        }
+        trailing={<ResetConfigButton onResetConfig={onResetConfig} />}
       />
       <ListRow
         headline="Sign out"

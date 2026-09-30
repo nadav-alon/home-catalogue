@@ -74,19 +74,21 @@ function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: ()
 
   if (client === null) return null
 
+  const resetConfig = async () => {
+    await terminateFirebase(client)
+    clearFirebaseConfig()
+    onReset()
+  }
+
   return (
     <>
-      <AuthGate client={client}>
+      <AuthGate client={client} onResetConfig={resetConfig}>
         <PlatformGuard db={client.db} />
         <App
           db={client.db}
           config={config}
           onSignOut={() => signOutUser(client.app)}
-          onResetConfig={async () => {
-            await terminateFirebase(client)
-            clearFirebaseConfig()
-            onReset()
-          }}
+          onResetConfig={resetConfig}
         />
       </AuthGate>
     </>

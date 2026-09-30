@@ -4,10 +4,13 @@ import type { FirebaseClient } from '../firebase/client.ts'
 import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
 import { claimHousehold, householdExists, isHouseholdMember } from './household.ts'
 import { Button } from '../ui/Button.tsx'
+import { ResetConfigButton } from '../settings/ResetConfigButton.tsx'
 import { CentredCard } from '../ui/CentredCard.tsx'
 
 export interface AuthGateProps {
   client: FirebaseClient
+  /** Forgets the stored Firebase configuration; offered on the screens a device with a bad configuration gets stuck on. */
+  onResetConfig: () => void | Promise<void>
   children: ComponentChildren
 }
 
@@ -19,7 +22,7 @@ type AuthGateState =
   | { status: 'member' }
 
 /** Gates `children` behind Google sign-in, household first-claim, and membership. */
-export function AuthGate({ client, children }: AuthGateProps) {
+export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   const [state, setState] = useState<AuthGateState>({ status: 'checking' })
 
   useEffect(() => {
@@ -49,6 +52,7 @@ export function AuthGate({ client, children }: AuthGateProps) {
       return (
         <CentredCard title="Sign in">
           <Button onClick={() => void signInWithGoogle(client.app)}>Sign in with Google</Button>
+          <ResetConfigRow onResetConfig={onResetConfig} />
         </CentredCard>
       )
 
@@ -86,5 +90,13 @@ function SignOutButton({ app }: { app: FirebaseClient['app'] }) {
     <Button variant="tonal" onClick={() => void signOutUser(app)}>
       Sign out
     </Button>
+  )
+}
+
+function ResetConfigRow({ onResetConfig }: { onResetConfig: () => void | Promise<void> }) {
+  return (
+    <p>
+      Wrong Firebase configuration? <ResetConfigButton onResetConfig={onResetConfig} />
+    </p>
   )
 }
