@@ -10,16 +10,27 @@ export interface ListRowProps {
   control?: ComponentChildren
   /** De-emphasises the row visually. */
   muted?: boolean
+  /** Makes the text a native button that calls this; the trailing slot stays a separate control. */
+  onActivate?: () => void
 }
 
 /** A native `<li>`; render inside a `<ul>` or `<ol>`. */
-export function ListRow({ headline, supporting, trailing, control, muted = false }: ListRowProps) {
+export function ListRow({ headline, supporting, trailing, control, muted = false, onActivate }: ListRowProps) {
+  const text = (
+    <>
+      <span class="ui-list-row__headline">{headline}</span>
+      {supporting ? <span class="ui-list-row__supporting">{supporting}</span> : null}
+    </>
+  )
   const content = (
     <>
-      <div class="ui-list-row__text">
-        <span class="ui-list-row__headline">{headline}</span>
-        {supporting ? <span class="ui-list-row__supporting">{supporting}</span> : null}
-      </div>
+      {onActivate ? (
+        <button type="button" class="ui-list-row__text ui-list-row__activate" onClick={onActivate}>
+          {text}
+        </button>
+      ) : (
+        <div class="ui-list-row__text">{text}</div>
+      )}
       {trailing ? <div class="ui-list-row__trailing">{trailing}</div> : null}
       {control ? <div class="ui-list-row__trailing">{control}</div> : null}
     </>
