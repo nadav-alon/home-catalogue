@@ -15,6 +15,18 @@ describe('Select', () => {
     expect(screen.getAllByRole('option')).toHaveLength(2)
   })
 
+  it('shows an error as an alert that describes the select and marks it invalid', () => {
+    render(
+      <Select label="Shop" error="Choose a Shop.">
+        <option value="pharmacy">Pharmacy</option>
+      </Select>,
+    )
+    const select = screen.getByLabelText('Shop')
+    expect(select).toBeInvalid()
+    expect(select).toHaveAccessibleDescription('Choose a Shop.')
+    expect(screen.getByRole('alert')).toHaveTextContent('Choose a Shop.')
+  })
+
   it('passes native attributes and change events through', () => {
     let seen = ''
     render(

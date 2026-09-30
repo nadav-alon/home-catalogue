@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { render, screen } from '@testing-library/preact'
+import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/preact'
 import { ListRow } from './ListRow.tsx'
 import { tokenUsage } from '../testing/css.ts'
 
@@ -54,6 +54,28 @@ describe('ListRow', () => {
     )
     expect(screen.getByRole('checkbox', { name: /Milk\s*optional/ })).toBeInTheDocument()
     expect(screen.getByText('Milk').closest('label')).toContainElement(screen.getByRole('checkbox'))
+  })
+
+  it('calls onActivate when the text is tapped, and not when the trailing control is', () => {
+    const onActivate = vi.fn()
+    render(
+      <ul>
+        <ListRow headline="Milk" supporting="Grocery" onActivate={onActivate} trailing={<button type="button">Out</button>} />
+      </ul>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Out' }))
+    expect(onActivate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Milk Grocery' }))
+    expect(onActivate).toHaveBeenCalledOnce()
+  })
+
+  it('has no button for the text without onActivate', () => {
+    render(
+      <ul>
+        <ListRow headline="Milk" />
+      </ul>,
+    )
+    expect(screen.queryByRole('button')).toBeNull()
   })
 
   it('is styled only from defined tokens', () => {

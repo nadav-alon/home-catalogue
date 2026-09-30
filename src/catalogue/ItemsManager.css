@@ -1,0 +1,4 @@
+/* Leaves room under the last row for the floating Add Item button. */
+.items-manager {
+  padding-bottom: calc(3.5rem + var(--md-sys-spacing-8));
+}
