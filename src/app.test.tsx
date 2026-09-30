@@ -4,6 +4,7 @@ import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { App } from './app'
 import type { ItemRecord } from './catalogue/items.ts'
+import { bandages } from './catalogue/testFixtures.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 import { resetHash } from './testing/hash.ts'
 
@@ -74,6 +75,19 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Items' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Export to Calendar' })).toBeNull()
+  })
+
+  it('filters the Items screen to the Items named in the hash', async () => {
+    window.location.hash = '#/items?item=bandages'
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+    await act(async () => {
+      const other: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+      for (const cb of watchItemsCallbacks) cb([bandages, other])
+    })
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Items' })).toBeInTheDocument()
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+    expect(screen.queryByText('Tape')).toBeNull()
   })
 
   it('puts the scan icon in the top app bar on the Items screen when BarcodeDetector exists', () => {
