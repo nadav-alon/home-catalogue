@@ -17,7 +17,6 @@ const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constra
 const orderBy = vi.fn((field: string) => ({ kind: 'orderBy', field }))
 const onSnapshot = vi.fn()
 const updateDoc = vi.fn()
-const deleteDoc = vi.fn()
 const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
 const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
 const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
@@ -39,7 +38,6 @@ vi.mock('firebase/firestore', () => ({
   orderBy: (field: string) => orderBy(field),
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
-  deleteDoc: (ref: unknown) => deleteDoc(ref),
   increment: (n: number) => increment(n),
   serverTimestamp: () => serverTimestamp(),
   deleteField: () => deleteField(),
@@ -67,7 +65,6 @@ beforeEach(() => {
   orderBy.mockClear()
   onSnapshot.mockReset()
   updateDoc.mockReset()
-  deleteDoc.mockReset()
   increment.mockClear()
   batchSet.mockReset()
   batchUpdate.mockReset()
