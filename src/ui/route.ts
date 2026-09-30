@@ -15,10 +15,15 @@ export function route(value: string): Route {
 /** Where an empty or unrecognised hash lands: the Shopping list. */
 export const DEFAULT_ROUTE: Route = route('/list')
 
+/** The route a URL hash names; undefined when the hash is empty or names no route. */
+export function routeIn(hash: string): Route | undefined {
+  const path = hash.startsWith('#') ? hash.slice(1) : hash
+  return isRoute(path) ? path : undefined
+}
+
 /** The route a URL hash names; the default route when the hash is empty or unknown. */
 export function routeOf(hash: string): Route {
-  const path = hash.startsWith('#') ? hash.slice(1) : hash
-  return isRoute(path) ? path : DEFAULT_ROUTE
+  return routeIn(hash) ?? DEFAULT_ROUTE
 }
 
 /** The URL hash that names `value`. */
