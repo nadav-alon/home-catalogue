@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { catalogue, core } from 'data-platform'
+import { core } from 'data-platform'
 import type { ItemRecord } from '../catalogue/items.ts'
-import { grocery, pharmacy } from '../catalogue/testFixtures.ts'
+import { bandages, cleaning, grocery, pharmacy } from '../catalogue/testFixtures.ts'
 import { accessToken } from './googleAuthClient.ts'
 import { exportDate } from './exportDate.ts'
 import { exportShoppingList } from './exportShoppingList.ts'
@@ -25,23 +25,17 @@ vi.mock('./googleCalendarApi.ts', async (importOriginal) => ({
     insertCalendarEvent(token, calendarId, event),
 }))
 
-const bandages: ItemRecord = {
-  id: core.itemId('bandages'),
-  name: 'Bandages',
-  state: 'out',
-  categoryId: catalogue.categoryId('medicine'),
-  necessity: 'essential',
-}
+const outBandages: ItemRecord = { ...bandages, state: 'out' }
 const soap: ItemRecord = {
   id: core.itemId('soap'),
   name: 'Dish soap',
   state: 'running low',
-  categoryId: catalogue.categoryId('cleaning'),
+  categoryId: cleaning.id,
   necessity: 'important',
 }
 
 const groups: ShopGroup[] = [
-  { shop: pharmacy, items: [bandages] },
+  { shop: pharmacy, items: [outBandages] },
   { shop: grocery, items: [soap] },
 ]
 const date = exportDate('2026-03-05')
