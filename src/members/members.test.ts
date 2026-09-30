@@ -49,8 +49,8 @@ describe('watchMembers', () => {
     listeners.get('meta/household')!(household('u1'))
 
     expect(callback).toHaveBeenLastCalledWith([
-      { uid: core.uid('u1'), email: core.email('a@example.com'), isOwner: true },
-      { uid: core.uid('u2'), email: core.email('b@example.com'), isOwner: false },
+      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true },
+      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
     ])
   })
 
@@ -71,7 +71,31 @@ describe('watchMembers', () => {
     listeners.get('meta/household')!(household('u2'))
 
     expect(callback).toHaveBeenLastCalledWith([
-      { uid: core.uid('u2'), email: core.email('b@example.com'), isOwner: true },
+      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: true },
+    ])
+  })
+
+  it('skips a Member document keyed by something that is not a Uid', () => {
+    const callback = vi.fn()
+    watchMembers(fakeDb, callback)
+
+    listeners.get('members')!(memberDocs(['', { email: 'a@example.com', addedAt }], ['u2', { email: 'b@example.com', addedAt }]))
+    listeners.get('meta/household')!(household('u2'))
+
+    expect(callback).toHaveBeenLastCalledWith([
+      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: true },
+    ])
+  })
+
+  it('lists every Member, none flagged Owner, when the Household document is invalid', () => {
+    const callback = vi.fn()
+    watchMembers(fakeDb, callback)
+
+    listeners.get('members')!(memberDocs(['u1', { email: 'a@example.com', addedAt }]))
+    listeners.get('meta/household')!({ data: () => ({}) })
+
+    expect(callback).toHaveBeenLastCalledWith([
+      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: false },
     ])
   })
 

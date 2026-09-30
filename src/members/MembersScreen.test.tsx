@@ -19,6 +19,7 @@ vi.mock('./invites.ts', () => ({
   watchInvites: (db: unknown, cb: unknown) => watchInvites(db, cb),
 }))
 
+const addedAt = { seconds: 0, nanoseconds: 0, toMillis: () => 0 }
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const unsubscribe = vi.fn()
 
@@ -57,8 +58,8 @@ describe('MembersScreen', () => {
 
   it('lists every Member by email, marking the Owner', () => {
     renderScreen([
-      { uid: core.uid('u1'), email: core.email('a@example.com'), isOwner: true },
-      { uid: core.uid('u2'), email: core.email('b@example.com'), isOwner: false },
+      { uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true },
+      { uid: core.uid('u2'), email: core.email('b@example.com'), addedAt, isOwner: false },
     ])
 
     const [owner, member] = screen.getAllByRole('listitem')
@@ -70,7 +71,7 @@ describe('MembersScreen', () => {
 
   it('lists every pending invite by email, apart from the Members', () => {
     renderScreen(
-      [{ uid: core.uid('u1'), email: core.email('a@example.com'), isOwner: true }],
+      [{ uid: core.uid('u1'), email: core.email('a@example.com'), addedAt, isOwner: true }],
       [core.email('c@example.com')],
     )
 
