@@ -63,7 +63,7 @@ describe('watchShops', () => {
 
     expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.SHOPS_COLLECTION)
     expect(orderBy).toHaveBeenCalledWith('name')
-    expect(callback).toHaveBeenCalledWith([{ id: 'pharmacy', name: 'Pharmacy', referenceCount: 0 }])
+    expect(callback).toHaveBeenCalledWith([pharmacy])
     expect(unsub).toBe(unsubscribe)
   })
 
@@ -82,7 +82,7 @@ describe('watchShops', () => {
 
     watchShops(fakeDb, callback)
 
-    expect(callback).toHaveBeenCalledWith([{ id: 'pharmacy', name: 'Pharmacy', referenceCount: 0 }])
+    expect(callback).toHaveBeenCalledWith([pharmacy])
   })
 })
 
