@@ -86,7 +86,7 @@ export async function renameCategory(
  * platform's rules require both Shops' `referenceCount` to move with it. A no-op when the Shop is unchanged.
  * Resolves once queued, see {@link createCategory}.
  */
-export async function changeCategoryShop(
+export async function changeCategoryDefaultShop(
   db: Firestore,
   category: CategoryRecord,
   defaultShopId: catalogue.ShopId,

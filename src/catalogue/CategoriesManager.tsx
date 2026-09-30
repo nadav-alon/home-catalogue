@@ -3,7 +3,7 @@ import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import {
-  changeCategoryShop,
+  changeCategoryDefaultShop,
   createCategory,
   deleteCategory,
   renameCategory,
@@ -79,7 +79,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     }
     try {
       if (trimmedName !== category.name) await renameCategory(db, category, trimmedName)
-      await changeCategoryShop(db, category, editShopId)
+      await changeCategoryDefaultShop(db, category, editShopId)
       setError(null)
       setEditing(null)
     } catch (err) {

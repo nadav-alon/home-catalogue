@@ -201,7 +201,7 @@ describe('renameCategory', () => {
   })
 })
 
-describe('changeCategoryShop', () => {
+describe('changeCategoryDefaultShop', () => {
   const medicine = {
     id: catalogue.categoryId('medicine'),
     name: 'Medicine',
@@ -211,10 +211,10 @@ describe('changeCategoryShop', () => {
   const grocery = catalogue.shopId('grocery')
 
   it('points the Category at the new Shop and moves one reference between the two Shops in one batch', async () => {
-    const { changeCategoryShop } = await import('./categories.ts')
+    const { changeCategoryDefaultShop } = await import('./categories.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
-    await changeCategoryShop(fakeDb, medicine, grocery)
+    await changeCategoryDefaultShop(fakeDb, medicine, grocery)
 
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' },
@@ -232,19 +232,19 @@ describe('changeCategoryShop', () => {
   })
 
   it('writes nothing when the Shop is unchanged', async () => {
-    const { changeCategoryShop } = await import('./categories.ts')
+    const { changeCategoryDefaultShop } = await import('./categories.ts')
 
-    await changeCategoryShop(fakeDb, medicine, medicine.defaultShopId)
+    await changeCategoryDefaultShop(fakeDb, medicine, medicine.defaultShopId)
 
     expect(batchCommit).not.toHaveBeenCalled()
   })
 
   it('reports to the write-rejection banner when the server rejects the batch', async () => {
-    const { changeCategoryShop } = await import('./categories.ts')
+    const { changeCategoryDefaultShop } = await import('./categories.ts')
     const latest = await rejections()
     batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
 
-    await changeCategoryShop(fakeDb, medicine, grocery)
+    await changeCategoryDefaultShop(fakeDb, medicine, grocery)
     await Promise.resolve()
 
     expect(latest()).toEqual(["Could not save change of Category Medicine's default Shop"])

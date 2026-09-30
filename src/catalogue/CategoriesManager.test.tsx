@@ -11,7 +11,7 @@ import { grocery, medicine, pharmacy } from './testFixtures.ts'
 const createCategory = vi.fn()
 const renameCategory = vi.fn()
 const deleteCategory = vi.fn()
-const changeCategoryShop = vi.fn()
+const changeCategoryDefaultShop = vi.fn()
 const watchCategories = vi.fn()
 
 const { FakeCategoryInUseError } = vi.hoisted(() => ({
@@ -19,7 +19,7 @@ const { FakeCategoryInUseError } = vi.hoisted(() => ({
 }))
 
 vi.mock('./categories.ts', () => ({
-  changeCategoryShop: (db: unknown, category: unknown, shopId: unknown) => changeCategoryShop(db, category, shopId),
+  changeCategoryDefaultShop: (db: unknown, category: unknown, shopId: unknown) => changeCategoryDefaultShop(db, category, shopId),
   createCategory: (db: unknown, name: string, shopId: unknown) => createCategory(db, name, shopId),
   renameCategory: (db: unknown, category: unknown, name: string) => renameCategory(db, category, name),
   deleteCategory: (db: unknown, category: unknown) => deleteCategory(db, category),
@@ -51,7 +51,7 @@ beforeEach(() => {
   createCategory.mockReset().mockResolvedValue(undefined)
   renameCategory.mockReset().mockResolvedValue(undefined)
   deleteCategory.mockReset().mockResolvedValue(undefined)
-  changeCategoryShop.mockReset().mockResolvedValue(undefined)
+  changeCategoryDefaultShop.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
   categoriesUnsubscribe.mockClear()
@@ -174,7 +174,7 @@ describe('CategoriesManager', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(renameCategory).toHaveBeenCalledWith(fakeDb, medicine, 'Medicine & First aid')
-    expect(changeCategoryShop).toHaveBeenCalledWith(fakeDb, medicine, pharmacy.id)
+    expect(changeCategoryDefaultShop).toHaveBeenCalledWith(fakeDb, medicine, pharmacy.id)
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
@@ -185,7 +185,7 @@ describe('CategoriesManager', () => {
     choose(screen.getByLabelText('Default Shop'), grocery.id)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(changeCategoryShop).toHaveBeenCalledWith(fakeDb, medicine, grocery.id)
+    expect(changeCategoryDefaultShop).toHaveBeenCalledWith(fakeDb, medicine, grocery.id)
     expect(renameCategory).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
@@ -199,7 +199,7 @@ describe('CategoriesManager', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('A Category needs a name.')
     expect(renameCategory).not.toHaveBeenCalled()
-    expect(changeCategoryShop).not.toHaveBeenCalled()
+    expect(changeCategoryDefaultShop).not.toHaveBeenCalled()
   })
 
   it('deletes a Category and closes the dialog', async () => {
