@@ -12,7 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { catalogue, core } from 'data-platform'
 import { deleteShop, restoreShop } from '../../src/catalogue/shops.ts'
 import { resetWriteRejections, watchWriteRejections } from '../../src/catalogue/writeRejections.ts'
-import { CategoryInUseError, deleteCategory, type CategoryRecord } from '../../src/catalogue/categories.ts'
+import { CategoryInUseError, deleteCategory, restoreCategory, type CategoryRecord } from '../../src/catalogue/categories.ts'
 
 const alice = core.uid('alice')
 
@@ -219,6 +219,31 @@ describe('deleteCategory against the real rules', () => {
     expect(categorySnapshot.data()?.deletedAt).toBeDefined()
     const shopSnapshot = await getDoc(doc(db, catalogue.SHOPS_COLLECTION, 'pharmacy'))
     expect(shopSnapshot.data()?.referenceCount).toBe(0)
+  })
+
+  it("restores a soft-deleted Category and raises its default Shop's reference back", async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({
+        name: 'Pharmacy',
+        referenceCount: 1,
+      })
+      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
+        name: 'Medicine',
+        defaultShopId: 'pharmacy',
+        referenceCount: 0,
+      })
+    })
+    await deleteCategory(db, medicine)
+    await waitForWrites(db)
+
+    await restoreCategory(db, medicine)
+    await waitForWrites(db)
+
+    const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
+    expect(categorySnapshot.data()?.deletedAt).toBeUndefined()
+    const shopSnapshot = await getDoc(doc(db, catalogue.SHOPS_COLLECTION, 'pharmacy'))
+    expect(shopSnapshot.data()?.referenceCount).toBe(1)
   })
 
   it('refuses up front with CategoryInUseError when the cached referenceCount is above 0', async () => {

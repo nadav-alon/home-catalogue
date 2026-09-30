@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteField,
   doc,
   increment,
   onSnapshot,
@@ -138,5 +139,18 @@ export async function deleteCategory(db: Firestore, category: CategoryRecord): P
   batch.update(doc(db, catalogue.SHOPS_COLLECTION, category.defaultShopId), { referenceCount: increment(-1) })
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`deleted Category ${category.name}`, err)
+  })
+}
+
+/**
+ * Undoes {@link deleteCategory}: clears `deletedAt` and raises the default Shop's reference back in
+ * one batch. Resolves once queued, see {@link createCategory}.
+ */
+export async function restoreCategory(db: Firestore, category: CategoryRecord): Promise<void> {
+  const batch = writeBatch(db)
+  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, category.id), { deletedAt: deleteField() })
+  batch.update(doc(db, catalogue.SHOPS_COLLECTION, category.defaultShopId), { referenceCount: increment(1) })
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`restored Category ${category.name}`, err)
   })
 }

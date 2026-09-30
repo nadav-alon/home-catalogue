@@ -19,6 +19,7 @@ const onSnapshot = vi.fn()
 const updateDoc = vi.fn()
 const deleteDoc = vi.fn()
 const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
+const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
 const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
 const batchSet = vi.fn()
 const batchUpdate = vi.fn()
@@ -41,6 +42,7 @@ vi.mock('firebase/firestore', () => ({
   deleteDoc: (ref: unknown) => deleteDoc(ref),
   increment: (n: number) => increment(n),
   serverTimestamp: () => serverTimestamp(),
+  deleteField: () => deleteField(),
   writeBatch: (db: unknown) => writeBatch(db),
 }))
 
@@ -320,6 +322,41 @@ describe('deleteCategory', () => {
 
     await deleteCategory(fakeDb, medicine)
     await vi.waitFor(() => expect(latest()).toEqual(['Could not save deleted Category Medicine']))
+  })
+})
+
+describe('restoreCategory', () => {
+  const medicine = {
+    id: catalogue.categoryId('medicine'),
+    name: 'Medicine',
+    defaultShopId: catalogue.shopId('pharmacy'),
+    referenceCount: 0,
+  }
+
+  it("clears deletedAt and raises its default Shop's reference in one batch", async () => {
+    const { restoreCategory } = await import('./categories.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await restoreCategory(fakeDb, medicine)
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' },
+      { deletedAt: { kind: 'deleteField' } },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
+      { referenceCount: { kind: 'increment', delta: 1 } },
+    )
+    expect(batchCommit).toHaveBeenCalled()
+  })
+
+  it('reports to the write-rejection banner when the server rejects the batch', async () => {
+    const { restoreCategory } = await import('./categories.ts')
+    const latest = await rejections()
+    batchCommit.mockRejectedValueOnce(new Error('offline'))
+
+    await restoreCategory(fakeDb, medicine)
+    await vi.waitFor(() => expect(latest()).toEqual(['Could not save restored Category Medicine']))
   })
 })
 
