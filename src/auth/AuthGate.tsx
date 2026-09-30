@@ -96,6 +96,8 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
           >
             Retry
           </Button>
+          <SignOutButton app={client.app} />
+          <ResetConfigRow onResetConfig={onResetConfig} />
         </CentredCard>
       )
 

@@ -225,6 +225,24 @@ describe('AuthGate', () => {
     expect(householdExists).toHaveBeenCalledTimes(2)
   })
 
+  it('offers Sign out and, after confirming, Reset Firebase configuration on the error card', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockRejectedValue(new Error('unavailable'))
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+    expect(signOutUser).toHaveBeenCalledWith('fake-app')
+
+    expectResetOnlyAfterConfirm(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
+  })
+
   it('offers Reset Firebase configuration on the non-member card, only after the user confirms', async () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
