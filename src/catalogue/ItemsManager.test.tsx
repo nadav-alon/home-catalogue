@@ -18,6 +18,7 @@ const setItemState = vi.fn()
 const updateItem = vi.fn()
 const softDeleteItem = vi.fn()
 const restoreItem = vi.fn()
+const restoreItemWithEdit = vi.fn()
 const findItemsByBarcode = vi.fn()
 const attachBarcode = vi.fn()
 const findDeletedItemByBarcode = vi.fn()
@@ -28,7 +29,8 @@ vi.mock('./items.ts', async (importOriginal) => ({
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
   softDeleteItem: (db: unknown, item: unknown) => softDeleteItem(db, item),
-  restoreItem: (db: unknown, item: unknown, edit?: unknown) => (edit === undefined ? restoreItem(db, item) : restoreItem(db, item, edit)),
+  restoreItem: (db: unknown, item: unknown) => restoreItem(db, item),
+  restoreItemWithEdit: (db: unknown, item: unknown, edit: unknown) => restoreItemWithEdit(db, item, edit),
   findItemsByBarcode: (db: unknown, barcode: unknown) => findItemsByBarcode(db, barcode),
   attachBarcode: (db: unknown, item: unknown, barcode: unknown) => attachBarcode(db, item, barcode),
   findDeletedItemByBarcode: (db: unknown, barcode: unknown) => findDeletedItemByBarcode(db, barcode),
@@ -64,6 +66,7 @@ beforeEach(() => {
   updateItem.mockReset().mockResolvedValue(undefined)
   softDeleteItem.mockReset().mockResolvedValue(undefined)
   restoreItem.mockReset().mockResolvedValue(undefined)
+  restoreItemWithEdit.mockReset().mockResolvedValue(undefined)
   findItemsByBarcode.mockReset().mockResolvedValue([])
   attachBarcode.mockReset().mockResolvedValue(undefined)
   findDeletedItemByBarcode.mockReset().mockResolvedValue(undefined)
@@ -991,7 +994,7 @@ describe('a scanned barcode', () => {
 
     fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
 
-    const dialog = await screen.findByRole('dialog', { name: 'Edit Item' })
+    const dialog = await screen.findByRole('dialog', { name: 'Restore Item' })
     expect(restoreItem).not.toHaveBeenCalled()
     expect(within(dialog).getByLabelText('Name')).toHaveValue('Bandages')
     expect(within(dialog).getByLabelText('Category')).toHaveValue('')
@@ -1000,7 +1003,8 @@ describe('a scanned barcode', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages'))
-    expect(restoreItem).toHaveBeenCalledWith(fakeDb, bandages, expect.objectContaining({ categoryId: cleaning.id }))
+    expect(restoreItemWithEdit).toHaveBeenCalledWith(fakeDb, bandages, expect.objectContaining({ categoryId: cleaning.id }))
+    expect(restoreItem).not.toHaveBeenCalled()
     expect(updateItem).not.toHaveBeenCalled()
   })
 
@@ -1012,8 +1016,14 @@ describe('a scanned barcode', () => {
 
     fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
 
-    const dialog = await screen.findByRole('dialog', { name: 'Edit Item' })
+    const dialog = await screen.findByRole('dialog', { name: 'Restore Item' })
     expect(within(dialog).getByLabelText('Shop override')).toHaveValue('')
+    expect(restoreItem).not.toHaveBeenCalled()
+    choose(within(dialog).getByLabelText('Shop override'), pharmacy.id)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages'))
+    expect(restoreItemWithEdit).toHaveBeenCalledWith(fakeDb, { ...bandages, shopId: grocery.id }, expect.objectContaining({ shopId: pharmacy.id }))
     expect(restoreItem).not.toHaveBeenCalled()
   })
 
@@ -1022,7 +1032,7 @@ describe('a scanned barcode', () => {
     renderWith([], [cleaning], [grocery])
     scan()
     fireEvent.click(within(await screen.findByRole('dialog', { name: 'Deleted Item' })).getByRole('button', { name: 'Yes' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Edit Item' })
+    const dialog = await screen.findByRole('dialog', { name: 'Restore Item' })
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 

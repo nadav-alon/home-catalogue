@@ -739,6 +739,20 @@ describe('findDeletedItemByBarcode', () => {
     })
   })
 
+  it('picks the most recently deleted Item when several hold the barcode', async () => {
+    const { findDeletedItemByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        coreDoc('old-soap', { deletedAt: { seconds: 1, nanoseconds: 0 } }),
+        coreDoc('new-soap', { deletedAt: { seconds: 5, nanoseconds: 0 } }),
+        coreDoc('mid-soap', { deletedAt: { seconds: 3, nanoseconds: 0 } }),
+      ],
+    })
+    getDoc.mockResolvedValue(catalogueDoc)
+
+    expect((await findDeletedItemByBarcode(fakeDb, core.barcode('12345678')))?.id).toBe('new-soap')
+  })
+
   it('ignores a live Item', async () => {
     const { findDeletedItemByBarcode } = await import('./items.ts')
     getDocs.mockResolvedValueOnce({ docs: [coreDoc('dish-soap', { deletedAt: undefined })] })
@@ -891,10 +905,10 @@ describe('softDeleteItem and restoreItem', () => {
   })
 
   it('restores with an edit in one batch, raising the counts of the Category and Shop it names', async () => {
-    const { restoreItem } = await import('./items.ts')
+    const { restoreItemWithEdit } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
-    await restoreItem(fakeDb, dishSoap, {
+    await restoreItemWithEdit(fakeDb, dishSoap, {
       name: 'Dish soap',
       categoryId: catalogue.categoryId('kitchen'),
       necessity: catalogue.necessitySchema.parse('important'),
@@ -920,6 +934,7 @@ describe('softDeleteItem and restoreItem', () => {
       [{ path: catalogue.CATEGORIES_COLLECTION, id: 'kitchen' }, { referenceCount: { kind: 'increment', delta: 1 } }],
       [{ path: catalogue.SHOPS_COLLECTION, id: 'market' }, { referenceCount: { kind: 'increment', delta: 1 } }],
     ])
+    expect(JSON.stringify(batchUpdate.mock.calls)).not.toContain('stateHistory')
     expect(batchCommit).toHaveBeenCalledTimes(1)
   })
 
@@ -936,5 +951,6 @@ describe('softDeleteItem and restoreItem', () => {
       [{ path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' }, { referenceCount: { kind: 'increment', delta: 1 } }],
       [{ path: catalogue.SHOPS_COLLECTION, id: 'grocery' }, { referenceCount: { kind: 'increment', delta: 1 } }],
     ])
+    expect(JSON.stringify(batchUpdate.mock.calls)).not.toContain('stateHistory')
   })
 })
