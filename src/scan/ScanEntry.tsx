@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import type { core } from 'data-platform'
 import { TopAppBarActions } from '../shell/TopAppBar.tsx'
 import { ScanButton } from './ScanButton.tsx'
@@ -12,6 +12,14 @@ export interface ScanEntryProps {
 export function ScanEntry({ onScan }: ScanEntryProps) {
   const [open, setOpen] = useState(false)
   const [failure, setFailure] = useState<typeof CAMERA_DENIED_MESSAGE | typeof CAMERA_UNAVAILABLE_MESSAGE>()
+  const [scanned, setScanned] = useState<core.Barcode>()
+  // Handed on from an effect, which runs after the scanner Dialog's layout-effect cleanup has issued its history pop, so a
+  // navigation in `onScan` finds that pop pending instead of racing it.
+  useEffect(() => {
+    if (scanned === undefined) return
+    setScanned(undefined)
+    onScan(scanned)
+  }, [scanned])
   return (
     <>
       <TopAppBarActions>
@@ -26,7 +34,7 @@ export function ScanEntry({ onScan }: ScanEntryProps) {
         open={open}
         onScan={(barcode) => {
           setOpen(false)
-          onScan(barcode)
+          setScanned(barcode)
         }}
         onDenied={() => {
           setOpen(false)

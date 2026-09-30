@@ -938,6 +938,20 @@ describe('a scanned barcode', () => {
     await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages'))
   })
 
+  it('leaves one history entry for the filter, so one Back returns to the Items screen', async () => {
+    window.location.hash = '#/items'
+    renderWith([{ ...bandages, barcodes: [scanned] }], [medicine], [pharmacy])
+
+    scan()
+    await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages'))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    history.back()
+
+    await waitFor(() => expect(window.location.hash).toBe('#/items'))
+    expect(history.state?.['ui-dialog']).toBeUndefined()
+  })
+
   it('opens the filter for every Item carrying it', async () => {
     const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape', barcodes: [scanned] }
     renderWith([{ ...bandages, barcodes: [scanned] }, tape], [medicine], [pharmacy])
