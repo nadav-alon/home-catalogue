@@ -31,7 +31,7 @@ describe('useRoute', () => {
     expect(window.history.length).toBe(entries)
   })
 
-  it('replaces a later change to an unknown hash the same way', async () => {
+  it("replaces a later change to an unknown hash with the default route's hash, keeping only the user's own entry", async () => {
     const { result } = renderHook(() => useRoute())
     window.location.hash = '#/items'
     await act(async () => {
@@ -45,6 +45,13 @@ describe('useRoute', () => {
     expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
     expect(window.history.length).toBe(entries + 1)
     expect(result.current).toBe(DEFAULT_ROUTE)
+
+    await act(async () => {
+      window.history.back()
+      await nextHashChange()
+    })
+    expect(window.location.hash).toBe('#/items')
+    expect(result.current).toBe(route('/items'))
   })
 
   it('re-renders on hashchange', async () => {
@@ -95,6 +102,7 @@ describe('navigate', () => {
     renderHook(() => useRoute())
     const entries = window.history.length
     navigate(DEFAULT_ROUTE)
+    expect(window.location.hash).toBe(hashOf(DEFAULT_ROUTE))
     expect(window.history.length).toBe(entries)
   })
 })
