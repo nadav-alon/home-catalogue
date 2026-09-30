@@ -8,10 +8,10 @@ export interface ScanEntryProps {
   onScan: (barcode: core.Barcode) => void
 }
 
-/** The Items screen's way into scanning: the icon in the top app bar, the dialog it opens, and why a scan could not start. */
+/** The Items screen's way into scanning: the icon in the top app bar, the dialog it opens, and why scanning failed. */
 export function ScanEntry({ onScan }: ScanEntryProps) {
   const [open, setOpen] = useState(false)
-  const [failure, setFailure] = useState<string>()
+  const [failure, setFailure] = useState<typeof CAMERA_DENIED_MESSAGE | typeof CAMERA_UNAVAILABLE_MESSAGE>()
   return (
     <>
       <TopAppBarActions>
