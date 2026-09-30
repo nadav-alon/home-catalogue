@@ -136,6 +136,19 @@ describe('Snackbar', () => {
     expect(status).toBeEmptyDOMElement()
   })
 
+  it('lets go of focus when the focused button is replaced by a message without one', () => {
+    vi.useFakeTimers()
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'Deleted Bandages', action: { label: 'Undo', onAction: () => {} } }))
+    act(() => screen.getByRole('button', { name: 'Undo' }).focus())
+    act(() => showSnackbar({ text: 'Saved' }))
+    expect(document.activeElement).toBe(document.body)
+    act(() => {
+      vi.advanceTimersByTime(6100)
+    })
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
+
   it('is styled only from defined tokens', () => {
     const { used, undefinedTokens } = tokenUsage('src/ui/Snackbar.css')
     expect(used.length).toBeGreaterThan(0)

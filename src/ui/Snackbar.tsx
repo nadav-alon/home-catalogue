@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { Button } from './Button.tsx'
 import { milliseconds } from './milliseconds.ts'
 import './Snackbar.css'
@@ -48,6 +48,11 @@ function hold(reason: Hold): void {
   clearTimeout(timer)
 }
 
+/** Releases the focus hold if focus is no longer inside `region`: removing the focused element moves focus to the body without a `focusout`. */
+function releaseStaleFocusHold(region: HTMLElement): void {
+  if (holds.has('focus') && !region.contains(document.activeElement)) release('focus')
+}
+
 /** Releases `reason`; once every hold is released the message gets a fresh full timeout. */
 function release(reason: Hold): void {
   if (!current) return
@@ -79,10 +84,16 @@ function watchSnackbar(listener: Listener): () => void {
 export function SnackbarHost() {
   const [message, setMessage] = useState<SnackbarMessage | null>(null)
 
+  const regionRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => watchSnackbar(setMessage), [])
+  useEffect(() => {
+    if (regionRef.current) releaseStaleFocusHold(regionRef.current)
+  }, [message])
 
   return (
     <div
+      ref={regionRef}
       class="ui-snackbar"
       role="status"
       onPointerEnter={() => hold('pointer')}
