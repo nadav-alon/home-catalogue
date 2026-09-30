@@ -31,7 +31,7 @@ export interface MembersScreenProps {
 export function MembersScreen({ db, config }: MembersScreenProps) {
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [invites, setInvites] = useState<core.Email[]>([])
-  const [sharingQr, setSharingQr] = useState<core.Email | null>(null)
+  const [qrInviteEmail, setQrInviteEmail] = useState<core.Email | null>(null)
 
   // Read once per render; safe because AuthGate only mounts this screen for a signed-in Member.
   const viewerUid = currentUserUid(db.app)
@@ -82,7 +82,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
                   <Button
                     variant="text"
                     aria-label={`Share invite for ${email}`}
-                    onClick={() => void shareInvite(config, email, setSharingQr)}
+                    onClick={() => void shareInvite(config, email, setQrInviteEmail)}
                   >
                     Share
                   </Button>
@@ -99,7 +99,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
           />
         ))}
       </ul>
-      {sharingQr !== null && <InviteQrCode config={config} email={sharingQr} />}
+      {qrInviteEmail !== null && <InviteQrCode config={config} email={qrInviteEmail} />}
     </section>
   )
 }
