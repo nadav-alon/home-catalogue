@@ -44,9 +44,9 @@ function toCategoryRecord(id: string, data: catalogue.Category): CategoryRecord 
 }
 
 /**
- * Notifies `callback` with every live Category (no `deletedAt`), ordered by name. A document failing
- * {@link catalogue.categorySchema} is skipped and logged rather than breaking the whole list.
- * Returns the unsubscribe function.
+ * Notifies `callback` with every Category that isn't soft-deleted (`deletedAt` unset), ordered by
+ * name. A document failing {@link catalogue.categorySchema} is skipped and logged rather than
+ * breaking the whole list. Returns the unsubscribe function.
  */
 export function watchCategories(
   db: Firestore,
