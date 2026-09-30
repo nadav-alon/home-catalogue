@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { createItem, findItemsByBarcode, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findItemsByBarcode, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
@@ -48,6 +48,18 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
       else navigateToItems(found.map((item) => item.id))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not look up the barcode')
+    }
+  }
+
+  async function handleAttach(item: ItemRecord) {
+    if (unknownBarcode === undefined) return
+    try {
+      await attachBarcode(db, item, unknownBarcode)
+      setError(null)
+      setUnknownBarcode(undefined)
+      navigateToItems([item.id])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not attach the barcode')
     }
   }
 
@@ -112,7 +124,12 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
       {uncategorisedItems.length > 0 && (
         <ItemGroup heading="Uncategorised" items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
-      <UnknownBarcodeChooser barcode={unknownBarcode} onClose={() => setUnknownBarcode(undefined)} />
+      <UnknownBarcodeChooser
+        barcode={unknownBarcode}
+        items={items ?? []}
+        onAttach={(item) => void handleAttach(item)}
+        onClose={() => setUnknownBarcode(undefined)}
+      />
       <Fab symbol={AddIcon} label="Add Item" onClick={() => openDialog(undefined)} />
       <ItemDialog
         open={dialog !== null}

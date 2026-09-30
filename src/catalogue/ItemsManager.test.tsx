@@ -16,6 +16,7 @@ const createItem = vi.fn()
 const setItemState = vi.fn()
 const updateItem = vi.fn()
 const findItemsByBarcode = vi.fn()
+const attachBarcode = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
@@ -23,6 +24,7 @@ vi.mock('./items.ts', async (importOriginal) => ({
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
   findItemsByBarcode: (db: unknown, barcode: unknown) => findItemsByBarcode(db, barcode),
+  attachBarcode: (db: unknown, item: unknown, barcode: unknown) => attachBarcode(db, item, barcode),
 }))
 
 const watchCategories = vi.fn()
@@ -54,6 +56,7 @@ beforeEach(() => {
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
   findItemsByBarcode.mockReset().mockResolvedValue([])
+  attachBarcode.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   createCategory.mockReset()
   watchShops.mockReset()
@@ -920,5 +923,34 @@ describe('a scanned barcode', () => {
     await waitFor(() => expect(chooser).not.toHaveAttribute('open'))
     expect(createItem).not.toHaveBeenCalled()
     expect(updateItem).not.toHaveBeenCalled()
+  })
+
+  it('attaches the barcode to the Item picked from the chooser, then opens its filter', async () => {
+    const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+    renderWith([bandages, tape], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+    fireEvent.input(within(chooser).getByRole('searchbox', { name: 'Find an Item' }), { target: { value: 'tap' } })
+    expect(within(chooser).queryByText('Bandages')).not.toBeInTheDocument()
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Tape' }))
+
+    await waitFor(() => expect(window.location.hash).toBe('#/items?item=tape'))
+    expect(attachBarcode).toHaveBeenCalledWith(fakeDb, tape, '4006381333931')
+    await waitFor(() => expect(chooser).not.toHaveAttribute('open'))
+  })
+
+  it('shows why the barcode could not be attached, and stays on the route', async () => {
+    attachBarcode.mockRejectedValue(new Error('Not a Barcode'))
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Bandages' }))
+
+    expect(await screen.findByText('Not a Barcode')).toBeInTheDocument()
+    expect(window.location.hash).toBe('')
   })
 })
