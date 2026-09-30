@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { act, cleanup, render, screen } from '@testing-library/preact'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/preact'
 import { SnackbarHost, showSnackbar } from './Snackbar.tsx'
 
 afterEach(cleanup)
@@ -10,5 +10,20 @@ describe('Snackbar', () => {
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
     act(() => showSnackbar({ text: 'Deleted Bandages' }))
     expect(screen.getByRole('status')).toHaveTextContent('Deleted Bandages')
+  })
+
+  it('shows no button without an action', () => {
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'Saved' }))
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('runs its action and disappears when the action is pressed', () => {
+    const onAction = vi.fn()
+    render(<SnackbarHost />)
+    act(() => showSnackbar({ text: 'Deleted Bandages', action: { label: 'Undo', onAction } }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(onAction).toHaveBeenCalledOnce()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 })

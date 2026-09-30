@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'preact/hooks'
+import { Button } from './Button.tsx'
 
 export interface SnackbarMessage {
   /** What happened, for example `Deleted Bandages`. */
   text: string
+  /** An optional button beside the text, for example Undo. Pressing it runs `onAction` and dismisses the snackbar. */
+  action?: { label: string; onAction: () => void }
 }
 
 type Listener = (current: SnackbarMessage | null) => void
@@ -18,6 +21,11 @@ function publish(next: SnackbarMessage | null): void {
 /** Shows `message` in the app's one snackbar, from any screen. */
 export function showSnackbar(message: SnackbarMessage): void {
   publish(message)
+}
+
+/** Dismisses the snackbar if `message` is still the one showing. */
+function dismiss(message: SnackbarMessage): void {
+  if (current === message) publish(null)
 }
 
 function watchSnackbar(listener: Listener): () => void {
@@ -40,6 +48,17 @@ export function SnackbarHost() {
   return (
     <div class="ui-snackbar" role="status">
       {message && <p class="ui-snackbar__text">{message.text}</p>}
+      {message?.action && (
+        <Button
+          variant="text"
+          onClick={() => {
+            dismiss(message)
+            message.action?.onAction()
+          }}
+        >
+          {message.action.label}
+        </Button>
+      )}
     </div>
   )
 }
