@@ -24,7 +24,7 @@ export function shopName(shops: ShopRecord[], shopId: catalogue.ShopId): string 
   return shops.find((shop) => shop.id === shopId)?.name ?? UNKNOWN_SHOP_NAME
 }
 
-/** Thrown by {@link deleteShop} while a Category still defaults to the Shop, or an Item still overrides to it. */
+/** Thrown by {@link deleteShop} when the cached `referenceCount` says the Shop is still in use. */
 export class ShopInUseError extends Error {}
 
 function toShopRecord(id: string, data: catalogue.Shop): ShopRecord {
