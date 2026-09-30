@@ -11,11 +11,13 @@ import { bandages, cleaning, grocery, medicine, pharmacy } from './testFixtures.
 const watchItems = vi.fn()
 const createItem = vi.fn()
 const setItemState = vi.fn()
+const updateItem = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
+  updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
 }))
 
 const watchCategories = vi.fn()
@@ -42,6 +44,7 @@ beforeEach(() => {
   watchItems.mockReset()
   createItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)
+  updateItem.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
 })
@@ -251,6 +254,66 @@ describe('adding an Item', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Choose a Necessity.')
     expect(createItem).not.toHaveBeenCalled()
+  })
+})
+
+describe('editing an Item', () => {
+  const waterproofBandages: ItemRecord = { ...bandages, brandNote: 'the waterproof ones', shopId: grocery.id }
+
+  function openRow(name: string) {
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${name}`) }))
+  }
+
+  it('opens the dialog prefilled from the tapped row', () => {
+    renderWith([waterproofBandages], [medicine, cleaning], [pharmacy, grocery])
+
+    openRow('Bandages')
+
+    expect(screen.getByRole('dialog', { name: 'Edit Item' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Bandages')
+    expect(screen.getByLabelText('Brand note')).toHaveValue('the waterproof ones')
+    expect(screen.getByLabelText('Category')).toHaveValue(medicine.id)
+    expect(screen.getByLabelText('Necessity')).toHaveValue('essential')
+    expect(screen.getByLabelText('Shop override')).toHaveValue(grocery.id)
+  })
+
+  it('updates that Item on save, and closes', async () => {
+    renderWith([waterproofBandages], [medicine, cleaning], [pharmacy, grocery])
+
+    openRow('Bandages')
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+    choose(screen.getByLabelText('Shop override'), '')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, waterproofBandages, {
+      name: 'Plasters',
+      brandNote: 'the waterproof ones',
+      categoryId: medicine.id,
+      necessity: 'essential',
+      shopId: undefined,
+    })
+    expect(createItem).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('does not open from the State buttons on the row', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    const group = screen.getByRole('group', { name: 'State for Bandages' })
+    fireEvent.click(within(group).getByRole('button', { name: 'out' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('opens the FAB dialog empty again after an edit', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    openRow('Bandages')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('')
   })
 })
 

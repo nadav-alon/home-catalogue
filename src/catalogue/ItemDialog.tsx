@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { catalogue } from 'data-platform'
-import type { ItemInput } from './items.ts'
+import type { ItemInput, ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
@@ -11,6 +11,8 @@ import { TextField } from '../ui/TextField.tsx'
 
 export interface ItemDialogProps {
   open: boolean
+  /** The Item being edited; without one the dialog adds an Item. */
+  item?: ItemRecord
   categories: CategoryRecord[]
   shops: ShopRecord[]
   /** Called with the validated fields when the Member saves; a rejection is shown in the dialog and keeps it open. */
@@ -52,22 +54,22 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
   }
 }
 
-/** The form for an Item's name, brand note, Category, Necessity and Shop override, in a dialog that starts empty on each open. */
-export function ItemDialog({ open, categories, shops, onSave, onClose }: ItemDialogProps) {
+/** The form for an Item's name, brand note, Category, Necessity and Shop override, in a dialog that starts from `item`, or empty, on each open. */
+export function ItemDialog({ open, item, categories, shops, onSave, onClose }: ItemDialogProps) {
   return (
-    <Dialog open={open} title="Add Item" onClose={onClose}>
-      {open && <ItemForm categories={categories} shops={shops} onSave={onSave} onClose={onClose} />}
+    <Dialog open={open} title={item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
+      {open && <ItemForm item={item} categories={categories} shops={shops} onSave={onSave} onClose={onClose} />}
     </Dialog>
   )
 }
 
-function ItemForm({ categories, shops, onSave, onClose }: Omit<ItemDialogProps, 'open'>) {
+function ItemForm({ item, categories, shops, onSave, onClose }: Omit<ItemDialogProps, 'open'>) {
   const [values, setValues] = useState<ItemFormValues>({
-    name: '',
-    brandNote: '',
-    categoryId: '',
-    necessity: '',
-    shopId: NO_SHOP_OVERRIDE,
+    name: item?.name ?? '',
+    brandNote: item?.brandNote ?? '',
+    categoryId: item?.categoryId ?? '',
+    necessity: item?.necessity ?? '',
+    shopId: item?.shopId ?? NO_SHOP_OVERRIDE,
   })
   const [error, setError] = useState<string | null>(null)
 

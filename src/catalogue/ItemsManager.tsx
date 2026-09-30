@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { createItem, setItemState, watchItems, type ItemRecord } from './items.ts'
+import { createItem, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { watchShops, type ShopRecord } from './shops.ts'
@@ -21,12 +21,18 @@ export function ItemsManager({ db }: ItemsManagerProps) {
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editing, setEditing] = useState<ItemRecord | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
 
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
+
+  function openDialog(item: ItemRecord | undefined) {
+    setEditing(item)
+    setDialogOpen(true)
+  }
 
   async function handleSetState(item: ItemRecord, state: core.State) {
     try {
@@ -58,17 +64,18 @@ export function ItemsManager({ db }: ItemsManagerProps) {
         <p>{items.length === 0 ? 'No Items yet.' : 'No Items match your search.'}</p>
       )}
       {groups.map(({ category, items: categoryItems }) => (
-        <ItemGroup key={category.id} heading={category.name} items={categoryItems} onSetState={handleSetState} />
+        <ItemGroup key={category.id} heading={category.name} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />
       ))}
       {uncategorisedItems.length > 0 && (
-        <ItemGroup heading="Uncategorised" items={uncategorisedItems} onSetState={handleSetState} />
+        <ItemGroup heading="Uncategorised" items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
-      <Fab symbol={AddIcon} label="Add Item" onClick={() => setDialogOpen(true)} />
+      <Fab symbol={AddIcon} label="Add Item" onClick={() => openDialog(undefined)} />
       <ItemDialog
         open={dialogOpen}
+        item={editing}
         categories={categories}
         shops={shops}
-        onSave={(input) => createItem(db, input)}
+        onSave={(input) => (editing ? updateItem(db, editing, input) : createItem(db, input))}
         onClose={() => setDialogOpen(false)}
       />
     </section>
@@ -79,19 +86,20 @@ interface ItemGroupProps {
   heading: string
   items: ItemRecord[]
   onSetState: (item: ItemRecord, state: core.State) => Promise<void>
+  onOpen: (item: ItemRecord) => void
 }
 
-function ItemGroup({ heading, items, onSetState }: ItemGroupProps) {
+function ItemGroup({ heading, items, onSetState, onOpen }: ItemGroupProps) {
   return (
     <div>
       <h3>{heading}</h3>
       <ul>
         {items.map((item) => (
-          // TODO[#137]: open the Item dialog on row tap.
           <ListRow
             key={item.id}
             headline={item.name}
             supporting={[item.brandNote, item.necessity].filter((part) => part !== undefined).join(' · ')}
+            onActivate={() => onOpen(item)}
             trailing={
               <SegmentedButton
                 label={`State for ${item.name}`}
