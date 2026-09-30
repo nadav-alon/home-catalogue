@@ -6,6 +6,7 @@ const TITLES: Record<Route, string> = {
   '/settings': 'Settings',
   '/settings/shops': 'Shops',
   '/settings/categories': 'Categories',
+  '/settings/members': 'Members',
 }
 
 /** The name of a route: the top app bar's title on it, and its label in the NavBar where it is a destination. */

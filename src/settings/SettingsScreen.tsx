@@ -11,6 +11,7 @@ import ChevronRightIcon from '~icons/material-symbols/chevron-right'
 
 const SHOPS = route('/settings/shops')
 const CATEGORIES = route('/settings/categories')
+const MEMBERS = route('/settings/members')
 
 export interface SettingsScreenProps {
   config: FirebaseWebConfig
@@ -25,6 +26,7 @@ export function SettingsScreen({ config, onResetConfig, onSignOut }: SettingsScr
     <ul>
       <NavigationRow to={SHOPS} />
       <NavigationRow to={CATEGORIES} />
+      <NavigationRow to={MEMBERS} />
       <li>
         <AddDeviceQrCode config={config} />
       </li>
