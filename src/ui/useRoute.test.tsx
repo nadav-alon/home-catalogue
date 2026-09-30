@@ -1,8 +1,9 @@
-import { act, renderHook } from '@testing-library/preact'
+import { act, render, renderHook } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { core } from 'data-platform'
 import { DEFAULT_ROUTE, hashOf, route } from './route.ts'
 import { navigate, navigateToItems, useItemIds, useRoute } from './useRoute.ts'
+import { Dialog } from './Dialog.tsx'
 import { resetHash } from '../testing/hash.ts'
 
 afterEach(resetHash)
@@ -118,5 +119,33 @@ describe('navigateToItems', () => {
     })
     expect(result.current).toEqual({ route: route('/items'), ids })
     expect(window.location.hash).toBe('#/items?item=a,b')
+  })
+
+  it("waits for a closing Dialog's history pop to land before pushing the filter", async () => {
+    HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+      this.setAttribute('open', '')
+    }
+    HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+      this.removeAttribute('open')
+    }
+    const back = vi.spyOn(history, 'back').mockImplementation(() => {})
+    const { rerender } = render(
+      <Dialog open title="Scan" onClose={() => {}}>
+        x
+      </Dialog>,
+    )
+    rerender(
+      <Dialog open={false} title="Scan" onClose={() => {}}>
+        x
+      </Dialog>,
+    )
+    back.mockRestore()
+    navigateToItems([core.itemId('a')])
+    expect(window.location.hash).not.toBe('#/items?item=a')
+    await act(async () => {
+      window.dispatchEvent(new PopStateEvent('popstate', { state: null }))
+      await nextHashChange()
+    })
+    expect(window.location.hash).toBe('#/items?item=a')
   })
 })

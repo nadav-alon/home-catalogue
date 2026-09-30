@@ -33,6 +33,12 @@ function popEntry() {
   history.back()
 }
 
+/** Runs `run` at once, or once the `history.back()` a closing Dialog issued has landed, so a history entry pushed by `run` is not undone by that pending traversal. */
+export function afterPendingPop(run: () => void): void {
+  if (pendingBack) void pendingBack.then(run)
+  else run()
+}
+
 /**
  * A native modal `<dialog>`: the browser traps focus and inerts the page behind it. Opening pushes a
  * history entry so back closes it; the entry is popped again when the caller closes it another way.
