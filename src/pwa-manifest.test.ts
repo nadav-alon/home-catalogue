@@ -24,6 +24,13 @@ describe('manifest', () => {
     expect(manifest.theme_color).toBe(themeColor)
   })
 
+  it("takes background_color from the light scheme's background role", () => {
+    expect(manifest.background_color).toBe('#fff8f6')
+    expect(readFileSync(fromRepo('src/ui/theme.css'), 'utf8')).toContain(
+      `--md-sys-color-background: ${manifest.background_color};`,
+    )
+  })
+
   it('carries the icon sizes Chrome requires for installability', () => {
     const sizes = manifest.icons
       ?.filter((icon) => purposesOf(icon.purpose).length === 0 || purposesOf(icon.purpose).includes('any'))
