@@ -238,7 +238,7 @@ export async function setItemState(
 
 /**
  * Every Item whose core `items` doc carries `barcode` in its `barcodes`, answered from the local
- * cache when offline. Empty when none does. Only the core half is returned, so an Item whose
+ * cache when offline. Empty when none does; a soft-deleted Item (`deletedAt` set) is not found. Only the core half is returned, so an Item whose
  * catalogue half has not synced yet is found here though {@link watchItems} does not emit it; a
  * document failing its schema is left out.
  */
@@ -249,7 +249,7 @@ export async function findItemsByBarcode(
   const snapshot = await getDocs(
     query(collection(db, core.ITEMS_COLLECTION), where('barcodes', 'array-contains', barcode)),
   )
-  return parseCoreItemDocs(snapshot.docs)
+  return parseCoreItemDocs(snapshot.docs).filter((item) => item.deletedAt === undefined)
 }
 
 /**

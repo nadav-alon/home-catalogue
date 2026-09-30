@@ -651,6 +651,23 @@ describe('findItemsByBarcode', () => {
     ])
   })
 
+  it('leaves out an Item that carries deletedAt', async () => {
+    const { findItemsByBarcode } = await import('./items.ts')
+    getDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          id: 'dish-soap',
+          data: () => ({ name: 'Dish soap', state: 'enough', barcodes: ['12345678'], deletedAt: { seconds: 1, nanoseconds: 0 } }),
+        },
+        { id: 'sponge', data: () => ({ name: 'Sponge', state: 'out', barcodes: ['12345678'] }) },
+      ],
+    })
+
+    const found = await findItemsByBarcode(fakeDb, core.barcode('12345678'))
+
+    expect(found.map((item) => item.id)).toEqual(['sponge'])
+  })
+
   it('returns an empty list when no Item carries the barcode', async () => {
     const { findItemsByBarcode } = await import('./items.ts')
     getDocs.mockResolvedValueOnce({ docs: [] })
