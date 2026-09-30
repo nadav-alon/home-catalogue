@@ -1138,6 +1138,31 @@ describe('a scanned barcode', () => {
     expect(within(dialog).queryByRole('textbox', { name: 'Barcode' })).not.toBeInTheDocument()
   })
 
+  it('issues the chooser\'s history pop before pushing the filter of the Item picked from it', async () => {
+    const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+    renderWith([bandages, tape], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+    // The scanner's pop is still in flight; the chooser pushes its entry once it lands.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+
+    const order: string[] = []
+    const back = history.back.bind(history)
+    vi.spyOn(history, 'back').mockImplementation(() => {
+      order.push('back')
+      back()
+    })
+    const onHashChange = () => order.push(window.location.hash)
+    window.addEventListener('hashchange', onHashChange)
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Tape' }))
+    await waitFor(() => expect(order).toContain('#/items?item=tape'))
+    window.removeEventListener('hashchange', onHashChange)
+
+    expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
+    expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=tape'))
+  })
+
   it('creates the Item carrying the barcode from "New Item"', async () => {
     renderWith([bandages], [medicine], [pharmacy])
     scan()

@@ -121,6 +121,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     if (unknownBarcode === undefined) return
     await attachBarcode(db, item, unknownBarcode)
     setUnknownBarcode(undefined)
+    // The chooser's Dialog issues its history pop when the render that closes it commits; navigating before that
+    // would push the filter on top of the chooser's entry.
+    await Promise.resolve()
     navigateToItems([item.id])
   }
 
