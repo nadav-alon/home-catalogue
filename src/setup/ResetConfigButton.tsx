@@ -10,6 +10,7 @@ export function ResetConfigButton({ onResetConfig }: ResetConfigButtonProps) {
   return (
     <Button
       variant="text"
+      aria-label="Reset Firebase configuration"
       onClick={() => {
         if (confirm('Reset the Firebase configuration on this device?')) void onResetConfig()
       }}

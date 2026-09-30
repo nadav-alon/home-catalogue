@@ -48,7 +48,7 @@ describe('SettingsScreen', () => {
   it('resets the Firebase configuration only after the user confirms', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
     render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
-    const reset = screen.getByRole('button', { name: 'Reset' })
+    const reset = screen.getByRole('button', { name: 'Reset Firebase configuration' })
 
     fireEvent.click(reset)
     expect(confirmSpy).toHaveBeenCalledTimes(1)

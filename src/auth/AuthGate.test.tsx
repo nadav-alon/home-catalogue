@@ -67,7 +67,7 @@ describe('AuthGate', () => {
         <p>App content</p>
       </AuthGate>,
     )
-    const reset = screen.getByRole('button', { name: 'Reset' })
+    const reset = screen.getByRole('button', { name: 'Reset Firebase configuration' })
 
     fireEvent.click(reset)
     expect(confirmSpy).toHaveBeenCalledTimes(1)
@@ -147,7 +147,7 @@ describe('AuthGate', () => {
         <p>App content</p>
       </AuthGate>,
     )
-    const reset = await screen.findByRole('button', { name: 'Reset' })
+    const reset = await screen.findByRole('button', { name: 'Reset Firebase configuration' })
 
     fireEvent.click(reset)
     expect(confirmSpy).toHaveBeenCalledTimes(1)

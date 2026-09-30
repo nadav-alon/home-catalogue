@@ -83,7 +83,7 @@ function startOnSettings() {
 
 async function resetFromSettings() {
   vi.spyOn(window, 'confirm').mockReturnValue(true)
-  fireEvent.click(await screen.findByRole('button', { name: 'Reset' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Reset Firebase configuration' }))
 }
 
 afterEach(async () => {
@@ -176,7 +176,7 @@ describe('Root', () => {
     const { unmount } = render(<Root />)
     await screen.findByRole('navigation', { name: 'Main' })
     expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Reset Firebase configuration' })).toBeNull()
     unmount()
 
     startOnSettings()
