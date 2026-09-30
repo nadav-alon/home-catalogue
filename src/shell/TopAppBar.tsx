@@ -12,17 +12,17 @@ export interface TopAppBarProps {
   children?: ComponentChildren
 }
 
-/** The page's title between a leading navigation slot and a trailing slot for the current screen's actions, and the screen below it. */
+/** The screen's title between a leading navigation slot and a trailing slot for the current screen's actions, and the screen below it. */
 export function TopAppBar({ title, children }: TopAppBarProps) {
-  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null)
   const [navigationSlot, setNavigationSlot] = useState<HTMLElement | null>(null)
   return (
-    <ActionsSlot.Provider value={slot}>
+    <ActionsSlot.Provider value={actionsSlot}>
       <NavigationSlot.Provider value={navigationSlot}>
         <header class="shell-top-bar">
           <div class="shell-top-bar__navigation" ref={setNavigationSlot} />
           <h1 class="shell-top-bar__title">{title}</h1>
-          <div class="shell-top-bar__actions" ref={setSlot} />
+          <div class="shell-top-bar__actions" ref={setActionsSlot} />
         </header>
         {children}
       </NavigationSlot.Provider>
