@@ -133,6 +133,30 @@ describe('AuthGate', () => {
     expect(signOutUser).toHaveBeenCalledWith('fake-app')
   })
 
+  it('offers Reset Firebase configuration on the non-member card, only after the user confirms', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockResolvedValue(true)
+    isHouseholdMember.mockResolvedValue(false)
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    const reset = await screen.findByRole('button', { name: 'Reset' })
+
+    fireEvent.click(reset)
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+    expect(onResetConfig).not.toHaveBeenCalled()
+
+    fireEvent.click(reset)
+    expect(onResetConfig).toHaveBeenCalledTimes(1)
+  })
+
   it('shows the app for a member, without a sign-out button', async () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)

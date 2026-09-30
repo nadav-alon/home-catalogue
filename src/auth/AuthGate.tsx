@@ -77,6 +77,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
           <p>Signed in as {state.user.email}.</p>
           <p>You are not a member of this household.</p>
           <SignOutButton app={client.app} />
+          <ResetConfigRow onResetConfig={onResetConfig} />
         </CentredCard>
       )
 
