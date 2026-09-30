@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { catalogue, type core } from 'data-platform'
 import type { ItemEdit, ItemInput, ItemRecord } from './items.ts'
-import type { CategoryRecord } from './categories.ts'
+import { validateCategoryDraft, type CategoryDraft, type CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
@@ -94,7 +94,7 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onClose }
   const [saveError, setSaveError] = useState<string | null>(null)
   const [categoryError, setCategoryError] = useState<string | null>(null)
   /** The "+ New Category" prompt: `null` while it is closed. */
-  const [categoryDraft, setCategoryDraft] = useState<{ name: string; shopId: string } | null>(null)
+  const [categoryDraft, setCategoryDraft] = useState<CategoryDraft | null>(null)
 
   function set(field: keyof ItemFormValues, value: string) {
     setValues((current) => ({ ...current, [field]: value }))
@@ -115,13 +115,11 @@ function ItemForm({ item, categories, shops, onCreateCategory, onSave, onClose }
 
   async function handleCreateCategory() {
     if (categoryDraft === null) return
-    const name = categoryDraft.name.trim()
-    const shop = shops.find((candidate) => candidate.id === categoryDraft.shopId)
-    if (name.length === 0) return setCategoryError('A Category needs a name.')
-    if (shop === undefined || !catalogue.isShopId(shop.id)) return setCategoryError('Choose a default Shop.')
+    const valid = validateCategoryDraft(categoryDraft, shops)
+    if ('error' in valid) return setCategoryError(valid.error)
     setCategoryError(null)
     try {
-      set('categoryId', await onCreateCategory(name, shop.id))
+      set('categoryId', await onCreateCategory(valid.name, valid.shopId))
       closeCategoryPrompt()
     } catch (err) {
       setCategoryError(err instanceof Error ? err.message : 'Could not add Category')
