@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import type { FirebaseClient } from '../firebase/client.ts'
 import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
-import { claimHousehold, householdExists, isHouseholdMember } from './household.ts'
+import { claimHousehold, householdExists, isHouseholdMember, joinFromInvite } from './household.ts'
 import { Button } from '../ui/Button.tsx'
 import { ResetConfigButton, type ResetConfigButtonProps } from '../setup/ResetConfigButton.tsx'
 import { CentredCard } from '../ui/CentredCard.tsx'
@@ -40,7 +40,12 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
         return
       }
       const member = await isHouseholdMember(client.db, user.uid)
-      setState(member ? { status: 'member' } : { status: 'non-member', user })
+      if (member) {
+        setState({ status: 'member' })
+        return
+      }
+      const joined = await joinFromInvite(client.db, user.uid, user.email)
+      setState(joined ? { status: 'member' } : { status: 'non-member', user })
     }
   }, [client])
 

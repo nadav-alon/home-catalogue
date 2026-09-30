@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
+import { FirebaseError } from 'firebase/app'
 import { core } from 'data-platform'
 
 const doc = vi.fn((_db: unknown, path: string) => ({ path }))
@@ -75,5 +76,60 @@ describe('claimHousehold', () => {
       { email, addedAt: { kind: 'server-timestamp' } },
     )
     expect(commit).toHaveBeenCalledOnce()
+  })
+})
+
+describe('joinFromInvite', () => {
+  const invitee = core.email('Guest@Example.com')
+
+  it('creates the members doc and deletes the invite in one batch', async () => {
+    const { joinFromInvite } = await import('./household.ts')
+    const set = vi.fn()
+    const del = vi.fn()
+    const commit = vi.fn().mockResolvedValue(undefined)
+    getDoc.mockResolvedValueOnce({ exists: () => true })
+    writeBatch.mockReturnValueOnce({ set, delete: del, commit })
+
+    await expect(joinFromInvite(fakeDb, uid, invitee)).resolves.toBe(true)
+
+    expect(doc).toHaveBeenCalledWith(fakeDb, 'invites/guest@example.com')
+    expect(set).toHaveBeenCalledWith(
+      { path: `members/${uid}` },
+      { email: invitee, addedAt: { kind: 'server-timestamp' } },
+    )
+    expect(del).toHaveBeenCalledWith({ path: 'invites/guest@example.com' })
+    expect(commit).toHaveBeenCalledOnce()
+  })
+
+  it('does nothing and returns false when there is no invite', async () => {
+    const { joinFromInvite } = await import('./household.ts')
+    getDoc.mockResolvedValueOnce({ exists: () => false })
+
+    await expect(joinFromInvite(fakeDb, uid, invitee)).resolves.toBe(false)
+    expect(writeBatch).not.toHaveBeenCalled()
+  })
+
+  it('returns false when the rules refuse the join', async () => {
+    const { joinFromInvite } = await import('./household.ts')
+    getDoc.mockResolvedValueOnce({ exists: () => true })
+    writeBatch.mockReturnValueOnce({
+      set: vi.fn(),
+      delete: vi.fn(),
+      commit: vi.fn().mockRejectedValue(new FirebaseError('permission-denied', 'denied')),
+    })
+
+    await expect(joinFromInvite(fakeDb, uid, invitee)).resolves.toBe(false)
+  })
+
+  it('rejects on a failure that is not a refusal', async () => {
+    const { joinFromInvite } = await import('./household.ts')
+    getDoc.mockResolvedValueOnce({ exists: () => true })
+    writeBatch.mockReturnValueOnce({
+      set: vi.fn(),
+      delete: vi.fn(),
+      commit: vi.fn().mockRejectedValue(new FirebaseError('unavailable', 'offline')),
+    })
+
+    await expect(joinFromInvite(fakeDb, uid, invitee)).rejects.toThrow('offline')
   })
 })
