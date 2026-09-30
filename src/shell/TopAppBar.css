@@ -23,3 +23,12 @@
   align-items: center;
   gap: var(--md-sys-spacing-1);
 }
+
+.shell-top-bar__navigation {
+  display: flex;
+  align-items: center;
+}
+
+.shell-top-bar__navigation:empty {
+  display: none;
+}
