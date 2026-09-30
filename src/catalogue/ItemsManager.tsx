@@ -122,7 +122,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     await attachBarcode(db, item, unknownBarcode)
     setUnknownBarcode(undefined)
     // The chooser's Dialog issues its history pop when the render that closes it commits; navigating before that
-    // would push the filter on top of the chooser's entry.
+    // would push the filter on top of the chooser's entry. Preact queues that re-render on a microtask, so yielding
+    // one lets it commit first; a deferred debounceRendering (timeout, rAF) would need a longer wait.
     await Promise.resolve()
     navigateToItems([item.id])
   }
