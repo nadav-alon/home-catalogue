@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import type { core } from 'data-platform'
+import { afterPendingPop } from './pendingPop.ts'
 import { DEFAULT_ROUTE, hashOf, itemIdsOf, itemsHashOf, routeIn, routeOf, type Route } from './route.ts'
 
 /** Rewrites a hash that does not name a route to the default route's hash, replacing the history entry (and keeping its state) rather than pushing one. */
@@ -39,7 +40,12 @@ export function navigate(value: Route): void {
   window.location.hash = hashOf(value)
 }
 
-/** Shows the Items screen filtered to `ids` by pushing a history entry; unfiltered when there are none. */
+/**
+ * Shows the Items screen filtered to `ids` by pushing a history entry; unfiltered when there are none.
+ * The push waits for a closing Dialog's history pop to land, so that pop cannot move back from the new entry.
+ */
 export function navigateToItems(ids: readonly core.ItemId[]): void {
-  window.location.hash = itemsHashOf(ids)
+  afterPendingPop(() => {
+    window.location.hash = itemsHashOf(ids)
+  })
 }

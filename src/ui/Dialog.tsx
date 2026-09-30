@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact'
-import { useEffect, useId, useRef } from 'preact/hooks'
+import { useId, useLayoutEffect, useRef } from 'preact/hooks'
+import { afterPendingPop, popEntry } from './pendingPop.ts'
 import './Dialog.css'
 
 export interface DialogProps {
@@ -14,24 +15,6 @@ export interface DialogProps {
 }
 
 const historyMarker = 'ui-dialog'
-
-/** Set while a `history.back()` issued here has not yet produced its `popstate`. */
-let pendingBack: Promise<void> | null = null
-
-function popEntry() {
-  const settled: Promise<void> = new Promise((resolve) => {
-    window.addEventListener(
-      'popstate',
-      () => {
-        if (pendingBack === settled) pendingBack = null
-        resolve()
-      },
-      { once: true },
-    )
-  })
-  pendingBack = settled
-  history.back()
-}
 
 /**
  * A native modal `<dialog>`: the browser traps focus and inerts the page behind it. Opening pushes a
@@ -48,7 +31,9 @@ export function Dialog({ open, title, onClose, class: className, children }: Dia
   const openRef = useRef(open)
   openRef.current = open
 
-  useEffect(() => {
+  // A layout effect, so closing issues the pop in the same commit as the render that closed it, not after paint: a navigation
+  // that follows the close at once (a resolved lookup) must already find the pop pending.
+  useLayoutEffect(() => {
     const dialog = ref.current
     if (!open || !dialog) return
     dialog.showModal()
@@ -66,8 +51,7 @@ export function Dialog({ open, title, onClose, class: className, children }: Dia
       pushed = true
       window.addEventListener('popstate', onPopState)
     }
-    if (pendingBack) void pendingBack.then(push)
-    else push()
+    afterPendingPop(push)
     return () => {
       cancelled = true
       window.removeEventListener('popstate', onPopState)
