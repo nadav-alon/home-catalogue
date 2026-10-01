@@ -27,7 +27,7 @@ type AuthGateState =
 export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   const [state, setState] = useState<AuthGateState>({ status: 'checking' })
 
-  /** Counts the lookups started and auth sign-outs seen; a lookup may set state only while it still holds the latest count. */
+  /** Counts the lookups started, sign-outs seen and unmounts; a lookup may set state only while it still holds the latest count. */
   const session = useRef(0)
 
   const resolveMembership = useCallback(
@@ -45,7 +45,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   )
 
   useEffect(() => {
-    return watchAuthState(client.app, (user) => {
+    const unwatch = watchAuthState(client.app, (user) => {
       if (user === null) {
         session.current++
         setState({ status: 'signed-out' })
@@ -53,6 +53,10 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
       }
       void resolveMembership(user)
     })
+    return () => {
+      session.current++
+      unwatch()
+    }
   }, [client, resolveMembership])
 
   switch (state.status) {

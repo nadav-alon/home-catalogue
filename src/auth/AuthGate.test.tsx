@@ -5,6 +5,18 @@ import { AuthGate } from './AuthGate.tsx'
 import type { FirebaseClient } from '../firebase/client.ts'
 import type { AuthUser } from './authClient.ts'
 
+const setGateState = vi.fn()
+vi.mock('preact/hooks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('preact/hooks')>()
+  return {
+    ...actual,
+    useState: <T,>(initial: T) => {
+      const [value, set] = actual.useState(initial)
+      return [value, (next: unknown) => (setGateState(next), set(next as never))] as const
+    },
+  }
+})
+
 const signInWithGoogle = vi.fn()
 const signOutUser = vi.fn()
 const watchAuthState = vi.fn()
@@ -407,6 +419,28 @@ describe('AuthGate', () => {
 
     expect(screen.getByText('App content')).toBeInTheDocument()
     expect(screen.queryByText('You are not a member of this household.')).not.toBeInTheDocument()
+  })
+
+  it('sets no state when the gate unmounts while a lookup is pending', async () => {
+    const reportAuth = captureAuthCallback()
+    const exists = deferred<boolean>()
+    householdExists.mockReturnValue(exists.promise)
+    isHouseholdMember.mockResolvedValue(true)
+
+    const { unmount } = render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    unmount()
+    setGateState.mockClear()
+    await act(async () => {
+      exists.resolve(true)
+      await new Promise((done) => setTimeout(done, 0))
+    })
+
+    expect(setGateState).not.toHaveBeenCalled()
   })
 
   it('unsubscribes from auth state on unmount', () => {
