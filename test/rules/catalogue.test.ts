@@ -62,18 +62,18 @@ function rulesPath(): string {
   return firestore.rules
 }
 
-/** The Shop's document as the server holds it, bypassing the rules and the client's cache. */
-async function serverDoc(id: string) {
+/** A document as the server holds it, bypassing the rules and the client's cache. */
+async function serverDoc(path: string) {
   let data: Record<string, unknown> | undefined
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    data = (await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/${id}`).get()).data()
+    data = (await context.firestore().doc(path).get()).data()
   })
   return data
 }
 
 /** Waits for a queued write to reach the server, since the Shop writes resolve before it does. */
 async function waitForServerDoc(id: string, predicate: (data: Record<string, unknown> | undefined) => boolean) {
-  await vi.waitFor(async () => expect(predicate(await serverDoc(id))).toBe(true))
+  await vi.waitFor(async () => expect(predicate(await serverDoc(`${catalogue.SHOPS_COLLECTION}/${id}`))).toBe(true))
 }
 
 beforeAll(async () => {
@@ -152,7 +152,7 @@ describe('deleteShop against the real rules', () => {
     await deleteShop(db, pharmacyRecord)
 
     await vi.waitFor(() => expect(latest).toEqual(['Could not save deleted Shop Pharmacy']))
-    const data = await serverDoc('pharmacy')
+    const data = await serverDoc(`${catalogue.SHOPS_COLLECTION}/pharmacy`)
     expect(data?.deletedAt).toBeUndefined()
   })
 })
@@ -375,15 +375,6 @@ describe('Item soft-delete and restore against the real rules', () => {
     })
   }
 
-  /** A document as the server holds it, bypassing the rules and the client's cache. */
-  async function serverData(path: string): Promise<Record<string, unknown> | undefined> {
-    let data: Record<string, unknown> | undefined
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      data = (await context.firestore().doc(path).get()).data()
-    })
-    return data
-  }
-
   async function serverStateHistory(): Promise<Record<string, unknown>[]> {
     let entries: Record<string, unknown>[] = []
     await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -400,11 +391,11 @@ describe('Item soft-delete and restore against the real rules', () => {
     await softDeleteItem(db, bandages)
     await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 0)
 
-    const coreItem = await serverData(`${core.ITEMS_COLLECTION}/bandages`)
-    const catalogueItem = await serverData(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`)
+    const coreItem = await serverDoc(`${core.ITEMS_COLLECTION}/bandages`)
+    const catalogueItem = await serverDoc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`)
     expect(coreItem?.deletedAt).toBeDefined()
     expect(catalogueItem?.deletedAt).toEqual(coreItem?.deletedAt)
-    expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
+    expect((await serverDoc(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
     expect(await serverStateHistory()).toEqual(historyBefore)
     expect(rejected()).toEqual([])
   })
@@ -418,9 +409,9 @@ describe('Item soft-delete and restore against the real rules', () => {
     await restoreItem(db, bandages, [{ id: catalogue.shopId('pharmacy') }])
     await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 1)
 
-    expect((await serverData(`${core.ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
-    expect((await serverData(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
-    expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(1)
+    expect((await serverDoc(`${core.ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
+    expect((await serverDoc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
+    expect((await serverDoc(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(1)
     expect(rejected()).toEqual([])
   })
 
@@ -444,12 +435,12 @@ describe('Item soft-delete and restore against the real rules', () => {
     })
     await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 1)
 
-    const catalogueItem = await serverData(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`)
+    const catalogueItem = await serverDoc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`)
     expect(catalogueItem?.categoryId).toBe('cleaning')
     expect(catalogueItem?.deletedAt).toBeUndefined()
-    expect((await serverData(`${core.ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
-    expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/cleaning`))?.referenceCount).toBe(1)
-    expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
+    expect((await serverDoc(`${core.ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
+    expect((await serverDoc(`${catalogue.CATEGORIES_COLLECTION}/cleaning`))?.referenceCount).toBe(1)
+    expect((await serverDoc(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
     expect(rejected()).toEqual([])
   })
 
@@ -466,9 +457,9 @@ describe('Item soft-delete and restore against the real rules', () => {
     await restoreItem(db, bandages, [{ id: catalogue.shopId('pharmacy') }])
 
     await vi.waitFor(() => expect(rejected()).toEqual(['Could not save restored Item Bandages']))
-    expect((await serverData(`${core.ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeDefined()
-    expect((await serverData(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeDefined()
-    expect((await serverData(`${catalogue.SHOPS_COLLECTION}/pharmacy`))?.referenceCount).toBe(0)
-    expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
+    expect((await serverDoc(`${core.ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeDefined()
+    expect((await serverDoc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeDefined()
+    expect((await serverDoc(`${catalogue.SHOPS_COLLECTION}/pharmacy`))?.referenceCount).toBe(0)
+    expect((await serverDoc(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
   })
 })
