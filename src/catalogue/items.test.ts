@@ -770,6 +770,13 @@ describe('findDeletedItemByBarcode', () => {
     expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
   })
 
+  it('is undefined when the cached query rejects', async () => {
+    const { findDeletedItemByBarcode } = await import('./items.ts')
+    getDocsFromCache.mockRejectedValueOnce(new Error('Failed to get documents from cache.'))
+
+    expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
+  })
+
   it('answers from the cache while the server never answers', async () => {
     const { findDeletedItemByBarcode } = await import('./items.ts')
     getDocsFromCache.mockResolvedValueOnce({ docs: [] })

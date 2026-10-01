@@ -279,10 +279,11 @@ async function queryCoreItemsByBarcode(
   db: Firestore,
   barcode: core.Barcode,
 ): Promise<(core.Item & { id: core.ItemId })[]> {
+  // A cache miss rejects, and any other failure is treated the same: no cached match, never a failed scan.
   const snapshot = await getDocsFromCache(
     query(collection(db, core.ITEMS_COLLECTION), where('barcodes', 'array-contains', barcode)),
-  )
-  return parseCoreItemDocs(snapshot.docs)
+  ).catch(() => undefined)
+  return snapshot === undefined ? [] : parseCoreItemDocs(snapshot.docs)
 }
 
 /**
@@ -311,7 +312,7 @@ export async function findDeletedItemByBarcode(db: Firestore, barcode: core.Barc
   for (const item of mostRecentFirst) {
     const catalogueSnapshot = await getDocFromCache(
       doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, item.id),
-    ).catch(() => undefined)
+    ).catch(() => undefined) // a cache miss rejects; treated as not restorable, like a failed query above
     if (catalogueSnapshot === undefined || !catalogueSnapshot.exists()) continue
     const parsed = parseCatalogueItemDoc(catalogueSnapshot)
     if (parsed === undefined) continue
