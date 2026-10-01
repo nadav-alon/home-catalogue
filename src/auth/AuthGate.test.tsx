@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FirebaseError } from 'firebase/app'
+import { core } from 'data-platform'
 import { AuthGate } from './AuthGate.tsx'
 import type { FirebaseClient } from '../firebase/client.ts'
 import type { AuthUser } from './authClient.ts'
@@ -39,6 +40,7 @@ vi.mock('./household.ts', () => ({
 
 const fakeClient = { app: 'fake-app', db: 'fake-db' } as unknown as FirebaseClient
 const user: AuthUser = { uid: 'user-1', email: 'owner@example.com' } as unknown as AuthUser
+const secondUser: AuthUser = { uid: core.uid('user-2'), email: core.email('guest@example.com') }
 const unsubscribe = vi.fn()
 const onResetConfig = vi.fn()
 
@@ -402,7 +404,6 @@ describe('AuthGate', () => {
 
   it("lets the newer user's lookup decide the state when an older user's lookup settles after it", async () => {
     const reportAuth = captureAuthCallback()
-    const secondUser = { uid: 'user-2', email: 'guest@example.com' } as unknown as AuthUser
     const firstLookup = deferred<boolean>()
     householdExists.mockReturnValueOnce(firstLookup.promise).mockResolvedValueOnce(true)
     isHouseholdMember.mockImplementation(async (_db: unknown, uid: string) => uid === secondUser.uid)
@@ -456,6 +457,68 @@ describe('AuthGate', () => {
     unmount()
     setGateState.mockClear()
     await settle(() => exists.resolve(true))
+
+    expect(setGateState).not.toHaveBeenCalled()
+  })
+
+  it('keeps the Sign in card when a pending claim resolves after auth reports signed out', async () => {
+    const reportAuth = captureAuthCallback()
+    const claim = deferred<void>()
+    householdExists.mockResolvedValue(false)
+    claimHousehold.mockReturnValue(claim.promise)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim household' }))
+    reportAuth(null)
+    await settle(() => claim.resolve())
+
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+    expect(screen.queryByText('App content')).not.toBeInTheDocument()
+  })
+
+  it("lets the newer user's lookup decide the state when an earlier user's claim resolves after it", async () => {
+    const reportAuth = captureAuthCallback()
+    const claim = deferred<void>()
+    householdExists.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    isHouseholdMember.mockResolvedValue(false)
+    claimHousehold.mockReturnValue(claim.promise)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim household' }))
+    reportAuth(secondUser)
+    expect(await screen.findByText('You are not a member of this household.')).toBeInTheDocument()
+    await settle(() => claim.resolve())
+
+    expect(screen.getByText('You are not a member of this household.')).toBeInTheDocument()
+    expect(screen.queryByText('App content')).not.toBeInTheDocument()
+  })
+
+  it('sets no state when the gate unmounts while a claim is pending', async () => {
+    const reportAuth = captureAuthCallback()
+    const claim = deferred<void>()
+    householdExists.mockResolvedValue(false)
+    claimHousehold.mockReturnValue(claim.promise)
+
+    const { unmount } = render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim household' }))
+    unmount()
+    setGateState.mockClear()
+    await settle(() => claim.resolve())
 
     expect(setGateState).not.toHaveBeenCalled()
   })
