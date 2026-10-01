@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/preact'
+import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FirebaseError } from 'firebase/app'
 import { AuthGate } from './AuthGate.tsx'
@@ -56,6 +56,27 @@ function expectResetOnlyAfterConfirm(reset: HTMLElement) {
 
   fireEvent.click(reset)
   expect(onResetConfig).toHaveBeenCalledTimes(1)
+}
+
+/** A promise the test settles by hand, to hold a lookup pending while auth state moves on. */
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
+/** Captures the callback `watchAuthState` is given, so a test can report auth changes after render. */
+function captureAuthCallback() {
+  let report!: (user: AuthUser | null) => void
+  watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    report = cb
+    return unsubscribe
+  })
+  return (next: AuthUser | null) => act(() => report(next))
 }
 
 describe('AuthGate', () => {
@@ -319,6 +340,28 @@ describe('AuthGate', () => {
 
     expect(await screen.findByText('App content')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the Sign in card when a pending lookup resolves as member after auth reports signed out', async () => {
+    const reportAuth = captureAuthCallback()
+    const exists = deferred<boolean>()
+    householdExists.mockReturnValue(exists.promise)
+    isHouseholdMember.mockResolvedValue(true)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    reportAuth(null)
+    await act(async () => {
+      exists.resolve(true)
+      await new Promise((done) => setTimeout(done, 0))
+    })
+
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+    expect(screen.queryByText('App content')).not.toBeInTheDocument()
   })
 
   it('unsubscribes from auth state on unmount', () => {

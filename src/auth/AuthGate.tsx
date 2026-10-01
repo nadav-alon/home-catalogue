@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'preact/hooks'
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import type { FirebaseClient } from '../firebase/client.ts'
 import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
@@ -27,10 +27,15 @@ type AuthGateState =
 export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   const [state, setState] = useState<AuthGateState>({ status: 'checking' })
 
+  /** Counts the auth sessions seen; a lookup may set state only while it still holds the latest count. */
+  const session = useRef(0)
+
   const resolveMembership = useCallback(
     async (user: AuthUser) => {
+      const mine = session.current
       try {
-        setState(await lookUpMembership(client, user))
+        const next = await lookUpMembership(client, user)
+        if (mine === session.current) setState(next)
       } catch (error) {
         setState(isRulesRefusal(error) ? { status: 'non-member', user } : { status: 'unreachable', user })
       }
@@ -41,6 +46,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   useEffect(() => {
     return watchAuthState(client.app, (user) => {
       if (user === null) {
+        session.current++
         setState({ status: 'signed-out' })
         return
       }
