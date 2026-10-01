@@ -27,12 +27,12 @@ type AuthGateState =
 export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   const [state, setState] = useState<AuthGateState>({ status: 'checking' })
 
-  /** Counts the auth sessions seen; a lookup may set state only while it still holds the latest count. */
+  /** Counts the lookups started and auth sign-outs seen; a lookup may set state only while it still holds the latest count. */
   const session = useRef(0)
 
   const resolveMembership = useCallback(
     async (user: AuthUser) => {
-      const mine = session.current
+      const mine = ++session.current
       try {
         const next = await lookUpMembership(client, user)
         if (mine === session.current) setState(next)

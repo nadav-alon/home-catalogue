@@ -385,6 +385,30 @@ describe('AuthGate', () => {
     expect(screen.queryByText("Couldn't reach your Household")).not.toBeInTheDocument()
   })
 
+  it("lets the newer user's lookup decide the state when an older user's lookup settles after it", async () => {
+    const reportAuth = captureAuthCallback()
+    const userB = { uid: 'user-2', email: 'guest@example.com' } as unknown as AuthUser
+    const forA = deferred<boolean>()
+    householdExists.mockReturnValueOnce(forA.promise).mockResolvedValueOnce(true)
+    isHouseholdMember.mockImplementation(async (_db: unknown, uid: string) => uid === userB.uid)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    reportAuth(userB)
+    expect(await screen.findByText('App content')).toBeInTheDocument()
+    await act(async () => {
+      forA.resolve(true)
+      await new Promise((done) => setTimeout(done, 0))
+    })
+
+    expect(screen.getByText('App content')).toBeInTheDocument()
+    expect(screen.queryByText('You are not a member of this household.')).not.toBeInTheDocument()
+  })
+
   it('unsubscribes from auth state on unmount', () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
