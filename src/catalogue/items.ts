@@ -286,16 +286,12 @@ async function queryCoreItemsByBarcode(
 }
 
 /**
- * Every Item whose core `items` doc carries `barcode` in its `barcodes`, answered from the local
- * cache when offline. Empty when none does; a soft-deleted Item (`deletedAt` set) is not found.
- * Only the core half is returned, so an Item whose catalogue half has not synced yet is found here
- * though {@link watchItems} does not emit it; a document failing its schema is left out.
+ * Every Item in `items` carrying `barcode` in its `barcodes`; empty when none does. It searches only
+ * what `watchItems` emitted, so a soft-deleted Item and an Item whose catalogue half has not synced are
+ * never matched.
  */
-export async function findItemsByBarcode(
-  db: Firestore,
-  barcode: core.Barcode,
-): Promise<(core.Item & { id: core.ItemId })[]> {
-  return (await queryCoreItemsByBarcode(db, barcode)).filter((item) => item.deletedAt === undefined)
+export function itemsWithBarcode(items: readonly ItemRecord[], barcode: core.Barcode): ItemRecord[] {
+  return items.filter((item) => item.barcodes?.includes(barcode))
 }
 
 /**

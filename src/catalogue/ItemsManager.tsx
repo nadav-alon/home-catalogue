@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, findDeletedItemByBarcode, softDeleteItem, findItemsByBarcode, matchesName, isLiveReference, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
@@ -44,6 +44,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
   const [listsLoaded, setListsLoaded] = useState({ categories: false, shops: false })
   const [error, setError] = useState<string | null>(null)
+  /** Set by a scan made before the Items arrived; shown only while they are still loading. */
+  const [scanWaiting, setScanWaiting] = useState(false)
   const [search, setSearch] = useState('')
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
   const [unknownBarcode, setUnknownBarcode] = useState<core.Barcode | undefined>(undefined)
@@ -82,10 +84,14 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   )
 
   async function handleScan(barcode: core.Barcode) {
+    if (items === undefined) {
+      setScanWaiting(true)
+      return
+    }
+    setError(null)
+    const found = itemsWithBarcode(items, barcode)
+    if (found.length > 0) return navigateToItems(found.map((item) => item.id))
     try {
-      const found = await findItemsByBarcode(db, barcode)
-      setError(null)
-      if (found.length > 0) return navigateToItems(found.map((item) => item.id))
       const deleted = await findDeletedItemByBarcode(db, barcode)
       if (deleted === undefined) setUnknownBarcode(barcode)
       else setDeletedMatch({ item: deleted, barcode })
@@ -166,6 +172,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
       <h2>Items</h2>
       <ScanEntry onScan={(barcode) => void handleScan(barcode)} />
       {error !== null && <p role="alert">{error}</p>}
+      {scanWaiting && items === undefined && <p role="status">Items are still loading, scan again in a moment</p>}
       {!scanFiltered ? (
         <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
       ) : (

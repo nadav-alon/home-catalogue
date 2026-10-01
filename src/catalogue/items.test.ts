@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import type { ItemRecord } from './items.ts'
+import { bandages, bandagesWithBarcodes } from './testFixtures.ts'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
 /** Mirrors both overloads used in items.ts: `doc(collectionRef)` generates an id; `doc(db, path, id)` targets one. */
@@ -672,56 +673,22 @@ describe('a queued Item write the server rejects', () => {
   })
 })
 
-describe('findItemsByBarcode', () => {
-  it('returns every core Item whose barcodes contain the barcode', async () => {
-    const { findItemsByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({
-      docs: [
-        { id: 'dish-soap', data: () => ({ name: 'Dish soap', state: 'enough', barcodes: ['12345678'] }) },
-        { id: 'sponge', data: () => ({ name: 'Sponge', state: 'out', barcodes: ['12345678', '1234567890123'] }) },
-      ],
-    })
+describe('itemsWithBarcode', () => {
+  const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape', barcodes: [core.barcode('12345678')] }
 
-    const found = await findItemsByBarcode(fakeDb, core.barcode('12345678'))
+  it('returns every Item carrying the barcode, leaving the others', async () => {
+    const { itemsWithBarcode } = await import('./items.ts')
 
-    expect(collection).toHaveBeenCalledWith(fakeDb, core.ITEMS_COLLECTION)
-    expect(where).toHaveBeenCalledWith('barcodes', 'array-contains', '12345678')
-    expect(found).toEqual([
-      { id: 'dish-soap', name: 'Dish soap', state: 'enough', barcodes: ['12345678'] },
-      { id: 'sponge', name: 'Sponge', state: 'out', barcodes: ['12345678', '1234567890123'] },
+    expect(itemsWithBarcode([bandages, bandagesWithBarcodes, tape], core.barcode('12345678'))).toEqual([
+      bandagesWithBarcodes,
+      tape,
     ])
   })
 
-  it('leaves out an Item that carries deletedAt', async () => {
-    const { findItemsByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({
-      docs: [
-        {
-          id: 'dish-soap',
-          data: () => ({ name: 'Dish soap', state: 'enough', barcodes: ['12345678'], deletedAt }),
-        },
-        { id: 'sponge', data: () => ({ name: 'Sponge', state: 'out', barcodes: ['12345678'] }) },
-      ],
-    })
-
-    const found = await findItemsByBarcode(fakeDb, core.barcode('12345678'))
-
-    expect(found.map((item) => item.id)).toEqual(['sponge'])
-  })
-
   it('returns an empty list when no Item carries the barcode', async () => {
-    const { findItemsByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({ docs: [] })
+    const { itemsWithBarcode } = await import('./items.ts')
 
-    expect(await findItemsByBarcode(fakeDb, core.barcode('12345678'))).toEqual([])
-  })
-
-  it('skips a document that fails its schema', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    const { findItemsByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({ docs: [{ id: 'broken', data: () => ({ name: '', state: 'nonsense' }) }] })
-
-    expect(await findItemsByBarcode(fakeDb, core.barcode('12345678'))).toEqual([])
+    expect(itemsWithBarcode([bandages, bandagesWithBarcodes], core.barcode('4006381333931'))).toEqual([])
   })
 })
 

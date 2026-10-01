@@ -19,7 +19,6 @@ const updateItem = vi.fn()
 const softDeleteItem = vi.fn()
 const restoreItem = vi.fn()
 const restoreItemWithEdit = vi.fn()
-const findItemsByBarcode = vi.fn()
 const attachBarcode = vi.fn()
 const findDeletedItemByBarcode = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
@@ -31,7 +30,6 @@ vi.mock('./items.ts', async (importOriginal) => ({
   softDeleteItem: (db: unknown, item: unknown) => softDeleteItem(db, item),
   restoreItem: (db: unknown, item: unknown) => restoreItem(db, item),
   restoreItemWithEdit: (db: unknown, item: unknown, edit: unknown) => restoreItemWithEdit(db, item, edit),
-  findItemsByBarcode: (db: unknown, barcode: unknown) => findItemsByBarcode(db, barcode),
   attachBarcode: (db: unknown, item: unknown, barcode: unknown) => attachBarcode(db, item, barcode),
   findDeletedItemByBarcode: (db: unknown, barcode: unknown) => findDeletedItemByBarcode(db, barcode),
 }))
@@ -67,7 +65,6 @@ beforeEach(() => {
   softDeleteItem.mockReset().mockResolvedValue(undefined)
   restoreItem.mockReset().mockResolvedValue(undefined)
   restoreItemWithEdit.mockReset().mockResolvedValue(undefined)
-  findItemsByBarcode.mockReset().mockResolvedValue([])
   attachBarcode.mockReset().mockResolvedValue(undefined)
   findDeletedItemByBarcode.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
@@ -76,15 +73,17 @@ beforeEach(() => {
 })
 
 function renderWith(
-  items: ItemRecord[],
+  items: ItemRecord[] | undefined,
   categories: CategoryRecord[],
   shops: ShopRecord[],
   itemIds?: readonly core.ItemId[],
   onClearFilter?: () => void,
 ) {
   let publishCategories: (categories: CategoryRecord[]) => void = () => {}
+  let publishItems: (items: ItemRecord[]) => void = () => {}
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
-    cb(items)
+    publishItems = cb
+    if (items !== undefined) cb(items)
     return vi.fn()
   })
   watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
@@ -103,6 +102,7 @@ function renderWith(
       </TopAppBar>,
     ),
     publishCategories,
+    publishItems,
   }
 }
 
@@ -931,26 +931,51 @@ describe('a scanned barcode', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Scan barcode' }))
   }
 
+  const scanned = core.barcode('4006381333931')
+
   it('opens the filter for the one Item carrying it', async () => {
-    findItemsByBarcode.mockResolvedValue([{ id: bandages.id, name: 'Bandages', state: 'enough' }])
-    renderWith([bandages], [medicine], [pharmacy])
+    renderWith([{ ...bandages, barcodes: [scanned] }], [medicine], [pharmacy])
 
     scan()
 
     await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages'))
-    expect(findItemsByBarcode).toHaveBeenCalledWith(fakeDb, '4006381333931')
+  })
+
+  it('leaves one history entry for the filter, so one Back returns to the Items screen', async () => {
+    window.location.hash = '#/items'
+    renderWith([{ ...bandages, barcodes: [scanned] }], [medicine], [pharmacy])
+
+    scan()
+    await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages'))
+    await new Promise((resolve) => setTimeout(resolve, 20))
+
+    history.back()
+
+    await waitFor(() => expect(window.location.hash).toBe('#/items'))
+    expect(history.state?.['ui-dialog']).toBeUndefined()
   })
 
   it('opens the filter for every Item carrying it', async () => {
-    findItemsByBarcode.mockResolvedValue([
-      { id: bandages.id, name: 'Bandages', state: 'enough' },
-      { id: core.itemId('tape'), name: 'Tape', state: 'enough' },
-    ])
-    renderWith([bandages], [medicine], [pharmacy])
+    const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape', barcodes: [scanned] }
+    renderWith([{ ...bandages, barcodes: [scanned] }, tape], [medicine], [pharmacy])
 
     scan()
 
     await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages,tape'))
+  })
+
+  it('asks the Member to scan again while the Items have not loaded', async () => {
+    const { publishItems } = renderWith(undefined, [medicine], [pharmacy])
+
+    scan()
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Items are still loading')
+    expect(screen.queryByRole('dialog', { name: 'Unknown barcode' })).toBeNull()
+    expect(window.location.hash).toBe('')
+
+    act(() => publishItems([bandages]))
+
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('opens the chooser naming an unknown barcode, leaving the route alone', async () => {
@@ -1054,8 +1079,7 @@ describe('a scanned barcode', () => {
   })
 
   it('does not look for a deleted Item when a live one carries the barcode', async () => {
-    findItemsByBarcode.mockResolvedValue([{ id: bandages.id, name: 'Bandages', state: 'enough' }])
-    renderWith([bandages], [medicine], [pharmacy])
+    renderWith([{ ...bandages, barcodes: [scanned] }], [medicine], [pharmacy])
 
     scan()
 
