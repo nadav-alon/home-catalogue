@@ -308,7 +308,7 @@ describe('restoreCategory', () => {
     const { restoreCategory } = await import('./categories.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
-    await restoreCategory(fakeDb, medicine)
+    await restoreCategory(fakeDb, medicine, [{ id: catalogue.shopId('pharmacy') }])
 
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' },
@@ -321,12 +321,22 @@ describe('restoreCategory', () => {
     expect(batchCommit).toHaveBeenCalled()
   })
 
+  it('refuses to restore onto a Shop that is no longer live, writing nothing and saying so in the banner', async () => {
+    const { restoreCategory } = await import('./categories.ts')
+    const latest = await rejections()
+
+    await restoreCategory(fakeDb, medicine, [{ id: catalogue.shopId('market') }])
+
+    expect(writeBatch).not.toHaveBeenCalled()
+    expect(latest()).toEqual(['Could not restore Medicine: Its default Shop has been deleted'])
+  })
+
   it('reports to the write-rejection banner when the server rejects the batch', async () => {
     const { restoreCategory } = await import('./categories.ts')
     const latest = await rejections()
     batchCommit.mockRejectedValueOnce(new Error('offline'))
 
-    await restoreCategory(fakeDb, medicine)
+    await restoreCategory(fakeDb, medicine, [{ id: catalogue.shopId('pharmacy') }])
     await vi.waitFor(() => expect(latest()).toEqual(['Could not save restored Category Medicine']))
   })
 })

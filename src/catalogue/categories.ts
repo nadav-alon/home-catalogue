@@ -13,7 +13,7 @@ import {
   type WriteBatch,
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
-import { reportWriteRejection } from './writeRejections.ts'
+import { reportFailure, reportWriteRejection } from './writeRejections.ts'
 import type { ShopRecord } from './shops.ts'
 
 export interface CategoryRecord extends catalogue.Category {
@@ -146,9 +146,19 @@ export async function deleteCategory(db: Firestore, category: CategoryRecord): P
 
 /**
  * Undoes {@link deleteCategory}: clears `deletedAt` and raises the default Shop's reference back in
- * one batch. Resolves once queued, see {@link createCategory}.
+ * one batch. Refused, writing nothing, when the default Shop is not among the live `shops`: restoring
+ * onto a soft-deleted Shop would leave the Category pointing at a hidden Shop. The refusal is reported
+ * through {@link reportFailure}. Resolves once queued, see {@link createCategory}.
  */
-export async function restoreCategory(db: Firestore, category: CategoryRecord): Promise<void> {
+export async function restoreCategory(
+  db: Firestore,
+  category: CategoryRecord,
+  shops: readonly Pick<ShopRecord, 'id'>[],
+): Promise<void> {
+  if (!shops.some((shop) => shop.id === category.defaultShopId)) {
+    reportFailure(`Could not restore ${category.name}`, new Error('Its default Shop has been deleted'))
+    return
+  }
   const batch = writeBatch(db)
   batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, category.id), { deletedAt: deleteField() })
   batch.update(doc(db, catalogue.SHOPS_COLLECTION, category.defaultShopId), { referenceCount: increment(1) })

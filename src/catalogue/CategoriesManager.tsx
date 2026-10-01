@@ -143,7 +143,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     closeDialogs()
     showSnackbar({
       text: `Deleted ${category.name}`,
-      action: { label: 'Undo', onAction: () => void restoreCategory(db, category) },
+      action: { label: 'Undo', onAction: () => void restoreCategory(db, category, shops) },
     })
   }
 
