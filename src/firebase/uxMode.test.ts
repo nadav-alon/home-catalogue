@@ -15,11 +15,10 @@ describe('uxWiring', () => {
     expect(uxWiring()?.config.projectId).toBe('demo-data-platform-local')
   })
 
-  it('keeps Firestore and Auth state in memory, so no run inherits the last run', () => {
+  it('keeps the Firestore cache in memory, so no run inherits the last run', () => {
     vi.stubEnv('MODE', 'ux')
 
     expect(uxWiring()?.localCache.kind).toBe('memory')
-    expect(uxWiring()?.authPersistence.type).toBe('NONE')
   })
 })
 
