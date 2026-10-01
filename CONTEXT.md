@@ -66,3 +66,14 @@ optional. Ticking an Item sets it `enough`. Canonical; works offline.
 **Export**:
 One tap creating one Google Calendar event per Shop with pending Items, list in the description,
 on a picked date. A read-only copy of the Shopping list.
+
+**Soft delete**:
+Deleting an Item, Category or Shop by setting its `deletedAt` rather than removing the record. The
+record is hidden everywhere and holds no reference counts.
+
+**Deleted record**:
+An Item, Category or Shop with `deletedAt` set. It can be brought back.
+
+**Undo**:
+The snackbar action that restores a record just deleted. Refused, and the failure reported, when
+the record's Category or Shop is no longer live.
