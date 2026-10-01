@@ -95,7 +95,7 @@ describe('joinFromInvite', () => {
     expect(doc).toHaveBeenCalledWith(fakeDb, 'invites/guest@example.com')
     expect(set).toHaveBeenCalledWith(
       { path: `members/${uid}` },
-      { email: invitee, addedAt: { kind: 'server-timestamp' } },
+      { email: core.email('guest@example.com'), addedAt: { kind: 'server-timestamp' } },
     )
     expect(del).toHaveBeenCalledWith({ path: 'invites/guest@example.com' })
     expect(commit).toHaveBeenCalledOnce()

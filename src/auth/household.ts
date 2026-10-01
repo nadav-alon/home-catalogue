@@ -13,9 +13,12 @@ export async function isHouseholdMember(db: Firestore, uid: core.Uid): Promise<b
   return snapshot.exists()
 }
 
-/** The Member doc's shape, shared by every writer of `members/{uid}`. */
+/**
+ * The Member doc's shape, shared by every writer of `members/{uid}`. The rules require `email` to
+ * be the caller's token email lowercased, so it is lowercased here whatever case Google reports.
+ */
 function memberDoc(email: core.Email) {
-  return { email, addedAt: serverTimestamp() }
+  return { email: core.email(email.toLowerCase()), addedAt: serverTimestamp() }
 }
 
 /** First-claim: writes `meta/household` and the claimant's `members/{uid}` doc in one batch. */
