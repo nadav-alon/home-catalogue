@@ -72,6 +72,17 @@ beforeEach(() => {
   arrayRemove.mockClear()
 })
 
+/** Starts from an empty banner state and returns the messages currently shown. */
+async function rejections() {
+  const { resetWriteRejections, watchWriteRejections } = await import('./writeRejections.ts')
+  resetWriteRejections()
+  let latest: string[] = []
+  watchWriteRejections((list) => {
+    latest = list.map((rejection) => rejection.message)
+  })
+  return () => latest
+}
+
 describe('watchItems', () => {
   it('joins core Items with their catalogue CatalogueItem, ordered by name', async () => {
     const { watchItems } = await import('./items.ts')
@@ -594,15 +605,6 @@ describe('a queued Item write the server rejects', () => {
     necessity: 'essential',
   }
 
-  async function rejections() {
-    const { watchWriteRejections } = await import('./writeRejections.ts')
-    let latest: string[] = []
-    watchWriteRejections((list) => {
-      latest = list.map((rejection) => rejection.message)
-    })
-    return () => latest
-  }
-
   beforeEach(async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const { resetWriteRejections } = await import('./writeRejections.ts')
@@ -636,7 +638,7 @@ describe('a queued Item write the server rejects', () => {
     const latest = await rejections()
     batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
 
-    await restoreItem(fakeDb, { ...dishSoap, categoryId: catalogue.categoryId('cleaning') }, [{ id: 'grocery' }])
+    await restoreItem(fakeDb, { ...dishSoap, categoryId: catalogue.categoryId('cleaning') }, [{ id: catalogue.shopId('grocery') }])
     await Promise.resolve()
 
     expect(latest()).toEqual(['Could not save restored Item Dish soap'])
@@ -920,25 +922,20 @@ describe('softDeleteItem and restoreItem', () => {
 
   it('refuses to restore onto a Shop that is no longer live, writing nothing and saying so in the banner', async () => {
     const { restoreItem } = await import('./items.ts')
-    const { watchWriteRejections, resetWriteRejections } = await import('./writeRejections.ts')
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    resetWriteRejections()
-    let latest: string[] = []
-    watchWriteRejections((list) => {
-      latest = list.map((rejection) => rejection.message)
-    })
+    const latest = await rejections()
 
-    await restoreItem(fakeDb, dishSoap, [{ id: 'market' }])
+    await restoreItem(fakeDb, dishSoap, [{ id: catalogue.shopId('market') }])
 
     expect(writeBatch).not.toHaveBeenCalled()
-    expect(latest).toEqual(['Could not restore Dish soap: Its Shop has been deleted'])
+    expect(latest()).toEqual(['Could not restore Dish soap: Its Shop has been deleted'])
   })
 
   it('restores by clearing deletedAt and raising the counts back', async () => {
     const { restoreItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
-    await restoreItem(fakeDb, dishSoap, [{ id: 'grocery' }])
+    await restoreItem(fakeDb, dishSoap, [{ id: catalogue.shopId('grocery') }])
 
     const cleared = { kind: 'deleteField' }
     expect(batchUpdate.mock.calls).toEqual([
