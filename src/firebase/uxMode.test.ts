@@ -30,10 +30,18 @@ async function bundledCode(mode: string): Promise<string> {
 
 describe('the built bundle', () => {
   it('omits the ux wiring from a production build', async () => {
-    expect(await bundledCode('production')).not.toContain('demo-data-platform-local')
+    const code = await bundledCode('production')
+
+    expect(code).not.toContain('demo-data-platform-local')
+    expect(code).not.toContain('8090')
+    expect(code).not.toContain('9099')
   }, 60_000)
 
   it('includes the ux wiring from a ux build', async () => {
-    expect(await bundledCode('ux')).toContain('demo-data-platform-local')
+    const code = await bundledCode('ux')
+
+    expect(code).toContain('demo-data-platform-local')
+    expect(code).toContain('8090')
+    expect(code).toContain('9099')
   }, 60_000)
 })
