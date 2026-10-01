@@ -309,7 +309,7 @@ describe('ticking an Item', () => {
     expect(screen.getByText('Could not update State')).toHaveAttribute('role', 'alert')
   })
 
-  it.each(['running low', 'out'] as const)('offers Undo that restores %s', (state) => {
+  it.each(['running low', 'out'] as const)('offers Undo that reverts the tick to %s', (state) => {
     const bandages: ItemRecord = {
       id: core.itemId('bandages'),
       name: 'Bandages',
