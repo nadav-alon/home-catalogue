@@ -371,4 +371,17 @@ describe('Root in ux mode', () => {
     expect(screen.queryByRole('heading', { name: 'Set up' })).not.toBeInTheDocument()
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
   })
+
+  it('shows no platform banner when the scenario seeds this release’s platform version', async () => {
+    const actual = await vi.importActual<typeof import('data-platform')>('data-platform')
+    vi.stubEnv('MODE', 'ux')
+    readDeployedPlatformVersion.mockResolvedValue(actual.core.PLATFORM_VERSION)
+    checkPlatform.mockImplementation(actual.core.checkPlatform)
+
+    render(<Root />)
+
+    await waitFor(() => expect(checkPlatform).toHaveBeenCalledWith(actual.core.PLATFORM_VERSION))
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
 })
