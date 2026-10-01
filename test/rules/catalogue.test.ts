@@ -11,6 +11,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { deleteShop, restoreShop } from '../../src/catalogue/shops.ts'
+import { softDeleteItem, type ItemRecord } from '../../src/catalogue/items.ts'
 import { resetWriteRejections, watchWriteRejections } from '../../src/catalogue/writeRejections.ts'
 import { useRejectedMessages } from './rejectedMessages.ts'
 import { CategoryInUseError, deleteCategory, restoreCategory, type CategoryRecord } from '../../src/catalogue/categories.ts'
@@ -344,5 +345,67 @@ describe('CatalogueItem writes against the real rules', () => {
         necessity: 'essential',
       }),
     )
+  })
+})
+
+describe('Item soft-delete and restore against the real rules', () => {
+  const bandages: ItemRecord = {
+    id: core.itemId('bandages'),
+    name: 'Bandages',
+    state: 'enough',
+    categoryId: catalogue.categoryId('medicine'),
+    necessity: 'essential',
+    shopId: catalogue.shopId('pharmacy'),
+  }
+  const stateHistoryPath = core.stateHistoryCollectionPath(bandages.id)
+
+  /** Seeds a live `bandages` Item in Medicine with a Pharmacy override, plus one `stateHistory` entry, bypassing rules. */
+  async function seedBandages(): Promise<void> {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const firestore = context.firestore()
+      await firestore.doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({ name: 'Pharmacy', referenceCount: 1 })
+      await firestore
+        .doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`)
+        .set({ name: 'Medicine', defaultShopId: 'pharmacy', referenceCount: 1 })
+      await firestore.doc(`${core.ITEMS_COLLECTION}/bandages`).set({ name: 'Bandages', state: 'enough' })
+      await firestore
+        .doc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`)
+        .set({ categoryId: 'medicine', necessity: 'essential', shopId: 'pharmacy' })
+      await firestore.collection(stateHistoryPath).doc('entry').set({ state: 'enough', at: new Date() })
+    })
+  }
+
+  /** A document as the server holds it, bypassing the rules and the client's cache. */
+  async function serverData(path: string): Promise<Record<string, unknown> | undefined> {
+    let data: Record<string, unknown> | undefined
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      data = (await context.firestore().doc(path).get()).data()
+    })
+    return data
+  }
+
+  async function serverStateHistory(): Promise<Record<string, unknown>[]> {
+    let entries: Record<string, unknown>[] = []
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      entries = (await context.firestore().collection(stateHistoryPath).get()).docs.map((entry) => entry.data())
+    })
+    return entries
+  }
+
+  it("soft-deletes an Item with one shared deletedAt and lowers its Category's and Shop's referenceCount by 1, leaving stateHistory alone", async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await seedBandages()
+    const historyBefore = await serverStateHistory()
+
+    await softDeleteItem(db, bandages)
+    await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 0)
+
+    const coreItem = await serverData(`${core.ITEMS_COLLECTION}/bandages`)
+    const catalogueItem = await serverData(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`)
+    expect(coreItem?.deletedAt).toBeDefined()
+    expect(catalogueItem?.deletedAt).toEqual(coreItem?.deletedAt)
+    expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
+    expect(await serverStateHistory()).toEqual(historyBefore)
+    expect(rejected()).toEqual([])
   })
 })
