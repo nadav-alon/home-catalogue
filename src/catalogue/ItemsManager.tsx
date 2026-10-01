@@ -107,7 +107,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     if (!isLiveReference(categories, item.categoryId) || !isLiveReference(shops, item.shopId)) {
       return setDialog({ kind: 'restore', item })
     }
-    await restoreItem(db, item)
+    await restoreItem(db, item, shops)
     navigateToItems([item.id])
   }
 
@@ -139,7 +139,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
 
   function handleDelete(item: ItemRecord) {
     void softDeleteItem(db, item)
-    showSnackbar({ text: `Deleted ${item.name}`, action: { label: 'Undo', onAction: () => void restoreItem(db, item) } })
+    showSnackbar({ text: `Deleted ${item.name}`, action: { label: 'Undo', onAction: () => void restoreItem(db, item, shops) } })
   }
 
   // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.
