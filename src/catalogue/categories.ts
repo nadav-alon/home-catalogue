@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { reportFailure, reportWriteRejection } from './writeRejections.ts'
+import { isLiveReference } from './items.ts'
 import type { ShopRecord } from './shops.ts'
 
 export interface CategoryRecord extends catalogue.Category {
@@ -155,7 +156,7 @@ export async function restoreCategory(
   category: CategoryRecord,
   shops: readonly Pick<ShopRecord, 'id'>[],
 ): Promise<void> {
-  if (!shops.some((shop) => shop.id === category.defaultShopId)) {
+  if (!isLiveReference(shops, category.defaultShopId)) {
     reportFailure(`Could not restore ${category.name}`, new Error('Its default Shop has been deleted'))
     return
   }
