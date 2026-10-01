@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { firebaseWebConfig } from './webConfig.ts'
 
 const initializeApp = vi.fn((_config: unknown) => ({ name: 'fake-app' }))
@@ -6,10 +6,16 @@ const deleteApp = vi.fn((_app: unknown) => Promise.resolve())
 const initializeFirestore = vi.fn((_app: unknown, _settings: unknown) => ({ type: 'fake-firestore' }))
 const persistentLocalCache = vi.fn(() => ({ kind: 'persistent' }))
 const terminate = vi.fn((_db: unknown) => Promise.resolve())
+const connectLocal = vi.fn((_app: unknown) => undefined)
 
 vi.mock('firebase/app', () => ({
   initializeApp: (config: unknown) => initializeApp(config),
   deleteApp: (app: unknown) => deleteApp(app),
+}))
+
+vi.mock('data-platform/local', () => ({
+  connectLocal: (app: unknown) => connectLocal(app),
+  LOCAL_PROJECT_ID: 'demo-data-platform-local',
 }))
 
 vi.mock('firebase/firestore', () => ({
@@ -76,5 +82,32 @@ describe('terminateFirebase', () => {
     expect(terminate).toHaveBeenCalledWith(client.db)
     expect(deleteApp).toHaveBeenCalledWith(client.app)
     expect(calls).toEqual(['terminate', 'deleteApp'])
+  })
+})
+
+describe('initFirebase in ux mode', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('points the app at the local emulators after creating Firestore', async () => {
+    vi.stubEnv('MODE', 'ux')
+    const { initFirebase } = await import('./client.ts')
+    const fakeApp = { name: 'fake-app' }
+    initializeApp.mockReturnValueOnce(fakeApp)
+    connectLocal.mockClear()
+    initializeFirestore.mockClear()
+
+    initFirebase(config)
+
+    expect(connectLocal).toHaveBeenCalledWith(fakeApp)
+    expect(initializeFirestore.mock.invocationCallOrder[0]).toBeLessThan(connectLocal.mock.invocationCallOrder[0])
+  })
+
+  it('never connects to the emulators outside ux mode', async () => {
+    const { initFirebase } = await import('./client.ts')
+    connectLocal.mockClear()
+
+    initFirebase(config)
+
+    expect(connectLocal).not.toHaveBeenCalled()
   })
 })
