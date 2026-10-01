@@ -80,6 +80,7 @@ function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: ()
   if (client === null) return null
 
   const resetConfig = async () => {
+    if (uxWiring() !== null) return
     await terminateFirebase(client)
     clearFirebaseConfig()
     onReset()
