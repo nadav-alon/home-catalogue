@@ -11,7 +11,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { deleteShop, restoreShop } from '../../src/catalogue/shops.ts'
-import { restoreItem, softDeleteItem, type ItemRecord } from '../../src/catalogue/items.ts'
+import { restoreItem, restoreItemWithEdit, softDeleteItem, type ItemRecord } from '../../src/catalogue/items.ts'
 import { resetWriteRejections, watchWriteRejections } from '../../src/catalogue/writeRejections.ts'
 import { useRejectedMessages } from './rejectedMessages.ts'
 import { CategoryInUseError, deleteCategory, restoreCategory, type CategoryRecord } from '../../src/catalogue/categories.ts'
@@ -421,6 +421,35 @@ describe('Item soft-delete and restore against the real rules', () => {
     expect((await serverData(`${core.ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
     expect((await serverData(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
     expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(1)
+    expect(rejected()).toEqual([])
+  })
+
+  it("restores a soft-deleted Item into a different live Category, raising only the new Category's referenceCount", async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await seedBandages()
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context
+        .firestore()
+        .doc(`${catalogue.CATEGORIES_COLLECTION}/cleaning`)
+        .set({ name: 'Cleaning', defaultShopId: 'pharmacy', referenceCount: 0 })
+    })
+    await softDeleteItem(db, bandages)
+    await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 0)
+
+    await restoreItemWithEdit(db, bandages, {
+      name: bandages.name,
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: bandages.necessity,
+      shopId: bandages.shopId,
+    })
+    await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 1)
+
+    const catalogueItem = await serverData(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`)
+    expect(catalogueItem?.categoryId).toBe('cleaning')
+    expect(catalogueItem?.deletedAt).toBeUndefined()
+    expect((await serverData(`${core.ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
+    expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/cleaning`))?.referenceCount).toBe(1)
+    expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
     expect(rejected()).toEqual([])
   })
 })
