@@ -27,6 +27,8 @@ const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
 const where = vi.fn((field: string, op: string, value: unknown) => ({ kind: 'where', field, op, value }))
 const getDocsFromCache = vi.fn()
 const getDocFromCache = vi.fn()
+const getDocs = vi.fn((_q: unknown) => new Promise<never>(() => {}))
+const getDoc = vi.fn((_ref: unknown) => new Promise<never>(() => {}))
 const updateDoc = vi.fn()
 const arrayRemove = vi.fn((...values: unknown[]) => ({ kind: 'arrayRemove', values }))
 const arrayUnion = vi.fn((...values: unknown[]) => ({ kind: 'arrayUnion', values }))
@@ -44,6 +46,8 @@ vi.mock('firebase/firestore', () => ({
   where: (field: string, op: string, value: unknown) => where(field, op, value),
   getDocsFromCache: (q: unknown) => getDocsFromCache(q),
   getDocFromCache: (ref: unknown) => getDocFromCache(ref),
+  getDocs: (q: unknown) => getDocs(q),
+  getDoc: (ref: unknown) => getDoc(ref),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
   arrayUnion: (...values: unknown[]) => arrayUnion(...values),
   arrayRemove: (...values: unknown[]) => arrayRemove(...values),
@@ -67,6 +71,8 @@ beforeEach(() => {
   where.mockClear()
   getDocsFromCache.mockReset()
   getDocFromCache.mockReset()
+  getDocs.mockClear()
+  getDoc.mockClear()
   updateDoc.mockReset()
   arrayUnion.mockClear()
   arrayRemove.mockClear()
@@ -762,6 +768,15 @@ describe('findDeletedItemByBarcode', () => {
     getDocFromCache.mockRejectedValueOnce(new Error('Failed to get document from cache.'))
 
     expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
+  })
+
+  it('answers from the cache while the server never answers', async () => {
+    const { findDeletedItemByBarcode } = await import('./items.ts')
+    getDocsFromCache.mockResolvedValueOnce({ docs: [] })
+
+    expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
+    expect(getDocs).not.toHaveBeenCalled()
+    expect(getDoc).not.toHaveBeenCalled()
   })
 })
 
