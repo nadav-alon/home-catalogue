@@ -11,7 +11,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { deleteShop, restoreShop } from '../../src/catalogue/shops.ts'
-import { softDeleteItem, type ItemRecord } from '../../src/catalogue/items.ts'
+import { restoreItem, softDeleteItem, type ItemRecord } from '../../src/catalogue/items.ts'
 import { resetWriteRejections, watchWriteRejections } from '../../src/catalogue/writeRejections.ts'
 import { useRejectedMessages } from './rejectedMessages.ts'
 import { CategoryInUseError, deleteCategory, restoreCategory, type CategoryRecord } from '../../src/catalogue/categories.ts'
@@ -406,6 +406,21 @@ describe('Item soft-delete and restore against the real rules', () => {
     expect(catalogueItem?.deletedAt).toEqual(coreItem?.deletedAt)
     expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
     expect(await serverStateHistory()).toEqual(historyBefore)
+    expect(rejected()).toEqual([])
+  })
+
+  it("restores a soft-deleted Item, clearing deletedAt on both docs and raising its Category's and Shop's referenceCount by 1", async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await seedBandages()
+    await softDeleteItem(db, bandages)
+    await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 0)
+
+    await restoreItem(db, bandages, [{ id: catalogue.shopId('pharmacy') }])
+    await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 1)
+
+    expect((await serverData(`${core.ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
+    expect((await serverData(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeUndefined()
+    expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(1)
     expect(rejected()).toEqual([])
   })
 })
