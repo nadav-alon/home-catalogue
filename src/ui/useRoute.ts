@@ -42,12 +42,13 @@ export function navigate(value: Route): void {
 
 /**
  * Shows the Items screen filtered to `ids` by pushing a history entry; unfiltered when there are none.
- * The push waits for a closing Dialog's history pop to land, so that pop cannot move back from the new entry.
- * A Dialog closed earlier in the same tick issues its pop when Preact commits the re-render that closes it, which
- * Preact queues on a microtask, so the wait starts one microtask later; a deferred debounceRendering (timeout, rAF)
- * would need a longer one.
+ * A Dialog closed earlier in the same tick has its history pop issued, and landed, before the push, so that pop
+ * cannot move back from the new entry. The push is always asynchronous: the hash never changes before this returns.
  */
 export function navigateToItems(ids: readonly core.ItemId[]): void {
+  // A Dialog closed in this tick issues its pop when Preact commits the re-render that closes it, which Preact queues
+  // on a microtask, so the wait starts one microtask later; a deferred debounceRendering (timeout, rAF) would need a
+  // longer one.
   void Promise.resolve().then(() =>
     afterPendingPop(() => {
       window.location.hash = itemsHashOf(ids)
