@@ -254,13 +254,7 @@ describe('deleteCategory against the real rules', () => {
 describe('CatalogueItem writes against the real rules', () => {
   it('accepts a new CatalogueItem that bumps its Category in the same batch', async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
-        name: 'Medicine',
-        defaultShopId: 'pharmacy',
-        referenceCount: 0,
-      })
-    })
+    await seedPharmacyAndMedicine({ shopReferences: 1, categoryReferences: 0 })
 
     const batch = writeBatch(db)
     batch.set(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, 'bandages'), {
@@ -292,12 +286,8 @@ describe('CatalogueItem writes against the real rules', () => {
 
   it('moves the Category referenceCount by one each way when a CatalogueItem changes Category', async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
+    await seedPharmacyAndMedicine({ shopReferences: 2, categoryReferences: 1 })
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`).set({
-        name: 'Medicine',
-        defaultShopId: 'pharmacy',
-        referenceCount: 1,
-      })
       await context.firestore().doc(`${catalogue.CATEGORIES_COLLECTION}/cleaning`).set({
         name: 'Cleaning',
         defaultShopId: 'pharmacy',
