@@ -461,8 +461,10 @@ describe('editing an Item', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Deleted Bandages')
     expect(restoreItem).not.toHaveBeenCalled()
+    const hashBeforeUndo = window.location.hash
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(restoreItem).toHaveBeenCalledWith(fakeDb, waterproofBandages, [pharmacy, grocery])
+    expect(window.location.hash).toBe(hashBeforeUndo)
   })
 
   it('hands Undo the Shops as they are when it is pressed, not when the Item was deleted', () => {
