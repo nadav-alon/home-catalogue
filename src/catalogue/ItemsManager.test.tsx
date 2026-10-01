@@ -73,6 +73,19 @@ beforeEach(() => {
   watchShops.mockReset()
 })
 
+/** Records `history.back` calls and hash changes in the order they happen; call `stop` to detach. */
+function recordHistoryOrder() {
+  const order: string[] = []
+  const back = history.back.bind(history)
+  vi.spyOn(history, 'back').mockImplementation(() => {
+    order.push('back')
+    back()
+  })
+  const onHashChange = () => order.push(window.location.hash)
+  window.addEventListener('hashchange', onHashChange)
+  return { order, stop: () => window.removeEventListener('hashchange', onHashChange) }
+}
+
 function renderWith(
   items: ItemRecord[] | undefined,
   categories: CategoryRecord[],
@@ -1061,21 +1074,18 @@ describe('a scanned barcode', () => {
     choose(within(dialog).getByLabelText('Category'), cleaning.id)
     // Let the dialog's own history push land before recording.
     await new Promise((resolve) => setTimeout(resolve, 50))
-    const order: string[] = []
-    const back = history.back.bind(history)
-    vi.spyOn(history, 'back').mockImplementation(() => {
-      order.push('back')
-      back()
-    })
-    const onHashChange = () => order.push(window.location.hash)
-    window.addEventListener('hashchange', onHashChange)
+    const { order, stop } = recordHistoryOrder()
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
-
-    await waitFor(() => expect(order).toContain('#/items?item=bandages'))
-    window.removeEventListener('hashchange', onHashChange)
+    try {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(() => expect(order).toContain('#/items?item=bandages'))
+    } finally {
+      stop()
+    }
     expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
     expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=bandages'))
+    expect(screen.queryByRole('dialog', { name: 'Restore Item' })).not.toBeInTheDocument()
+    expect(window.location.hash).toBe('#/items?item=bandages')
   })
 
   it('opens the Item dialog on Yes when the deleted Item\'s Shop override is gone', async () => {
@@ -1192,19 +1202,12 @@ describe('a scanned barcode', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
     fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
 
-    const order: string[] = []
-    const back = history.back.bind(history)
-    vi.spyOn(history, 'back').mockImplementation(() => {
-      order.push('back')
-      back()
-    })
-    const onHashChange = () => order.push(window.location.hash)
-    window.addEventListener('hashchange', onHashChange)
+    const { order, stop } = recordHistoryOrder()
     try {
       fireEvent.click(within(chooser).getByRole('button', { name: 'Tape' }))
       await waitFor(() => expect(order).toContain('#/items?item=tape'))
     } finally {
-      window.removeEventListener('hashchange', onHashChange)
+      stop()
     }
 
     expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
@@ -1260,19 +1263,14 @@ describe('a scanned barcode', () => {
     choose(within(dialog).getByLabelText('Necessity'), 'essential')
     // Let the dialog's own history push land before recording.
     await new Promise((resolve) => setTimeout(resolve, 50))
-    const order: string[] = []
-    const back = history.back.bind(history)
-    vi.spyOn(history, 'back').mockImplementation(() => {
-      order.push('back')
-      back()
-    })
-    const onHashChange = () => order.push(window.location.hash)
-    window.addEventListener('hashchange', onHashChange)
+    const { order, stop } = recordHistoryOrder()
 
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
-
-    await waitFor(() => expect(order).toContain('#/items?item=dish-soap'))
-    window.removeEventListener('hashchange', onHashChange)
+    try {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+      await waitFor(() => expect(order).toContain('#/items?item=dish-soap'))
+    } finally {
+      stop()
+    }
     expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
     expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=dish-soap'))
   })
