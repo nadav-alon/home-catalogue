@@ -364,6 +364,27 @@ describe('AuthGate', () => {
     expect(screen.queryByText('App content')).not.toBeInTheDocument()
   })
 
+  it('keeps the Sign in card when a pending lookup rejects after auth reports signed out', async () => {
+    const reportAuth = captureAuthCallback()
+    const exists = deferred<boolean>()
+    householdExists.mockReturnValue(exists.promise)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    reportAuth(null)
+    await act(async () => {
+      exists.reject(new Error('unavailable'))
+      await new Promise((done) => setTimeout(done, 0))
+    })
+
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+    expect(screen.queryByText("Couldn't reach your Household")).not.toBeInTheDocument()
+  })
+
   it('unsubscribes from auth state on unmount', () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)

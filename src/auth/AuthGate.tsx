@@ -37,6 +37,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
         const next = await lookUpMembership(client, user)
         if (mine === session.current) setState(next)
       } catch (error) {
+        if (mine !== session.current) return
         setState(isRulesRefusal(error) ? { status: 'non-member', user } : { status: 'unreachable', user })
       }
     },
