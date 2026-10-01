@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Root } from './root.tsx'
 import { saveFirebaseConfig } from './firebase/configStorage.ts'
 import { deviceTransferUrl } from './firebase/deviceTransfer.ts'
+import { uxWiring } from './firebase/uxMode.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 import { resetHash } from './testing/hash.ts'
 import type { AuthUser } from './auth/authClient.ts'
@@ -354,5 +355,20 @@ describe('Root with a device transfer fragment in the URL', () => {
     expect(initFirebase).toHaveBeenCalledWith(validConfig)
     expect(setItemSpy).not.toHaveBeenCalled()
     expect(location.hash).toBe('')
+  })
+})
+
+describe('Root in ux mode', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('skips setup and initialises Firebase from the demo config, ignoring a stored one', async () => {
+    vi.stubEnv('MODE', 'ux')
+    saveFirebaseConfig(validConfig)
+
+    render(<Root />)
+
+    expect(initFirebase).toHaveBeenCalledWith(uxWiring()!.config)
+    expect(screen.queryByRole('heading', { name: 'Set up' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
   })
 })
