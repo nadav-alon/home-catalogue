@@ -8,6 +8,7 @@ import { clearFirebaseConfig, getStoredFirebaseConfig, saveFirebaseConfig } from
 import { initFirebase, terminateFirebase, type FirebaseClient } from './firebase/client.ts'
 import { parseConfigFragment } from './firebase/deviceTransfer.ts'
 import { InvalidFirebaseWebConfigError, sameFirebaseWebConfig, type FirebaseWebConfig } from './firebase/webConfig.ts'
+import { uxWiring } from './firebase/uxMode.ts'
 import { readDeployedPlatformVersion } from './platform/readDeployedPlatformVersion.ts'
 import { PlatformBanner } from './platform/PlatformBanner.tsx'
 
@@ -19,9 +20,13 @@ interface RootState {
 /**
  * Resolves a `#config=` fragment left by a device transfer QR code, if any, against whatever is
  * already stored: saves it and strips the fragment, asking first when it would replace a
- * different stored config. Runs once, synchronously, before the first paint.
+ * different stored config. In ux mode the demo config is used and storage is never read. Runs
+ * once, synchronously, before the first paint.
  */
 function resolveInitialState(): RootState {
+  const ux = uxWiring()
+  if (ux !== null) return { config: ux.config, setupError: null }
+
   const stored = getStoredFirebaseConfig()
 
   let incoming: FirebaseWebConfig | null

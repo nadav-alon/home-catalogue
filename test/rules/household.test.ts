@@ -103,7 +103,7 @@ describe('isHouseholdMember against the real rules', () => {
 
 describe('claimHousehold against the real rules', () => {
   it('lets a signed-in non-member claim an unclaimed household', async () => {
-    const db = dbFor(testEnv.authenticatedContext(alice))
+    const db = dbFor(testEnv.authenticatedContext(alice, { email: 'alice@example.com', email_verified: true }))
 
     await claimHousehold(db, alice, core.email('alice@example.com'))
 
