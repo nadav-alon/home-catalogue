@@ -562,9 +562,9 @@ describe('updateItem', () => {
       expect(batchCommit).toHaveBeenCalledTimes(1)
     })
 
-    it('does not write the override when the Category move is rejected', async () => {
+    it('queues both batches without waiting for the server to acknowledge the Category move', async () => {
       const { updateItem } = await import('./items.ts')
-      batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+      batchCommit.mockReturnValue(new Promise(() => {}))
 
       await updateItem(
         fakeDb,
@@ -572,9 +572,40 @@ describe('updateItem', () => {
         { name: noOverride.name, categoryId: catalogue.categoryId('kitchen'), necessity, shopId: grocery },
         sharing,
       )
-      await new Promise((resolve) => setTimeout(resolve, 0))
 
-      expect(batchCommit).toHaveBeenCalledTimes(1)
+      expect(batchCommit).toHaveBeenCalledTimes(2)
+    })
+
+    it('shows one banner per rejected batch', async () => {
+      const { updateItem } = await import('./items.ts')
+      const messages = await rejections()
+      batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+      batchCommit.mockResolvedValueOnce(undefined)
+
+      await updateItem(
+        fakeDb,
+        noOverride,
+        { name: noOverride.name, categoryId: catalogue.categoryId('kitchen'), necessity, shopId: grocery },
+        sharing,
+      )
+
+      await vi.waitFor(() => expect(messages()).toHaveLength(1))
+      expect(messages()[0]).toContain('Could not save changes to Dish soap')
+    })
+
+    it('refuses an invalid override before writing either batch', async () => {
+      const { updateItem } = await import('./items.ts')
+
+      await expect(
+        updateItem(
+          fakeDb,
+          noOverride,
+          { name: noOverride.name, categoryId: catalogue.categoryId('kitchen'), necessity, shopId: '' as catalogue.ShopId },
+          sharing,
+        ),
+      ).rejects.toThrow()
+
+      expect(batchCommit).not.toHaveBeenCalled()
     })
   })
 
