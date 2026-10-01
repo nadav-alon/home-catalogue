@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { ShoppingList } from './ShoppingList.tsx'
+import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
@@ -34,6 +35,7 @@ beforeEach(() => {
   setItemState.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
+  resetSnackbar()
 })
 
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
@@ -305,5 +307,27 @@ describe('ticking an Item', () => {
     })
 
     expect(screen.getByText('Could not update State')).toHaveAttribute('role', 'alert')
+  })
+
+  it.each(['running low', 'out'] as const)('offers Undo that restores %s', (state) => {
+    const bandages: ItemRecord = {
+      id: core.itemId('bandages'),
+      name: 'Bandages',
+      state,
+      categoryId: medicine.id,
+      necessity: 'essential',
+    }
+    renderWith([bandages], [medicine], [pharmacy])
+    render(<SnackbarHost />)
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Bandages/ }))
+
+    const region = screen.getByRole('status')
+    expect(within(region).getByText('Marked Bandages enough')).toBeInTheDocument()
+    setItemState.mockClear()
+
+    fireEvent.click(within(region).getByRole('button', { name: 'Undo' }))
+
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, state)
   })
 })

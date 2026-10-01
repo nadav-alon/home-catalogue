@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
+import type { core } from 'data-platform'
 import { setItemState, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 import { AlertBanner } from './AlertBanner.tsx'
 import { CalendarExport } from '../export/CalendarExport.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
+import { showSnackbar } from '../ui/Snackbar.tsx'
 import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
 
 export interface ShoppingListProps {
@@ -28,13 +30,21 @@ export function ShoppingList({ db }: ShoppingListProps) {
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
 
-  async function handleTick(item: ItemRecord) {
+  async function handleSetState(item: ItemRecord, state: core.State) {
     try {
-      await setItemState(db, item, 'enough')
+      await setItemState(db, item, state)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update State')
     }
+  }
+
+  function handleTick(item: ItemRecord) {
+    void handleSetState(item, 'enough')
+    showSnackbar({
+      text: `Marked ${item.name} enough`,
+      action: { label: 'Undo', onAction: () => void handleSetState(item, item.state) },
+    })
   }
 
   const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops)
@@ -58,7 +68,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
           <h2>{name}</h2>
           <ul>
             {groupItems.map((item) => (
-              <ShoppingListRow key={item.id} item={item} onTick={() => void handleTick(item)} />
+              <ShoppingListRow key={item.id} item={item} onTick={() => handleTick(item)} />
             ))}
           </ul>
         </div>
