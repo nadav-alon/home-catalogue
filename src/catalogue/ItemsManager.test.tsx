@@ -491,6 +491,28 @@ describe('editing an Item', () => {
     expect(restoreItem).toHaveBeenCalledWith(fakeDb, waterproofBandages, [medicine, cleaning], [grocery])
   })
 
+  it('does not hand Undo a Category list that has not loaded as if every Category were deleted', () => {
+    watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
+      cb([waterproofBandages])
+      return vi.fn()
+    })
+    watchCategories.mockImplementation(() => vi.fn())
+    watchShops.mockImplementation(() => vi.fn())
+    render(<ItemsManager db={fakeDb} />)
+    render(<SnackbarHost />)
+
+    openRow('Bandages')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(restoreItem).toHaveBeenCalledWith(
+      fakeDb,
+      waterproofBandages,
+      [{ id: waterproofBandages.categoryId }],
+      [{ id: waterproofBandages.shopId }],
+    )
+  })
+
   it('offers no Delete when adding an Item', () => {
     renderWith([], [medicine], [pharmacy])
 
