@@ -1091,6 +1091,29 @@ describe('a scanned barcode', () => {
     await waitFor(() => expect(chooser).not.toHaveAttribute('open'))
   })
 
+  it('shows the pending barcode read-only in the Item dialog opened from "New Item"', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    const barcode = within(dialog).getByRole('textbox', { name: 'Barcode' })
+    expect(barcode).toHaveValue('4006381333931')
+    expect(barcode).toHaveAttribute('readonly')
+    expect(within(dialog).queryByRole('button', { name: /Remove barcode/ })).not.toBeInTheDocument()
+  })
+
+  it('shows no barcode in the Item dialog opened from the FAB', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    expect(within(dialog).queryByRole('textbox', { name: 'Barcode' })).not.toBeInTheDocument()
+  })
+
   it('creates the Item carrying the barcode from "New Item"', async () => {
     renderWith([bandages], [medicine], [pharmacy])
     scan()
@@ -1110,6 +1133,67 @@ describe('a scanned barcode', () => {
       ),
     )
     expect(attachBarcode).not.toHaveBeenCalled()
+  })
+
+  it('opens the new Item\'s scanned filter once the Item dialog opened from "New Item" is saved', async () => {
+    createItem.mockResolvedValue(core.itemId('dish-soap'))
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    fireEvent.input(within(dialog).getByLabelText('Name'), { target: { value: 'Dish soap' } })
+    choose(within(dialog).getByLabelText('Category'), medicine.id)
+    choose(within(dialog).getByLabelText('Necessity'), 'essential')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(window.location.hash).toBe('#/items?item=dish-soap'))
+  })
+
+  it('issues the Item dialog\'s pop before pushing the new Item\'s scanned filter', async () => {
+    createItem.mockResolvedValue(core.itemId('dish-soap'))
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    fireEvent.input(within(dialog).getByLabelText('Name'), { target: { value: 'Dish soap' } })
+    choose(within(dialog).getByLabelText('Category'), medicine.id)
+    choose(within(dialog).getByLabelText('Necessity'), 'essential')
+    // Let the dialog's own history push land before recording.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const order: string[] = []
+    const back = history.back.bind(history)
+    vi.spyOn(history, 'back').mockImplementation(() => {
+      order.push('back')
+      back()
+    })
+    const onHashChange = () => order.push(window.location.hash)
+    window.addEventListener('hashchange', onHashChange)
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(order).toContain('#/items?item=dish-soap'))
+    window.removeEventListener('hashchange', onHashChange)
+    expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
+    expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=dish-soap'))
+  })
+
+  it('leaves the route alone when an Item is added from the FAB', async () => {
+    createItem.mockResolvedValue(core.itemId('tape'))
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    fireEvent.input(within(dialog).getByLabelText('Name'), { target: { value: 'Tape' } })
+    choose(within(dialog).getByLabelText('Category'), medicine.id)
+    choose(within(dialog).getByLabelText('Necessity'), 'essential')
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(createItem).toHaveBeenCalled())
+    await waitFor(() => expect(dialog).not.toHaveAttribute('open'))
+    expect(window.location.hash).toBe('')
   })
 
   it('writes nothing when the Item dialog opened from "New Item" is cancelled', async () => {
