@@ -224,6 +224,39 @@ function stageItemEdit(
 }
 
 /**
+ * Whether an edit moves the Item between two Categories sharing one default Shop and also sets or
+ * clears the override to that Shop. The platform refuses that as a single write, so it is written
+ * as the Category move, then the override change.
+ */
+function movesCategoryAndOverrideOfItsDefaultShop(
+  previous: ItemRecord,
+  categoryId: catalogue.CategoryId,
+  shopId: catalogue.ShopId | undefined,
+  categories: readonly Pick<CategoryRecord, 'id' | 'defaultShopId'>[],
+): boolean {
+  if (categoryId === previous.categoryId || shopId === previous.shopId) return false
+  const from = categories.find((category) => category.id === previous.categoryId)?.defaultShopId
+  const to = categories.find((category) => category.id === categoryId)?.defaultShopId
+  return from !== undefined && from === to && (shopId === from || previous.shopId === from)
+}
+
+/** Stages the referenceCount moves of a Shop override changing from `previous` to `next`; nothing when it is unchanged. */
+function stageShopOverrideChange(
+  db: Firestore,
+  batch: WriteBatch,
+  previous: catalogue.ShopId | undefined,
+  next: catalogue.ShopId | undefined,
+): void {
+  if (next === previous) return
+  if (previous !== undefined) {
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, previous), { referenceCount: increment(-1) })
+  }
+  if (next !== undefined) {
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, next), { referenceCount: increment(1) })
+  }
+}
+
+/**
  * Validates the new fields against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema}
  * before updating an Item's two docs as one batch. State is left untouched; State changes go
  * through their own write. Omitting `brandNote` or `shopId` clears that field rather than leaving
@@ -231,25 +264,45 @@ function stageItemEdit(
  * referenceCount by one each, matching the platform's update rule; `previous` supplies the
  * references being moved away from. Any `removedBarcodes` leave the Item's `barcodes` in the same
  * batch with `arrayRemove`, leaving its other Barcodes. Resolves once the batch is queued, see {@link createItem}.
+ * An edit moving the Item between two `categories` with the same default Shop while setting or clearing the
+ * override to that Shop is written as two batches, the Category move first, since the platform refuses it as one.
  */
-export async function updateItem(db: Firestore, previous: ItemRecord, input: ItemEdit): Promise<void> {
+export async function updateItem(
+  db: Firestore,
+  previous: ItemRecord,
+  input: ItemEdit,
+  categories: readonly Pick<CategoryRecord, 'id' | 'defaultShopId'>[],
+): Promise<void> {
+  const split = movesCategoryAndOverrideOfItsDefaultShop(previous, input.categoryId, input.shopId, categories)
   const batch = writeBatch(db)
-  const { categoryId, shopId } = stageItemEdit(db, batch, previous.id, input, {})
+  const { categoryId, shopId } = stageItemEdit(
+    db,
+    batch,
+    previous.id,
+    split ? { ...input, shopId: previous.shopId } : input,
+    {},
+  )
   if (categoryId !== previous.categoryId) {
     batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, previous.categoryId), { referenceCount: increment(-1) })
     batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, categoryId), { referenceCount: increment(1) })
   }
-  if (shopId !== previous.shopId) {
-    if (previous.shopId !== undefined) {
-      batch.update(doc(db, catalogue.SHOPS_COLLECTION, previous.shopId), { referenceCount: increment(-1) })
-    }
-    if (shopId !== undefined) {
-      batch.update(doc(db, catalogue.SHOPS_COLLECTION, shopId), { referenceCount: increment(1) })
-    }
-  }
-  void batch.commit().catch((err: unknown) => {
+  if (!split) stageShopOverrideChange(db, batch, previous.shopId, shopId)
+  const committed = batch.commit()
+  void committed.catch((err: unknown) => {
     reportWriteRejection(`changes to ${previous.name}`, err)
   })
+  if (!split) return
+
+  const overrideBatch = writeBatch(db)
+  overrideBatch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, previous.id), {
+    shopId: input.shopId ?? deleteField(),
+  })
+  stageShopOverrideChange(db, overrideBatch, previous.shopId, input.shopId)
+  void committed
+    .then(() => overrideBatch.commit())
+    .catch((err: unknown) => {
+      reportWriteRejection(`Shop change for ${previous.name}`, err)
+    })
 }
 
 /**
