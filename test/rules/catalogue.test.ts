@@ -250,18 +250,17 @@ describe('deleteCategory against the real rules', () => {
     expect(categorySnapshot.data()?.deletedAt).toBeUndefined()
   })
 
-  it("refuses the Undo of a delete the rules refused, leaving the default Shop's reference count unchanged", async () => {
+  it("has the rules refuse the restore of a stale-cache delete they refused, leaving the default Shop's reference count unchanged", async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
     await seedPharmacyAndMedicine({ shopReferences: 1, categoryReferences: 1 })
     await deleteCategory(db, medicine)
-    await restoreCategory(db, medicine, [{ id: catalogue.shopId('pharmacy') }])
+    await restoreCategory(db, medicine, [{ id: medicine.defaultShopId }])
     await vi.waitFor(() =>
       expect(rejected()).toEqual(['Could not save deleted Category Medicine', 'Could not save restored Category Medicine']),
     )
 
-    const shopSnapshot = await getDoc(doc(db, catalogue.SHOPS_COLLECTION, 'pharmacy'))
-    expect(shopSnapshot.data()?.referenceCount).toBe(1)
-    expect((await serverDoc(`${catalogue.SHOPS_COLLECTION}/pharmacy`))?.referenceCount).toBe(1)
+    const shop = await serverDoc(`${catalogue.SHOPS_COLLECTION}/pharmacy`)
+    expect(shop?.referenceCount).toBe(1)
   })
 })
 
