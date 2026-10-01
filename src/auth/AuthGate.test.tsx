@@ -1,9 +1,21 @@
-import { fireEvent, render, screen } from '@testing-library/preact'
+import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FirebaseError } from 'firebase/app'
 import { AuthGate } from './AuthGate.tsx'
 import type { FirebaseClient } from '../firebase/client.ts'
 import type { AuthUser } from './authClient.ts'
+
+const setGateState = vi.fn()
+vi.mock('preact/hooks', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('preact/hooks')>()
+  return {
+    ...actual,
+    useState: <T,>(initial: T) => {
+      const [value, set] = actual.useState(initial)
+      return [value, (next: unknown) => (setGateState(next), set(next as never))] as const
+    },
+  }
+})
 
 const signInWithGoogle = vi.fn()
 const signOutUser = vi.fn()
@@ -39,6 +51,7 @@ beforeEach(() => {
   claimHousehold.mockReset().mockResolvedValue(undefined)
   joinFromInvite.mockReset().mockResolvedValue(false)
   unsubscribe.mockClear()
+  setGateState.mockReset()
   onResetConfig.mockReset()
 })
 
@@ -56,6 +69,35 @@ function expectResetOnlyAfterConfirm(reset: HTMLElement) {
 
   fireEvent.click(reset)
   expect(onResetConfig).toHaveBeenCalledTimes(1)
+}
+
+/** A promise the test settles by hand, to hold a lookup pending while auth state moves on. */
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
+/** Captures the callback `watchAuthState` is given, so a test can report auth changes after render. */
+function captureAuthCallback() {
+  let report!: (user: AuthUser | null) => void
+  watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    report = cb
+    return unsubscribe
+  })
+  return (next: AuthUser | null) => act(() => report(next))
+}
+
+/** Runs `settleLookup` (resolving or rejecting a deferred), then lets the gate's pending promise callbacks run. */
+async function settle(settleLookup: () => void) {
+  await act(async () => {
+    settleLookup()
+    await new Promise((done) => setTimeout(done, 0))
+  })
 }
 
 describe('AuthGate', () => {
@@ -319,6 +361,103 @@ describe('AuthGate', () => {
 
     expect(await screen.findByText('App content')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the Sign in card when a pending lookup resolves as member after auth reports signed out', async () => {
+    const reportAuth = captureAuthCallback()
+    const exists = deferred<boolean>()
+    householdExists.mockReturnValue(exists.promise)
+    isHouseholdMember.mockResolvedValue(true)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    reportAuth(null)
+    await settle(() => exists.resolve(true))
+
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+    expect(screen.queryByText('App content')).not.toBeInTheDocument()
+  })
+
+  it('keeps the Sign in card when a pending lookup rejects after auth reports signed out', async () => {
+    const reportAuth = captureAuthCallback()
+    const exists = deferred<boolean>()
+    householdExists.mockReturnValue(exists.promise)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    reportAuth(null)
+    await settle(() => exists.reject(new Error('unavailable')))
+
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+    expect(screen.queryByText("Couldn't reach your Household")).not.toBeInTheDocument()
+  })
+
+  it("lets the newer user's lookup decide the state when an older user's lookup settles after it", async () => {
+    const reportAuth = captureAuthCallback()
+    const secondUser = { uid: 'user-2', email: 'guest@example.com' } as unknown as AuthUser
+    const firstLookup = deferred<boolean>()
+    householdExists.mockReturnValueOnce(firstLookup.promise).mockResolvedValueOnce(true)
+    isHouseholdMember.mockImplementation(async (_db: unknown, uid: string) => uid === secondUser.uid)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    reportAuth(secondUser)
+    expect(await screen.findByText('App content')).toBeInTheDocument()
+    await settle(() => firstLookup.resolve(true))
+
+    expect(screen.getByText('App content')).toBeInTheDocument()
+    expect(screen.queryByText('You are not a member of this household.')).not.toBeInTheDocument()
+  })
+
+  it('keeps the Sign in card when a lookup started by Retry settles after auth reports signed out', async () => {
+    const reportAuth = captureAuthCallback()
+    const retried = deferred<boolean>()
+    householdExists.mockRejectedValueOnce(new Error('unavailable')).mockReturnValueOnce(retried.promise)
+    isHouseholdMember.mockResolvedValue(true)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+    reportAuth(null)
+    await settle(() => retried.resolve(true))
+
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+    expect(screen.queryByText('App content')).not.toBeInTheDocument()
+  })
+
+  it('sets no state when the gate unmounts while a lookup is pending', async () => {
+    const reportAuth = captureAuthCallback()
+    const exists = deferred<boolean>()
+    householdExists.mockReturnValue(exists.promise)
+    isHouseholdMember.mockResolvedValue(true)
+
+    const { unmount } = render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    unmount()
+    setGateState.mockClear()
+    await settle(() => exists.resolve(true))
+
+    expect(setGateState).not.toHaveBeenCalled()
   })
 
   it('unsubscribes from auth state on unmount', () => {

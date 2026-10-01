@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'preact/hooks'
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import type { FirebaseClient } from '../firebase/client.ts'
 import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
@@ -27,25 +27,40 @@ type AuthGateState =
 export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   const [state, setState] = useState<AuthGateState>({ status: 'checking' })
 
+  /** Counts the lookups started, sign-outs seen and unmounts; a lookup may set state only while it still holds the latest count. */
+  const lookupGeneration = useRef(0)
+  const discardPendingLookup = () => {
+    lookupGeneration.current++
+  }
+
   const resolveMembership = useCallback(
     async (user: AuthUser) => {
+      const generation = ++lookupGeneration.current
+      const setIfCurrent = (next: AuthGateState) => {
+        if (generation === lookupGeneration.current) setState(next)
+      }
       try {
-        setState(await lookUpMembership(client, user))
+        setIfCurrent(await lookUpMembership(client, user))
       } catch (error) {
-        setState(isRulesRefusal(error) ? { status: 'non-member', user } : { status: 'unreachable', user })
+        setIfCurrent(isRulesRefusal(error) ? { status: 'non-member', user } : { status: 'unreachable', user })
       }
     },
     [client],
   )
 
   useEffect(() => {
-    return watchAuthState(client.app, (user) => {
+    const unwatch = watchAuthState(client.app, (user) => {
       if (user === null) {
+        discardPendingLookup()
         setState({ status: 'signed-out' })
         return
       }
       void resolveMembership(user)
     })
+    return () => {
+      discardPendingLookup()
+      unwatch()
+    }
   }, [client, resolveMembership])
 
   switch (state.status) {
