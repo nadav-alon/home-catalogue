@@ -5,6 +5,8 @@ const initializeApp = vi.fn((_config: unknown) => ({ name: 'fake-app' }))
 const deleteApp = vi.fn((_app: unknown) => Promise.resolve())
 const initializeFirestore = vi.fn((_app: unknown, _settings: unknown) => ({ type: 'fake-firestore' }))
 const persistentLocalCache = vi.fn(() => ({ kind: 'persistent' }))
+const memoryLocalCache = vi.fn(() => ({ kind: 'memory' }))
+const initializeAuth = vi.fn((_app: unknown, _deps: unknown) => ({ type: 'fake-auth' }))
 const terminate = vi.fn((_db: unknown) => Promise.resolve())
 const connectLocal = vi.fn((_app: unknown) => undefined)
 
@@ -21,7 +23,13 @@ vi.mock('data-platform/local', () => ({
 vi.mock('firebase/firestore', () => ({
   initializeFirestore: (app: unknown, settings: unknown) => initializeFirestore(app, settings),
   persistentLocalCache: () => persistentLocalCache(),
+  memoryLocalCache: () => memoryLocalCache(),
   terminate: (db: unknown) => terminate(db),
+}))
+
+vi.mock('firebase/auth', () => ({
+  initializeAuth: (app: unknown, deps: unknown) => initializeAuth(app, deps),
+  inMemoryPersistence: { type: 'NONE' },
 }))
 
 const config = firebaseWebConfig({
@@ -102,12 +110,32 @@ describe('initFirebase in ux mode', () => {
     expect(initializeFirestore.mock.invocationCallOrder[0]).toBeLessThan(connectLocal.mock.invocationCallOrder[0])
   })
 
+  it('keeps the Firestore cache and Auth persistence in memory, before connecting', async () => {
+    vi.stubEnv('MODE', 'ux')
+    const { initFirebase } = await import('./client.ts')
+    const fakeApp = { name: 'fake-app' }
+    initializeApp.mockReturnValueOnce(fakeApp)
+    connectLocal.mockClear()
+    initializeFirestore.mockClear()
+    initializeAuth.mockClear()
+    persistentLocalCache.mockClear()
+
+    initFirebase(config)
+
+    expect(initializeFirestore).toHaveBeenCalledWith(fakeApp, { localCache: { kind: 'memory' } })
+    expect(persistentLocalCache).not.toHaveBeenCalled()
+    expect(initializeAuth).toHaveBeenCalledWith(fakeApp, { persistence: { type: 'NONE' } })
+    expect(initializeAuth.mock.invocationCallOrder[0]).toBeLessThan(connectLocal.mock.invocationCallOrder[0])
+  })
+
   it('never connects to the emulators outside ux mode', async () => {
     const { initFirebase } = await import('./client.ts')
     connectLocal.mockClear()
+    initializeAuth.mockClear()
 
     initFirebase(config)
 
     expect(connectLocal).not.toHaveBeenCalled()
+    expect(initializeAuth).not.toHaveBeenCalled()
   })
 })
