@@ -503,6 +503,26 @@ describe('AuthGate', () => {
     expect(screen.queryByText('App content')).not.toBeInTheDocument()
   })
 
+  it('sets no state when the gate unmounts while a claim is pending', async () => {
+    const reportAuth = captureAuthCallback()
+    const claim = deferred<void>()
+    householdExists.mockResolvedValue(false)
+    claimHousehold.mockReturnValue(claim.promise)
+
+    const { unmount } = render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim household' }))
+    unmount()
+    setGateState.mockClear()
+    await settle(() => claim.resolve())
+
+    expect(setGateState).not.toHaveBeenCalled()
+  })
+
   it('unsubscribes from auth state on unmount', () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
