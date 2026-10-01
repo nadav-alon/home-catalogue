@@ -1,4 +1,5 @@
 import { build, type Rollup } from 'vite'
+import { LOCAL_PROJECT_ID } from 'data-platform/local'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { uxWiring } from './uxMode.ts'
 
@@ -12,7 +13,7 @@ describe('uxWiring', () => {
   it('carries a demo config for the kit project in ux mode', () => {
     vi.stubEnv('MODE', 'ux')
 
-    expect(uxWiring()?.config.projectId).toBe('demo-data-platform-local')
+    expect(uxWiring()?.config.projectId).toBe(LOCAL_PROJECT_ID)
   })
 })
 
