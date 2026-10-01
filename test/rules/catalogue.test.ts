@@ -11,6 +11,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { deleteShop, restoreShop } from '../../src/catalogue/shops.ts'
+import { restoreItem, restoreItemWithEdit, softDeleteItem, type ItemRecord } from '../../src/catalogue/items.ts'
 import { resetWriteRejections, watchWriteRejections } from '../../src/catalogue/writeRejections.ts'
 import { useRejectedMessages } from './rejectedMessages.ts'
 import { CategoryInUseError, deleteCategory, restoreCategory, type CategoryRecord } from '../../src/catalogue/categories.ts'
@@ -61,18 +62,18 @@ function rulesPath(): string {
   return firestore.rules
 }
 
-/** The Shop's document as the server holds it, bypassing the rules and the client's cache. */
-async function serverDoc(id: string) {
+/** A document as the server holds it, bypassing the rules and the client's cache. */
+async function serverDoc(path: string) {
   let data: Record<string, unknown> | undefined
   await testEnv.withSecurityRulesDisabled(async (context) => {
-    data = (await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/${id}`).get()).data()
+    data = (await context.firestore().doc(path).get()).data()
   })
   return data
 }
 
 /** Waits for a queued write to reach the server, since the Shop writes resolve before it does. */
 async function waitForServerDoc(id: string, predicate: (data: Record<string, unknown> | undefined) => boolean) {
-  await vi.waitFor(async () => expect(predicate(await serverDoc(id))).toBe(true))
+  await vi.waitFor(async () => expect(predicate(await serverDoc(`${catalogue.SHOPS_COLLECTION}/${id}`))).toBe(true))
 }
 
 beforeAll(async () => {
@@ -151,7 +152,7 @@ describe('deleteShop against the real rules', () => {
     await deleteShop(db, pharmacyRecord)
 
     await vi.waitFor(() => expect(latest).toEqual(['Could not save deleted Shop Pharmacy']))
-    const data = await serverDoc('pharmacy')
+    const data = await serverDoc(`${catalogue.SHOPS_COLLECTION}/pharmacy`)
     expect(data?.deletedAt).toBeUndefined()
   })
 })
@@ -344,5 +345,130 @@ describe('CatalogueItem writes against the real rules', () => {
         necessity: 'essential',
       }),
     )
+  })
+})
+
+describe('Item soft-delete and restore against the real rules', () => {
+  const pharmacy = catalogue.shopId('pharmacy')
+  const bandages: ItemRecord = {
+    id: core.itemId('bandages'),
+    name: 'Bandages',
+    state: 'enough',
+    categoryId: catalogue.categoryId('medicine'),
+    necessity: 'essential',
+    shopId: pharmacy,
+  }
+  const cleaning = catalogue.categoryId('cleaning')
+  const stateHistoryPath = core.stateHistoryCollectionPath(bandages.id)
+
+  /** Seeds a live `bandages` Item in Medicine with a Pharmacy override, plus one `stateHistory` entry, bypassing rules. */
+  async function seedBandages(): Promise<void> {
+    await seedPharmacyAndMedicine({ shopReferences: 1, categoryReferences: 1 })
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const firestore = context.firestore()
+      await firestore.doc(`${core.ITEMS_COLLECTION}/${bandages.id}`).set({ name: bandages.name, state: bandages.state })
+      await firestore
+        .doc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/${bandages.id}`)
+        .set({ categoryId: bandages.categoryId, necessity: bandages.necessity, shopId: bandages.shopId })
+      await firestore.collection(stateHistoryPath).doc('entry').set({ state: 'enough', at: new Date() })
+    })
+  }
+
+  /** The `bandages` Item's `stateHistory` entries as the server holds them, bypassing the rules and the client's cache. */
+  async function serverStateHistory(): Promise<Record<string, unknown>[]> {
+    let entries: Record<string, unknown>[] = []
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      entries = (await context.firestore().collection(stateHistoryPath).get()).docs.map((entry) => entry.data())
+    })
+    return entries
+  }
+
+  /** Seeds the live `bandages` Item and soft-deletes it, waiting until its Shop's referenceCount has dropped on the server. */
+  async function seedSoftDeletedBandages(db: Firestore): Promise<void> {
+    await seedBandages()
+    await softDeleteItem(db, bandages)
+    await waitForServerDoc(pharmacy, (data) => data?.referenceCount === 0)
+  }
+
+  it("soft-deletes an Item with one shared deletedAt and lowers its Category's and Shop's referenceCount by 1, leaving stateHistory alone", async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await seedBandages()
+    const historyBefore = await serverStateHistory()
+
+    await softDeleteItem(db, bandages)
+    await waitForServerDoc(pharmacy, (data) => data?.referenceCount === 0)
+
+    const coreItem = await serverDoc(`${core.ITEMS_COLLECTION}/${bandages.id}`)
+    const catalogueItem = await serverDoc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/${bandages.id}`)
+    expect(coreItem?.deletedAt).toBeDefined()
+    expect(catalogueItem?.deletedAt).toEqual(coreItem?.deletedAt)
+    expect((await serverDoc(`${catalogue.CATEGORIES_COLLECTION}/${bandages.categoryId}`))?.referenceCount).toBe(0)
+    expect(await serverStateHistory()).toEqual(historyBefore)
+    expect(rejected()).toEqual([])
+  })
+
+  it("restores a soft-deleted Item, clearing deletedAt on both docs and raising its Category's and Shop's referenceCount by 1", async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await seedSoftDeletedBandages(db)
+
+    await restoreItem(db, bandages, [{ id: pharmacy }])
+    await waitForServerDoc(pharmacy, (data) => data?.referenceCount === 1)
+
+    const coreItem = await serverDoc(`${core.ITEMS_COLLECTION}/${bandages.id}`)
+    const catalogueItem = await serverDoc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/${bandages.id}`)
+    expect(coreItem).toMatchObject({ name: bandages.name })
+    expect(coreItem?.deletedAt).toBeUndefined()
+    expect(catalogueItem).toMatchObject({ categoryId: bandages.categoryId })
+    expect(catalogueItem?.deletedAt).toBeUndefined()
+    expect((await serverDoc(`${catalogue.CATEGORIES_COLLECTION}/${bandages.categoryId}`))?.referenceCount).toBe(1)
+    expect(rejected()).toEqual([])
+  })
+
+  it("restores a soft-deleted Item into a different live Category, raising only the new Category's referenceCount", async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await seedBandages()
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context
+        .firestore()
+        .doc(`${catalogue.CATEGORIES_COLLECTION}/${cleaning}`)
+        .set({ name: 'Cleaning', defaultShopId: pharmacy, referenceCount: 0 })
+    })
+    await softDeleteItem(db, bandages)
+    await waitForServerDoc(pharmacy, (data) => data?.referenceCount === 0)
+
+    await restoreItemWithEdit(db, bandages, {
+      name: bandages.name,
+      categoryId: cleaning,
+      necessity: bandages.necessity,
+      shopId: bandages.shopId,
+    })
+    await waitForServerDoc(pharmacy, (data) => data?.referenceCount === 1)
+
+    const catalogueItem = await serverDoc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/${bandages.id}`)
+    expect(catalogueItem?.categoryId).toBe(cleaning)
+    expect(catalogueItem?.deletedAt).toBeUndefined()
+    const coreItem = await serverDoc(`${core.ITEMS_COLLECTION}/${bandages.id}`)
+    expect(coreItem).toMatchObject({ name: bandages.name })
+    expect(coreItem?.deletedAt).toBeUndefined()
+    expect((await serverDoc(`${catalogue.CATEGORIES_COLLECTION}/${cleaning}`))?.referenceCount).toBe(1)
+    expect((await serverDoc(`${catalogue.CATEGORIES_COLLECTION}/${bandages.categoryId}`))?.referenceCount).toBe(0)
+    expect(rejected()).toEqual([])
+  })
+
+  it("has the rules refuse a restore whose Shop override was soft-deleted since, and shows it in the banner", async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await seedSoftDeletedBandages(db)
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/${pharmacy}`).update({ deletedAt: new Date() })
+    })
+
+    // A stale Shop list, as a client that has not yet seen the Shop's deletion would hold.
+    await restoreItem(db, bandages, [{ id: pharmacy }])
+
+    await vi.waitFor(() => expect(rejected()).toEqual(['Could not save restored Item Bandages']))
+    expect((await serverDoc(`${core.ITEMS_COLLECTION}/${bandages.id}`))?.deletedAt).toBeDefined()
+    expect((await serverDoc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/${bandages.id}`))?.deletedAt).toBeDefined()
+    expect((await serverDoc(`${catalogue.SHOPS_COLLECTION}/${pharmacy}`))?.referenceCount).toBe(0)
+    expect((await serverDoc(`${catalogue.CATEGORIES_COLLECTION}/${bandages.categoryId}`))?.referenceCount).toBe(0)
   })
 })
