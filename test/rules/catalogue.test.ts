@@ -361,26 +361,31 @@ describe('Item soft-delete and restore against the real rules', () => {
 
   /** Seeds a live `bandages` Item in Medicine with a Pharmacy override, plus one `stateHistory` entry, bypassing rules. */
   async function seedBandages(): Promise<void> {
+    await seedPharmacyAndMedicine({ shopReferences: 1, categoryReferences: 1 })
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const firestore = context.firestore()
-      await firestore.doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).set({ name: 'Pharmacy', referenceCount: 1 })
+      await firestore.doc(`${core.ITEMS_COLLECTION}/${bandages.id}`).set({ name: bandages.name, state: bandages.state })
       await firestore
-        .doc(`${catalogue.CATEGORIES_COLLECTION}/medicine`)
-        .set({ name: 'Medicine', defaultShopId: 'pharmacy', referenceCount: 1 })
-      await firestore.doc(`${core.ITEMS_COLLECTION}/bandages`).set({ name: 'Bandages', state: 'enough' })
-      await firestore
-        .doc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`)
-        .set({ categoryId: 'medicine', necessity: 'essential', shopId: 'pharmacy' })
+        .doc(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/${bandages.id}`)
+        .set({ categoryId: bandages.categoryId, necessity: bandages.necessity, shopId: bandages.shopId })
       await firestore.collection(stateHistoryPath).doc('entry').set({ state: 'enough', at: new Date() })
     })
   }
 
+  /** The `bandages` Item's `stateHistory` entries as the server holds them, bypassing the rules and the client's cache. */
   async function serverStateHistory(): Promise<Record<string, unknown>[]> {
     let entries: Record<string, unknown>[] = []
     await testEnv.withSecurityRulesDisabled(async (context) => {
       entries = (await context.firestore().collection(stateHistoryPath).get()).docs.map((entry) => entry.data())
     })
     return entries
+  }
+
+  /** Seeds the live `bandages` Item and soft-deletes it, waiting until its Shop's referenceCount has dropped on the server. */
+  async function seedSoftDeletedBandages(db: Firestore): Promise<void> {
+    await seedBandages()
+    await softDeleteItem(db, bandages)
+    await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 0)
   }
 
   it("soft-deletes an Item with one shared deletedAt and lowers its Category's and Shop's referenceCount by 1, leaving stateHistory alone", async () => {
@@ -402,9 +407,7 @@ describe('Item soft-delete and restore against the real rules', () => {
 
   it("restores a soft-deleted Item, clearing deletedAt on both docs and raising its Category's and Shop's referenceCount by 1", async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
-    await seedBandages()
-    await softDeleteItem(db, bandages)
-    await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 0)
+    await seedSoftDeletedBandages(db)
 
     await restoreItem(db, bandages, [{ id: catalogue.shopId('pharmacy') }])
     await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 1)
@@ -446,9 +449,7 @@ describe('Item soft-delete and restore against the real rules', () => {
 
   it("has the rules refuse a restore whose Shop override was soft-deleted since, and shows it in the banner", async () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
-    await seedBandages()
-    await softDeleteItem(db, bandages)
-    await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 0)
+    await seedSoftDeletedBandages(db)
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).update({ deletedAt: new Date() })
     })
