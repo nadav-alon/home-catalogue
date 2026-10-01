@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import {
@@ -73,6 +73,9 @@ function CategoryFields({ nameLabel, draft, shops, onChange }: CategoryFieldsPro
 export function CategoriesManager({ db }: CategoriesManagerProps) {
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
+  // Undo outlives the render that deleted the Category, so it reads the Shops as they are when it is pressed.
+  const shopsRef = useRef(shops)
+  shopsRef.current = shops
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<CategoryRecord | null>(null)
   const [draft, setDraft] = useState<CategoryDraft>(EMPTY_DRAFT)
@@ -143,7 +146,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     closeDialogs()
     showSnackbar({
       text: `Deleted ${category.name}`,
-      action: { label: 'Undo', onAction: () => void restoreCategory(db, category, shops) },
+      action: { label: 'Undo', onAction: () => void restoreCategory(db, category, shopsRef.current) },
     })
   }
 
