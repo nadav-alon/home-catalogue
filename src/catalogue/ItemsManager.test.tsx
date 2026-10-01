@@ -1051,6 +1051,33 @@ describe('a scanned barcode', () => {
     expect(updateItem).not.toHaveBeenCalled()
   })
 
+  it('issues the Item dialog\'s pop before pushing the restored Item\'s filter', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    renderWith([], [cleaning], [grocery])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+    fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Restore Item' })
+    choose(within(dialog).getByLabelText('Category'), cleaning.id)
+    // Let the dialog's own history push land before recording.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    const order: string[] = []
+    const back = history.back.bind(history)
+    vi.spyOn(history, 'back').mockImplementation(() => {
+      order.push('back')
+      back()
+    })
+    const onHashChange = () => order.push(window.location.hash)
+    window.addEventListener('hashchange', onHashChange)
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(order).toContain('#/items?item=bandages'))
+    window.removeEventListener('hashchange', onHashChange)
+    expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
+    expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=bandages'))
+  })
+
   it('opens the Item dialog on Yes when the deleted Item\'s Shop override is gone', async () => {
     findDeletedItemByBarcode.mockResolvedValue({ ...bandages, shopId: grocery.id })
     renderWith([], [medicine], [pharmacy])
