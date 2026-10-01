@@ -4,8 +4,8 @@ import {
   collection,
   deleteField,
   doc,
-  getDoc,
-  getDocs,
+  getDocFromCache,
+  getDocsFromCache,
   increment,
   onSnapshot,
   orderBy,
@@ -275,15 +275,16 @@ export async function setItemState(
   })
 }
 
-/** Every Item, live or soft-deleted, whose core `items` doc carries `barcode` in its `barcodes`. */
+/** Every cached Item, live or soft-deleted, whose core `items` doc carries `barcode` in its `barcodes`. */
 async function queryCoreItemsByBarcode(
   db: Firestore,
   barcode: core.Barcode,
 ): Promise<(core.Item & { id: core.ItemId })[]> {
-  const snapshot = await getDocs(
+  // A cache miss rejects, and any other failure is treated the same: no cached match, never a failed scan.
+  const snapshot = await getDocsFromCache(
     query(collection(db, core.ITEMS_COLLECTION), where('barcodes', 'array-contains', barcode)),
-  )
-  return parseCoreItemDocs(snapshot.docs)
+  ).catch(() => undefined)
+  return snapshot === undefined ? [] : parseCoreItemDocs(snapshot.docs)
 }
 
 /**
@@ -299,7 +300,8 @@ export function itemsWithBarcode(items: readonly ItemRecord[], barcode: core.Bar
  * The soft-deleted Item (`deletedAt` set on its core doc) whose `barcodes` contain `barcode`, joined
  * with its catalogue half so it can be restored. Undefined when none does, or when its catalogue doc
  * is missing or fails its schema. With several, the most recently deleted one that can be restored.
- * Answered from the local cache when offline.
+ * Answered from the local cache only, never waiting on the server, so it sees only Items `watchItems`
+ * has already synced.
  */
 export async function findDeletedItemByBarcode(db: Firestore, barcode: core.Barcode): Promise<ItemRecord | undefined> {
   const deleted = (await queryCoreItemsByBarcode(db, barcode)).flatMap((found) =>
@@ -309,8 +311,10 @@ export async function findDeletedItemByBarcode(db: Firestore, barcode: core.Barc
     (a, b) => b.deletedAt.seconds - a.deletedAt.seconds || b.deletedAt.nanoseconds - a.deletedAt.nanoseconds,
   )
   for (const item of mostRecentFirst) {
-    const catalogueSnapshot = await getDoc(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, item.id))
-    if (!catalogueSnapshot.exists()) continue
+    const catalogueSnapshot = await getDocFromCache(
+      doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, item.id),
+    ).catch(() => undefined) // a cache miss rejects; treated as not restorable, like a failed query above
+    if (catalogueSnapshot === undefined || !catalogueSnapshot.exists()) continue
     const parsed = parseCatalogueItemDoc(catalogueSnapshot)
     if (parsed === undefined) continue
     const { id, ...coreItem } = item
