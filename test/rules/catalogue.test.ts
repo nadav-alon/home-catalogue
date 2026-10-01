@@ -411,7 +411,7 @@ describe('Item soft-delete and restore against the real rules', () => {
     const db = dbFor(testEnv.authenticatedContext(alice))
     await seedSoftDeletedBandages(db)
 
-    await restoreItem(db, bandages, [{ id: pharmacy }])
+    await restoreItem(db, bandages, [{ id: bandages.categoryId }], [{ id: pharmacy }])
     await waitForServerDoc(pharmacy, (data) => data?.referenceCount === 1)
 
     const coreItem = await serverDoc(`${core.ITEMS_COLLECTION}/${bandages.id}`)
@@ -463,7 +463,7 @@ describe('Item soft-delete and restore against the real rules', () => {
     })
 
     // A stale Shop list, as a client that has not yet seen the Shop's deletion would hold.
-    await restoreItem(db, bandages, [{ id: pharmacy }])
+    await restoreItem(db, bandages, [{ id: bandages.categoryId }], [{ id: pharmacy }])
 
     await vi.waitFor(() => expect(rejected()).toEqual(['Could not save restored Item Bandages']))
     expect((await serverDoc(`${core.ITEMS_COLLECTION}/${bandages.id}`))?.deletedAt).toBeDefined()

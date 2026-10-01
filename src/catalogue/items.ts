@@ -405,18 +405,22 @@ export async function softDeleteItem(db: Firestore, item: ItemRecord): Promise<v
 
 /**
  * Undoes {@link softDeleteItem}: clears `deletedAt` on both docs and raises the same referenceCounts
- * back. Refused, writing nothing, when the Item's Shop override is not among the live `shops`: the
- * delete freed that Shop for soft deletion, and restoring onto it would leave the Item pointing at a
- * hidden Shop. The refusal is reported through {@link reportFailure}, so only the write-rejection
- * banner says so. Only the Shop override is checked: the delete also freed the Category, and
- * `deleteCategory` is a soft delete too, so this can still restore onto a hidden Category.
+ * back. Refused, writing nothing, when the Item's Category is not among the live `categories`, or its
+ * Shop override is not among the live `shops`: the delete freed both for soft deletion, and restoring
+ * onto either would leave the Item pointing at a hidden record. The refusal is reported through
+ * {@link reportFailure}, so only the write-rejection banner says so.
  * See {@link restoreItemWithEdit} for picking a live Category and Shop.
  */
 export async function restoreItem(
   db: Firestore,
   item: ItemRecord,
+  categories: readonly Pick<CategoryRecord, 'id'>[],
   shops: readonly Pick<ShopRecord, 'id'>[],
 ): Promise<void> {
+  if (!isLiveReference(categories, item.categoryId)) {
+    reportFailure(`Could not restore ${item.name}`, new Error('Its Category has been deleted'))
+    return
+  }
   if (!isLiveReference(shops, item.shopId)) {
     reportFailure(`Could not restore ${item.name}`, new Error('Its Shop has been deleted'))
     return

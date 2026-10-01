@@ -31,7 +31,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
-  // Undo outlives the render that deleted the Item, so it reads the Shops as they are when it is pressed.
+  // Undo outlives the render that deleted the Item, so it reads the Categories and Shops as they are when it is pressed.
+  const categoriesRef = useRef(categories)
+  categoriesRef.current = categories
   const shopsRef = useRef(shops)
   shopsRef.current = shops
   /**
@@ -46,6 +48,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   >(null)
   /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
   const [listsLoaded, setListsLoaded] = useState({ categories: false, shops: false })
+  const listsLoadedRef = useRef(listsLoaded)
+  listsLoadedRef.current = listsLoaded
   const [error, setError] = useState<string | null>(null)
   /** Set by a scan made before the Items arrived; shown only while they are still loading. */
   const [scanWaiting, setScanWaiting] = useState(false)
@@ -110,7 +114,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     if (!isLiveReference(categories, item.categoryId) || !isLiveReference(shops, item.shopId)) {
       return setDialog({ kind: 'restore', item })
     }
-    await restoreItem(db, item, shops)
+    await restoreItem(db, item, categories, shops)
     navigateToItems([item.id])
   }
 
@@ -142,7 +146,18 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
 
   function handleDelete(item: ItemRecord) {
     void softDeleteItem(db, item)
-    showSnackbar({ text: `Deleted ${item.name}`, action: { label: 'Undo', onAction: () => void restoreItem(db, item, shopsRef.current) } })
+    showSnackbar({ text: `Deleted ${item.name}`, action: { label: 'Undo', onAction: () => void undoDelete(item) } })
+  }
+
+  function undoDelete(item: ItemRecord) {
+    // Until both lists have loaded, a Category or Shop cannot be told from a deleted one, so nothing is refused.
+    const loaded = listsLoadedRef.current.categories && listsLoadedRef.current.shops
+    return restoreItem(
+      db,
+      item,
+      loaded ? categoriesRef.current : [{ id: item.categoryId }],
+      loaded || item.shopId === undefined ? shopsRef.current : [{ id: item.shopId }],
+    )
   }
 
   // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.
