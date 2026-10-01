@@ -31,3 +31,7 @@ Commenting `/apply-review` on a draft pull request opens a ticket asking an agen
 ## Rebase
 
 Commenting `/rebase` on a draft pull request opens a ticket asking an agent to rebase it, and labels the pull request `needs-rebase`. See `.github/workflows/rebase.yml`.
+
+## UX mode
+
+`npm run ux -- --scenario <name>` starts the local Household from `data-platform/local` with the scenario seeded (default `owner-with-items`; an unknown name fails with the known list), then serves the app in the `ux` Vite mode and prints the URL once ready. The port is fixed at **5183** (`UX_PORT` in `scripts/uxArgs.ts`), so the URL is `http://127.0.0.1:5183/home-catalogue/`; the emulators use Auth `9099` and Firestore `8090`. Java must be on the PATH. Not turboable: it is a long-running dev server that holds fixed ports.
