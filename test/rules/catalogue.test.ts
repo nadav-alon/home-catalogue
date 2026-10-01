@@ -452,4 +452,23 @@ describe('Item soft-delete and restore against the real rules', () => {
     expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
     expect(rejected()).toEqual([])
   })
+
+  it("has the rules refuse a restore whose Shop override was soft-deleted since, and shows it in the banner", async () => {
+    const db = dbFor(testEnv.authenticatedContext(alice))
+    await seedBandages()
+    await softDeleteItem(db, bandages)
+    await waitForServerDoc('pharmacy', (data) => data?.referenceCount === 0)
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().doc(`${catalogue.SHOPS_COLLECTION}/pharmacy`).update({ deletedAt: new Date() })
+    })
+
+    // A stale Shop list, as a client that has not yet seen the Shop's deletion would hold.
+    await restoreItem(db, bandages, [{ id: catalogue.shopId('pharmacy') }])
+
+    await vi.waitFor(() => expect(rejected()).toEqual(['Could not save restored Item Bandages']))
+    expect((await serverData(`${core.ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeDefined()
+    expect((await serverData(`${catalogue.CATALOGUE_ITEMS_COLLECTION}/bandages`))?.deletedAt).toBeDefined()
+    expect((await serverData(`${catalogue.SHOPS_COLLECTION}/pharmacy`))?.referenceCount).toBe(0)
+    expect((await serverData(`${catalogue.CATEGORIES_COLLECTION}/medicine`))?.referenceCount).toBe(0)
+  })
 })
