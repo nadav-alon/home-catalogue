@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { CategoriesManager } from './CategoriesManager.tsx'
@@ -27,7 +27,7 @@ vi.mock('./categories.ts', async (importOriginal) => ({
   createCategory: (db: unknown, name: string, shopId: unknown) => createCategory(db, name, shopId),
   renameCategory: (db: unknown, category: unknown, name: string) => renameCategory(db, category, name),
   deleteCategory: (db: unknown, category: unknown) => deleteCategory(db, category),
-  restoreCategory: (db: unknown, category: unknown) => restoreCategory(db, category),
+  restoreCategory: (db: unknown, category: unknown, shops: unknown) => restoreCategory(db, category, shops),
   watchCategories: (db: unknown, cb: unknown) => watchCategories(db, cb),
   CategoryInUseError: FakeCategoryInUseError,
 }))
@@ -70,20 +70,23 @@ function openEditor(categoryName: string) {
 }
 
 function renderWith(categories: CategoryRecord[], shops: ShopRecord[]) {
+  let publishShops: (shops: ShopRecord[]) => void = () => {}
   watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
     cb(categories)
     return categoriesUnsubscribe
   })
   watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
+    publishShops = cb
     cb(shops)
     return shopsUnsubscribe
   })
-  return render(
+  const rendered = render(
     <>
       <CategoriesManager db={fakeDb} />
       <SnackbarHost />
     </>,
   )
+  return { ...rendered, publishShops }
 }
 
 describe('CategoriesManager', () => {
@@ -228,7 +231,19 @@ describe('CategoriesManager', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
 
-    expect(restoreCategory).toHaveBeenCalledWith(fakeDb, medicine)
+    expect(restoreCategory).toHaveBeenCalledWith(fakeDb, medicine, [pharmacy])
+  })
+
+  it('hands Undo the Shops as they are when it is pressed, not when the Category was deleted', async () => {
+    const { publishShops } = renderWith([medicine], [pharmacy, grocery])
+    openEditor('Medicine')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    const undo = await screen.findByRole('button', { name: 'Undo' })
+
+    act(() => publishShops([grocery]))
+    fireEvent.click(undo)
+
+    expect(restoreCategory).toHaveBeenCalledWith(fakeDb, medicine, [grocery])
   })
 
   it('shows the CategoryInUseError message when deletion is refused', async () => {

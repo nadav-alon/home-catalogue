@@ -31,6 +31,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
+  // Undo outlives the render that deleted the Item, so it reads the Shops as they are when it is pressed.
+  const shopsRef = useRef(shops)
+  shopsRef.current = shops
   /**
    * `null` while the Item dialog is closed; otherwise editing `item`, restoring the deleted `item` with a live
    * Category and Shop, or adding an Item that may carry `barcode`.
@@ -107,7 +110,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     if (!isLiveReference(categories, item.categoryId) || !isLiveReference(shops, item.shopId)) {
       return setDialog({ kind: 'restore', item })
     }
-    await restoreItem(db, item)
+    await restoreItem(db, item, shops)
     navigateToItems([item.id])
   }
 
@@ -143,7 +146,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
 
   function handleDelete(item: ItemRecord) {
     void softDeleteItem(db, item)
-    showSnackbar({ text: `Deleted ${item.name}`, action: { label: 'Undo', onAction: () => void restoreItem(db, item) } })
+    showSnackbar({ text: `Deleted ${item.name}`, action: { label: 'Undo', onAction: () => void restoreItem(db, item, shopsRef.current) } })
   }
 
   // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.

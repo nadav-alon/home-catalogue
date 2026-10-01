@@ -222,7 +222,7 @@ describe('deleteCategory against the real rules', () => {
     await deleteCategory(db, medicine)
     await waitForPendingWrites(db)
 
-    await restoreCategory(db, medicine)
+    await restoreCategory(db, medicine, [{ id: catalogue.shopId('pharmacy') }])
     await waitForPendingWrites(db)
 
     const categorySnapshot = await getDoc(doc(db, catalogue.CATEGORIES_COLLECTION, 'medicine'))
