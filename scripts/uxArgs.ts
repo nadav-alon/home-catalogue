@@ -3,6 +3,9 @@ import { scenarioName, type ScenarioName } from 'data-platform/local'
 /** The fixed port `npm run ux` serves the app on, so a printed URL is stable between runs. */
 export const UX_PORT = 5183
 
+/** The address `npm run ux` binds and prints, always with {@link UX_PORT}. */
+export const UX_HOST = '127.0.0.1'
+
 export const DEFAULT_UX_SCENARIO: ScenarioName = 'owner-with-items'
 
 /**
