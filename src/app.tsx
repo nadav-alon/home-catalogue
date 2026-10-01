@@ -64,6 +64,6 @@ function Screen({
     case '/settings/categories':
       return <CategoriesManager db={db} />
     case '/settings/members':
-      return <MembersScreen db={db} />
+      return <MembersScreen db={db} config={config} />
   }
 }
