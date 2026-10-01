@@ -460,6 +460,26 @@ describe('AuthGate', () => {
     expect(setGateState).not.toHaveBeenCalled()
   })
 
+  it('keeps the Sign in card when a pending claim resolves after auth reports signed out', async () => {
+    const reportAuth = captureAuthCallback()
+    const claim = deferred<void>()
+    householdExists.mockResolvedValue(false)
+    claimHousehold.mockReturnValue(claim.promise)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim household' }))
+    reportAuth(null)
+    await settle(() => claim.resolve())
+
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+    expect(screen.queryByText('App content')).not.toBeInTheDocument()
+  })
+
   it('unsubscribes from auth state on unmount', () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
