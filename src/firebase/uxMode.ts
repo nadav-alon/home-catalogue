@@ -9,7 +9,7 @@ export interface UxWiring {
   config: FirebaseWebConfig
   /** Firestore's cache: in memory, so one run never shows the last run's items from disk. */
   localCache: MemoryLocalCache
-  /** Creates the app's Auth: in memory, so every run comes up signed out, and with the popup resolver, so the Auth emulator's Google popup signs a scenario user in. */
+  /** Creates the app's Auth: in memory, so every run comes up signed out, and with the popup resolver, so the Auth emulator's Google popup signs a scenario user in. Call before `connect`: `connectLocal` reaches Auth through `getAuth`, which would otherwise create a default Auth with no popup resolver. */
   initAuth: (app: FirebaseApp) => Auth
   /** Points the app's Auth and Firestore at the local emulators, before either is first used. */
   connect: (app: FirebaseApp) => void

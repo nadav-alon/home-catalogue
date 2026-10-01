@@ -124,7 +124,7 @@ describe('initFirebase in ux mode', () => {
     expect(initLocalAuth.mock.invocationCallOrder[0]).toBeLessThan(connectLocal.mock.invocationCallOrder[0])
   })
 
-  it('never connects to the emulators outside ux mode', async () => {
+  it('creates no local Auth and never connects to the emulators outside ux mode', async () => {
     const { initFirebase } = await import('./client.ts')
     connectLocal.mockClear()
     initLocalAuth.mockClear()

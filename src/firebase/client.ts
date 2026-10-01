@@ -10,7 +10,8 @@ export interface FirebaseClient {
 
 /**
  * Initialises Firestore with a persistent local cache, so writes queue while offline. In ux mode
- * the cache and Auth's persistence are in memory, so no run inherits another's state, and Auth can sign in through the emulator popup. Auth and Firestore are then pointed at the local emulators, before either is first used.
+ * it uses the memory cache instead, then creates Auth, then points both at the local emulators,
+ * before either is first used.
  */
 export function initFirebase(config: FirebaseWebConfig): FirebaseClient {
   const app = initializeApp(config)
