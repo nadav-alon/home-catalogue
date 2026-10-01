@@ -54,7 +54,8 @@ vi.mock('./platform/readDeployedPlatformVersion.ts', () => ({
 
 const checkPlatform = vi.fn()
 // Keep the real catalogue/core exports (the managers read catalogue during render); only
-// checkPlatform is stubbed, so the platform-version tests control its result.
+// checkPlatform is stubbed, so the platform-version tests control its result (a test may also
+// delegate it to the real one).
 vi.mock('data-platform', async (importOriginal) => {
   const actual = await importOriginal<typeof import('data-platform')>()
   return {
@@ -370,5 +371,18 @@ describe('Root in ux mode', () => {
     expect(initFirebase).toHaveBeenCalledWith(uxWiring()!.config)
     expect(screen.queryByRole('heading', { name: 'Set up' })).not.toBeInTheDocument()
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
+  })
+
+  it('shows no platform banner in ux mode when the deployed version is this release’s PLATFORM_VERSION', async () => {
+    const actual = await vi.importActual<typeof import('data-platform')>('data-platform')
+    vi.stubEnv('MODE', 'ux')
+    readDeployedPlatformVersion.mockResolvedValue(actual.core.PLATFORM_VERSION)
+    checkPlatform.mockImplementation(actual.core.checkPlatform)
+
+    render(<Root />)
+
+    await waitFor(() => expect(checkPlatform).toHaveBeenCalledWith(actual.core.PLATFORM_VERSION))
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
