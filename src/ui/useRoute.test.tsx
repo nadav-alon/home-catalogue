@@ -186,4 +186,34 @@ describe('navigateToItems', () => {
     expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
     expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=a'))
   })
+
+  it("issues a Dialog's pop before pushing the filter when it is closed in the same tick", async () => {
+    window.location.hash = '#/items'
+    await nextHashChange()
+    let setOpen: (open: boolean) => void = () => {}
+    function Host() {
+      const [open, set] = useState(true)
+      setOpen = set
+      return (
+        <Dialog open={open} title="Scan" onClose={() => set(false)}>
+          x
+        </Dialog>
+      )
+    }
+    render(<Host />)
+    const order: string[] = []
+    const back = history.back.bind(history)
+    vi.spyOn(history, 'back').mockImplementation(() => {
+      order.push('back')
+      back()
+    })
+    const onHashChange = () => order.push(window.location.hash)
+    window.addEventListener('hashchange', onHashChange)
+    setOpen(false)
+    navigateToItems([core.itemId('a')])
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    window.removeEventListener('hashchange', onHashChange)
+    expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
+    expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=a'))
+  })
 })
