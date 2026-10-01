@@ -153,7 +153,7 @@ describe('navigateToItems', () => {
     expect(window.location.hash).toBe('#/items?item=a')
   })
 
-  it('issues the closed Dialog\'s pop before pushing the filter, even when the lookup resolves at once', async () => {
+  it("issues a Dialog's pop before pushing the filter when it is closed in the same tick", async () => {
     window.location.hash = '#/items'
     await nextHashChange()
     let setOpen: (open: boolean) => void = () => {}
@@ -177,9 +177,7 @@ describe('navigateToItems', () => {
     })
     const onHashChange = () => order.push(window.location.hash)
     window.addEventListener('hashchange', onHashChange)
-    // The scan flow: close the Dialog, then navigate as soon as the (already resolved) lookup continues, with no frame between.
     setOpen(false)
-    await Promise.resolve()
     navigateToItems([core.itemId('a')])
     await new Promise((resolve) => setTimeout(resolve, 50))
     window.removeEventListener('hashchange', onHashChange)
