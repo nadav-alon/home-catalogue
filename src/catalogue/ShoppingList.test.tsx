@@ -330,4 +330,45 @@ describe('ticking an Item', () => {
 
     expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, state)
   })
+
+  it.each(['running low', 'out'] as const)(
+    'returns the row to its Shop with its flag when Undo reverts the tick to %s',
+    (state) => {
+      const bandages: ItemRecord = {
+        id: core.itemId('bandages'),
+        name: 'Bandages',
+        state,
+        categoryId: medicine.id,
+        necessity: 'essential',
+      }
+      let itemsCallback: ((items: ItemRecord[]) => void) | undefined
+      watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
+        itemsCallback = cb
+        cb([bandages])
+        return vi.fn()
+      })
+      watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
+        cb([medicine])
+        return vi.fn()
+      })
+      watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
+        cb([pharmacy])
+        return vi.fn()
+      })
+      render(<ShoppingList db={fakeDb} />)
+      render(<SnackbarHost />)
+
+      fireEvent.click(screen.getByRole('checkbox', { name: /Bandages/ }))
+      act(() => itemsCallback?.([{ ...bandages, state: 'enough' }]))
+      expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+
+      fireEvent.click(within(screen.getByRole('status')).getByRole('button', { name: 'Undo' }))
+      act(() => itemsCallback?.([bandages]))
+
+      const shopHeading = screen.getByRole('heading', { name: pharmacy.name })
+      const row = within(shopHeading.parentElement as HTMLElement).getByText('Bandages').closest('li')
+      expect(row).not.toBeNull()
+      expect(within(row as HTMLElement).queryByText('optional') !== null).toBe(state === 'running low')
+    },
+  )
 })
