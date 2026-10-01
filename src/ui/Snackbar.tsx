@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { Button } from './Button.tsx'
 import { milliseconds } from './milliseconds.ts'
 import './Snackbar.css'
@@ -18,9 +18,13 @@ type Listener = (current: SnackbarMessage | null) => void
 let current: SnackbarMessage | null = null
 let timer: ReturnType<typeof setTimeout> | undefined
 const listeners = new Set<Listener>()
+/** What is keeping the snackbar up. While any hold is active the timeout does not run. */
+type Hold = 'pointer' | 'focus'
+const holds = new Set<Hold>()
 
 function publish(next: SnackbarMessage | null): void {
   clearTimeout(timer)
+  if (next === null) holds.clear()
   current = next
   for (const listener of listeners) listener(current)
 }
@@ -28,7 +32,32 @@ function publish(next: SnackbarMessage | null): void {
 /** Shows `message` in the app's one snackbar, from any screen. */
 export function showSnackbar(message: SnackbarMessage): void {
   publish(message)
-  timer = setTimeout(() => dismiss(message), snackbarDurationMs)
+  restartTimeout(message)
+}
+
+/** Gives `message` a fresh full timeout, unless a hold keeps it up. */
+function restartTimeout(message: SnackbarMessage): void {
+  clearTimeout(timer)
+  if (holds.size === 0) timer = setTimeout(() => dismiss(message), snackbarDurationMs)
+}
+
+/** Keeps the snackbar up until `reason` is released. */
+function hold(reason: Hold): void {
+  if (!current) return
+  holds.add(reason)
+  clearTimeout(timer)
+}
+
+/** Releases the focus hold if focus is no longer inside `region`: removing the focused element moves focus to the body without a `focusout`. */
+function releaseStaleFocusHold(region: HTMLElement): void {
+  if (holds.has('focus') && !region.contains(document.activeElement)) release('focus')
+}
+
+/** Releases `reason`; once every hold is released the message gets a fresh full timeout. */
+function release(reason: Hold): void {
+  if (!current) return
+  holds.delete(reason)
+  restartTimeout(current)
 }
 
 /** Dismisses the snackbar if `message` is still the one showing. */
@@ -55,10 +84,23 @@ function watchSnackbar(listener: Listener): () => void {
 export function SnackbarHost() {
   const [message, setMessage] = useState<SnackbarMessage | null>(null)
 
+  const regionRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => watchSnackbar(setMessage), [])
+  useEffect(() => {
+    if (regionRef.current) releaseStaleFocusHold(regionRef.current)
+  }, [message])
 
   return (
-    <div class="ui-snackbar" role="status">
+    <div
+      ref={regionRef}
+      class="ui-snackbar"
+      role="status"
+      onPointerEnter={() => hold('pointer')}
+      onPointerLeave={() => release('pointer')}
+      onFocusIn={() => hold('focus')}
+      onFocusOut={() => release('focus')}
+    >
       {message && <p class="ui-snackbar__text">{message.text}</p>}
       {message?.action && (
         <Button
