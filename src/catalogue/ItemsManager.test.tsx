@@ -27,7 +27,8 @@ vi.mock('./items.ts', async (importOriginal) => ({
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
-  updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
+  updateItem: (db: unknown, previous: unknown, input: unknown, categories: unknown) =>
+    updateItem(db, previous, input, categories),
   softDeleteItem: (db: unknown, item: unknown) => softDeleteItem(db, item),
   restoreItem: (db: unknown, item: unknown, categories: unknown, shops: unknown) => restoreItem(db, item, categories, shops),
   restoreItemWithEdit: (db: unknown, item: unknown, edit: unknown) => restoreItemWithEdit(db, item, edit),
@@ -436,7 +437,7 @@ describe('editing an Item', () => {
       categoryId: medicine.id,
       necessity: 'essential',
       shopId: undefined,
-    })
+    }, expect.anything())
     expect(createItem).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
@@ -531,7 +532,7 @@ describe('editing an Item', () => {
     act(() => pushItems([movedElsewhere]))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(updateItem).toHaveBeenCalledWith(fakeDb, movedElsewhere, expect.anything())
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, movedElsewhere, expect.anything(), expect.anything())
   })
 
   it("lists the Item's barcodes as digits", () => {
@@ -557,6 +558,7 @@ describe('editing an Item', () => {
       fakeDb,
       bandagesWithBarcodes,
       expect.objectContaining({ removedBarcodes: [core.barcode('12345678')] }),
+      expect.anything(),
     )
   })
 

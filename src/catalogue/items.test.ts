@@ -388,7 +388,7 @@ describe('updateItem', () => {
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
       shopId: catalogue.shopId('grocery'),
-    })
+    }, [])
 
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
@@ -411,7 +411,7 @@ describe('updateItem', () => {
       necessity: catalogue.necessitySchema.parse('essential'),
       shopId: dishSoap.shopId,
       removedBarcodes: [core.barcode('12345678')],
-    })
+    }, [])
 
     expect(arrayRemove).toHaveBeenCalledWith('12345678')
     expect(batchUpdate).toHaveBeenCalledWith(
@@ -430,7 +430,7 @@ describe('updateItem', () => {
       categoryId: dishSoap.categoryId,
       necessity: catalogue.necessitySchema.parse('essential'),
       shopId: dishSoap.shopId,
-    })
+    }, [])
 
     expect(batchUpdate).not.toHaveBeenCalledWith(
       expect.objectContaining({ path: catalogue.CATEGORIES_COLLECTION }),
@@ -451,7 +451,7 @@ describe('updateItem', () => {
       categoryId: catalogue.categoryId('kitchen'),
       necessity: catalogue.necessitySchema.parse('essential'),
       shopId: dishSoap.shopId,
-    })
+    }, [])
 
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' },
@@ -463,6 +463,152 @@ describe('updateItem', () => {
     )
   })
 
+  describe('moving Category and the override of their shared default Shop', () => {
+    const grocery = catalogue.shopId('grocery')
+    const sharing = [
+      { id: catalogue.categoryId('cleaning'), defaultShopId: grocery },
+      { id: catalogue.categoryId('kitchen'), defaultShopId: grocery },
+    ]
+    const necessity = catalogue.necessitySchema.parse('essential')
+    const noOverride: ItemRecord = { ...dishSoap, shopId: undefined }
+
+    it('writes the Category move, then the override set, as two batches', async () => {
+      const { updateItem } = await import('./items.ts')
+      batchCommit.mockResolvedValue(undefined)
+
+      await updateItem(
+        fakeDb,
+        noOverride,
+        { name: noOverride.name, categoryId: catalogue.categoryId('kitchen'), necessity, shopId: grocery },
+        sharing,
+      )
+      await vi.waitFor(() => expect(batchCommit).toHaveBeenCalledTimes(2))
+
+      const updates = batchUpdate.mock.calls
+      expect(updates).toEqual([
+        [{ path: core.ITEMS_COLLECTION, id: 'dish-soap' }, expect.anything()],
+        [
+          { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' },
+          { categoryId: 'kitchen', necessity: 'essential', shopId: { kind: 'deleteField' } },
+        ],
+        [{ path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' }, { referenceCount: { kind: 'increment', delta: -1 } }],
+        [{ path: catalogue.CATEGORIES_COLLECTION, id: 'kitchen' }, { referenceCount: { kind: 'increment', delta: 1 } }],
+        [{ path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' }, { shopId: 'grocery' }],
+        [{ path: catalogue.SHOPS_COLLECTION, id: 'grocery' }, { referenceCount: { kind: 'increment', delta: 1 } }],
+      ])
+    })
+
+    it('writes the Category move, then the override clear, as two batches', async () => {
+      const { updateItem } = await import('./items.ts')
+      batchCommit.mockResolvedValue(undefined)
+
+      await updateItem(
+        fakeDb,
+        dishSoap,
+        { name: dishSoap.name, categoryId: catalogue.categoryId('kitchen'), necessity },
+        sharing,
+      )
+      await vi.waitFor(() => expect(batchCommit).toHaveBeenCalledTimes(2))
+
+      expect(batchUpdate).toHaveBeenCalledWith(
+        { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' },
+        { categoryId: 'kitchen', necessity: 'essential', shopId: 'grocery' },
+      )
+      expect(batchUpdate).toHaveBeenLastCalledWith(
+        { path: catalogue.SHOPS_COLLECTION, id: 'grocery' },
+        { referenceCount: { kind: 'increment', delta: -1 } },
+      )
+    })
+
+    it('stays one write when the Categories have different default Shops', async () => {
+      const { updateItem } = await import('./items.ts')
+      batchCommit.mockResolvedValue(undefined)
+
+      await updateItem(
+        fakeDb,
+        noOverride,
+        { name: noOverride.name, categoryId: catalogue.categoryId('kitchen'), necessity, shopId: grocery },
+        [sharing[0]!, { id: catalogue.categoryId('kitchen'), defaultShopId: catalogue.shopId('pharmacy') }],
+      )
+
+      expect(batchCommit).toHaveBeenCalledTimes(1)
+    })
+
+    it('stays one write when the Category alone changes', async () => {
+      const { updateItem } = await import('./items.ts')
+      batchCommit.mockResolvedValue(undefined)
+
+      await updateItem(
+        fakeDb,
+        dishSoap,
+        { name: dishSoap.name, categoryId: catalogue.categoryId('kitchen'), necessity, shopId: grocery },
+        sharing,
+      )
+
+      expect(batchCommit).toHaveBeenCalledTimes(1)
+    })
+
+    it('stays one write when the override alone changes', async () => {
+      const { updateItem } = await import('./items.ts')
+      batchCommit.mockResolvedValue(undefined)
+
+      await updateItem(
+        fakeDb,
+        noOverride,
+        { name: noOverride.name, categoryId: noOverride.categoryId, necessity, shopId: grocery },
+        sharing,
+      )
+
+      expect(batchCommit).toHaveBeenCalledTimes(1)
+    })
+
+    it('queues both batches without waiting for the server to acknowledge the Category move', async () => {
+      const { updateItem } = await import('./items.ts')
+      batchCommit.mockReturnValue(new Promise(() => {}))
+
+      await updateItem(
+        fakeDb,
+        noOverride,
+        { name: noOverride.name, categoryId: catalogue.categoryId('kitchen'), necessity, shopId: grocery },
+        sharing,
+      )
+
+      expect(batchCommit).toHaveBeenCalledTimes(2)
+    })
+
+    it('shows one banner per rejected batch', async () => {
+      const { updateItem } = await import('./items.ts')
+      const messages = await rejections()
+      batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
+      batchCommit.mockResolvedValueOnce(undefined)
+
+      await updateItem(
+        fakeDb,
+        noOverride,
+        { name: noOverride.name, categoryId: catalogue.categoryId('kitchen'), necessity, shopId: grocery },
+        sharing,
+      )
+
+      await vi.waitFor(() => expect(messages()).toHaveLength(1))
+      expect(messages()[0]).toContain('Could not save changes to Dish soap')
+    })
+
+    it('refuses an invalid override before writing either batch', async () => {
+      const { updateItem } = await import('./items.ts')
+
+      await expect(
+        updateItem(
+          fakeDb,
+          noOverride,
+          { name: noOverride.name, categoryId: catalogue.categoryId('kitchen'), necessity, shopId: '' as catalogue.ShopId },
+          sharing,
+        ),
+      ).rejects.toThrow()
+
+      expect(batchCommit).not.toHaveBeenCalled()
+    })
+  })
+
   it('moves the Shop referenceCount by one each way when the Shop override changes', async () => {
     const { updateItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
@@ -472,7 +618,7 @@ describe('updateItem', () => {
       categoryId: dishSoap.categoryId,
       necessity: catalogue.necessitySchema.parse('essential'),
       shopId: catalogue.shopId('pharmacy'),
-    })
+    }, [])
 
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: catalogue.SHOPS_COLLECTION, id: 'grocery' },
@@ -494,7 +640,7 @@ describe('updateItem', () => {
       categoryId: noOverride.categoryId,
       necessity: catalogue.necessitySchema.parse('essential'),
       shopId: catalogue.shopId('pharmacy'),
-    })
+    }, [])
 
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
@@ -511,7 +657,7 @@ describe('updateItem', () => {
       name: dishSoap.name,
       categoryId: dishSoap.categoryId,
       necessity: catalogue.necessitySchema.parse('essential'),
-    })
+    }, [])
 
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: catalogue.SHOPS_COLLECTION, id: 'grocery' },
@@ -528,7 +674,7 @@ describe('updateItem', () => {
       name: 'Dish soap',
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
-    })
+    }, [])
 
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
@@ -548,7 +694,7 @@ describe('updateItem', () => {
         name: '',
         categoryId: catalogue.categoryId('cleaning'),
         necessity: catalogue.necessitySchema.parse('essential'),
-      }),
+      }, []),
     ).rejects.toThrow()
     expect(batchUpdate).not.toHaveBeenCalled()
     expect(batchCommit).not.toHaveBeenCalled()
@@ -564,7 +710,7 @@ describe('updateItem', () => {
         categoryId: catalogue.categoryId('cleaning'),
         necessity: catalogue.necessitySchema.parse('essential'),
         shopId: catalogue.shopId('grocery'),
-      }),
+      }, []),
     ).resolves.toBeUndefined()
   })
 })
@@ -674,7 +820,7 @@ describe('a queued Item write the server rejects', () => {
       name: 'Washing-up liquid',
       categoryId: dishSoap.categoryId,
       necessity: dishSoap.necessity,
-    })
+    }, [])
     await Promise.resolve()
 
     expect(latest()).toEqual(['Could not save changes to Dish soap'])

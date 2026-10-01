@@ -184,18 +184,18 @@ export async function createItem(db: Firestore, input: NewItemInput): Promise<co
   return core.itemId(itemRef.id)
 }
 
-/**
- * Validates `edit` and stages its fields on the Item's two docs in `batch`, with `extraFields`
- * added to both updates. Returns the validated Category and Shop override for the caller's
- * referenceCounts. Shared by {@link updateItem} and {@link restoreItemWithEdit} so both write the same fields.
- */
-function stageItemEdit(
-  db: Firestore,
-  batch: WriteBatch,
-  id: core.ItemId,
-  edit: ItemEdit,
-  extraFields: Record<string, FieldValue>,
-): { categoryId: catalogue.CategoryId; shopId: catalogue.ShopId | undefined } {
+/** An {@link ItemEdit} whose fields have passed {@link parseItemEdit}. */
+interface ValidItemEdit {
+  name: string
+  brandNote: string | undefined
+  categoryId: catalogue.CategoryId
+  necessity: catalogue.Necessity
+  shopId: catalogue.ShopId | undefined
+  removedBarcodes: core.Barcode[] | undefined
+}
+
+/** Validates `edit` against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema}. */
+function parseItemEdit(edit: ItemEdit): ValidItemEdit {
   const { name, brandNote } = core.itemSchema.pick({ name: true, brandNote: true }).parse({
     name: edit.name,
     ...(edit.brandNote !== undefined ? { brandNote: edit.brandNote } : {}),
@@ -207,12 +207,26 @@ function stageItemEdit(
       necessity: edit.necessity,
       ...(edit.shopId !== undefined ? { shopId: edit.shopId } : {}),
     })
+  return { name, brandNote, categoryId, necessity, shopId, removedBarcodes: edit.removedBarcodes }
+}
 
+/**
+ * Stages the validated `edit`'s fields on the Item's two docs in `batch`, with `extraFields`
+ * added to both updates. Shared by {@link updateItem} and {@link restoreItemWithEdit} so both write the same fields.
+ */
+function stageItemEdit(
+  db: Firestore,
+  batch: WriteBatch,
+  id: core.ItemId,
+  edit: ValidItemEdit,
+  extraFields: Record<string, FieldValue>,
+): void {
+  const { name, brandNote, categoryId, necessity, shopId, removedBarcodes } = edit
   batch.update(doc(db, core.ITEMS_COLLECTION, id), {
     ...extraFields,
     name,
     brandNote: brandNote ?? deleteField(),
-    ...(edit.removedBarcodes?.length ? { barcodes: arrayRemove(...edit.removedBarcodes) } : {}),
+    ...(removedBarcodes?.length ? { barcodes: arrayRemove(...removedBarcodes) } : {}),
   })
   batch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, id), {
     ...extraFields,
@@ -220,7 +234,54 @@ function stageItemEdit(
     necessity,
     shopId: shopId ?? deleteField(),
   })
-  return { categoryId, shopId }
+}
+
+/** The Categories' default Shops, which decide whether an edit has to be written as two batches. */
+type CategoryDefaultShops = readonly Pick<CategoryRecord, 'id' | 'defaultShopId'>[]
+
+/** Stages the referenceCount moves of an Item's Category changing from `previous` to `next`; nothing when it is unchanged. */
+function stageCategoryChange(
+  db: Firestore,
+  batch: WriteBatch,
+  previous: catalogue.CategoryId,
+  next: catalogue.CategoryId,
+): void {
+  if (next === previous) return
+  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, previous), { referenceCount: increment(-1) })
+  batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, next), { referenceCount: increment(1) })
+}
+
+/**
+ * Whether an edit moves the Item between two Categories sharing one default Shop and also sets or
+ * clears the override to that Shop. The platform refuses that as a single write, so it is written
+ * as the Category move, then the override change.
+ */
+function movesCategoryAndOverrideOfItsDefaultShop(
+  previous: ItemRecord,
+  categoryId: catalogue.CategoryId,
+  shopId: catalogue.ShopId | undefined,
+  categories: CategoryDefaultShops,
+): boolean {
+  if (categoryId === previous.categoryId || shopId === previous.shopId) return false
+  const from = categories.find((category) => category.id === previous.categoryId)?.defaultShopId
+  const to = categories.find((category) => category.id === categoryId)?.defaultShopId
+  return from !== undefined && from === to && (shopId === from || previous.shopId === from)
+}
+
+/** Stages the referenceCount moves of a Shop override changing from `previous` to `next`; nothing when it is unchanged. */
+function stageShopOverrideChange(
+  db: Firestore,
+  batch: WriteBatch,
+  previous: catalogue.ShopId | undefined,
+  next: catalogue.ShopId | undefined,
+): void {
+  if (next === previous) return
+  if (previous !== undefined) {
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, previous), { referenceCount: increment(-1) })
+  }
+  if (next !== undefined) {
+    batch.update(doc(db, catalogue.SHOPS_COLLECTION, next), { referenceCount: increment(1) })
+  }
 }
 
 /**
@@ -231,25 +292,39 @@ function stageItemEdit(
  * referenceCount by one each, matching the platform's update rule; `previous` supplies the
  * references being moved away from. Any `removedBarcodes` leave the Item's `barcodes` in the same
  * batch with `arrayRemove`, leaving its other Barcodes. Resolves once the batch is queued, see {@link createItem}.
+ * An edit moving the Item between two `categories` with the same default Shop while setting or clearing the
+ * override to that Shop is written as two batches, the Category move first, since the platform refuses it as one.
+ * Both are committed at once, so offline both are queued and apply in order.
  */
-export async function updateItem(db: Firestore, previous: ItemRecord, input: ItemEdit): Promise<void> {
+export async function updateItem(
+  db: Firestore,
+  previous: ItemRecord,
+  input: ItemEdit,
+  categories: CategoryDefaultShops,
+): Promise<void> {
+  const edit = parseItemEdit(input)
+  const writeOverrideSeparately = movesCategoryAndOverrideOfItsDefaultShop(
+    previous,
+    edit.categoryId,
+    edit.shopId,
+    categories,
+  )
   const batch = writeBatch(db)
-  const { categoryId, shopId } = stageItemEdit(db, batch, previous.id, input, {})
-  if (categoryId !== previous.categoryId) {
-    batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, previous.categoryId), { referenceCount: increment(-1) })
-    batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, categoryId), { referenceCount: increment(1) })
-  }
-  if (shopId !== previous.shopId) {
-    if (previous.shopId !== undefined) {
-      batch.update(doc(db, catalogue.SHOPS_COLLECTION, previous.shopId), { referenceCount: increment(-1) })
-    }
-    if (shopId !== undefined) {
-      batch.update(doc(db, catalogue.SHOPS_COLLECTION, shopId), { referenceCount: increment(1) })
-    }
-  }
-  void batch.commit().catch((err: unknown) => {
+  stageItemEdit(db, batch, previous.id, writeOverrideSeparately ? { ...edit, shopId: previous.shopId } : edit, {})
+  stageCategoryChange(db, batch, previous.categoryId, edit.categoryId)
+  if (!writeOverrideSeparately) stageShopOverrideChange(db, batch, previous.shopId, edit.shopId)
+  const reportRejection = (err: unknown) => {
     reportWriteRejection(`changes to ${previous.name}`, err)
+  }
+  void batch.commit().catch(reportRejection)
+  if (!writeOverrideSeparately) return
+
+  const overrideBatch = writeBatch(db)
+  overrideBatch.update(doc(db, catalogue.CATALOGUE_ITEMS_COLLECTION, previous.id), {
+    shopId: edit.shopId ?? deleteField(),
   })
+  stageShopOverrideChange(db, overrideBatch, previous.shopId, edit.shopId)
+  void overrideBatch.commit().catch(reportRejection)
 }
 
 /**
@@ -436,8 +511,9 @@ export async function restoreItem(
  */
 export async function restoreItemWithEdit(db: Firestore, item: ItemRecord, edit: ItemEdit): Promise<void> {
   const batch = writeBatch(db)
-  const { categoryId, shopId } = stageItemEdit(db, batch, item.id, edit, { deletedAt: deleteField() })
-  stageReferenceCounts(db, batch, categoryId, shopId, 1)
+  const validEdit = parseItemEdit(edit)
+  stageItemEdit(db, batch, item.id, validEdit, { deletedAt: deleteField() })
+  stageReferenceCounts(db, batch, validEdit.categoryId, validEdit.shopId, 1)
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`restored Item ${item.name}`, err)
   })

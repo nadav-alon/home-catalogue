@@ -244,7 +244,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
             return
           }
           // Its reference counts move from the current record.
-          await updateItem(db, editedItem, input)
+          await updateItem(db, editedItem, input, categories)
         }}
         onDelete={dialog?.kind === 'restore' ? undefined : handleDelete}
         onClose={() => setDialog(null)}
