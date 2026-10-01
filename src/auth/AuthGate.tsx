@@ -28,23 +28,23 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   const [state, setState] = useState<AuthGateState>({ status: 'checking' })
 
   /** Counts the lookups started, sign-outs seen and unmounts; a lookup or claim may set state only while it still holds the latest count. */
-  const lookupGeneration = useRef(0)
-  const discardPendingLookup = () => {
-    lookupGeneration.current++
+  const stateGeneration = useRef(0)
+  const discardPendingWork = () => {
+    stateGeneration.current++
   }
 
   /** Returns a setter that applies a state only while no lookup, sign-out or unmount has happened since this call. */
-  const setWhileCurrent = () => {
-    const generation = lookupGeneration.current
+  const captureGuardedSetter = () => {
+    const generation = stateGeneration.current
     return (next: AuthGateState) => {
-      if (generation === lookupGeneration.current) setState(next)
+      if (generation === stateGeneration.current) setState(next)
     }
   }
 
   const resolveMembership = useCallback(
     async (user: AuthUser) => {
-      lookupGeneration.current++
-      const setIfCurrent = setWhileCurrent()
+      discardPendingWork()
+      const setIfCurrent = captureGuardedSetter()
       try {
         setIfCurrent(await lookUpMembership(client, user))
       } catch (error) {
@@ -57,14 +57,14 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   useEffect(() => {
     const unwatch = watchAuthState(client.app, (user) => {
       if (user === null) {
-        discardPendingLookup()
+        discardPendingWork()
         setState({ status: 'signed-out' })
         return
       }
       void resolveMembership(user)
     })
     return () => {
-      discardPendingLookup()
+      discardPendingWork()
       unwatch()
     }
   }, [client, resolveMembership])
@@ -87,7 +87,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
           <p>No one has claimed this household yet.</p>
           <Button
             onClick={async () => {
-              const setIfCurrent = setWhileCurrent()
+              const setIfCurrent = captureGuardedSetter()
               await claimHousehold(client.db, state.user.uid, state.user.email)
               setIfCurrent({ status: 'member' })
             }}
