@@ -56,15 +56,15 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   /** The deleted Item a scanned Barcode belongs to, and that Barcode, while the Member is deciding whether to bring it back. */
   const [deletedMatch, setDeletedMatch] = useState<{ item: ItemRecord; barcode: core.Barcode } | undefined>(undefined)
 
-  /** The Item just created from a scan, whose scanned filter opens once the Item dialog has closed. */
-  const createdFromScan = useRef<core.ItemId | undefined>(undefined)
+  /** The Item just created from a scan or restored through the Item dialog, whose filter opens once the dialog has closed. */
+  const filterOnClose = useRef<core.ItemId | undefined>(undefined)
 
   // A layout effect, so it runs after the closed dialog's cleanup has issued its history pop in the same commit: the filter's
   // push then waits for that pop rather than landing on top of the dialog's entry.
   useLayoutEffect(() => {
-    if (dialog !== null || createdFromScan.current === undefined) return
-    const id = createdFromScan.current
-    createdFromScan.current = undefined
+    if (dialog !== null || filterOnClose.current === undefined) return
+    const id = filterOnClose.current
+    filterOnClose.current = undefined
     navigateToItems([id])
   }, [dialog])
 
@@ -224,12 +224,12 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         onSave={async (input) => {
           if (dialog?.kind === 'restore' && editedItem) {
             await restoreItemWithEdit(db, editedItem, input)
-            navigateToItems([editedItem.id])
+            filterOnClose.current = editedItem.id
             return
           }
           if (!editedItem) {
             const id = await createItem(db, { ...input, barcode: pendingBarcode })
-            if (pendingBarcode !== undefined) createdFromScan.current = id
+            if (pendingBarcode !== undefined) filterOnClose.current = id
             return
           }
           // Its reference counts move from the current record.
