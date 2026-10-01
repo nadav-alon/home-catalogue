@@ -480,6 +480,29 @@ describe('AuthGate', () => {
     expect(screen.queryByText('App content')).not.toBeInTheDocument()
   })
 
+  it("lets the newer user's lookup decide the state when an earlier user's claim resolves after it", async () => {
+    const reportAuth = captureAuthCallback()
+    const secondUser = { uid: 'user-2', email: 'guest@example.com' } as unknown as AuthUser
+    const claim = deferred<void>()
+    householdExists.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    isHouseholdMember.mockResolvedValue(false)
+    claimHousehold.mockReturnValue(claim.promise)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim household' }))
+    reportAuth(secondUser)
+    expect(await screen.findByText('You are not a member of this household.')).toBeInTheDocument()
+    await settle(() => claim.resolve())
+
+    expect(screen.getByText('You are not a member of this household.')).toBeInTheDocument()
+    expect(screen.queryByText('App content')).not.toBeInTheDocument()
+  })
+
   it('unsubscribes from auth state on unmount', () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
