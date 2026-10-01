@@ -69,11 +69,14 @@ on a picked date. A read-only copy of the Shopping list.
 
 **Soft delete**:
 Deleting an Item, Category or Shop by setting its `deletedAt` rather than removing the record. The
-record is hidden everywhere and holds no reference counts.
+record is hidden from every list and releases the referenceCounts it held on its Category and Shop.
+_Avoid_: remove, undelete
 
 **Deleted record**:
-An Item, Category or Shop with `deletedAt` set. It can be brought back.
+A record that has been soft-deleted. An Item comes back through Undo, or by scanning one of its
+barcodes; a Category or Shop comes back only through Undo.
 
 **Undo**:
-The snackbar action that restores a record just deleted. Refused, and the failure reported, when
-the record's Category or Shop is no longer live.
+The snackbar action that restores a record just deleted; one way to restore, since scanning a
+deleted Item's barcode restores it too. Refused, and the failure reported, when the record's
+Category or Shop is a Deleted record.
