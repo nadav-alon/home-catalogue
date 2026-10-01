@@ -25,8 +25,8 @@ const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
 const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
 const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
 const where = vi.fn((field: string, op: string, value: unknown) => ({ kind: 'where', field, op, value }))
-const getDocs = vi.fn()
-const getDoc = vi.fn()
+const getDocsFromCache = vi.fn()
+const getDocFromCache = vi.fn()
 const updateDoc = vi.fn()
 const arrayRemove = vi.fn((...values: unknown[]) => ({ kind: 'arrayRemove', values }))
 const arrayUnion = vi.fn((...values: unknown[]) => ({ kind: 'arrayUnion', values }))
@@ -42,8 +42,8 @@ vi.mock('firebase/firestore', () => ({
   serverTimestamp: () => serverTimestamp(),
   increment: (n: number) => increment(n),
   where: (field: string, op: string, value: unknown) => where(field, op, value),
-  getDocs: (q: unknown) => getDocs(q),
-  getDoc: (ref: unknown) => getDoc(ref),
+  getDocsFromCache: (q: unknown) => getDocsFromCache(q),
+  getDocFromCache: (ref: unknown) => getDocFromCache(ref),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
   arrayUnion: (...values: unknown[]) => arrayUnion(...values),
   arrayRemove: (...values: unknown[]) => arrayRemove(...values),
@@ -65,8 +65,8 @@ beforeEach(() => {
   serverTimestamp.mockClear()
   increment.mockClear()
   where.mockClear()
-  getDocs.mockReset()
-  getDoc.mockReset()
+  getDocsFromCache.mockReset()
+  getDocFromCache.mockReset()
   updateDoc.mockReset()
   arrayUnion.mockClear()
   arrayRemove.mockClear()
@@ -701,13 +701,13 @@ describe('findDeletedItemByBarcode', () => {
 
   it('returns the deleted Item joined with its catalogue doc', async () => {
     const { findDeletedItemByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({ docs: [coreDoc('dish-soap')] })
-    getDoc.mockResolvedValueOnce(catalogueDoc)
+    getDocsFromCache.mockResolvedValueOnce({ docs: [coreDoc('dish-soap')] })
+    getDocFromCache.mockResolvedValueOnce(catalogueDoc)
 
     const found = await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))
 
     expect(where).toHaveBeenCalledWith('barcodes', 'array-contains', '12345678')
-    expect(getDoc).toHaveBeenCalledWith({ path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' })
+    expect(getDocFromCache).toHaveBeenCalledWith({ path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' })
     expect(found).toEqual({
       id: 'dish-soap',
       name: 'Dish soap',
@@ -721,37 +721,45 @@ describe('findDeletedItemByBarcode', () => {
 
   it('picks the most recently deleted Item when several hold the barcode', async () => {
     const { findDeletedItemByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({
+    getDocsFromCache.mockResolvedValueOnce({
       docs: [
         coreDoc('old-soap', { deletedAt: { seconds: 1, nanoseconds: 0 } }),
         coreDoc('new-soap', { deletedAt: { seconds: 5, nanoseconds: 0 } }),
         coreDoc('mid-soap', { deletedAt: { seconds: 3, nanoseconds: 0 } }),
       ],
     })
-    getDoc.mockResolvedValue(catalogueDoc)
+    getDocFromCache.mockResolvedValue(catalogueDoc)
 
     expect((await findDeletedItemByBarcode(fakeDb, core.barcode('12345678')))?.id).toBe('new-soap')
   })
 
   it('ignores a live Item', async () => {
     const { findDeletedItemByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({ docs: [coreDoc('dish-soap', { deletedAt: undefined })] })
+    getDocsFromCache.mockResolvedValueOnce({ docs: [coreDoc('dish-soap', { deletedAt: undefined })] })
 
     expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
-    expect(getDoc).not.toHaveBeenCalled()
+    expect(getDocFromCache).not.toHaveBeenCalled()
   })
 
   it('is undefined when no Item carries the barcode', async () => {
     const { findDeletedItemByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({ docs: [] })
+    getDocsFromCache.mockResolvedValueOnce({ docs: [] })
 
     expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
   })
 
   it('skips an Item whose catalogue doc is missing', async () => {
     const { findDeletedItemByBarcode } = await import('./items.ts')
-    getDocs.mockResolvedValueOnce({ docs: [coreDoc('dish-soap')] })
-    getDoc.mockResolvedValueOnce({ exists: () => false, data: () => undefined })
+    getDocsFromCache.mockResolvedValueOnce({ docs: [coreDoc('dish-soap')] })
+    getDocFromCache.mockResolvedValueOnce({ exists: () => false, data: () => undefined })
+
+    expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
+  })
+
+  it('skips an Item whose catalogue doc is not in the cache', async () => {
+    const { findDeletedItemByBarcode } = await import('./items.ts')
+    getDocsFromCache.mockResolvedValueOnce({ docs: [coreDoc('dish-soap')] })
+    getDocFromCache.mockRejectedValueOnce(new Error('Failed to get document from cache.'))
 
     expect(await findDeletedItemByBarcode(fakeDb, core.barcode('12345678'))).toBeUndefined()
   })
