@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { FirebaseError } from 'firebase/app'
 import { AuthGate } from './AuthGate.tsx'
 import type { FirebaseClient } from '../firebase/client.ts'
 import type { AuthUser } from './authClient.ts'
@@ -181,6 +182,107 @@ describe('AuthGate', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(signOutUser).toHaveBeenCalledWith('fake-app')
+  })
+
+  it.each([
+    ['householdExists', () => householdExists.mockRejectedValue(new Error('unavailable'))],
+    ['isHouseholdMember', () => isHouseholdMember.mockRejectedValue(new Error('unavailable'))],
+    ['joinFromInvite', () => joinFromInvite.mockRejectedValue(new Error('unavailable'))],
+  ])('shows an error card instead of a blank screen when %s rejects', async (_name, fail) => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockResolvedValue(true)
+    isHouseholdMember.mockResolvedValue(false)
+    fail()
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+
+    expect(await screen.findByText("Couldn't reach your Household")).toBeInTheDocument()
+    expect(screen.queryByText('App content')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['householdExists', () => householdExists.mockRejectedValue(new FirebaseError('permission-denied', 'refused'))],
+    ['isHouseholdMember', () => isHouseholdMember.mockRejectedValue(new FirebaseError('permission-denied', 'refused'))],
+    ['joinFromInvite', () => joinFromInvite.mockRejectedValue(new FirebaseError('permission-denied', 'refused'))],
+  ])('shows the non-member card, not the error card, when %s is refused by the rules', async (_name, fail) => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockResolvedValue(true)
+    isHouseholdMember.mockResolvedValue(false)
+    fail()
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+
+    expect(await screen.findByText('You are not a member of this household.')).toBeInTheDocument()
+    expect(screen.queryByText("Couldn't reach your Household")).not.toBeInTheDocument()
+  })
+
+  it('brings the error card back when Retry rejects again', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockRejectedValue(new Error('unavailable'))
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText("Couldn't reach your Household")).toBeInTheDocument()
+    expect(householdExists).toHaveBeenCalledTimes(2)
+  })
+
+  it('runs the resolution again on Retry and lands a now-reachable member in the app', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockRejectedValueOnce(new Error('unavailable')).mockResolvedValue(true)
+    isHouseholdMember.mockResolvedValue(true)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+
+    expect(await screen.findByText('App content')).toBeInTheDocument()
+    expect(householdExists).toHaveBeenCalledTimes(2)
+  })
+
+  it('offers Sign out and, after confirming, Reset Firebase configuration on the error card', async () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(user)
+      return unsubscribe
+    })
+    householdExists.mockRejectedValue(new Error('unavailable'))
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+    expect(signOutUser).toHaveBeenCalledWith('fake-app')
+
+    expectResetOnlyAfterConfirm(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
   })
 
   it('offers Reset Firebase configuration on the non-member card, only after the user confirms', async () => {
