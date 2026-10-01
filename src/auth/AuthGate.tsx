@@ -28,17 +28,21 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   const [state, setState] = useState<AuthGateState>({ status: 'checking' })
 
   /** Counts the lookups started, sign-outs seen and unmounts; a lookup may set state only while it still holds the latest count. */
-  const session = useRef(0)
+  const lookupGeneration = useRef(0)
+  const discardPendingLookup = () => {
+    lookupGeneration.current++
+  }
 
   const resolveMembership = useCallback(
     async (user: AuthUser) => {
-      const mine = ++session.current
+      const generation = ++lookupGeneration.current
+      const setIfCurrent = (next: AuthGateState) => {
+        if (generation === lookupGeneration.current) setState(next)
+      }
       try {
-        const next = await lookUpMembership(client, user)
-        if (mine === session.current) setState(next)
+        setIfCurrent(await lookUpMembership(client, user))
       } catch (error) {
-        if (mine !== session.current) return
-        setState(isRulesRefusal(error) ? { status: 'non-member', user } : { status: 'unreachable', user })
+        setIfCurrent(isRulesRefusal(error) ? { status: 'non-member', user } : { status: 'unreachable', user })
       }
     },
     [client],
@@ -47,14 +51,14 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   useEffect(() => {
     const unwatch = watchAuthState(client.app, (user) => {
       if (user === null) {
-        session.current++
+        discardPendingLookup()
         setState({ status: 'signed-out' })
         return
       }
       void resolveMembership(user)
     })
     return () => {
-      session.current++
+      discardPendingLookup()
       unwatch()
     }
   }, [client, resolveMembership])
