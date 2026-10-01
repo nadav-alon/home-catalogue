@@ -11,6 +11,7 @@ import { resetHash } from '../testing/hash.ts'
 import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { choose } from '../testing/select.ts'
+import { resetPendingPop } from '../ui/pendingPop.ts'
 
 const watchItems = vi.fn()
 const createItem = vi.fn()
@@ -107,6 +108,8 @@ function renderWith(
 }
 
 afterEach(() => {
+  vi.restoreAllMocks()
+  resetPendingPop()
   resetHash()
   resetSnackbar()
 })
@@ -1136,6 +1139,34 @@ describe('a scanned barcode', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
     expect(within(dialog).queryByRole('textbox', { name: 'Barcode' })).not.toBeInTheDocument()
+  })
+
+  it('issues the chooser\'s history pop before pushing the filter of the Item picked from it', async () => {
+    const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+    renderWith([bandages, tape], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+    // The scanner's pop is still in flight; the chooser pushes its entry once it lands.
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+
+    const order: string[] = []
+    const back = history.back.bind(history)
+    vi.spyOn(history, 'back').mockImplementation(() => {
+      order.push('back')
+      back()
+    })
+    const onHashChange = () => order.push(window.location.hash)
+    window.addEventListener('hashchange', onHashChange)
+    try {
+      fireEvent.click(within(chooser).getByRole('button', { name: 'Tape' }))
+      await waitFor(() => expect(order).toContain('#/items?item=tape'))
+    } finally {
+      window.removeEventListener('hashchange', onHashChange)
+    }
+
+    expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
+    expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=tape'))
   })
 
   it('creates the Item carrying the barcode from "New Item"', async () => {
