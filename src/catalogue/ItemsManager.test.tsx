@@ -29,7 +29,7 @@ vi.mock('./items.ts', async (importOriginal) => ({
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   updateItem: (db: unknown, previous: unknown, input: unknown) => updateItem(db, previous, input),
   softDeleteItem: (db: unknown, item: unknown) => softDeleteItem(db, item),
-  restoreItem: (db: unknown, item: unknown, shops: unknown) => restoreItem(db, item, shops),
+  restoreItem: (db: unknown, item: unknown, categories: unknown, shops: unknown) => restoreItem(db, item, categories, shops),
   restoreItemWithEdit: (db: unknown, item: unknown, edit: unknown) => restoreItemWithEdit(db, item, edit),
   attachBarcode: (db: unknown, item: unknown, barcode: unknown) => attachBarcode(db, item, barcode),
   findDeletedItemByBarcode: (db: unknown, barcode: unknown) => findDeletedItemByBarcode(db, barcode),
@@ -463,8 +463,20 @@ describe('editing an Item', () => {
     expect(restoreItem).not.toHaveBeenCalled()
     const hashBeforeUndo = window.location.hash
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
-    expect(restoreItem).toHaveBeenCalledWith(fakeDb, waterproofBandages, [pharmacy, grocery])
+    expect(restoreItem).toHaveBeenCalledWith(fakeDb, waterproofBandages, [medicine, cleaning], [pharmacy, grocery])
     expect(window.location.hash).toBe(hashBeforeUndo)
+  })
+
+  it('hands Undo the Categories as they are when it is pressed, not when the Item was deleted', () => {
+    const { publishCategories } = renderWith([waterproofBandages], [medicine, cleaning], [pharmacy, grocery])
+    render(<SnackbarHost />)
+
+    openRow('Bandages')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    act(() => publishCategories([cleaning]))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(restoreItem).toHaveBeenCalledWith(fakeDb, waterproofBandages, [cleaning], [pharmacy, grocery])
   })
 
   it('hands Undo the Shops as they are when it is pressed, not when the Item was deleted', () => {
@@ -476,7 +488,7 @@ describe('editing an Item', () => {
     act(() => publishShops([grocery]))
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
 
-    expect(restoreItem).toHaveBeenCalledWith(fakeDb, waterproofBandages, [grocery])
+    expect(restoreItem).toHaveBeenCalledWith(fakeDb, waterproofBandages, [medicine, cleaning], [grocery])
   })
 
   it('offers no Delete when adding an Item', () => {
@@ -1041,7 +1053,7 @@ describe('a scanned barcode', () => {
     fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
 
     await waitFor(() => expect(window.location.hash).toBe('#/items?item=bandages'))
-    expect(restoreItem).toHaveBeenCalledWith(fakeDb, bandages, [pharmacy])
+    expect(restoreItem).toHaveBeenCalledWith(fakeDb, bandages, [medicine], [pharmacy])
   })
 
   it('opens the Item dialog on Yes when the deleted Item\'s Category is gone, restoring it with the new choice on save', async () => {

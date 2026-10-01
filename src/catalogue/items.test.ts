@@ -644,7 +644,7 @@ describe('a queued Item write the server rejects', () => {
     const latest = await rejections()
     batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
 
-    await restoreItem(fakeDb, { ...dishSoap, categoryId: catalogue.categoryId('cleaning') }, [{ id: catalogue.shopId('grocery') }])
+    await restoreItem(fakeDb, { ...dishSoap, categoryId: catalogue.categoryId('cleaning') }, [{ id: catalogue.categoryId('cleaning') }], [{ id: catalogue.shopId('grocery') }])
     await Promise.resolve()
 
     expect(latest()).toEqual(['Could not save restored Item Dish soap'])
@@ -955,17 +955,28 @@ describe('softDeleteItem and restoreItem', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const latest = await rejections()
 
-    await restoreItem(fakeDb, dishSoap, [{ id: catalogue.shopId('market') }])
+    await restoreItem(fakeDb, dishSoap, [{ id: catalogue.categoryId('cleaning') }], [{ id: catalogue.shopId('market') }])
 
     expect(writeBatch).not.toHaveBeenCalled()
     expect(latest()).toEqual(['Could not restore Dish soap: Its Shop has been deleted'])
+  })
+
+  it('refuses to restore onto a Category that is no longer live, writing nothing and saying so in the banner', async () => {
+    const { restoreItem } = await import('./items.ts')
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const latest = await rejections()
+
+    await restoreItem(fakeDb, dishSoap, [{ id: catalogue.categoryId('kitchen') }], [{ id: catalogue.shopId('grocery') }])
+
+    expect(writeBatch).not.toHaveBeenCalled()
+    expect(latest()).toEqual(['Could not restore Dish soap: Its Category has been deleted'])
   })
 
   it('restores by clearing deletedAt and raising the counts back', async () => {
     const { restoreItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
-    await restoreItem(fakeDb, dishSoap, [{ id: catalogue.shopId('grocery') }])
+    await restoreItem(fakeDb, dishSoap, [{ id: catalogue.categoryId('cleaning') }], [{ id: catalogue.shopId('grocery') }])
 
     const cleared = { kind: 'deleteField' }
     expect(batchUpdate.mock.calls).toEqual([
