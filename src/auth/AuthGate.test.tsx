@@ -51,6 +51,7 @@ beforeEach(() => {
   claimHousehold.mockReset().mockResolvedValue(undefined)
   joinFromInvite.mockReset().mockResolvedValue(false)
   unsubscribe.mockClear()
+  setGateState.mockReset()
   onResetConfig.mockReset()
 })
 
@@ -89,6 +90,14 @@ function captureAuthCallback() {
     return unsubscribe
   })
   return (next: AuthUser | null) => act(() => report(next))
+}
+
+/** Runs `settleLookup` (resolving or rejecting a deferred), then lets the gate's pending promise callbacks run. */
+async function settle(settleLookup: () => void) {
+  await act(async () => {
+    settleLookup()
+    await new Promise((done) => setTimeout(done, 0))
+  })
 }
 
 describe('AuthGate', () => {
@@ -367,10 +376,7 @@ describe('AuthGate', () => {
     )
     reportAuth(user)
     reportAuth(null)
-    await act(async () => {
-      exists.resolve(true)
-      await new Promise((done) => setTimeout(done, 0))
-    })
+    await settle(() => exists.resolve(true))
 
     expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
     expect(screen.queryByText('App content')).not.toBeInTheDocument()
@@ -388,10 +394,7 @@ describe('AuthGate', () => {
     )
     reportAuth(user)
     reportAuth(null)
-    await act(async () => {
-      exists.reject(new Error('unavailable'))
-      await new Promise((done) => setTimeout(done, 0))
-    })
+    await settle(() => exists.reject(new Error('unavailable')))
 
     expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
     expect(screen.queryByText("Couldn't reach your Household")).not.toBeInTheDocument()
@@ -399,10 +402,10 @@ describe('AuthGate', () => {
 
   it("lets the newer user's lookup decide the state when an older user's lookup settles after it", async () => {
     const reportAuth = captureAuthCallback()
-    const userB = { uid: 'user-2', email: 'guest@example.com' } as unknown as AuthUser
-    const forA = deferred<boolean>()
-    householdExists.mockReturnValueOnce(forA.promise).mockResolvedValueOnce(true)
-    isHouseholdMember.mockImplementation(async (_db: unknown, uid: string) => uid === userB.uid)
+    const secondUser = { uid: 'user-2', email: 'guest@example.com' } as unknown as AuthUser
+    const firstLookup = deferred<boolean>()
+    householdExists.mockReturnValueOnce(firstLookup.promise).mockResolvedValueOnce(true)
+    isHouseholdMember.mockImplementation(async (_db: unknown, uid: string) => uid === secondUser.uid)
 
     render(
       <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
@@ -410,15 +413,32 @@ describe('AuthGate', () => {
       </AuthGate>,
     )
     reportAuth(user)
-    reportAuth(userB)
+    reportAuth(secondUser)
     expect(await screen.findByText('App content')).toBeInTheDocument()
-    await act(async () => {
-      forA.resolve(true)
-      await new Promise((done) => setTimeout(done, 0))
-    })
+    await settle(() => firstLookup.resolve(true))
 
     expect(screen.getByText('App content')).toBeInTheDocument()
     expect(screen.queryByText('You are not a member of this household.')).not.toBeInTheDocument()
+  })
+
+  it('keeps the Sign in card when a lookup started by Retry settles after auth reports signed out', async () => {
+    const reportAuth = captureAuthCallback()
+    const retried = deferred<boolean>()
+    householdExists.mockRejectedValueOnce(new Error('unavailable')).mockReturnValueOnce(retried.promise)
+    isHouseholdMember.mockResolvedValue(true)
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+    reportAuth(user)
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
+    reportAuth(null)
+    await settle(() => retried.resolve(true))
+
+    expect(screen.getByRole('button', { name: 'Sign in with Google' })).toBeInTheDocument()
+    expect(screen.queryByText('App content')).not.toBeInTheDocument()
   })
 
   it('sets no state when the gate unmounts while a lookup is pending', async () => {
@@ -435,10 +455,7 @@ describe('AuthGate', () => {
     reportAuth(user)
     unmount()
     setGateState.mockClear()
-    await act(async () => {
-      exists.resolve(true)
-      await new Promise((done) => setTimeout(done, 0))
-    })
+    await settle(() => exists.resolve(true))
 
     expect(setGateState).not.toHaveBeenCalled()
   })
