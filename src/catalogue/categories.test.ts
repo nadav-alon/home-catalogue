@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { FirebaseError } from 'firebase/app'
 import { catalogue } from 'data-platform'
+import { medicine } from './testFixtures.ts'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
 /** Mirrors both overloads used in categories.ts: `doc(collectionRef)` generates an id; `doc(db, path, id)` targets one. */
@@ -17,7 +18,8 @@ const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constra
 const orderBy = vi.fn((field: string) => ({ kind: 'orderBy', field }))
 const onSnapshot = vi.fn()
 const updateDoc = vi.fn()
-const deleteDoc = vi.fn()
+const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
+const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
 const increment = vi.fn((n: number) => ({ kind: 'increment', delta: n }))
 const batchSet = vi.fn()
 const batchUpdate = vi.fn()
@@ -37,8 +39,9 @@ vi.mock('firebase/firestore', () => ({
   orderBy: (field: string) => orderBy(field),
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
-  deleteDoc: (ref: unknown) => deleteDoc(ref),
   increment: (n: number) => increment(n),
+  serverTimestamp: () => serverTimestamp(),
+  deleteField: () => deleteField(),
   writeBatch: (db: unknown) => writeBatch(db),
 }))
 
@@ -63,7 +66,6 @@ beforeEach(() => {
   orderBy.mockClear()
   onSnapshot.mockReset()
   updateDoc.mockReset()
-  deleteDoc.mockReset()
   increment.mockClear()
   batchSet.mockReset()
   batchUpdate.mockReset()
@@ -183,13 +185,6 @@ describe('createCategory', () => {
 })
 
 describe('renameCategory', () => {
-  const medicine = {
-    id: catalogue.categoryId('medicine'),
-    name: 'Medicine',
-    defaultShopId: catalogue.shopId('pharmacy'),
-    referenceCount: 0,
-  }
-
   it('validates the new name and updates it', async () => {
     const { renameCategory } = await import('./categories.ts')
     updateDoc.mockResolvedValueOnce(undefined)
@@ -221,12 +216,6 @@ describe('renameCategory', () => {
 })
 
 describe('changeCategoryDefaultShop', () => {
-  const medicine = {
-    id: catalogue.categoryId('medicine'),
-    name: 'Medicine',
-    defaultShopId: catalogue.shopId('pharmacy'),
-    referenceCount: 0,
-  }
   const grocery = catalogue.shopId('grocery')
 
   it('points the Category at the new Shop and moves one reference between the two Shops in one batch', async () => {
@@ -271,41 +260,74 @@ describe('changeCategoryDefaultShop', () => {
 })
 
 describe('deleteCategory', () => {
-  const medicine = {
-    id: catalogue.categoryId('medicine'),
-    name: 'Medicine',
-    defaultShopId: catalogue.shopId('pharmacy'),
-    referenceCount: 0,
-  }
-
-  it("deletes a Category and drops its default Shop's reference, once Firestore accepts the batch", async () => {
+  it("soft-deletes a Category and drops its default Shop's reference in one batch", async () => {
     const { deleteCategory } = await import('./categories.ts')
     batchCommit.mockResolvedValueOnce(undefined)
 
     await deleteCategory(fakeDb, medicine)
 
-    expect(batchDelete).toHaveBeenCalledWith({ path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' })
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' },
+      { deletedAt: { kind: 'serverTimestamp' } },
+    )
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
       { referenceCount: { kind: 'increment', delta: -1 } },
     )
+    expect(batchDelete).not.toHaveBeenCalled()
     expect(batchCommit).toHaveBeenCalled()
   })
 
-  it("refuses with CategoryInUseError when the platform's rules deny the delete", async () => {
-    const { deleteCategory, CategoryInUseError } = await import('./categories.ts')
-    batchCommit.mockRejectedValueOnce(new FirebaseError('permission-denied', 'Missing or insufficient permissions.'))
+  it('resolves once the batch is queued, without waiting for Firestore to acknowledge it', async () => {
+    const { deleteCategory } = await import('./categories.ts')
+    batchCommit.mockReturnValueOnce(new Promise(() => {}))
 
-    await expect(deleteCategory(fakeDb, medicine)).rejects.toBeInstanceOf(CategoryInUseError)
+    await expect(deleteCategory(fakeDb, medicine)).resolves.toBeUndefined()
   })
 
-  it('reports to the write-rejection banner and resolves when the delete fails to sync for another reason', async () => {
+  it('refuses with CategoryInUseError and writes nothing while the cached referenceCount is above 0', async () => {
+    const { deleteCategory, CategoryInUseError } = await import('./categories.ts')
+
+    await expect(deleteCategory(fakeDb, { ...medicine, referenceCount: 1 })).rejects.toBeInstanceOf(CategoryInUseError)
+    expect(writeBatch).not.toHaveBeenCalled()
+    expect(batchCommit).not.toHaveBeenCalled()
+  })
+
+  it('reports to the write-rejection banner when the rules refuse the batch', async () => {
     const { deleteCategory } = await import('./categories.ts')
+    const latest = await rejections()
+    batchCommit.mockRejectedValueOnce(new FirebaseError('permission-denied', 'Missing or insufficient permissions.'))
+
+    await deleteCategory(fakeDb, medicine)
+    await vi.waitFor(() => expect(latest()).toEqual(['Could not save deleted Category Medicine']))
+  })
+})
+
+describe('restoreCategory', () => {
+  it("clears deletedAt and raises its default Shop's reference in one batch", async () => {
+    const { restoreCategory } = await import('./categories.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await restoreCategory(fakeDb, medicine)
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATEGORIES_COLLECTION, id: 'medicine' },
+      { deletedAt: { kind: 'deleteField' } },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'pharmacy' },
+      { referenceCount: { kind: 'increment', delta: 1 } },
+    )
+    expect(batchCommit).toHaveBeenCalled()
+  })
+
+  it('reports to the write-rejection banner when the server rejects the batch', async () => {
+    const { restoreCategory } = await import('./categories.ts')
     const latest = await rejections()
     batchCommit.mockRejectedValueOnce(new Error('offline'))
 
-    await expect(deleteCategory(fakeDb, medicine)).resolves.toBeUndefined()
-    expect(latest()).toEqual(['Could not save deleted Category Medicine'])
+    await restoreCategory(fakeDb, medicine)
+    await vi.waitFor(() => expect(latest()).toEqual(['Could not save restored Category Medicine']))
   })
 })
 
@@ -324,12 +346,6 @@ describe('a queued Category write the server rejects', () => {
   it('reports a rename by its old and new name', async () => {
     const { renameCategory } = await import('./categories.ts')
     const latest = await rejections()
-    const medicine = {
-      id: catalogue.categoryId('medicine'),
-      name: 'Medicine',
-      defaultShopId: catalogue.shopId('pharmacy'),
-      referenceCount: 0,
-    }
     updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
 
     await renameCategory(fakeDb, medicine, 'Meds')

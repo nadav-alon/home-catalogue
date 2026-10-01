@@ -6,6 +6,7 @@ import {
   createCategory,
   deleteCategory,
   renameCategory,
+  restoreCategory,
   validateCategoryDraft,
   watchCategories,
   CategoryInUseError,
@@ -21,6 +22,7 @@ import { IconButton } from '../ui/IconButton.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { route } from '../ui/route.ts'
 import { Select } from '../ui/Select.tsx'
+import { showSnackbar } from '../ui/Snackbar.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import { navigate } from '../ui/useRoute.ts'
 import AddIcon from '~icons/material-symbols/add'
@@ -74,7 +76,6 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<CategoryRecord | null>(null)
   const [draft, setDraft] = useState<CategoryDraft>(EMPTY_DRAFT)
-  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchCategories(db, setCategories), [db])
@@ -95,7 +96,6 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
   function closeDialogs() {
     setAdding(false)
     setEditing(null)
-    setDeleting(false)
     setDraft(EMPTY_DRAFT)
     setError(null)
   }
@@ -130,17 +130,21 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     }
   }
 
-  /** Deleting waits for the server to confirm, so it can surface the rules refusal; `deleting` covers that wait. */
+  /** deleteCategory resolves once queued, so the dialog closes at once even offline; Undo restores the Category. */
   async function handleDelete(category: CategoryRecord) {
     setError(null)
-    setDeleting(true)
     try {
       await deleteCategory(db, category)
-      closeDialogs()
     } catch (err) {
-      setDeleting(false)
-      setError(err instanceof CategoryInUseError ? err.message : 'Could not delete Category')
+      if (!(err instanceof CategoryInUseError)) throw err
+      setError(err.message)
+      return
     }
+    closeDialogs()
+    showSnackbar({
+      text: `Deleted ${category.name}`,
+      action: { label: 'Undo', onAction: () => void restoreCategory(db, category) },
+    })
   }
 
   return (
@@ -182,11 +186,9 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           >
             {error !== null && <p role="alert">{error}</p>}
             <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} />
-            <Button type="submit" disabled={deleting}>
-              Save
-            </Button>
-            <Button variant="text" disabled={deleting} onClick={() => void handleDelete(editing)}>
-              {deleting ? 'Deleting…' : 'Delete'}
+            <Button type="submit">Save</Button>
+            <Button variant="text" onClick={() => void handleDelete(editing)}>
+              Delete
             </Button>
           </form>
         )}

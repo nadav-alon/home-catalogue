@@ -7,11 +7,13 @@ import type { ShopRecord } from './shops.ts'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { resetHash } from '../testing/hash.ts'
 import { choose } from '../testing/select.ts'
+import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const createCategory = vi.fn()
 const renameCategory = vi.fn()
 const deleteCategory = vi.fn()
+const restoreCategory = vi.fn()
 const changeCategoryDefaultShop = vi.fn()
 const watchCategories = vi.fn()
 
@@ -25,6 +27,7 @@ vi.mock('./categories.ts', async (importOriginal) => ({
   createCategory: (db: unknown, name: string, shopId: unknown) => createCategory(db, name, shopId),
   renameCategory: (db: unknown, category: unknown, name: string) => renameCategory(db, category, name),
   deleteCategory: (db: unknown, category: unknown) => deleteCategory(db, category),
+  restoreCategory: (db: unknown, category: unknown) => restoreCategory(db, category),
   watchCategories: (db: unknown, cb: unknown) => watchCategories(db, cb),
   CategoryInUseError: FakeCategoryInUseError,
 }))
@@ -53,6 +56,8 @@ beforeEach(() => {
   createCategory.mockReset().mockResolvedValue(undefined)
   renameCategory.mockReset().mockResolvedValue(undefined)
   deleteCategory.mockReset().mockResolvedValue(undefined)
+  restoreCategory.mockReset().mockResolvedValue(undefined)
+  resetSnackbar()
   changeCategoryDefaultShop.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
@@ -73,7 +78,12 @@ function renderWith(categories: CategoryRecord[], shops: ShopRecord[]) {
     cb(shops)
     return shopsUnsubscribe
   })
-  return render(<CategoriesManager db={fakeDb} />)
+  return render(
+    <>
+      <CategoriesManager db={fakeDb} />
+      <SnackbarHost />
+    </>,
+  )
 }
 
 describe('CategoriesManager', () => {
@@ -199,7 +209,7 @@ describe('CategoriesManager', () => {
     expect(changeCategoryDefaultShop).not.toHaveBeenCalled()
   })
 
-  it('deletes a Category and closes the dialog', async () => {
+  it('closes the dialog at once on Delete and offers Undo in the snackbar', async () => {
     renderWith([medicine], [pharmacy])
     openEditor('Medicine')
 
@@ -207,6 +217,18 @@ describe('CategoriesManager', () => {
 
     expect(deleteCategory).toHaveBeenCalledWith(fakeDb, medicine)
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(within(screen.getByRole('status')).getByText('Deleted Medicine')).toBeInTheDocument()
+    expect(within(screen.getByRole('status')).getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+  })
+
+  it('restores the Category when Undo is pressed', async () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+
+    expect(restoreCategory).toHaveBeenCalledWith(fakeDb, medicine)
   })
 
   it('shows the CategoryInUseError message when deletion is refused', async () => {
@@ -217,6 +239,7 @@ describe('CategoriesManager', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent('This Category is in use.')
+    expect(within(screen.getByRole('status')).queryByRole('button', { name: 'Undo' })).toBeNull()
   })
 
   it('shows the Choose a Shop placeholder when the default Shop is not among the Shops', () => {
@@ -243,19 +266,6 @@ describe('CategoriesManager', () => {
 
     expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.getByLabelText('New Category name')).toHaveValue('')
-  })
-
-  it('disables Delete and shows it pending until the server answers', async () => {
-    let settle: () => void = () => {}
-    deleteCategory.mockReturnValueOnce(new Promise<void>((resolve) => (settle = resolve)))
-    renderWith([medicine], [pharmacy])
-    openEditor('Medicine')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-
-    expect(await screen.findByRole('button', { name: 'Deleting…' })).toBeDisabled()
-    settle()
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
   it('unsubscribes from Categories and Shops on unmount', () => {
