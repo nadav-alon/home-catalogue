@@ -1479,6 +1479,18 @@ describe('a scanned barcode', () => {
     expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=tape'))
   })
 
+  it('confirms with a snackbar that the barcode was added to the Item picked from the chooser', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    render(<SnackbarHost />)
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+
+    fireEvent.click(within(chooser).getByRole('button', { name: bandages.name }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent(`Added barcode to ${bandages.name}`)
+  })
+
   it('creates the Item carrying the barcode from "New Item"', async () => {
     renderWith([bandages], [medicine], [pharmacy])
     scan()
