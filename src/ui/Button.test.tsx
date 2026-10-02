@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { Button } from './Button.tsx'
-import { tokenUsage } from '../testing/css.ts'
+import { mediaBlock, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
 
 describe('Button', () => {
   it('renders a native button that does not submit by default', () => {
@@ -27,6 +27,13 @@ describe('Button', () => {
     expect(onClick).toHaveBeenCalledOnce()
     rerender(<Button disabled onClick={onClick}>Save</Button>)
     expect(screen.getByRole('button')).toBeDisabled()
+  })
+
+  it('highlights only an enabled text Button on hover, and only where hover exists', () => {
+    expect(mediaBlock('src/ui/Button.css', '(hover: hover)')).toMatch(
+      /\.ui-button--text:hover:not\(:disabled\)\s*{[^}]*background: color-mix\(in srgb, var\(--md-sys-color-primary\) 8%, transparent\)/,
+    )
+    expect(outsideMediaBlock('src/ui/Button.css', '(hover: hover)')).not.toMatch(/:hover/)
   })
 
   it('is styled only from defined tokens', () => {

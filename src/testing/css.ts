@@ -13,3 +13,12 @@ export function tokenUsage(stylesheet: string): { used: string[]; undefinedToken
   const used = [...new Set([...read(stylesheet).matchAll(/var\((--[\w-]+)/g)].map((m) => m[1]))]
   return { used, undefinedTokens: used.filter((property) => !defined.has(property)) }
 }
+
+const mediaPattern = (query: string) =>
+  new RegExp(`@media ${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*{((?:[^{}]*{[^}]*})*)\\s*}`)
+
+/** The rules inside a stylesheet's `@media <query>` block, e.g. `(hover: hover)`; empty when it has none. */
+export const mediaBlock = (stylesheet: string, query: string) => read(stylesheet).match(mediaPattern(query))?.[1] ?? ''
+
+/** A stylesheet with its `@media <query>` block removed. */
+export const outsideMediaBlock = (stylesheet: string, query: string) => read(stylesheet).replace(mediaPattern(query), '')

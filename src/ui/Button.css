@@ -34,3 +34,9 @@
   color: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent);
   cursor: default;
 }
+
+@media (hover: hover) {
+  .ui-button--text:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
+  }
+}
