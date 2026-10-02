@@ -120,6 +120,18 @@ describe('MembersScreen', () => {
     expect(pending).not.toHaveTextContent('a@example.com')
   })
 
+  it('says so when no invites are pending', () => {
+    renderScreen([owner])
+
+    expect(screen.getByText('No pending invites.')).toBeInTheDocument()
+  })
+
+  it('does not say no invites are pending when some are', () => {
+    renderScreen([owner], [core.email('c@example.com')])
+
+    expect(screen.queryByText('No pending invites.')).not.toBeInTheDocument()
+  })
+
   it('offers the Owner Remove on every Member but their own', () => {
     renderScreen([
       owner,

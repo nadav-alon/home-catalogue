@@ -70,6 +70,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
       </ul>
       {viewerIsOwner && <InviteForm db={db} members={members} invites={invites} />}
       <h3 id="pending-invites">Pending invites</h3>
+      {invites.length === 0 && <p>No pending invites.</p>}
       <ul aria-labelledby="pending-invites">
         {invites.map((email) => (
           <ListRow
