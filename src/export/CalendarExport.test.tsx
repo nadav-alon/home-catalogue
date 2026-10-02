@@ -256,6 +256,43 @@ describe('CalendarExport', () => {
     expect(exportButton).toBeEnabled()
   })
 
+  it('keeps a result that landed while the dialog was closed reachable after the list empties', async () => {
+    let finish: (result: { status: 'exported' }) => void = () => {}
+    exportShoppingList.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+    const view = renderWith([outBandages], [medicine], [pharmacy])
+    await submit('2026-03-05')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    view.rerender([])
+    await act(async () => finish({ status: 'exported' }))
+
+    const open = screen.getByRole('button', { name: 'Export to Calendar' })
+    expect(open).toBeEnabled()
+    fireEvent.click(open)
+    expect(screen.getByText('Exported to Calendar.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeDisabled()
+  })
+
+  it('keeps fallback links that landed while the dialog was closed reachable after the list empties', async () => {
+    let finish: (result: unknown) => void = () => {}
+    exportShoppingList.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+    const view = renderWith([outBandages], [medicine], [pharmacy])
+    await submit('2026-03-05')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    view.rerender([])
+    await act(async () =>
+      finish({
+        status: 'fallback',
+        links: [{ shopName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }],
+      }),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.getByRole('link', { name: 'Pharmacy' })).toBeInTheDocument()
+  })
+
   it('says pending Items need a Shop, not that nothing is pending, when none has a Shop to export under', async () => {
     const deletedShop: CategoryRecord = { ...medicine, defaultShopId: catalogue.shopId('deleted-shop') }
     renderWith([orphan, outBandages], [deletedShop], [pharmacy])

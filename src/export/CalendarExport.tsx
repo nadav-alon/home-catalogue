@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import type { CategoryRecord } from "../catalogue/categories.ts";
 import type { ItemRecord } from "../catalogue/items.ts";
@@ -49,6 +49,9 @@ export function CalendarExport({
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
   const [status, setStatus] = useState<ExportStatus>({ phase: "idle" });
+  // A result that landed while the dialog was closed and has not been shown yet.
+  const [unseenResult, setUnseenResult] = useState(false);
+  const openRef = useRef(false);
 
   const { groups, unresolvedCount, nothingToBuy } = pendingItemsByShop(
     items,
@@ -93,29 +96,36 @@ export function CalendarExport({
         ? { phase: "exported" }
         : { phase: "fallback", links: result.links },
     );
+    if (!openRef.current) setUnseenResult(true);
   }
 
   function openDialog() {
     // An export still in flight keeps the dialog showing it, date included, so Export stays disabled and its
     // result lands beside the date it was made for.
-    if (status.phase !== "exporting") {
+    if (status.phase !== "exporting" && !unseenResult) {
       setDate(todayExportDate());
       setStatus({ phase: "idle" });
     }
-    setOpen(true);
+    setUnseenResult(false);
+    changeOpen(true);
+  }
+
+  function changeOpen(next: boolean) {
+    openRef.current = next;
+    setOpen(next);
   }
 
   return (
     <>
       <TopAppBarActions>
-        <Button variant="text" disabled={nothingToBuy} onClick={openDialog}>
+        <Button variant="text" disabled={nothingToBuy && !unseenResult} onClick={openDialog}>
           Export to Calendar
         </Button>
       </TopAppBarActions>
       <Dialog
         open={open}
         title="Export to Calendar"
-        onClose={() => setOpen(false)}
+        onClose={() => changeOpen(false)}
         closable
       >
         {status.phase === "error" && <p role="alert">{status.message}</p>}
@@ -154,7 +164,7 @@ export function CalendarExport({
           />
 
           <DialogActions>
-            <Button variant="text" onClick={() => setOpen(false)}>
+            <Button variant="text" onClick={() => changeOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={status.phase === "exporting"}>
