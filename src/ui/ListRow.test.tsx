@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { ListRow } from './ListRow.tsx'
-import { mediaBlock, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
+import { mediaBlock, outsideMediaBlock, read, tokenUsage } from '../testing/css.ts'
 
-const narrowQuery = '(max-width: 599.98px)'
-
-const narrowBlock = () => mediaBlock('src/ui/ListRow.css', narrowQuery)
-const outsideNarrowBlock = () => outsideMediaBlock('src/ui/ListRow.css', narrowQuery)
+const stylesheet = 'src/ui/ListRow.css'
+const narrowBlock = () => mediaBlock(stylesheet, '(max-width: 599.98px)')
+const outsideNarrowBlock = () => outsideMediaBlock(stylesheet, '(max-width: 599.98px)')
+const hoverBlock = () => mediaBlock(stylesheet, '(hover: hover)')
+const outsideHoverBlock = () => outsideMediaBlock(stylesheet, '(hover: hover)')
+const hoverStateLayerDeclaration = 'background: color-mix\\(in srgb, var\\(--md-sys-color-on-surface\\) 8%, transparent\\)'
 
 describe('ListRow', () => {
   it('renders a native list item with headline and supporting text', () => {
@@ -97,6 +99,32 @@ describe('ListRow', () => {
 
   it('gives a stacked row\'s segmented options a 48px touch target below 600px', () => {
     expect(narrowBlock()).toMatch(/\.ui-list-row--stack-trailing \.ui-segmented__option\s*{[^}]*min-height: 3rem/)
+  })
+
+  it('highlights a Settings row link on hover with an 8% on-surface state layer', () => {
+    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__link:hover[^{]*{[^}]*${hoverStateLayerDeclaration}`))
+  })
+
+  it('highlights the label of a row with a control on hover', () => {
+    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__label:hover[^{]*{[^}]*${hoverStateLayerDeclaration}`))
+  })
+
+  it('highlights only the clickable text area of an activatable row on hover', () => {
+    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__activate:hover[^{]*{[^}]*${hoverStateLayerDeclaration}`))
+  })
+
+  it('stretches the activatable text over the row\'s full height', () => {
+    const rule = read(stylesheet).match(/\.ui-list-row__activate\s*{([^}]*)}/)?.[1] ?? ''
+    expect(rule).toMatch(/align-self: stretch/)
+    expect(rule).toMatch(/justify-content: center/)
+    expect(rule).toMatch(/margin: calc\(-1 \* var\(--md-sys-spacing-2\)\) 0/)
+    expect(rule).toMatch(/padding: var\(--md-sys-spacing-2\) 0/)
+  })
+
+  it('applies no hover highlight outside the hover-capable media query, nor to a plain row', () => {
+    expect(outsideHoverBlock()).not.toMatch(/:hover/)
+    const hovered = [...hoverBlock().matchAll(/([^{}]+){/g)].flatMap((m) => m[1].split(',').map((selector) => selector.trim()))
+    expect(hovered.toSorted()).toEqual(['.ui-list-row__activate:hover', '.ui-list-row__label:hover', '.ui-list-row__link:hover'])
   })
 
   it('is styled only from defined tokens', () => {
