@@ -60,7 +60,8 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
 
   function openDialog() {
     setDate(todayExportDate())
-    setStatus({ phase: 'idle' })
+    // An export still in flight keeps the dialog showing it, so Export stays disabled and its result lands here.
+    setStatus((current) => (current.phase === 'exporting' ? current : { phase: 'idle' }))
     setOpen(true)
   }
 
