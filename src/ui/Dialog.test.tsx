@@ -13,7 +13,10 @@ afterEach(async () => {
   history.replaceState(null, '')
 })
 
-function boxAt(dialog: HTMLElement, box: { left: number; top: number; right: number; bottom: number }) {
+type Box = { left: number; top: number; right: number; bottom: number }
+
+/** Replaces the dialog's measured box, which jsdom reports as empty. */
+function stubBox(dialog: HTMLElement, box: Box) {
   dialog.getBoundingClientRect = () => ({
     ...box,
     x: box.left,
@@ -23,6 +26,9 @@ function boxAt(dialog: HTMLElement, box: { left: number; top: number; right: num
     toJSON: () => ({}),
   })
 }
+
+// Click coordinates in the tests below are positions relative to this box.
+const box: Box = { left: 100, top: 100, right: 300, bottom: 300 }
 
 describe('Dialog', () => {
   it('is a native dialog opened modally, named by its title', () => {
@@ -73,7 +79,7 @@ describe('Dialog', () => {
       </Dialog>,
     )
     const dialog = screen.getByRole('dialog')
-    boxAt(dialog, { left: 100, top: 100, right: 300, bottom: 300 })
+    stubBox(dialog, box)
     fireEvent.mouseDown(dialog, { clientX: 50, clientY: 200 })
     fireEvent.click(dialog, { clientX: 50, clientY: 200 })
     expect(onClose).toHaveBeenCalledOnce()
@@ -87,24 +93,53 @@ describe('Dialog', () => {
       </Dialog>,
     )
     const dialog = screen.getByRole('dialog')
-    boxAt(dialog, { left: 100, top: 100, right: 300, bottom: 300 })
+    stubBox(dialog, box)
     fireEvent.mouseDown(screen.getByLabelText('Name'), { clientX: 200, clientY: 200 })
     fireEvent.click(dialog, { clientX: 50, clientY: 200 })
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('does not ask to close when the dialog box is tapped, padding included', () => {
+  it('does not ask to close when the dialog padding is tapped', () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog open title="New item" onClose={onClose}>
+        x
+      </Dialog>,
+    )
+    const dialog = screen.getByRole('dialog')
+    stubBox(dialog, box)
+    fireEvent.mouseDown(dialog, { clientX: 105, clientY: 105 })
+    fireEvent.click(dialog, { clientX: 105, clientY: 105 })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('does not ask to close when content inside the dialog is tapped', () => {
     const onClose = vi.fn()
     render(
       <Dialog open title="New item" onClose={onClose}>
         <button type="button">Save</button>
       </Dialog>,
     )
+    stubBox(screen.getByRole('dialog'), box)
+    const save = screen.getByRole('button', { name: 'Save' })
+    fireEvent.mouseDown(save, { clientX: 200, clientY: 200 })
+    fireEvent.click(save, { clientX: 200, clientY: 200 })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('does not ask to close when a full-screen dialog is tapped at its edge', () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog open title="New item" onClose={onClose}>
+        x
+      </Dialog>,
+    )
     const dialog = screen.getByRole('dialog')
-    boxAt(dialog, { left: 100, top: 100, right: 300, bottom: 300 })
-    fireEvent.mouseDown(dialog, { clientX: 105, clientY: 105 })
-    fireEvent.click(dialog, { clientX: 105, clientY: 105 })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }), { clientX: 200, clientY: 200 })
+    stubBox(dialog, { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight })
+    fireEvent.mouseDown(dialog, { clientX: 0, clientY: 0 })
+    fireEvent.click(dialog, { clientX: 0, clientY: 0 })
+    fireEvent.mouseDown(dialog, { clientX: window.innerWidth, clientY: window.innerHeight })
+    fireEvent.click(dialog, { clientX: window.innerWidth, clientY: window.innerHeight })
     expect(onClose).not.toHaveBeenCalled()
   })
 
