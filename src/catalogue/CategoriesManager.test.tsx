@@ -186,6 +186,18 @@ describe('CategoriesManager', () => {
     expect(createShop).not.toHaveBeenCalled()
   })
 
+  it('lays the new Shop actions out in the dialog action row, Cancel before Create', () => {
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    choose(screen.getByLabelText('Default Shop'), '+new')
+
+    const cancel = screen.getByRole('button', { name: 'Cancel new Shop' })
+    const create = screen.getByRole('button', { name: 'Create Shop' })
+    expect(cancel.parentElement).toHaveClass('ui-dialog-actions__main')
+    expect(create.parentElement).toBe(cancel.parentElement)
+    expect(cancel.nextElementSibling).toBe(create)
+  })
+
   it('restores the unchosen Shop when the new Shop prompt is cancelled in the Add dialog', () => {
     renderWith([], [pharmacy, grocery])
     fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))

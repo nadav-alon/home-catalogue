@@ -117,10 +117,12 @@ function CategoryFields({ nameLabel, draft, shops, onChange, onCreateShop }: Cat
         <div onKeyDown={handleShopPromptKeyDown}>
           {shopError !== null && <p role="alert">{shopError}</p>}
           <TextField label="New Shop name" value={newShopName} onInput={(event) => setNewShopName(event.currentTarget.value)} />
-          <Button onClick={handleCreateShop}>Create Shop</Button>
-          <Button variant="text" onClick={closeShopPrompt}>
-            Cancel new Shop
-          </Button>
+          <DialogActions>
+            <Button variant="text" onClick={closeShopPrompt}>
+              Cancel new Shop
+            </Button>
+            <Button onClick={handleCreateShop}>Create Shop</Button>
+          </DialogActions>
         </div>
       )}
     </>
