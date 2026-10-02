@@ -54,6 +54,26 @@ describe('Dialog', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('has no Close button unless closable', () => {
+    render(
+      <Dialog open title="New item" onClose={() => {}}>
+        x
+      </Dialog>,
+    )
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
+  })
+
+  it('asks once to close from the Close button when closable', () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog open closable title="New item" onClose={onClose}>
+        x
+      </Dialog>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('closes the native dialog when the caller closes it', () => {
     const { rerender } = render(
       <Dialog open title="New item" onClose={() => {}}>
