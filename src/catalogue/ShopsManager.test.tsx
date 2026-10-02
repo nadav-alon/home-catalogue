@@ -65,6 +65,18 @@ function openEditor(shopName: string) {
 }
 
 describe('ShopsManager', () => {
+  it('leaves the title to the top app bar, with no heading of its own', () => {
+    watchShops.mockReturnValue(unsubscribe)
+    render(
+      <TopAppBar title="Shops">
+        <ShopsManager db={fakeDb} />
+      </TopAppBar>,
+    )
+
+    expect(screen.getAllByRole('heading', { name: 'Shops' })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1, name: 'Shops' })).toBeInTheDocument()
+  })
+
   it('has a back arrow in the top app bar’s leading slot that returns to Settings', () => {
     watchShops.mockReturnValue(unsubscribe)
     window.location.hash = '#/settings/shops'
