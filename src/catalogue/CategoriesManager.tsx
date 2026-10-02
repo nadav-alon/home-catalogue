@@ -15,6 +15,7 @@ import {
 } from './categories.ts'
 import type { catalogue } from 'data-platform'
 import { createShop, shopName, watchShops, type ShopRecord } from './shops.ts'
+import { BLANK_NAME_MESSAGE } from './ShopsManager.tsx'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
@@ -79,7 +80,7 @@ function CategoryFields({ nameLabel, draft, shops, onChange, onCreateShop }: Cat
   async function handleCreateShop() {
     if (newShopName === null) return
     const trimmedName = newShopName.trim()
-    if (trimmedName.length === 0) return setShopError('A Shop needs a name.')
+    if (trimmedName.length === 0) return setShopError(BLANK_NAME_MESSAGE)
     try {
       const createdId = await onCreateShop(trimmedName)
       onChange((current) => ({ ...current, shopId: createdId }))

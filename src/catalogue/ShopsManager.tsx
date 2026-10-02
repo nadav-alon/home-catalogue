@@ -29,7 +29,7 @@ export interface ShopsManagerProps {
   db: Firestore
 }
 
-const BLANK_NAME_MESSAGE = 'A Shop needs a name.'
+export const BLANK_NAME_MESSAGE = 'A Shop needs a name.'
 
 interface AddShopDialogProps {
   db: Firestore
