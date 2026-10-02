@@ -221,6 +221,12 @@ describe('ItemsManager', () => {
     expect(screen.getByText('the waterproof ones · essential')).toBeInTheDocument()
   })
 
+  it('stacks the State control under the name on Item rows', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    expect(screen.getByRole('listitem')).toHaveClass('ui-list-row--stack-trailing')
+  })
+
   it('has no inline edit form on a row', () => {
     renderWith([bandages], [medicine], [pharmacy])
 
