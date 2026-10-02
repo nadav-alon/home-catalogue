@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
-import { catalogue, core } from 'data-platform'
+import { core } from 'data-platform'
 import { attachBarcode, createItem, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
@@ -27,18 +27,24 @@ export interface ItemsManagerProps {
   db: Firestore
   /** Show only the Items with these ids; unknown ids are ignored. Every Item when empty or omitted. */
   itemIds?: readonly core.ItemId[]
-  /** Called when the chip naming the id filter is dismissed. */
-  onClearFilter?: () => void
-  /** Show only the Items in this Category; ignored once no live Category has the id. */
-  categoryId?: catalogue.CategoryId
-  /** Show only the Items sold at this Shop, the Item's own or else its Category's; ignored once no live Shop has the id. */
-  shopId?: catalogue.ShopId
+  /** Called when the chip naming the id filter is dismissed, with the Category and Shop filters that are live, to be kept. */
+  onClearFilter?: (filter: CategoryAndShop) => void
+  /**
+   * Show only the Items in this Category and sold at this Shop (the Item's own or else its Category's); each is
+   * ignored once no live Category or Shop has the id.
+   */
+  filter?: CategoryAndShop
   /** Called with the Category and Shop filters a pressed chip asks for; undefined clears one. */
   onFilterChange?: (filter: CategoryAndShop) => void
 }
 
+/** `current` cleared when it is `id`, else `id`: what pressing a chip of a one-at-a-time group selects. */
+function toggledSelection<Id extends string>(current: Id | undefined, id: Id): Id | undefined {
+  return current === id ? undefined : id
+}
 
-export function ItemsManager({ db, itemIds = [], onClearFilter, categoryId, shopId, onFilterChange }: ItemsManagerProps) {
+export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilterChange }: ItemsManagerProps) {
+  const { categoryId, shopId } = filter ?? { categoryId: undefined, shopId: undefined }
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
@@ -198,16 +204,18 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, categoryId, shop
   // Until a list has loaded, its id is taken at its word; afterwards one that names nothing live filters nothing.
   const activeCategoryId = !listsLoaded.categories || isLiveReference(categories, categoryId) ? categoryId : undefined
   const activeShopId = !listsLoaded.shops || isLiveReference(shops, shopId) ? shopId : undefined
+  const categoriesById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
   const chipFiltered = activeCategoryId !== undefined || activeShopId !== undefined
   const visibleItems = (scanFiltered ? candidateItems : candidateItems.filter((item) => matchesName(item, search))).filter(
     (item) =>
       (activeCategoryId === undefined || item.categoryId === activeCategoryId) &&
+      // An Item's Shop may come from its Category, so the Shop filter waits for the Categories rather than hide those Items.
       (activeShopId === undefined ||
-        resolvedShopId(item, categories.find((category) => category.id === item.categoryId)) === activeShopId),
+        !listsLoaded.categories ||
+        resolvedShopId(item, categoriesById.get(item.categoryId)) === activeShopId),
   )
   // A search, scan or chip filter shows its matches whatever was collapsed; the remembered state is left alone for when it clears.
   const filterActive = scanFiltered || search !== '' || chipFiltered
-  const toggled = <Id extends string>(current: Id | undefined, id: Id) => (current === id ? undefined : id)
   const groupToggle = (key: GroupKey) => ({
     collapsed: !filterActive && collapsedGroups.has(key),
     toggleDisabled: filterActive,
@@ -229,7 +237,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, categoryId, shop
         <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
       ) : (
         items !== undefined && (
-          <Chip label={`Scanned: ${scannedLabel}`} dismissLabel="Clear scanned filter" onDismiss={() => onClearFilter?.()} />
+          <Chip label={`Scanned: ${scannedLabel}`} dismissLabel="Clear scanned filter" onDismiss={() => onClearFilter?.({ categoryId: activeCategoryId, shopId: activeShopId })} />
         )
       )}
       <div role="group" aria-label="Filter by Category" class="items-manager__chips">
@@ -238,7 +246,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, categoryId, shop
             key={category.id}
             label={category.name}
             selected={category.id === activeCategoryId}
-            onToggle={() => onFilterChange?.({ categoryId: toggled(activeCategoryId, category.id), shopId: activeShopId })}
+            onToggle={() => onFilterChange?.({ categoryId: toggledSelection(activeCategoryId, category.id), shopId: activeShopId })}
           />
         ))}
       </div>
@@ -248,7 +256,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, categoryId, shop
             key={shop.id}
             label={shop.name}
             selected={shop.id === activeShopId}
-            onToggle={() => onFilterChange?.({ categoryId: activeCategoryId, shopId: toggled(activeShopId, shop.id) })}
+            onToggle={() => onFilterChange?.({ categoryId: activeCategoryId, shopId: toggledSelection(activeShopId, shop.id) })}
           />
         ))}
       </div>

@@ -7,6 +7,7 @@ import { ItemsManager } from './ItemsManager.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import type { CategoryAndShop } from '../ui/route.ts'
 import { resetHash } from '../testing/hash.ts'
 import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
@@ -94,7 +95,7 @@ function renderWith(
   categories: CategoryRecord[],
   shops: ShopRecord[],
   itemIds?: readonly core.ItemId[],
-  onClearFilter?: () => void,
+  onClearFilter?: (filter: CategoryAndShop) => void,
 ) {
   let publishCategories: (categories: CategoryRecord[]) => void = () => {}
   let publishItems: (items: ItemRecord[]) => void = () => {}
@@ -1650,8 +1651,9 @@ describe('ItemsManager Category and Shop filter', () => {
   const aspirin: ItemRecord = { ...bandages, id: core.itemId('aspirin'), name: 'Aspirin', shopId: grocery.id }
 
   function renderFiltered(
-    filter: { categoryId?: catalogue.CategoryId; shopId?: catalogue.ShopId; itemIds?: readonly core.ItemId[] },
+    { itemIds, ...filter }: { categoryId?: catalogue.CategoryId; shopId?: catalogue.ShopId; itemIds?: readonly core.ItemId[] },
     onFilterChange = vi.fn(),
+    onClearFilter = vi.fn(),
   ) {
     watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
       cb([bandages, soap, aspirin])
@@ -1665,7 +1667,7 @@ describe('ItemsManager Category and Shop filter', () => {
       cb([pharmacy, grocery])
       return vi.fn()
     })
-    render(<ItemsManager db={fakeDb} {...filter} onFilterChange={onFilterChange} />)
+    render(<ItemsManager db={fakeDb} itemIds={itemIds} filter={{ categoryId: filter.categoryId, shopId: filter.shopId }} onFilterChange={onFilterChange} onClearFilter={onClearFilter} />)
     return onFilterChange
   }
 
@@ -1748,6 +1750,31 @@ describe('ItemsManager Category and Shop filter', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Grocery' }))
 
     expect(onFilterChange).toHaveBeenCalledWith({ categoryId: medicine.id, shopId: undefined })
+  })
+
+  it('hands the live Category and Shop to onClearFilter, dropping one that no longer exists', () => {
+    const onClearFilter = vi.fn()
+    renderFiltered({ itemIds: [bandages.id], categoryId: medicine.id, shopId: catalogue.shopId('gone') }, vi.fn(), onClearFilter)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear scanned filter' }))
+
+    expect(onClearFilter).toHaveBeenCalledWith({ categoryId: medicine.id, shopId: undefined })
+  })
+
+  it('does not hide an Item whose Shop comes from its Category before the Categories have loaded', () => {
+    watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
+      cb([bandages])
+      return vi.fn()
+    })
+    watchCategories.mockImplementation(() => vi.fn())
+    watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
+      cb([pharmacy, grocery])
+      return vi.fn()
+    })
+    render(<ItemsManager db={fakeDb} filter={{ categoryId: undefined, shopId: pharmacy.id }} />)
+
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+    expect(screen.queryByText('No Items match your filters.')).not.toBeInTheDocument()
   })
 
   it('ignores a Category or Shop that no longer exists', () => {
