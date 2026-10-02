@@ -82,3 +82,9 @@
     min-height: 3rem;
   }
 }
+
+@media (hover: hover) {
+  .ui-list-row__link:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+  }
+}

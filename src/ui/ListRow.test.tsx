@@ -7,6 +7,11 @@ const narrowQuery = '(max-width: 599.98px)'
 
 const narrowBlock = () => mediaBlock('src/ui/ListRow.css', narrowQuery)
 const outsideNarrowBlock = () => outsideMediaBlock('src/ui/ListRow.css', narrowQuery)
+const hoverQuery = '(hover: hover)'
+
+const hoverBlock = () => mediaBlock('src/ui/ListRow.css', hoverQuery)
+const outsideHoverBlock = () => outsideMediaBlock('src/ui/ListRow.css', hoverQuery)
+const stateLayer = 'background: color-mix\\(in srgb, var\\(--md-sys-color-on-surface\\) 8%, transparent\\)'
 
 describe('ListRow', () => {
   it('renders a native list item with headline and supporting text', () => {
@@ -97,6 +102,15 @@ describe('ListRow', () => {
 
   it('gives a stacked row\'s segmented options a 48px touch target below 600px', () => {
     expect(narrowBlock()).toMatch(/\.ui-list-row--stack-trailing \.ui-segmented__option\s*{[^}]*min-height: 3rem/)
+  })
+
+  it('highlights a Settings row link on hover with an 8% on-surface state layer', () => {
+    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__link:hover\\s*{[^}]*${stateLayer}`))
+  })
+
+  it('applies no hover highlight outside the hover-capable media query, nor to a plain row', () => {
+    expect(outsideHoverBlock()).not.toMatch(/:hover/)
+    expect(hoverBlock()).not.toMatch(/\.ui-list-row(--[\w-]+)?:hover/)
   })
 
   it('is styled only from defined tokens', () => {
