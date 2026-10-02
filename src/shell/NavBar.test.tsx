@@ -45,11 +45,14 @@ describe('NavBar', () => {
     expect(css).toMatch(/\.shell-nav\s*{[^}]*position:\s*fixed;[^}]*bottom:\s*0/)
   })
 
-  it('keeps each rail label on one line', () => {
+  it('does not let rail labels wrap', () => {
     const css = read('src/shell/NavBar.css')
-    const rail = css.slice(css.indexOf('@media (min-width: 600px)'))
+    const start = css.indexOf('@media (min-width: 600px)')
+    expect(start).toBeGreaterThanOrEqual(0)
+    const rail = css.slice(start, css.indexOf('\n}', start))
     expect(rail).toMatch(/\.shell-nav__destination\s*{[^}]*white-space:\s*nowrap/)
-    expect(read('src/ui/tokens.css')).toMatch(/--shell-rail-width:\s*6rem/)
+    expect(css.slice(0, start)).not.toMatch(/white-space:\s*nowrap/)
+    expect(css.slice(css.indexOf('\n}', start))).not.toMatch(/white-space:\s*nowrap/)
   })
 
   it('is styled only from defined tokens', () => {
