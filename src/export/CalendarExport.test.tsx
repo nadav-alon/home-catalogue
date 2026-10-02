@@ -163,6 +163,7 @@ describe('CalendarExport', () => {
     exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
     renderWith([outBandages], [medicine], [pharmacy])
     await submit('2026-03-05')
+    expect(screen.getByText('Exported to Calendar.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
@@ -177,6 +178,7 @@ describe('CalendarExport', () => {
     })
     renderWith([outBandages], [medicine], [pharmacy])
     await submit('2026-03-05')
+    expect(screen.getByRole('link', { name: 'Pharmacy' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
@@ -184,9 +186,10 @@ describe('CalendarExport', () => {
     expect(screen.queryByRole('link', { name: 'Pharmacy' })).not.toBeInTheDocument()
   })
 
-  it('shows no alert when the dialog is reopened after a rejected export', async () => {
+  it('shows no alert when the dialog is reopened after an export with no pending Items', async () => {
     renderWith([], [medicine], [pharmacy])
     await submit('2026-03-05')
+    expect(screen.getByRole('alert')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))

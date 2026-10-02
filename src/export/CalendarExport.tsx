@@ -33,7 +33,6 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
   const [date, setDate] = useState('')
   const [status, setStatus] = useState<ExportStatus>({ phase: 'idle' })
 
-
   const { groups, unresolvedCount } = pendingItemsByShop(items, categories, shops)
 
   async function handleExport(event: JSX.TargetedEvent<HTMLFormElement>) {
