@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { ListRow } from './ListRow.tsx'
-import { mediaBlock, outsideMediaBlock, read, tokenUsage } from '../testing/css.ts'
+import { declaration, mediaBlock, outsideMediaBlock, read, tokenUsage } from '../testing/css.ts'
 
 const stylesheet = 'src/ui/ListRow.css'
 const narrowBlock = () => mediaBlock(stylesheet, '(max-width: 599.98px)')
@@ -133,19 +133,23 @@ describe('ListRow', () => {
     expect(undefinedTokens).toEqual([])
   })
 
-  describe('control checkbox', () => {
-    const rule = () => read(stylesheet).match(/\.ui-list-row__trailing input\[type='checkbox'\]\s*{([^}]*)}/)?.[1] ?? ''
+  describe('Shopping list tick', () => {
+    const tick = ".ui-list-row__trailing input[type='checkbox']"
 
     it('is drawn from theme colour tokens rather than the native control', () => {
-      expect(rule()).toMatch(/appearance:\s*none/)
-      expect(rule()).toMatch(/border:[^;]*var\(--md-sys-color-outline\)/)
-      expect(read(stylesheet)).toMatch(/input\[type='checkbox'\]:checked\s*{[^}]*background:\s*var\(--md-sys-color-primary\)/)
+      expect(declaration(stylesheet, tick, 'appearance')).toBe('none')
+      expect(declaration(stylesheet, tick, 'border')).toMatch(/var\(--md-sys-color-outline\)/)
+      expect(declaration(stylesheet, `${tick}:checked`, 'background')).toBe('var(--md-sys-color-primary)')
+    })
+
+    it('draws a check mark in the on-primary colour when ticked', () => {
+      expect(declaration(stylesheet, `${tick}:checked::after`, 'border')).toMatch(/var\(--md-sys-color-on-primary\)/)
     })
 
     it('stays close to the native size and leaves the row height to the label', () => {
-      expect(rule()).toMatch(/width:\s*1\.125rem/)
-      expect(rule()).toMatch(/height:\s*1\.125rem/)
-      expect(read(stylesheet)).toMatch(/\.ui-list-row__label,\s*\.ui-list-row__link\s*{[^}]*min-height:\s*3\.5rem/)
+      expect(declaration(stylesheet, tick, 'width')).toBe('1.125rem')
+      expect(declaration(stylesheet, tick, 'height')).toBe('1.125rem')
+      expect(declaration(stylesheet, '.ui-list-row__link', 'min-height')).toBe('3.5rem')
     })
   })
 })

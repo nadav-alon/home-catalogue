@@ -111,3 +111,15 @@
   border-color: var(--md-sys-color-primary);
   background: var(--md-sys-color-primary);
 }
+
+/* With the native control gone, the tick is drawn in the on-colour that pairs with the primary fill. */
+.ui-list-row__trailing input[type='checkbox']:checked::after {
+  content: '';
+  display: block;
+  width: 0.3rem;
+  height: 0.6rem;
+  margin: 0.0625rem auto 0;
+  border: solid var(--md-sys-color-on-primary);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
