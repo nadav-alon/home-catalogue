@@ -294,6 +294,18 @@ describe('CategoriesManager', () => {
     expect(createCategory).not.toHaveBeenCalled()
   })
 
+  it('closes the Edit dialog on Cancel without saving', () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Other' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(renameCategory).not.toHaveBeenCalled()
+    expect(changeCategoryDefaultShop).not.toHaveBeenCalled()
+  })
+
   it('unsubscribes from Categories and Shops on unmount', () => {
     const { unmount } = renderWith([], [])
     unmount()
