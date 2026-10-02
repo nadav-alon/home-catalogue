@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
+import type { catalogue } from 'data-platform'
 import {
   changeCategoryDefaultShop,
   createCategory,
@@ -13,7 +14,6 @@ import {
   type CategoryDraft,
   type CategoryRecord,
 } from './categories.ts'
-import type { catalogue } from 'data-platform'
 import { createShop, shopName, watchShops, type ShopRecord } from './shops.ts'
 import { BLANK_NAME_MESSAGE } from './ShopsManager.tsx'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
@@ -159,6 +159,8 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     setError(null)
   }
 
+  const handleCreateShop = (name: string) => createShop(db, name)
+
   async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
     const valid = validateCategoryDraft(draft, shops)
@@ -230,7 +232,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
         {adding && (
           <form onSubmit={handleCreate}>
             {error !== null && <p role="alert">{error}</p>}
-            <CategoryFields nameLabel="New Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={(name) => createShop(db, name)} />
+            <CategoryFields nameLabel="New Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
             <Button variant="text" onClick={closeDialogs}>
               Cancel
             </Button>
@@ -247,7 +249,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
             }}
           >
             {error !== null && <p role="alert">{error}</p>}
-            <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={(name) => createShop(db, name)} />
+            <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
             <Button variant="text" onClick={() => void handleDelete(editing)}>
               Delete
             </Button>
