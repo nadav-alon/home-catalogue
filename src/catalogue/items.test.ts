@@ -244,6 +244,7 @@ describe('createItem', () => {
       name: 'Dish soap',
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
+      state: core.stateSchema.parse('enough'),
       barcode: core.barcode('12345678'),
     })
 
@@ -278,6 +279,7 @@ describe('createItem', () => {
       name: 'Dish soap',
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
+      state: core.stateSchema.parse('enough'),
     })
 
     expect(id).toBe('generated-id')
@@ -291,6 +293,7 @@ describe('createItem', () => {
       name: 'Dish soap',
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
+      state: core.stateSchema.parse('enough'),
     })
 
     expect(doc).toHaveBeenCalledWith({ path: core.ITEMS_COLLECTION })
@@ -322,6 +325,7 @@ describe('createItem', () => {
       brandNote: 'the green one',
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
+      state: core.stateSchema.parse('enough'),
       shopId: catalogue.shopId('grocery'),
     })
 
@@ -351,6 +355,7 @@ describe('createItem', () => {
         name: '',
         categoryId: catalogue.categoryId('cleaning'),
         necessity: catalogue.necessitySchema.parse('essential'),
+        state: core.stateSchema.parse('enough'),
       }),
     ).rejects.toThrow()
     expect(batchSet).not.toHaveBeenCalled()
@@ -366,6 +371,7 @@ describe('createItem', () => {
         name: 'Dish soap',
         categoryId: emptyCategoryId,
         necessity: catalogue.necessitySchema.parse('essential'),
+        state: core.stateSchema.parse('enough'),
       }),
     ).rejects.toThrow()
     expect(batchSet).not.toHaveBeenCalled()
@@ -380,6 +386,7 @@ describe('createItem', () => {
         name: 'Dish soap',
         categoryId: catalogue.categoryId('cleaning'),
         necessity: catalogue.necessitySchema.parse('essential'),
+        state: core.stateSchema.parse('enough'),
       }),
     ).resolves.toBeDefined()
   })
@@ -822,6 +829,7 @@ describe('a queued Item write the server rejects', () => {
       name: 'Dish soap',
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
+      state: core.stateSchema.parse('enough'),
     })
     await Promise.resolve()
 

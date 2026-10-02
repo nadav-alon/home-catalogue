@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { catalogue, core } from 'data-platform'
-import { isLiveReference, type ItemEdit, type ItemInput, type ItemRecord, type NewItemInput } from './items.ts'
+import { isLiveReference, type ItemEdit, type ItemInput, type ItemRecord } from './items.ts'
 import { validateCategoryDraft, type CategoryDraft, type CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
@@ -11,6 +11,9 @@ import { Select } from '../ui/Select.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import CloseIcon from '~icons/material-symbols/close'
 import './ItemDialog.css'
+
+/** What saving carries: an added Item the `state` it starts at, an edited or restored one only its edit. */
+export type ItemSave = (ItemEdit & { state?: undefined }) | (ItemInput & { state: core.State })
 
 export interface ItemDialogProps {
   open: boolean
@@ -28,7 +31,7 @@ export interface ItemDialogProps {
    * Called with the validated fields, and the Item's Barcodes the Member removed, when they save; a rejection
    * is shown in the dialog and keeps it open. Only an added Item carries the `state` it starts at.
    */
-  onSave: (input: ItemEdit & Pick<NewItemInput, 'state'>) => Promise<void>
+  onSave: (input: ItemSave) => Promise<void>
   /**
    * Called when they delete the Item being edited, just before the dialog closes; the Delete button shows only when
    * editing and this is given, so a dialog restoring a deleted Item omits it.
