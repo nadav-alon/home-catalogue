@@ -47,7 +47,11 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
     }
 
     if (groups.length === 0) {
-      setStatus({ phase: 'error', message: 'No pending Items to export.' })
+      const message =
+        unresolvedCount > 0
+          ? `${unresolvedCount} pending Item${unresolvedCount === 1 ? ' needs' : 's need'} a Shop before ${unresolvedCount === 1 ? 'it' : 'they'} can be exported.`
+          : 'No pending Items to export.'
+      setStatus({ phase: 'error', message })
       return
     }
 

@@ -256,6 +256,24 @@ describe('CalendarExport', () => {
     expect(exportButton).toBeEnabled()
   })
 
+  it('says pending Items need a Shop, not that nothing is pending, when none has a resolved Shop', async () => {
+    const deletedShop: CategoryRecord = { ...medicine, defaultShopId: catalogue.shopId('deleted-shop') }
+    renderWith([orphan, outBandages], [deletedShop], [pharmacy])
+
+    await submit('2026-03-05')
+
+    expect(screen.getByRole('alert')).toHaveTextContent('2 pending Items need a Shop before they can be exported.')
+    expect(exportShoppingList).not.toHaveBeenCalled()
+  })
+
+  it('uses the singular when one pending Item needs a Shop', async () => {
+    renderWith([orphan], [medicine], [pharmacy])
+
+    await submit('2026-03-05')
+
+    expect(screen.getByRole('alert')).toHaveTextContent('1 pending Item needs a Shop before it can be exported.')
+  })
+
   it('rejects exporting when the Items are marked enough while the dialog is open', async () => {
     const view = renderWith([outBandages], [medicine], [pharmacy])
     view.rerender([])
