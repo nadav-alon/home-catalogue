@@ -185,6 +185,17 @@ describe('CategoriesManager', () => {
     expect(createShop).not.toHaveBeenCalled()
   })
 
+  it('restores the unchosen Shop when the new Shop prompt is cancelled in the Add dialog', () => {
+    renderWith([], [pharmacy, grocery])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    choose(screen.getByLabelText('Default Shop'), '+new')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel new Shop' }))
+
+    expect(screen.queryByLabelText('New Shop name')).toBeNull()
+    expect(screen.getByLabelText('Default Shop')).toHaveValue('')
+    expect(createShop).not.toHaveBeenCalled()
+  })
+
   it('refuses a blank new Shop name without creating a Shop', () => {
     renderWith([], [pharmacy])
     fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
