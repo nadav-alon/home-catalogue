@@ -239,7 +239,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
               label="Default Shop"
               error={categoryError?.field === 'shopId' ? categoryError.message : undefined}
               value={categoryDraft.shopId}
-              onChange={(event) => setCategoryDraft({ ...categoryDraft, shopId: event.currentTarget.value })}
+              onChange={(event) => editCategoryDraft('shopId', { ...categoryDraft, shopId: event.currentTarget.value })}
             >
               <option value="" disabled>
                 Choose a Shop
