@@ -1143,6 +1143,72 @@ describe('adding a Category from the Item dialog', () => {
     expect(createCategory).not.toHaveBeenCalled()
   })
 
+  it('clears the name error once a name is typed, without pressing Create Category again', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+    chooseNewCategory()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+    expect(screen.getByLabelText('New Category name')).toHaveAccessibleDescription('A Category needs a name.')
+
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+
+    expect(screen.getByLabelText('New Category name')).toBeValid()
+    expect(screen.getByLabelText('New Category name')).not.toHaveAccessibleDescription('A Category needs a name.')
+  })
+
+  it('clears the Shop error once a Shop is chosen, without pressing Create Category again', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+    expect(screen.getByLabelText('Default Shop')).toHaveAccessibleDescription('Choose a default Shop.')
+
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+
+    expect(screen.getByLabelText('Default Shop')).toBeValid()
+    expect(screen.getByLabelText('Default Shop')).not.toHaveAccessibleDescription('Choose a default Shop.')
+  })
+
+  it('leaves the Shop error when only the name is edited', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Medicine' } })
+
+    expect(screen.getByLabelText('Default Shop')).toHaveAccessibleDescription('Choose a default Shop.')
+  })
+
+  it('leaves the name error when only the Shop is chosen', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+    chooseNewCategory()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+
+    expect(screen.getByLabelText('New Category name')).toHaveAccessibleDescription('A Category needs a name.')
+  })
+
+  it('keeps a createCategory rejection while the fields are edited', async () => {
+    renderWith([], [medicine], [pharmacy, grocery])
+    createCategory.mockRejectedValue(new Error('Offline'))
+    openDialog()
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Offline')
+
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Medicine' } })
+    choose(screen.getByLabelText('Default Shop'), grocery.id)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Offline')
+  })
+
   it('shows a createCategory rejection and keeps the prompt and the Item fields', async () => {
     renderWith([], [medicine], [pharmacy])
     createCategory.mockRejectedValue(new Error('Offline'))
