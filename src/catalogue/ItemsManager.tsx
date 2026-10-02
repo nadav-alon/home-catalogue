@@ -6,6 +6,7 @@ import { createCategory, watchCategories, type CategoryRecord } from './categori
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
+import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED, type GroupKey } from './collapsedCategories.ts'
 import { watchShops, type ShopRecord } from './shops.ts'
 import { navigateToItems } from '../ui/useRoute.ts'
 import { ItemDialog } from './ItemDialog.tsx'
@@ -16,6 +17,8 @@ import { SegmentedButton } from '../ui/SegmentedButton.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import { Chip } from '../ui/Chip.tsx'
 import AddIcon from '~icons/material-symbols/add'
+import ExpandMoreIcon from '~icons/material-symbols/expand-more'
+import { Icon } from '../ui/Icon.tsx'
 import './ItemsManager.css'
 
 export interface ItemsManagerProps {
@@ -53,6 +56,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   /** Set by a scan made before the Items arrived; shown only while they are still loading. */
   const [scanWaiting, setScanWaiting] = useState(false)
   const [search, setSearch] = useState('')
+  /** The groups collapsed on this device, remembered across reloads. */
+  const [collapsedGroups, setCollapsedGroups] = useState(getCollapsedGroups)
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
   const [unknownBarcode, setUnknownBarcode] = useState<core.Barcode | undefined>(undefined)
 
@@ -130,6 +135,13 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     navigateToItems([item.id])
   }
 
+  function toggleGroup(key: GroupKey) {
+    const next = new Set(collapsedGroups)
+    if (!next.delete(key)) next.add(key)
+    saveCollapsedGroups(next)
+    setCollapsedGroups(next)
+  }
+
   function openDialog(item: ItemRecord | undefined) {
     setDialog(item ? { kind: 'edit', item } : { kind: 'add' })
   }
@@ -177,6 +189,13 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   const visibleItems = scanFiltered
     ? candidateItems
     : candidateItems.filter((item) => matchesName(item, search))
+  // A search or scan filter shows its matches whatever was collapsed; the remembered state is left alone for when it clears.
+  const filterActive = scanFiltered || search !== ''
+  const groupToggle = (key: GroupKey) => ({
+    collapsed: !filterActive && collapsedGroups.has(key),
+    toggleDisabled: filterActive,
+    onToggle: () => toggleGroup(key),
+  })
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
@@ -202,10 +221,10 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         </p>
       )}
       {groups.map(({ category, items: categoryItems }) => (
-        <ItemGroup key={category.id} heading={category.name} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />
+        <ItemGroup key={category.id} heading={category.name} {...groupToggle(category.id)} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />
       ))}
       {uncategorisedItems.length > 0 && (
-        <ItemGroup heading="Uncategorised" items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
+        <ItemGroup heading="Uncategorised" {...groupToggle(UNCATEGORISED)} items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
       <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={handleDeclineRestore} />
       <UnknownBarcodeChooser
@@ -251,36 +270,57 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
 
 interface ItemGroupProps {
   heading: string
+  collapsed: boolean
+  /** True while a search or scan filter is showing its matches, when collapsing would change nothing. */
+  toggleDisabled: boolean
+  onToggle: () => void
   items: ItemRecord[]
   onSetState: (item: ItemRecord, state: core.State) => Promise<void>
   onOpen: (item: ItemRecord) => void
 }
 
-function ItemGroup({ heading, items, onSetState, onOpen }: ItemGroupProps) {
+/** The heading of a collapsed group, followed by how many of its Items are running low or out; unchanged when none are. */
+function collapsedHeading(heading: string, items: ItemRecord[]): string {
+  const counts = (['running low', 'out'] as const).map((state) => ({
+    label: state,
+    count: items.filter((item) => item.state === state).length,
+  }))
+  const summary = counts.filter(({ count }) => count > 0).map(({ count, label }) => `${count} ${label}`).join(', ')
+  return summary === '' ? heading : `${heading} · ${summary}`
+}
+
+function ItemGroup({ heading, collapsed, toggleDisabled, onToggle, items, onSetState, onOpen }: ItemGroupProps) {
   return (
     <div>
-      <h3>{heading}</h3>
-      <ul>
-        {items.map((item) => (
-          <ListRow
-            key={item.id}
-            headline={item.name}
-            supporting={[item.brandNote, item.necessity].filter((part) => part !== undefined).join(' · ')}
-            stackTrailing
-            onActivate={() => onOpen(item)}
-            trailing={
-              <SegmentedButton
-                label={`State for ${item.name}`}
-                options={core.stateSchema.options.map((state) => ({ value: state, label: state }))}
-                value={item.state}
-                onChange={(state) => {
-                  if (state !== item.state) void onSetState(item, state)
-                }}
-              />
-            }
-          />
-        ))}
-      </ul>
+      <h3 class="item-group__heading">
+        <button type="button" class="item-group__toggle" aria-expanded={!collapsed} disabled={toggleDisabled} onClick={onToggle}>
+          <Icon symbol={ExpandMoreIcon} />
+          {collapsed ? collapsedHeading(heading, items) : heading}
+        </button>
+      </h3>
+      {!collapsed && (
+        <ul>
+          {items.map((item) => (
+            <ListRow
+              key={item.id}
+              headline={item.name}
+              supporting={[item.brandNote, item.necessity].filter((part) => part !== undefined).join(' · ')}
+              stackTrailing
+              onActivate={() => onOpen(item)}
+              trailing={
+                <SegmentedButton
+                  label={`State for ${item.name}`}
+                  options={core.stateSchema.options.map((state) => ({ value: state, label: state }))}
+                  value={item.state}
+                  onChange={(state) => {
+                    if (state !== item.state) void onSetState(item, state)
+                  }}
+                />
+              }
+            />
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

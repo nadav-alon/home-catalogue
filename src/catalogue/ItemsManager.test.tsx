@@ -73,6 +73,7 @@ beforeEach(() => {
   watchCategories.mockReset()
   createCategory.mockReset()
   watchShops.mockReset()
+  localStorage.clear()
 })
 
 /** Records `history.back` calls and hash changes in the order they happen; call `stop` to detach. */
@@ -1508,5 +1509,133 @@ describe('a scanned barcode', () => {
 
     await waitFor(() => expect(createItem).toHaveBeenCalled())
     expect(createItem.mock.calls[0]![1].barcode).toBeUndefined()
+  })
+})
+
+describe('collapsing a Category', () => {
+  const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
+
+  it('starts every Category expanded, its heading a toggle button', () => {
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+
+    const toggle = within(screen.getByRole('heading', { name: 'Medicine' })).getByRole('button', { name: 'Medicine' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+
+  it("hides a Category's Items when its heading is pressed, and shows them when pressed again", () => {
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+
+  it('collapses Uncategorised too', () => {
+    const orphan: ItemRecord = { ...bandages, categoryId: catalogue.categoryId('gone') }
+    renderWith([orphan], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Uncategorised' }))
+
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it("summarises a collapsed heading with its Items' running low and out counts", () => {
+    const items = [
+      { ...soap, id: core.itemId('a'), state: 'running low' as const },
+      { ...soap, id: core.itemId('b'), state: 'running low' as const },
+      { ...soap, id: core.itemId('c'), state: 'out' as const },
+      { ...soap, id: core.itemId('d'), state: 'enough' as const },
+    ]
+    renderWith(items, [cleaning], [grocery])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cleaning' }))
+
+    expect(screen.getByRole('button', { name: 'Cleaning · 2 running low, 1 out' })).toBeInTheDocument()
+  })
+
+  it('counts only the States that occur, and adds nothing when every Item is enough', () => {
+    renderWith([{ ...soap, state: 'out' }, { ...bandages, state: 'enough' }], [medicine, cleaning], [pharmacy, grocery])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cleaning' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+
+    expect(screen.getByRole('button', { name: 'Cleaning · 1 out' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Medicine' })).toBeInTheDocument()
+  })
+
+  it('shows no summary while the Category is expanded', () => {
+    renderWith([{ ...soap, state: 'out' }], [cleaning], [grocery])
+
+    expect(screen.getByRole('button', { name: 'Cleaning' })).toBeInTheDocument()
+  })
+
+  it('shows the Items a search matches in a collapsed Category, and restores the collapse when cleared', () => {
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+
+    const search = screen.getByRole('searchbox', { name: 'Search Items' })
+    fireEvent.input(search, { target: { value: 'band' } })
+
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'true')
+
+    fireEvent.input(search, { target: { value: '' } })
+
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('shows the Items a scan filter matches in a collapsed Category, and restores the collapse when cleared', () => {
+    localStorage.setItem('home-catalogue:collapsed-categories', JSON.stringify([medicine.id]))
+    const { rerender } = renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery], [bandages.id])
+
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+
+    rerender(<ItemsManager db={fakeDb} itemIds={[]} />)
+
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('disables the heading toggles while a filter is active, keeping the remembered state', () => {
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+    const remembered = localStorage.getItem('home-catalogue:collapsed-categories')
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'band' } })
+
+    expect(screen.getByRole('button', { name: 'Medicine' })).toBeDisabled()
+    expect(localStorage.getItem('home-catalogue:collapsed-categories')).toBe(remembered)
+  })
+
+  it('remembers a collapsed Category across reloads, by Category id', () => {
+    const first = renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+    first.unmount()
+
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Cleaning' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('remembers a collapsed Uncategorised group across reloads', () => {
+    const orphan: ItemRecord = { ...bandages, categoryId: catalogue.categoryId('gone') }
+    const first = renderWith([orphan], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Uncategorised' }))
+    first.unmount()
+
+    renderWith([orphan], [medicine], [pharmacy])
+
+    expect(screen.getByRole('button', { name: 'Uncategorised' })).toHaveAttribute('aria-expanded', 'false')
   })
 })
