@@ -5,6 +5,7 @@ import { CategoriesManager } from './CategoriesManager.tsx'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
+import { actionLabels } from '../testing/dialog.ts'
 import { resetHash } from '../testing/hash.ts'
 import { choose } from '../testing/select.ts'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
@@ -382,9 +383,7 @@ describe('CategoriesManager', () => {
     renderWith([], [pharmacy])
     fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
 
-    const names = within(screen.getByRole('dialog'))
-      .getAllByRole('button', { name: (name) => name !== 'Close' })
-      .map((button) => button.textContent)
+    const names = actionLabels(screen.getByRole('dialog'))
     expect(names).toEqual(['Cancel', 'Add'])
   })
 
@@ -405,9 +404,7 @@ describe('CategoriesManager', () => {
     renderWith([medicine], [pharmacy])
     openEditor('Medicine')
 
-    const names = within(screen.getByRole('dialog'))
-      .getAllByRole('button', { name: (name) => name !== 'Close' })
-      .map((button) => button.textContent)
+    const names = actionLabels(screen.getByRole('dialog'))
     expect(names).toEqual(['Delete', 'Cancel', 'Save'])
   })
 

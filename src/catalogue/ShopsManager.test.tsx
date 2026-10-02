@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
+import { actionLabels } from '../testing/dialog.ts'
 import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
 import { ShopsManager } from './ShopsManager.tsx'
 import type { ShopRecord } from './shops.ts'
@@ -132,9 +133,7 @@ describe('ShopsManager', () => {
     renderWithShops([])
     fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
 
-    const labels = within(screen.getByRole('dialog'))
-      .getAllByRole('button', { name: (name) => name !== 'Close' })
-      .map((button) => button.textContent)
+    const labels = actionLabels(screen.getByRole('dialog'))
     expect(labels).toEqual(['Cancel', 'Add'])
   })
 
@@ -209,9 +208,7 @@ describe('ShopsManager', () => {
     renderWithShops([pharmacy])
     openEditor('Pharmacy')
 
-    const labels = within(screen.getByRole('dialog'))
-      .getAllByRole('button', { name: (name) => name !== 'Close' })
-      .map((button) => button.textContent)
+    const labels = actionLabels(screen.getByRole('dialog'))
     expect(labels).toEqual(['Delete', 'Cancel', 'Rename'])
   })
 
