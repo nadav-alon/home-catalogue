@@ -419,6 +419,18 @@ describe('adding an Item', () => {
     expect(createItem).not.toHaveBeenCalled()
   })
 
+  it('clears the name error once a name is typed, without saving again', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByLabelText('Name')).toHaveAccessibleDescription('An Item needs a name.')
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
+
+    expect(screen.getByLabelText('Name')).toBeValid()
+    expect(screen.getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
+  })
+
   it('refuses to add an Item without choosing a Category', () => {
     renderWith([], [medicine], [pharmacy])
     openDialog()

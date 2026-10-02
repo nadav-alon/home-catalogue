@@ -117,8 +117,13 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
   /** The "+ New Category" prompt: `null` while it is closed. */
   const [categoryDraft, setCategoryDraft] = useState<CategoryDraft | null>(null)
 
+  /** Sets a field, and drops its shown error once the new value is valid, without waiting for the next Save. */
   function set(field: Exclude<keyof ItemFormValues, 'state'>, value: string) {
     setValues((current) => ({ ...current, [field]: value }))
+    if (!(field in errors)) return
+    const result = parseItemFormValues({ ...values, [field]: value })
+    if ('errors' in result && field in result.errors) return
+    setErrors(({ [field as keyof ItemFormErrors]: _cleared, ...rest }) => rest)
   }
 
   const keptBarcodes = (item?.barcodes ?? []).filter((barcode) => !removedBarcodes.includes(barcode))
