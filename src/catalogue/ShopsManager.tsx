@@ -12,15 +12,17 @@ import { route } from '../ui/route.ts'
 import { showSnackbar } from '../ui/Snackbar.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import { navigate } from '../ui/useRoute.ts'
+import { useUniqueId } from '../ui/useUniqueId.ts'
 import AddIcon from '~icons/material-symbols/add'
 import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 import {
   createShop,
   deleteShop,
+  isShopInUse,
   renameShop,
   restoreShop,
   watchShops,
-  ShopInUseError,
+  SHOP_IN_USE_MESSAGE,
   type ShopRecord,
 } from './shops.ts'
 
@@ -82,6 +84,7 @@ interface EditShopDialogProps {
 /** Owns its draft name and error, so each opening starts from the Shop's current name; mount it only while open. */
 function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
   const [name, setName] = useState(shop.name)
+  const inUseNoteId = useUniqueId()
   const [error, setError] = useState<string | null>(null)
 
   async function handleRename(event: JSX.TargetedEvent<HTMLFormElement>) {
@@ -99,6 +102,8 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
     }
   }
 
+  const inUse = isShopInUse(shop)
+
   async function handleDelete() {
     try {
       await deleteShop(db, shop)
@@ -107,8 +112,8 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
         action: { label: 'Undo', onAction: () => void restoreShop(db, shop) },
       })
       onClose()
-    } catch (err) {
-      setError(err instanceof ShopInUseError ? err.message : 'Could not delete Shop')
+    } catch {
+      setError('Could not delete Shop')
     }
   }
 
@@ -117,9 +122,15 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
       <form class={DIALOG_FORM_CLASS} onSubmit={handleRename}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
+        {inUse && <p id={inUseNoteId}>{SHOP_IN_USE_MESSAGE}</p>}
         <DialogActions
           destructive={
-            <Button variant="text" onClick={() => void handleDelete()}>
+            <Button
+              variant="text"
+              disabled={inUse}
+              aria-describedby={inUse ? inUseNoteId : undefined}
+              onClick={() => void handleDelete()}
+            >
               Delete
             </Button>
           }

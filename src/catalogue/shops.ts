@@ -25,6 +25,14 @@ export function shopName(shops: ShopRecord[], shopId: catalogue.ShopId): string 
   return shops.find((shop) => shop.id === shopId)?.name ?? UNKNOWN_SHOP_NAME
 }
 
+/** The wording for both the {@link ShopInUseError} refusal and the Edit Shop dialog's up-front note. */
+export const SHOP_IN_USE_MESSAGE = 'This Shop is in use, and cannot be deleted.'
+
+/** Whether the cached `referenceCount` says something still points at the Shop, so it cannot be deleted. */
+export function isShopInUse(shop: ShopRecord): boolean {
+  return shop.referenceCount > 0
+}
+
 /** Thrown by {@link deleteShop} when the cached `referenceCount` says the Shop is still in use. */
 export class ShopInUseError extends Error {}
 
@@ -83,7 +91,7 @@ export async function renameShop(db: Firestore, shop: ShopRecord, name: string):
  * a write the rules refuse is reported through {@link reportWriteRejection}.
  */
 export async function deleteShop(db: Firestore, shop: ShopRecord): Promise<void> {
-  if (shop.referenceCount > 0) throw new ShopInUseError('This Shop is in use, and cannot be deleted.')
+  if (isShopInUse(shop)) throw new ShopInUseError(SHOP_IN_USE_MESSAGE)
   commitShopDeletion(db, shop, serverTimestamp(), 'deleted')
 }
 

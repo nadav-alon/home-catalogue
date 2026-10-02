@@ -6,7 +6,7 @@ import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { actionLabels } from '../testing/dialog.ts'
 import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
 import { ShopsManager } from './ShopsManager.tsx'
-import type { ShopRecord } from './shops.ts'
+import { SHOP_IN_USE_MESSAGE, type ShopRecord } from './shops.ts'
 import { grocery, pharmacy } from './testFixtures.ts'
 
 const createShop = vi.fn()
@@ -15,17 +15,13 @@ const deleteShop = vi.fn()
 const restoreShop = vi.fn()
 const watchShops = vi.fn()
 
-const { FakeShopInUseError } = vi.hoisted(() => ({
-  FakeShopInUseError: class extends Error {},
-}))
-
-vi.mock('./shops.ts', () => ({
+vi.mock('./shops.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./shops.ts')>()),
   createShop: (db: unknown, name: string) => createShop(db, name),
   renameShop: (db: unknown, shop: unknown, name: string) => renameShop(db, shop, name),
   deleteShop: (db: unknown, shop: unknown) => deleteShop(db, shop),
   restoreShop: (db: unknown, shop: unknown) => restoreShop(db, shop),
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
-  ShopInUseError: FakeShopInUseError,
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -253,8 +249,8 @@ describe('ShopsManager', () => {
     expect(restoreShop).toHaveBeenCalledWith(fakeDb, pharmacy)
   })
 
-  it('shows no snackbar when deletion is refused', async () => {
-    deleteShop.mockRejectedValueOnce(new FakeShopInUseError('This Shop is in use.'))
+  it('shows no snackbar when deletion fails', async () => {
+    deleteShop.mockRejectedValueOnce(new Error('boom'))
     renderWithShops([pharmacy], { withSnackbar: true })
     openEditor('Pharmacy')
 
@@ -264,14 +260,32 @@ describe('ShopsManager', () => {
     expect(screen.getByRole('status')).toBeEmptyDOMElement()
   })
 
-  it('shows the ShopInUseError message when deletion is refused', async () => {
-    deleteShop.mockRejectedValueOnce(new FakeShopInUseError('This Shop is in use.'))
+  it('shows a failure message when deletion fails', async () => {
+    deleteShop.mockRejectedValueOnce(new Error('boom'))
     renderWithShops([pharmacy])
     openEditor('Pharmacy')
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('This Shop is in use.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not delete Shop')
+  })
+
+  it('disables Delete for an in-use Shop and says why before any press', () => {
+    renderWithShops([{ ...pharmacy, referenceCount: 2 }])
+    openEditor('Pharmacy')
+
+    const deleteButton = screen.getByRole('button', { name: 'Delete' })
+    expect(deleteButton).toBeDisabled()
+    expect(deleteButton).toHaveAccessibleDescription(SHOP_IN_USE_MESSAGE)
+    expect(screen.getByText(SHOP_IN_USE_MESSAGE)).toBeVisible()
+  })
+
+  it('keeps Delete enabled, with no in-use note, for an unused Shop', () => {
+    renderWithShops([pharmacy])
+    openEditor('Pharmacy')
+
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Delete' })).not.toHaveAccessibleDescription()
   })
 
   it('opens the Edit Shop dialog when the row itself is tapped', () => {
@@ -297,8 +311,8 @@ describe('ShopsManager', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
-  it('clears a delete refusal when another Shop is opened', async () => {
-    deleteShop.mockRejectedValueOnce(new FakeShopInUseError('This Shop is in use.'))
+  it('clears a delete failure when another Shop is opened', async () => {
+    deleteShop.mockRejectedValueOnce(new Error('boom'))
     renderWithShops([pharmacy, grocery])
     openEditor('Pharmacy')
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
