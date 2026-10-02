@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { act, fireEvent, render, screen } from '@testing-library/preact'
+import { act, fireEvent, render, screen, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { CalendarExport } from './CalendarExport.tsx'
@@ -56,6 +56,8 @@ describe('CalendarExport', () => {
     const row = screen.getByRole('button', { name: 'Export' }).closest('.ui-dialog-actions')
     expect(row).not.toBeNull()
     expect(screen.getByRole('button', { name: 'Cancel' }).closest('.ui-dialog-actions')).toBe(row)
+    const buttons = within(row as HTMLElement).getAllByRole('button')
+    expect(buttons.map((button) => button.textContent)).toEqual(['Cancel', 'Export'])
   })
 
   it('renders the date input in the TextField style at a 48px touch height', () => {

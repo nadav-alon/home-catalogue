@@ -110,11 +110,11 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
           />
 
           <DialogActions>
-            <Button type="submit" disabled={status.phase === 'exporting'}>
-              Export
-            </Button>
             <Button variant="text" onClick={() => setOpen(false)}>
               Cancel
+            </Button>
+            <Button type="submit" disabled={status.phase === 'exporting'}>
+              Export
             </Button>
           </DialogActions>
         </form>
