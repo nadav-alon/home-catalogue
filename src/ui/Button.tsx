@@ -5,7 +5,11 @@ export type ButtonVariant = 'filled' | 'tonal' | 'text'
 
 export interface ButtonProps extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, 'class' | 'className'> {
   variant?: ButtonVariant
-  /** Marks an action that removes something, so it reads apart from its neighbours; coloured from the error token. */
+  /**
+   * Colours a `variant="text"` Button from the error token so it reads apart from its neighbours; the other variants
+   * ignore it. It is only the colour: it does not set the action apart by position, which is `DialogActions`'
+   * `destructive` slot, and neither implies the other.
+   */
   destructive?: boolean
 }
 
