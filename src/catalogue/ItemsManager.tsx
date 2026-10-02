@@ -233,11 +233,12 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
             filterOnClose.current = editedItem.id
             return
           }
-          if (!editedItem) {
+          if (input.state !== undefined) {
             const id = await createItem(db, { ...input, barcode: pendingBarcode })
             if (pendingBarcode !== undefined) filterOnClose.current = id
             return
           }
+          if (!editedItem) return
           // Its reference counts move from the current record.
           await updateItem(db, editedItem, input, categories)
         }}

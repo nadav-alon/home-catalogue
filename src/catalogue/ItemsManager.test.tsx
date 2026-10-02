@@ -314,11 +314,34 @@ describe('adding an Item', () => {
 
     expect(createItem).toHaveBeenCalledWith(fakeDb, {
       name: 'Bandages',
+      state: 'enough',
       brandNote: 'the waterproof ones',
       categoryId: medicine.id,
       necessity: 'essential',
       shopId: undefined,
     })
+  })
+
+  it('offers every State in the Add Item dialog, defaulting to enough', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+
+    const state = screen.getByLabelText('State')
+    expect(state).toHaveValue('enough')
+    expect(within(state).getAllByRole('option').map((option) => option.textContent)).toEqual(['enough', 'running low', 'out'])
+  })
+
+  it('creates a new Item at the chosen State', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
+    choose(screen.getByLabelText('State'), 'out')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(createItem).toHaveBeenCalledWith(fakeDb, expect.objectContaining({ name: 'Bandages', state: 'out' }))
   })
 
   it('closes the dialog once the Item is saved', async () => {
@@ -362,6 +385,7 @@ describe('adding an Item', () => {
 
     expect(createItem).toHaveBeenCalledWith(fakeDb, {
       name: 'Bandages',
+      state: 'enough',
       brandNote: undefined,
       categoryId: medicine.id,
       necessity: 'essential',
@@ -437,6 +461,14 @@ describe('editing an Item', () => {
     expect(screen.getByLabelText('Category')).toHaveValue(medicine.id)
     expect(screen.getByLabelText('Necessity')).toHaveValue('essential')
     expect(screen.getByLabelText('Shop override')).toHaveValue(grocery.id)
+  })
+
+  it('has no State field in the Edit Item dialog', () => {
+    renderWith([waterproofBandages], [medicine, cleaning], [pharmacy, grocery])
+
+    openRow('Bandages')
+
+    expect(within(screen.getByRole('dialog', { name: 'Edit Item' })).queryByLabelText('State')).not.toBeInTheDocument()
   })
 
   it('updates that Item on save, and closes', async () => {
@@ -1366,6 +1398,27 @@ describe('a scanned barcode', () => {
       ),
     )
     expect(attachBarcode).not.toHaveBeenCalled()
+  })
+
+  it('creates the Item carrying both the barcode and the chosen State from "New Item"', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    fireEvent.input(within(dialog).getByLabelText('Name'), { target: { value: 'Dish soap' } })
+    choose(within(dialog).getByLabelText('Category'), medicine.id)
+    choose(within(dialog).getByLabelText('Necessity'), 'essential')
+    choose(within(dialog).getByLabelText('State'), 'out')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(createItem).toHaveBeenCalledWith(
+        fakeDb,
+        expect.objectContaining({ name: 'Dish soap', barcode: '4006381333931', state: 'out' }),
+      ),
+    )
   })
 
   it('opens the new Item\'s scanned filter once the Item dialog opened from "New Item" is saved', async () => {
