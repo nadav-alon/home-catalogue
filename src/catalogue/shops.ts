@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   deleteField,
   doc,
@@ -7,6 +6,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   type FieldValue,
   type Firestore,
@@ -55,15 +55,17 @@ export function watchShops(db: Firestore, callback: (shops: ShopRecord[]) => voi
 }
 
 /**
- * Validates against {@link catalogue.shopSchema} before writing a new Shop. Resolves once the
- * write is queued, not once Firestore acknowledges it, so a caller offline is not left waiting;
- * a write the server later rejects is reported through {@link reportWriteRejection}.
+ * Validates against {@link catalogue.shopSchema} before writing a new Shop, and resolves with its id
+ * once the write is queued, not once Firestore acknowledges it, so a caller offline is not left
+ * waiting; a write the server later rejects is reported through {@link reportWriteRejection}.
  */
-export async function createShop(db: Firestore, name: string): Promise<void> {
+export async function createShop(db: Firestore, name: string): Promise<catalogue.ShopId> {
   const data = catalogue.shopSchema.parse({ name, referenceCount: 0 })
-  void addDoc(collection(db, catalogue.SHOPS_COLLECTION), data).catch((err: unknown) => {
+  const shopRef = doc(collection(db, catalogue.SHOPS_COLLECTION))
+  void setDoc(shopRef, data).catch((err: unknown) => {
     reportWriteRejection(`new Shop ${data.name}`, err)
   })
+  return catalogue.shopId(shopRef.id)
 }
 
 /** Validates the new name against {@link catalogue.shopSchema} before writing it. Resolves once queued, see {@link createShop}. */

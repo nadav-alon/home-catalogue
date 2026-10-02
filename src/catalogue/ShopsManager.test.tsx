@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
+import { catalogue } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
 import { ShopsManager } from './ShopsManager.tsx'
@@ -38,7 +39,7 @@ beforeEach(() => {
     this.removeAttribute('open')
     this.dispatchEvent(new Event('close'))
   })
-  createShop.mockReset().mockResolvedValue(undefined)
+  createShop.mockReset().mockResolvedValue(catalogue.shopId('new-shop'))
   renameShop.mockReset().mockResolvedValue(undefined)
   deleteShop.mockReset().mockResolvedValue(undefined)
   restoreShop.mockReset().mockResolvedValue(undefined)

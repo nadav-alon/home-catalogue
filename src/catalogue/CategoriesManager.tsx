@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
+import type { catalogue } from 'data-platform'
 import {
   changeCategoryDefaultShop,
   createCategory,
@@ -13,7 +14,8 @@ import {
   type CategoryDraft,
   type CategoryRecord,
 } from './categories.ts'
-import { shopName, watchShops, type ShopRecord } from './shops.ts'
+import { createShop, shopName, watchShops, type ShopRecord } from './shops.ts'
+import { BLANK_NAME_MESSAGE } from './ShopsManager.tsx'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
@@ -35,27 +37,70 @@ export interface CategoriesManagerProps {
 }
 
 const EMPTY_DRAFT: CategoryDraft = { name: '', shopId: '' }
+/** The Shop picker's value for "+ New Shop"; never a Shop id. */
+const NEW_SHOP = '+new'
 
 interface CategoryFieldsProps {
   nameLabel: string
   draft: CategoryDraft
   shops: ShopRecord[]
-  onChange: (draft: CategoryDraft) => void
+  onChange: (update: (draft: CategoryDraft) => CategoryDraft) => void
+  onCreateShop: (name: string) => Promise<catalogue.ShopId>
 }
 
-function CategoryFields({ nameLabel, draft, shops, onChange }: CategoryFieldsProps) {
+/** The name and default Shop fields; the Shop picker's "+ New Shop" asks for a name, creates the Shop and selects it, leaving the rest of the draft as it was. */
+function CategoryFields({ nameLabel, draft, shops, onChange, onCreateShop }: CategoryFieldsProps) {
   const shopId = shops.some((shop) => shop.id === draft.shopId) ? draft.shopId : ''
+  /** The "+ New Shop" prompt's name: `null` while it is closed. */
+  const [newShopName, setNewShopName] = useState<string | null>(null)
+  const [shopError, setShopError] = useState<string | null>(null)
+
+  function closeShopPrompt() {
+    setNewShopName(null)
+    setShopError(null)
+  }
+
+  function handleShopChange(event: JSX.TargetedEvent<HTMLSelectElement>) {
+    const { value } = event.currentTarget
+    if (value === NEW_SHOP) {
+      setNewShopName((current) => current ?? '')
+    } else {
+      onChange((current) => ({ ...current, shopId: value }))
+      closeShopPrompt()
+    }
+  }
+
+  /** Enter in the prompt's field creates the Shop instead of submitting the Category form around it. */
+  function handleShopPromptKeyDown(event: JSX.TargetedKeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Enter' || event.target instanceof HTMLButtonElement) return
+    event.preventDefault()
+    void handleCreateShop()
+  }
+
+  async function handleCreateShop() {
+    if (newShopName === null) return
+    const trimmedName = newShopName.trim()
+    if (trimmedName.length === 0) return setShopError(BLANK_NAME_MESSAGE)
+    try {
+      const createdId = await onCreateShop(trimmedName)
+      onChange((current) => ({ ...current, shopId: createdId }))
+      closeShopPrompt()
+    } catch (err) {
+      setShopError(err instanceof Error ? err.message : 'Could not add Shop')
+    }
+  }
+
   return (
     <>
       <TextField
         label={nameLabel}
         value={draft.name}
-        onInput={(event) => onChange({ ...draft, name: event.currentTarget.value })}
+        onInput={(event) => onChange((current) => ({ ...current, name: event.currentTarget.value }))}
       />
       <Select
         label="Default Shop"
-        value={shopId}
-        onChange={(event) => onChange({ ...draft, shopId: event.currentTarget.value })}
+        value={newShopName === null ? shopId : NEW_SHOP}
+        onChange={handleShopChange}
       >
         <option value="" disabled>
           Choose a Shop
@@ -65,7 +110,18 @@ function CategoryFields({ nameLabel, draft, shops, onChange }: CategoryFieldsPro
             {shop.name}
           </option>
         ))}
+        <option value={NEW_SHOP}>+ New Shop</option>
       </Select>
+      {newShopName !== null && (
+        <div onKeyDown={handleShopPromptKeyDown}>
+          {shopError !== null && <p role="alert">{shopError}</p>}
+          <TextField label="New Shop name" value={newShopName} onInput={(event) => setNewShopName(event.currentTarget.value)} />
+          <Button onClick={handleCreateShop}>Create Shop</Button>
+          <Button variant="text" onClick={closeShopPrompt}>
+            Cancel new Shop
+          </Button>
+        </div>
+      )}
     </>
   )
 }
@@ -102,6 +158,8 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     setDraft(EMPTY_DRAFT)
     setError(null)
   }
+
+  const handleCreateShop = (name: string) => createShop(db, name)
 
   async function handleCreate(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -174,7 +232,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
         {adding && (
           <form onSubmit={handleCreate}>
             {error !== null && <p role="alert">{error}</p>}
-            <CategoryFields nameLabel="New Category name" draft={draft} shops={shops} onChange={setDraft} />
+            <CategoryFields nameLabel="New Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
             <Button variant="text" onClick={closeDialogs}>
               Cancel
             </Button>
@@ -191,7 +249,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
             }}
           >
             {error !== null && <p role="alert">{error}</p>}
-            <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} />
+            <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
             <Button variant="text" onClick={() => void handleDelete(editing)}>
               Delete
             </Button>
