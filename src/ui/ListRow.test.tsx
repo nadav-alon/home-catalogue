@@ -91,6 +91,13 @@ describe('ListRow', () => {
     expect(css).toMatch(/\.ui-list-row--stack-trailing \.ui-list-row__text\s*{[^}]*flex-basis: 100%/)
   })
 
+  it('gives a stacked row\'s segmented options a 48px touch target below 600px', () => {
+    const css = readFileSync('src/ui/ListRow.css', 'utf8')
+    expect(css).toMatch(
+      /@media \(max-width: 599\.98px\)\s*{\s*\.ui-list-row--stack-trailing \.ui-segmented__option\s*{[^}]*min-height: 3rem/,
+    )
+  })
+
   it('is styled only from defined tokens', () => {
     const { used, undefinedTokens } = tokenUsage('src/ui/ListRow.css')
     expect(used.length).toBeGreaterThan(0)
