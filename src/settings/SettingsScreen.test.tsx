@@ -102,6 +102,14 @@ describe('SettingsScreen', () => {
     expect(onResetConfig).toHaveBeenCalledTimes(1)
   })
 
+  it('gives every row action the tonal button style', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    for (const name of ['Show QR code', 'Reset Firebase configuration', 'Sign out']) {
+      expect(screen.getByRole('button', { name }).classList.contains('ui-button--tonal')).toBe(true)
+    }
+  })
+
   it('signs out', () => {
     render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
