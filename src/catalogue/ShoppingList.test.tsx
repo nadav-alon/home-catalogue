@@ -514,7 +514,7 @@ describe('a scanned barcode', () => {
     expect(setItemState).not.toHaveBeenCalled()
   })
 
-  it('attaches the barcode to the Item the Member picks in the chooser', async () => {
+  it('attaches the barcode to the Item the Member picks in the chooser, and sets it enough with an Undo', async () => {
     render(<SnackbarHost />)
     const unscanned: ItemRecord = { ...bandages, barcodes: undefined }
     renderWith([unscanned], [medicine], [pharmacy])
@@ -525,7 +525,24 @@ describe('a scanned barcode', () => {
     fireEvent.click(within(chooser).getByText('Bandages'))
 
     await waitFor(() => expect(attachBarcode).toHaveBeenCalledWith(fakeDb, unscanned, scanned, []))
+    await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, unscanned, 'enough'))
+    setItemState.mockClear()
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, unscanned, 'out')
+  })
+
+  it('only confirms the attach when the picked Item is already enough', async () => {
+    render(<SnackbarHost />)
+    const stocked: ItemRecord = { ...bandages, barcodes: undefined, state: 'enough' }
+    renderWith([stocked], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+    fireEvent.click(within(chooser).getByText('Bandages'))
+
     expect(await screen.findByText('Added barcode to Bandages')).toBeInTheDocument()
+    expect(setItemState).not.toHaveBeenCalled()
   })
 
   it('reports a failed barcode lookup instead of opening the chooser', async () => {

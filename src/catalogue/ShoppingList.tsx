@@ -138,7 +138,8 @@ export function ShoppingList({ db }: ShoppingListProps) {
       await attachBarcode(db, item, unknownBarcode.barcode, holders)
       setUnknownBarcode(undefined)
       setError(null)
-      showSnackbar({ text: `Added barcode to ${item.name}` })
+      if (item.state === 'enough') showSnackbar({ text: `Added barcode to ${item.name}` })
+      else handleTick(item)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add the barcode')
     }
