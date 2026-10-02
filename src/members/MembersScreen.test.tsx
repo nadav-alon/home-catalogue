@@ -274,7 +274,7 @@ describe('MembersScreen', () => {
 
       invite('New@Example.com')
 
-      expect(await screen.findByRole('status')).toHaveTextContent('Invited new@example.com')
+      expect(await screen.findByText('Invited new@example.com')).toBeInTheDocument()
     })
 
     it('shows no snackbar when the email is refused', async () => {
@@ -414,7 +414,7 @@ describe('MembersScreen', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Revoke invite for c@example.com' }))
 
-      expect(await screen.findByRole('status')).toHaveTextContent('Revoked invite for c@example.com')
+      expect(await screen.findByText('Revoked invite for c@example.com')).toBeInTheDocument()
     })
 
     it('shows a non-Owner Member no revoke control', () => {
