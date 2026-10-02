@@ -71,7 +71,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Shopping list' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Items', level: 2 })).toBeNull()
+    expect(screen.queryByRole('searchbox', { name: 'Search Items' })).toBeNull()
   })
 
   it('shows a snackbar over any screen', () => {
@@ -155,18 +155,18 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Add a device' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Shops' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Categories' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { level: 2, name: 'Shops' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add Shop' })).toBeNull()
   })
 
   it('shows one management screen on each Settings sub-route', async () => {
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
     await goTo('#/settings/shops')
     expect(screen.getByRole('heading', { level: 1, name: 'Shops' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { level: 2, name: 'Categories' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add Category' })).toBeNull()
 
     await goTo('#/settings/categories')
     expect(screen.getByRole('heading', { level: 1, name: 'Categories' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { level: 2, name: 'Shops' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add Shop' })).toBeNull()
   })
 
   it('titles the Members screen with the top app bar heading alone', async () => {
