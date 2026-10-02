@@ -1,0 +1,9 @@
+.write-rejection-banner {
+  padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+.write-rejection-banner p {
+  margin: 0;
+}

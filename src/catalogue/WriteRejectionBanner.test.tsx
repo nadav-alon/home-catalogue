@@ -1,7 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WriteRejectionBanner } from './WriteRejectionBanner.tsx'
+import { read, tokenUsage } from '../testing/css.ts'
 import { reportWriteRejection, resetWriteRejections } from './writeRejections.ts'
+
+const css = read('src/catalogue/WriteRejectionBanner.css')
+const alertBannerCss = read('src/catalogue/AlertBanner.css')
 
 afterEach(() => {
   resetWriteRejections()
@@ -43,5 +47,32 @@ describe('WriteRejectionBanner', () => {
 
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.getByRole('alert')).toHaveTextContent('Could not save new Category')
+  })
+
+  it('is styled only from defined tokens, which cover light and dark, and no hard-coded colour', () => {
+    const { used, undefinedTokens } = tokenUsage('src/catalogue/WriteRejectionBanner.css')
+    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgb|hsl/i)
+    expect(used).toEqual(
+      expect.arrayContaining(['--md-sys-color-error-container', '--md-sys-color-on-error-container']),
+    )
+    expect(undefinedTokens).toEqual([])
+  })
+
+  it("gives the notice's text and Dismiss button the AlertBanner's inset", () => {
+    const inset = (sheet: string, selector: string) =>
+      sheet.match(new RegExp(`\\.${selector}\\s*{[^}]*?padding:\\s*([^;]+);`))?.[1]
+
+    expect(inset(css, 'write-rejection-banner')).toBeDefined()
+    expect(inset(css, 'write-rejection-banner')).toBe(inset(alertBannerCss, 'alert-banner'))
+  })
+
+  it('styles the notice from the stylesheet, with no inline style', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(<WriteRejectionBanner />)
+    act(() => reportWriteRejection('new Shop', new Error('x')))
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveClass('write-rejection-banner')
+    expect(alert).not.toHaveAttribute('style')
   })
 })
