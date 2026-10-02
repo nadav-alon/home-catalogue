@@ -1,5 +1,5 @@
-import { act, render, screen, within } from '@testing-library/preact'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { App } from './app'
@@ -8,6 +8,7 @@ import { bandages } from './catalogue/testFixtures.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 import { resetSnackbar, showSnackbar } from './ui/Snackbar.tsx'
 import { resetHash } from './testing/hash.ts'
+import { stubModalDialog } from './testing/dialog.ts'
 
 const watchItemsCallbacks: ((items: ItemRecord[]) => void)[] = []
 const watchItems = vi.fn((_db: unknown, cb: (items: ItemRecord[]) => void) => {
@@ -50,6 +51,8 @@ const config = firebaseWebConfig({
   messagingSenderId: '123456789',
   appId: '1:123456789:web:abcdef',
 })
+
+beforeEach(stubModalDialog)
 
 afterEach(() => {
   resetSnackbar()
@@ -249,5 +252,34 @@ describe('App', () => {
     act(() => watchItemsCallbacks.forEach((cb) => cb(items)))
 
     expect(screen.getByRole('alert')).toHaveTextContent('1')
+  })
+
+  it('labels the Item dialog opened from the unknown barcode chooser and duplicates no id', async () => {
+    vi.stubGlobal(
+      'BarcodeDetector',
+      class {
+        detect = async () => [{ rawValue: '4006381333931' }]
+      },
+    )
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: async () => ({ getTracks: () => [] }) },
+    })
+    HTMLMediaElement.prototype.play = vi.fn(async () => {})
+    window.location.hash = '#/items'
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+    await act(async () => watchItemsCallbacks.forEach((cb) => cb([bandages])))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan barcode' }))
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    for (const label of ['Name', 'Brand note', 'Category', 'Necessity', 'State', 'Shop override', 'Barcode']) {
+      expect(within(dialog).getByLabelText(label)).toBeInTheDocument()
+    }
+    expect(screen.getByLabelText('Search Items')).toHaveAttribute('type', 'search')
+    const ids = [...document.querySelectorAll('[id]')].map((element) => element.id)
+    expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([])
   })
 })
