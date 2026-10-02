@@ -474,6 +474,17 @@ describe('MembersScreen', () => {
       expect(await screen.findByText('Revoked invite for c@example.com')).toBeInTheDocument()
     })
 
+    it('sets Revoke apart from Share with the destructive tone', () => {
+      renderScreen([owner], [core.email('c@example.com')])
+
+      expect(screen.getByRole('button', { name: 'Revoke invite for c@example.com' })).toHaveClass(
+        'ui-button--destructive',
+      )
+      expect(screen.getByRole('button', { name: 'Share invite for c@example.com' })).not.toHaveClass(
+        'ui-button--destructive',
+      )
+    })
+
     it('shows a non-Owner Member no revoke control', () => {
       currentUserUid.mockReturnValue(member.uid)
       renderScreen([owner, member], [core.email('c@example.com')])
