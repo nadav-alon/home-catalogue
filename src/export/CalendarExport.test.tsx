@@ -196,7 +196,8 @@ describe('CalendarExport', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
     const exportButton = screen.getByRole('button', { name: 'Export' })
     expect(exportButton).toBeDisabled()
-    fireEvent.click(exportButton)
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-03-05')
+    fireEvent.submit(exportButton.closest('form')!)
     expect(exportShoppingList).toHaveBeenCalledTimes(1)
 
     await act(async () => finish({ status: 'exported' }))
