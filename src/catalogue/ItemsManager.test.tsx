@@ -1280,6 +1280,8 @@ describe('a scanned barcode', () => {
     expect(barcode).toHaveValue('4006381333931')
     expect(barcode).toHaveAttribute('readonly')
     expect(barcode).toHaveClass('ui-field__control')
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' })
+    expect(cancel.parentElement).toBe(within(dialog).getByRole('button', { name: 'Save' }).parentElement)
     expect(within(dialog).queryByRole('button', { name: /Remove barcode/ })).not.toBeInTheDocument()
   })
 
