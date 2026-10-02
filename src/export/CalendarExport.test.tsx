@@ -266,6 +266,16 @@ describe('CalendarExport', () => {
     expect(exportShoppingList).not.toHaveBeenCalled()
   })
 
+  it("shows no won't-be-included note when nothing can be exported, leaving the alert to explain", async () => {
+    renderWith([orphan], [medicine], [pharmacy])
+
+    expect(screen.queryByText(/won't be included/)).not.toBeInTheDocument()
+    await submit('2026-03-05')
+
+    expect(screen.getByRole('alert')).toHaveTextContent('1 pending Item needs a Shop before it can be exported.')
+    expect(screen.queryByText(/won't be included/)).not.toBeInTheDocument()
+  })
+
   it('uses the singular when one pending Item needs a Shop', async () => {
     renderWith([orphan], [medicine], [pharmacy])
 
