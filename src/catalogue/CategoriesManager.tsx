@@ -8,9 +8,10 @@ import {
   deleteCategory,
   renameCategory,
   restoreCategory,
+  isCategoryInUse,
   validateCategoryDraft,
   watchCategories,
-  CategoryInUseError,
+  CATEGORY_IN_USE_MESSAGE,
   type CategoryDraft,
   type CategoryRecord,
 } from './categories.ts'
@@ -28,6 +29,7 @@ import { Select } from '../ui/Select.tsx'
 import { showSnackbar } from '../ui/Snackbar.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import { navigate } from '../ui/useRoute.ts'
+import { useUniqueId } from '../ui/useUniqueId.ts'
 import AddIcon from '~icons/material-symbols/add'
 import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 
@@ -139,6 +141,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
   const [editing, setEditing] = useState<CategoryRecord | null>(null)
   const [draft, setDraft] = useState<CategoryDraft>(EMPTY_DRAFT)
   const [error, setError] = useState<string | null>(null)
+  const inUseNoteId = useUniqueId()
 
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
@@ -196,20 +199,15 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
 
   /** deleteCategory resolves once queued, so the dialog closes at once even offline; Undo restores the Category. */
   async function handleDelete(category: CategoryRecord) {
-    setError(null)
-    try {
-      await deleteCategory(db, category)
-    } catch (err) {
-      if (!(err instanceof CategoryInUseError)) throw err
-      setError(err.message)
-      return
-    }
+    await deleteCategory(db, category)
     closeDialogs()
     showSnackbar({
       text: `Deleted ${category.name}`,
       action: { label: 'Undo', onAction: () => void restoreCategory(db, category, shopsRef.current) },
     })
   }
+
+  const editingInUse = editing !== null && isCategoryInUse(editing)
 
   return (
     <section>
@@ -256,9 +254,15 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           >
             {error !== null && <p role="alert">{error}</p>}
             <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
+            {editingInUse && <p id={inUseNoteId}>{CATEGORY_IN_USE_MESSAGE}</p>}
             <DialogActions
               destructive={
-                <Button variant="text" onClick={() => void handleDelete(editing)}>
+                <Button
+                  variant="text"
+                  disabled={editingInUse}
+                  aria-describedby={editingInUse ? inUseNoteId : undefined}
+                  onClick={() => void handleDelete(editing)}
+                >
                   Delete
                 </Button>
               }

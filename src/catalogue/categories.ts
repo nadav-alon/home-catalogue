@@ -39,6 +39,14 @@ export function validateCategoryDraft(
   return { name, shopId: shop.id }
 }
 
+/** The wording for both the {@link CategoryInUseError} refusal and the Edit Category dialog's up-front note. */
+export const CATEGORY_IN_USE_MESSAGE = 'This Category is still used by an Item, and cannot be deleted.'
+
+/** Whether the cached `referenceCount` says an Item still belongs to the Category, so it cannot be deleted. */
+export function isCategoryInUse(category: CategoryRecord): boolean {
+  return category.referenceCount > 0
+}
+
 /** Thrown by {@link deleteCategory} while a catalogue Item still belongs to the Category. */
 export class CategoryInUseError extends Error {}
 
@@ -136,9 +144,7 @@ export async function changeCategoryDefaultShop(
  * {@link reportWriteRejection}. Resolves once queued, see {@link createCategory}.
  */
 export async function deleteCategory(db: Firestore, category: CategoryRecord): Promise<void> {
-  if (category.referenceCount > 0) {
-    throw new CategoryInUseError('This Category is still used by an Item, and cannot be deleted.')
-  }
+  if (isCategoryInUse(category)) throw new CategoryInUseError(CATEGORY_IN_USE_MESSAGE)
   const batch = writeBatch(db)
   batch.update(doc(db, catalogue.CATEGORIES_COLLECTION, category.id), { deletedAt: serverTimestamp() })
   batch.update(doc(db, catalogue.SHOPS_COLLECTION, category.defaultShopId), { referenceCount: increment(-1) })

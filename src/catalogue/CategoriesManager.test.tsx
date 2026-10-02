@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { CategoriesManager } from './CategoriesManager.tsx'
-import type { CategoryRecord } from './categories.ts'
+import { CATEGORY_IN_USE_MESSAGE, type CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { actionLabels } from '../testing/dialog.ts'
@@ -18,10 +18,6 @@ const restoreCategory = vi.fn()
 const changeCategoryDefaultShop = vi.fn()
 const watchCategories = vi.fn()
 
-const { FakeCategoryInUseError } = vi.hoisted(() => ({
-  FakeCategoryInUseError: class extends Error {},
-}))
-
 vi.mock('./categories.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./categories.ts')>()),
   changeCategoryDefaultShop: (db: unknown, category: unknown, shopId: unknown) => changeCategoryDefaultShop(db, category, shopId),
@@ -30,7 +26,6 @@ vi.mock('./categories.ts', async (importOriginal) => ({
   deleteCategory: (db: unknown, category: unknown) => deleteCategory(db, category),
   restoreCategory: (db: unknown, category: unknown, shops: unknown) => restoreCategory(db, category, shops),
   watchCategories: (db: unknown, cb: unknown) => watchCategories(db, cb),
-  CategoryInUseError: FakeCategoryInUseError,
 }))
 
 const watchShops = vi.fn()
@@ -323,15 +318,23 @@ describe('CategoriesManager', () => {
     expect(restoreCategory).toHaveBeenCalledWith(fakeDb, medicine, [grocery])
   })
 
-  it('shows the CategoryInUseError message when deletion is refused', async () => {
-    deleteCategory.mockRejectedValueOnce(new FakeCategoryInUseError('This Category is in use.'))
-    renderWith([medicine], [pharmacy])
-
+  it('disables Delete for an in-use Category and says why before any press', () => {
+    renderWith([{ ...medicine, referenceCount: 2 }], [pharmacy])
     openEditor('Medicine')
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
-    expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent('This Category is in use.')
-    expect(within(screen.getByRole('status')).queryByRole('button', { name: 'Undo' })).toBeNull()
+    const deleteButton = screen.getByRole('button', { name: 'Delete' })
+    expect(deleteButton).toBeDisabled()
+    expect(deleteButton).toHaveAccessibleDescription(CATEGORY_IN_USE_MESSAGE)
+    expect(screen.getByText(CATEGORY_IN_USE_MESSAGE)).toBeVisible()
+  })
+
+  it('keeps Delete enabled, with no in-use note, for an unused Category', () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+
+    const deleteButton = screen.getByRole('button', { name: 'Delete' })
+    expect(deleteButton).toBeEnabled()
+    expect(deleteButton).not.toHaveAccessibleDescription()
   })
 
   it('shows the Choose a Shop placeholder when the default Shop is not among the Shops', () => {
