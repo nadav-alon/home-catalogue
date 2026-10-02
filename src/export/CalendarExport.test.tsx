@@ -33,6 +33,18 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+function bar(items: ItemRecord[]) {
+  return (
+    <TopAppBar title="Shopping list">
+      <CalendarExport items={items} categories={[medicine]} shops={[pharmacy]} />
+    </TopAppBar>
+  )
+}
+
+function renderBar(items: ItemRecord[]) {
+  return render(bar(items))
+}
+
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
   render(
     <TopAppBar title="Shopping list">
@@ -113,13 +125,19 @@ describe('CalendarExport', () => {
     expect(exportShoppingList).not.toHaveBeenCalled()
   })
 
-  it('rejects exporting when there are no pending Items', async () => {
+  it('disables Export to Calendar while the Shopping list has nothing to buy', () => {
     renderWith([], [medicine], [pharmacy])
 
-    await submit('2026-03-05')
+    expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeDisabled()
+  })
 
-    expect(screen.getByRole('alert')).toHaveTextContent('No pending Items to export.')
-    expect(exportShoppingList).not.toHaveBeenCalled()
+  it('enables Export to Calendar as soon as the Shopping list has an Item to buy', () => {
+    const view = renderBar([])
+    expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeDisabled()
+
+    view.rerender(bar([outBandages]))
+
+    expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeEnabled()
   })
 
   it('rejects exporting while offline, without attempting the export', async () => {
@@ -214,14 +232,14 @@ describe('CalendarExport', () => {
     expect(exportButton).toBeEnabled()
   })
 
-  it('shows no alert when the dialog is reopened after an export with no pending Items', async () => {
-    renderWith([], [medicine], [pharmacy])
-    await submit('2026-03-05')
-    expect(screen.getByRole('alert')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-
+  it('rejects exporting when the Items are marked enough while the dialog is open', async () => {
+    const view = renderBar([outBandages])
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+    view.rerender(bar([]))
 
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await submit('2026-03-05')
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No pending Items to export.')
+    expect(exportShoppingList).not.toHaveBeenCalled()
   })
 })
