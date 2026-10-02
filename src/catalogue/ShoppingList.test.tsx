@@ -192,7 +192,24 @@ describe('ShoppingList', () => {
     }
     renderWith([soap], [cleaning], [grocery])
 
-    expect(screen.getByText('Dish soap').closest('li')).toHaveTextContent('running low')
+    const row = screen.getByText('Dish soap').closest('li')
+    expect(row).toHaveTextContent('running low')
+    expect(row).not.toHaveTextContent('optional')
+  })
+
+  it('flags a running low Item whose Necessity is optional as running low only', () => {
+    const candles: ItemRecord = {
+      id: core.itemId('candles'),
+      name: 'Candles',
+      state: 'running low',
+      categoryId: cleaning.id,
+      necessity: 'optional',
+    }
+    renderWith([candles], [cleaning], [grocery])
+
+    const row = screen.getByText('Candles').closest('li')
+    expect(row).toHaveTextContent('running low')
+    expect(row).not.toHaveTextContent('optional')
   })
 
   it('sets a running low row back visually from an out row', () => {
