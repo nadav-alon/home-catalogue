@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
@@ -60,7 +60,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [dialog, setDialog] = useState<
     | { kind: 'edit'; item: ItemRecord }
     | { kind: 'restore'; item: ItemRecord }
-    | { kind: 'add'; barcode?: core.Barcode; barcodeFrom?: readonly Pick<ItemRecord, 'id' | 'name'>[] }
+    | { kind: 'add'; barcode?: core.Barcode; barcodeFrom?: readonly BarcodeHolder[] }
     | null
   >(null)
   /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
@@ -77,7 +77,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [unknownBarcode, setUnknownBarcode] = useState<core.Barcode | undefined>(undefined)
 
   /** The Items the unknown Barcode still sits on, a deleted Item among them; empty when none. */
-  const [barcodeHolders, setBarcodeHolders] = useState<Pick<ItemRecord, 'id' | 'name'>[]>([])
+  const [barcodeHolders, setBarcodeHolders] = useState<BarcodeHolder[]>([])
 
   /** The deleted Item a scanned Barcode belongs to, and that Barcode, while the Member is deciding whether to bring it back. */
   const [deletedMatch, setDeletedMatch] = useState<{ item: ItemRecord; barcode: core.Barcode } | undefined>(undefined)
@@ -152,9 +152,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     await openChooser(barcode)
   }
 
-  async function handleAttach(item: ItemRecord, from: readonly Pick<ItemRecord, 'id' | 'name'>[]) {
+  async function handleAttach(item: ItemRecord, holders: readonly BarcodeHolder[]) {
     if (unknownBarcode === undefined) return
-    await attachBarcode(db, item, unknownBarcode, from)
+    await attachBarcode(db, item, unknownBarcode, holders)
     setUnknownBarcode(undefined)
     showSnackbar({ text: `Added barcode to ${item.name}` })
     navigateToItems([item.id])

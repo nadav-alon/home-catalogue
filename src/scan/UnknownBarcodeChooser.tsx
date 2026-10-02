@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks'
 import type { core } from 'data-platform'
-import { matchesName, type ItemRecord } from '../catalogue/items.ts'
+import { matchesName, type BarcodeHolder, type ItemRecord } from '../catalogue/items.ts'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
@@ -13,11 +13,11 @@ export interface UnknownBarcodeChooserProps {
   /** The Items the Barcode can be attached to. */
   items: readonly ItemRecord[]
   /** The Items, live or deleted, the Barcode still sits on; moving it off them is confirmed first. Empty when none. */
-  holders: readonly Pick<ItemRecord, 'id' | 'name'>[]
+  holders: readonly BarcodeHolder[]
   /** Called with the Item the Member picked to carry the Barcode, and the Items it is to be moved off. */
-  onAttach: (item: ItemRecord, from: readonly Pick<ItemRecord, 'id' | 'name'>[]) => void
+  onAttach: (item: ItemRecord, from: readonly BarcodeHolder[]) => void
   /** Called when the Member chooses to add a new Item carrying the Barcode, with the Items it is to be moved off. */
-  onNewItem: (from: readonly Pick<ItemRecord, 'id' | 'name'>[]) => void
+  onNewItem: (from: readonly BarcodeHolder[]) => void
   onClose: () => void
 }
 
@@ -33,7 +33,7 @@ export function UnknownBarcodeChooser({ barcode, items, holders, onAttach, onNew
 function UnknownBarcodeChoice({ barcode, items, holders, onAttach, onNewItem, onClose }: UnknownBarcodeChooserProps & { barcode: core.Barcode }) {
   const [picking, setPicking] = useState(false)
   const [search, setSearch] = useState('')
-  const [moving, setMoving] = useState<{ item: ItemRecord | undefined; from: readonly Pick<ItemRecord, 'id' | 'name'>[] }>()
+  const [moving, setMoving] = useState<{ item: ItemRecord | undefined; from: readonly BarcodeHolder[] }>()
   if (moving !== undefined) {
     return (
       <>

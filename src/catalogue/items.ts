@@ -29,6 +29,9 @@ export interface ItemRecord extends core.Item, catalogue.CatalogueItem {
   id: core.ItemId
 }
 
+/** An Item that carries a Barcode, live or soft-deleted: all a move needs to name it and to take the Barcode off it. */
+export type BarcodeHolder = Pick<ItemRecord, 'id' | 'name'>
+
 /** Whether `item`'s name contains `search`, ignoring case and surrounding whitespace; every Item matches an empty search. */
 export function matchesName(item: ItemRecord, search: string): boolean {
   return item.name.toLowerCase().includes(search.trim().toLowerCase())
@@ -46,7 +49,7 @@ export interface ItemInput {
 export interface NewItemInput extends ItemInput {
   state: core.State
   barcode?: core.Barcode
-  barcodeFrom?: readonly Pick<ItemRecord, 'id' | 'name'>[]
+  barcodeFrom?: readonly BarcodeHolder[]
 }
 
 /** What saving an edit to an Item carries: its fields, plus the Barcodes the Member removed. */
@@ -416,8 +419,8 @@ export async function findBarcodeHolders(
   db: Firestore,
   items: readonly ItemRecord[],
   barcode: core.Barcode,
-): Promise<Pick<ItemRecord, 'id' | 'name'>[]> {
-  const holders = new Map<core.ItemId, Pick<ItemRecord, 'id' | 'name'>>()
+): Promise<BarcodeHolder[]> {
+  const holders = new Map<core.ItemId, BarcodeHolder>()
   for (const found of [...itemsWithBarcode(items, barcode), ...(await queryCoreItemsByBarcode(db, barcode))]) {
     holders.set(found.id, { id: found.id, name: found.name })
   }
@@ -427,20 +430,20 @@ export async function findBarcodeHolders(
 /**
  * Validates `barcode` with {@link core.barcode}, which throws naming it, before adding it to the Item's
  * `barcodes` with `arrayUnion`, so attaching one the Item already carries changes nothing. A Barcode sits
- * on at most one Item, so it leaves each of `from` (any other than `item` itself) in the same batch with
+ * on at most one Item, so it leaves each of `holders` (any other than `item` itself) in the same batch with
  * `arrayRemove`. Resolves once the batch is queued, see {@link createItem}.
  */
 export async function attachBarcode(
   db: Firestore,
-  item: Pick<ItemRecord, 'id' | 'name'>,
+  item: BarcodeHolder,
   barcode: string,
-  from: readonly Pick<ItemRecord, 'id' | 'name'>[] = [],
+  holders: readonly BarcodeHolder[] = [],
 ): Promise<void> {
   const validBarcode = core.barcode(barcode)
 
   const batch = writeBatch(db)
   batch.update(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) })
-  for (const holder of from) {
+  for (const holder of holders) {
     if (holder.id === item.id) continue
     batch.update(doc(db, core.ITEMS_COLLECTION, holder.id), { barcodes: arrayRemove(validBarcode) })
   }
