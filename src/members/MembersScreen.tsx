@@ -92,7 +92,10 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
                     aria-label={`Revoke invite for ${email}`}
                     onClick={() => {
                       if (qrInviteEmail === email) setQrInviteEmail(null)
-                      void revokeInvite(db, email)
+                      revokeInvite(db, email).then(
+                        () => showSnackbar({ text: `Revoked invite for ${email}` }),
+                        (err: unknown) => reportFailure(`Could not revoke invite for ${email}`, err),
+                      )
                     }}
                   >
                     Revoke

@@ -389,6 +389,25 @@ describe('MembersScreen', () => {
       expect(revokeInvite).toHaveBeenCalledWith(fakeDb, 'c@example.com')
     })
 
+    it('confirms the revocation in a snackbar', async () => {
+      renderScreen([owner], [core.email('c@example.com')])
+
+      fireEvent.click(screen.getByRole('button', { name: 'Revoke invite for c@example.com' }))
+
+      expect(await screen.findByRole('status')).toHaveTextContent('Revoked invite for c@example.com')
+    })
+
+    it('reports a refused revocation instead of confirming it', async () => {
+      const failure = new Error('permission-denied')
+      vi.mocked(revokeInvite).mockRejectedValue(failure)
+      renderScreen([owner], [core.email('c@example.com')])
+
+      fireEvent.click(screen.getByRole('button', { name: 'Revoke invite for c@example.com' }))
+
+      await waitFor(() => expect(reportFailure).toHaveBeenCalledWith('Could not revoke invite for c@example.com', failure))
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    })
+
     it('shows a non-Owner Member no revoke control', () => {
       currentUserUid.mockReturnValue(member.uid)
       renderScreen([owner, member], [core.email('c@example.com')])
