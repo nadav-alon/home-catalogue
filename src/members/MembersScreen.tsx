@@ -57,7 +57,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
           <ListRow
             key={member.uid}
             headline={member.email}
-            supporting={member.isOwner ? 'Owner' : undefined}
+            supporting={memberTags(member, viewerUid)}
             control={
               viewerIsOwner && !member.isOwner ? (
                 <Button variant="text" aria-label={`Remove ${member.email}`} onClick={() => handleRemove(member)}>
@@ -112,6 +112,12 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
       )}
     </section>
   )
+}
+
+/** The tags under a Member's email: "Owner" and "you" (the signed-in Member); `undefined` when neither applies. */
+function memberTags(member: MemberRecord, viewerUid: core.Uid | null): string | undefined {
+  const tags = [member.isOwner ? 'Owner' : null, member.uid === viewerUid ? 'you' : null].filter((tag) => tag !== null)
+  return tags.length > 0 ? tags.join(' · ') : undefined
 }
 
 const INVALID_EMAIL_MESSAGE = 'Enter a Google email address.'

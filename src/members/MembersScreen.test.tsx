@@ -120,6 +120,24 @@ describe('MembersScreen', () => {
     expect(pending).not.toHaveTextContent('a@example.com')
   })
 
+  it('tags the signed-in Member\'s row "you" and no other', () => {
+    currentUserUid.mockReturnValue(core.uid('u2'))
+    renderScreen([owner, member])
+
+    const [ownerRow, memberRow] = screen.getAllByRole('listitem')
+    expect(memberRow).toHaveTextContent('you')
+    expect(ownerRow).not.toHaveTextContent('you')
+  })
+
+  it('tags the signed-in Owner as both Owner and "you"', () => {
+    renderScreen([owner, member])
+
+    const [ownerRow, memberRow] = screen.getAllByRole('listitem')
+    expect(ownerRow).toHaveTextContent('Owner')
+    expect(ownerRow).toHaveTextContent('you')
+    expect(memberRow).not.toHaveTextContent('you')
+  })
+
   it('says so when no invites are pending', () => {
     renderScreen([owner])
 
