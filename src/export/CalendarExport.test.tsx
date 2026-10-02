@@ -158,4 +158,42 @@ describe('CalendarExport', () => {
     const link = screen.getByRole('link', { name: 'Pharmacy' })
     expect(link).toHaveAttribute('href', 'https://calendar.google.com/calendar/render?text=Pharmacy')
   })
+
+  it('shows no success status when the dialog is reopened after an export', async () => {
+    exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
+    renderWith([outBandages], [medicine], [pharmacy])
+    await submit('2026-03-05')
+    expect(screen.getByText('Exported to Calendar.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.queryByText('Exported to Calendar.')).not.toBeInTheDocument()
+  })
+
+  it('shows no fallback links when the dialog is reopened after a fallback', async () => {
+    exportShoppingList.mockResolvedValueOnce({
+      status: 'fallback',
+      links: [{ shopName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }],
+    })
+    renderWith([outBandages], [medicine], [pharmacy])
+    await submit('2026-03-05')
+    expect(screen.getByRole('link', { name: 'Pharmacy' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.queryByRole('link', { name: 'Pharmacy' })).not.toBeInTheDocument()
+  })
+
+  it('shows no alert when the dialog is reopened after an export with no pending Items', async () => {
+    renderWith([], [medicine], [pharmacy])
+    await submit('2026-03-05')
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
 })
