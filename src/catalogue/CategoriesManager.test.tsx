@@ -357,12 +357,33 @@ describe('CategoriesManager', () => {
     expect(createCategory).not.toHaveBeenCalled()
   })
 
+  it('closes the Add dialog from the title-row Close icon without creating a Category', () => {
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(createCategory).not.toHaveBeenCalled()
+  })
+
+  it('closes the Edit dialog from the title-row Close icon without saving', () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(renameCategory).not.toHaveBeenCalled()
+    expect(deleteCategory).not.toHaveBeenCalled()
+  })
+
   it('orders the Add dialog actions Cancel, Add', () => {
     renderWith([], [pharmacy])
     fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
 
     const names = within(screen.getByRole('dialog'))
-      .getAllByRole('button')
+      .getAllByRole('button', { name: (name) => name !== 'Close' })
       .map((button) => button.textContent)
     expect(names).toEqual(['Cancel', 'Add'])
   })
@@ -385,7 +406,7 @@ describe('CategoriesManager', () => {
     openEditor('Medicine')
 
     const names = within(screen.getByRole('dialog'))
-      .getAllByRole('button')
+      .getAllByRole('button', { name: (name) => name !== 'Close' })
       .map((button) => button.textContent)
     expect(names).toEqual(['Delete', 'Cancel', 'Save'])
   })
