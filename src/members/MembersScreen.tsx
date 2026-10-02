@@ -30,7 +30,7 @@ export interface MembersScreenProps {
 /** The Household's Members and pending Invites; every Member can open it, and only the Owner gets the controls to change them. */
 export function MembersScreen({ db, config }: MembersScreenProps) {
   const [members, setMembers] = useState<MemberRecord[]>([])
-  const [invites, setInvites] = useState<core.Email[]>([])
+  const [invites, setInvites] = useState<core.Email[] | undefined>(undefined)
   const [qrInviteEmail, setQrInviteEmail] = useState<core.Email | null>(null)
 
   // Read once per render; safe because AuthGate only mounts this screen for a signed-in Member.
@@ -69,40 +69,42 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
           />
         ))}
       </ul>
-      {viewerIsOwner && <InviteForm db={db} members={members} invites={invites} />}
+      {viewerIsOwner && <InviteForm db={db} members={members} invites={invites ?? []} />}
       <h3 id="pending-invites">Pending invites</h3>
-      {invites.length === 0 && <p>No pending invites.</p>}
-      <ul aria-labelledby="pending-invites">
-        {invites.map((email) => (
-          <ListRow
-            key={email}
-            headline={email}
-            trailing={
-              viewerIsOwner && (
-                <>
-                  <Button
-                    variant="text"
-                    aria-label={`Share invite for ${email}`}
-                    onClick={() => void shareInvite(config, email, setQrInviteEmail)}
-                  >
-                    Share
-                  </Button>
-                  <Button
-                    variant="text"
-                    aria-label={`Revoke invite for ${email}`}
-                    onClick={() => {
-                      if (qrInviteEmail === email) setQrInviteEmail(null)
-                      void revokeInvite(db, email).then(() => showSnackbar({ text: `Revoked invite for ${email}` }))
-                    }}
-                  >
-                    Revoke
-                  </Button>
-                </>
-              )
-            }
-          />
-        ))}
-      </ul>
+      {invites?.length === 0 && <p>No pending invites.</p>}
+      {invites !== undefined && invites.length > 0 && (
+        <ul aria-labelledby="pending-invites">
+          {invites.map((email) => (
+            <ListRow
+              key={email}
+              headline={email}
+              trailing={
+                viewerIsOwner && (
+                  <>
+                    <Button
+                      variant="text"
+                      aria-label={`Share invite for ${email}`}
+                      onClick={() => void shareInvite(config, email, setQrInviteEmail)}
+                    >
+                      Share
+                    </Button>
+                    <Button
+                      variant="text"
+                      aria-label={`Revoke invite for ${email}`}
+                      onClick={() => {
+                        if (qrInviteEmail === email) setQrInviteEmail(null)
+                        void revokeInvite(db, email).then(() => showSnackbar({ text: `Revoked invite for ${email}` }))
+                      }}
+                    >
+                      Revoke
+                    </Button>
+                  </>
+                )
+              }
+            />
+          ))}
+        </ul>
+      )}
       {qrInviteEmail !== null && (
         <div>
           <DeviceTransferQrCode config={config} label={`Scan with the device of ${qrInviteEmail} to join`} />

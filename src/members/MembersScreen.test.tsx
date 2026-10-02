@@ -157,6 +157,26 @@ describe('MembersScreen', () => {
     expect(screen.getByText('No pending invites.')).toBeInTheDocument()
   })
 
+  it('renders no Pending invites list beside the empty-state line', () => {
+    renderScreen([owner])
+
+    expect(screen.queryByRole('list', { name: 'Pending invites' })).not.toBeInTheDocument()
+  })
+
+  it('does not say no invites are pending before the first snapshot arrives', () => {
+    watchMembers.mockImplementation((_db, cb: (members: MemberRecord[]) => void) => {
+      cb([owner])
+      return unsubscribe
+    })
+    render(
+      <TopAppBar title="Members">
+        <MembersScreen db={fakeDb} config={config} />
+      </TopAppBar>,
+    )
+
+    expect(screen.queryByText('No pending invites.')).not.toBeInTheDocument()
+  })
+
   it('does not say no invites are pending when some are', () => {
     renderScreen([owner], [core.email('c@example.com')])
 
