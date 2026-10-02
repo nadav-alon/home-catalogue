@@ -649,7 +649,7 @@ describe('leaving the Item dialog without saving', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(updateItem).not.toHaveBeenCalled()
     expect(createItem).not.toHaveBeenCalled()
-    await waitFor(() => expect(history.state).not.toHaveProperty('ui-dialog'))
+    await waitFor(() => expect(history.state?.['ui-dialog']).toBeUndefined())
   })
 
   it('discards the edit on back', async () => {
