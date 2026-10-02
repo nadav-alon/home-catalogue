@@ -173,6 +173,18 @@ describe('CategoriesManager', () => {
     expect(createCategory).not.toHaveBeenCalled()
   })
 
+  it('restores the previous selection when the new Shop prompt is cancelled', () => {
+    renderWith([medicine], [pharmacy, grocery])
+    openEditor('Medicine')
+    choose(screen.getByLabelText('Default Shop'), '+new')
+    expect(screen.getByLabelText('Default Shop')).toHaveValue('+new')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel new Shop' }))
+
+    expect(screen.queryByLabelText('New Shop name')).toBeNull()
+    expect(screen.getByLabelText('Default Shop')).toHaveValue(pharmacy.id)
+    expect(createShop).not.toHaveBeenCalled()
+  })
+
   it('refuses a blank new Shop name without creating a Shop', () => {
     renderWith([], [pharmacy])
     fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
