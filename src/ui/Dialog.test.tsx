@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/preact'
 import { Dialog } from './Dialog.tsx'
 import { readFileSync } from 'node:fs'
-import { tokenUsage } from '../testing/css.ts'
+import { mediaBlock, tokenUsage } from '../testing/css.ts'
 import { stubModalDialog } from '../testing/dialog.ts'
 
 beforeEach(stubModalDialog)
@@ -279,11 +279,11 @@ describe('Dialog', () => {
   })
 
   it('is as tall as its content from 600px up, capped at the viewport', () => {
-    const css = readFileSync('src/ui/Dialog.css', 'utf8')
-    const desktop = css.slice(css.indexOf('@media (min-width: 600px)'))
-    expect(desktop).toMatch(/height: fit-content/)
-    expect(desktop).not.toMatch(/height: auto/)
-    expect(desktop).toMatch(/max-height: calc\(100% - var\(--md-sys-spacing-8\)\)/)
+    const wideBlock = mediaBlock('src/ui/Dialog.css', '(min-width: 600px)')
+    expect(wideBlock).not.toBe('')
+    expect(wideBlock).toMatch(/(^|[\s;{])height: fit-content/)
+    expect(wideBlock).not.toMatch(/(^|[\s;{])height: auto/)
+    expect(wideBlock).toMatch(/max-height: calc\(100% - var\(--md-sys-spacing-8\)\)/)
   })
 
   it('is styled only from defined tokens', () => {
