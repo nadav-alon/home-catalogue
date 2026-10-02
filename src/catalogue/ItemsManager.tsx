@@ -8,6 +8,7 @@ import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED, type GroupKey } from './collapsedCategories.ts'
 import { watchShops, type ShopRecord } from './shops.ts'
+import type { CategoryAndShop } from '../ui/route.ts'
 import { navigateToItems } from '../ui/useRoute.ts'
 import { ItemDialog } from './ItemDialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
@@ -33,13 +34,9 @@ export interface ItemsManagerProps {
   /** Show only the Items sold at this Shop, the Item's own or else its Category's; ignored once no live Shop has the id. */
   shopId?: catalogue.ShopId
   /** Called with the Category and Shop filters a pressed chip asks for; undefined clears one. */
-  onFilterChange?: (filter: ItemsCategoryShopFilter) => void
+  onFilterChange?: (filter: CategoryAndShop) => void
 }
 
-export interface ItemsCategoryShopFilter {
-  categoryId: catalogue.CategoryId | undefined
-  shopId: catalogue.ShopId | undefined
-}
 
 export function ItemsManager({ db, itemIds = [], onClearFilter, categoryId, shopId, onFilterChange }: ItemsManagerProps) {
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)

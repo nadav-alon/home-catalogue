@@ -80,11 +80,14 @@ export function shopIdOf(hash: string): catalogue.ShopId | undefined {
   return id ? catalogue.shopId(id) : undefined
 }
 
+/** The Category and Shop an Items screen is narrowed to; undefined for each that is not. */
+export interface CategoryAndShop {
+  categoryId: catalogue.CategoryId | undefined
+  shopId: catalogue.ShopId | undefined
+}
+
 /** `hash` with its Category and Shop filters set to those given (cleared when undefined); every other query is kept. */
-export function withCategoryAndShop(
-  hash: string,
-  filter: { categoryId: catalogue.CategoryId | undefined; shopId: catalogue.ShopId | undefined },
-): string {
+export function withCategoryAndShop(hash: string, filter: CategoryAndShop): string {
   const [path, query] = hashParts(hash)
   const params = new URLSearchParams(query)
   for (const [key, id] of [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId]] as const) {

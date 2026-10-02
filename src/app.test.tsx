@@ -4,7 +4,8 @@ import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { App } from './app'
 import type { ItemRecord } from './catalogue/items.ts'
-import { bandages } from './catalogue/testFixtures.ts'
+import type { CategoryRecord } from './catalogue/categories.ts'
+import { bandages, cleaning, medicine } from './catalogue/testFixtures.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 import { resetSnackbar, showSnackbar } from './ui/Snackbar.tsx'
 import { resetHash } from './testing/hash.ts'
@@ -15,12 +16,17 @@ const watchItems = vi.fn((_db: unknown, cb: (items: ItemRecord[]) => void) => {
   return vi.fn()
 })
 
+const watchCategoriesCallbacks: ((categories: CategoryRecord[]) => void)[] = []
+
 vi.mock('./catalogue/shops.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalogue/shops.ts')>()),
   watchShops: () => vi.fn(),
 }))
 vi.mock('./catalogue/categories.ts', () => ({
-  watchCategories: () => vi.fn(),
+  watchCategories: (_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
+    watchCategoriesCallbacks.push(cb)
+    return vi.fn()
+  },
 }))
 vi.mock('./catalogue/items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalogue/items.ts')>()),
@@ -152,6 +158,36 @@ describe('App', () => {
     expect(window.location.hash).toBe('#/items?item=bandages')
     expect(screen.getByRole('button', { name: 'Clear scanned filter' })).toBeInTheDocument()
     expect(screen.queryByText('Tape')).toBeNull()
+  })
+
+  it('keeps the Category filter in the hash when a Category chip is pressed, and when the scanned chip is dismissed', async () => {
+    window.location.hash = '#/items'
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+    await act(async () => {
+      const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
+      for (const cb of watchItemsCallbacks) cb([bandages, soap])
+      for (const cb of watchCategoriesCallbacks) cb([medicine, cleaning])
+    })
+
+    await act(async () => {
+      within(screen.getByRole('group', { name: 'Filter by Category' })).getByRole('button', { name: 'Cleaning' }).click()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+
+    expect(window.location.hash).toBe('#/items?category=cleaning')
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).toBeNull()
+
+    window.location.hash = '#/items?item=soap&category=cleaning'
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+    await act(async () => {
+      screen.getByRole('button', { name: 'Clear scanned filter' }).click()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+
+    expect(window.location.hash).toBe('#/items?category=cleaning')
   })
 
   it('puts the scan icon in the top app bar on the Items screen when BarcodeDetector exists', () => {

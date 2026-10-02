@@ -1,9 +1,9 @@
 import { useState } from 'preact/hooks'
 import { act, render, renderHook } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { core } from 'data-platform'
+import { catalogue, core } from 'data-platform'
 import { DEFAULT_ROUTE, hashOf, route } from './route.ts'
-import { navigate, navigateToItems, useItemIds, useRoute } from './useRoute.ts'
+import { navigate, navigateToItems, setCategoryAndShop, useCategoryAndShop, useItemIds, useRoute } from './useRoute.ts'
 import { Dialog } from './Dialog.tsx'
 import { stubModalDialog } from '../testing/dialog.ts'
 import { resetHash } from '../testing/hash.ts'
@@ -183,5 +183,29 @@ describe('navigateToItems', () => {
     window.removeEventListener('hashchange', onHashChange)
     expect(order.indexOf('back')).toBeGreaterThanOrEqual(0)
     expect(order.indexOf('back')).toBeLessThan(order.indexOf('#/items?item=a'))
+  })
+})
+
+describe('useCategoryAndShop and setCategoryAndShop', () => {
+  const groceries = catalogue.categoryId('groceries')
+  const pharmacy = catalogue.shopId('pharmacy')
+
+  it('reads the Category and Shop from the hash', () => {
+    window.location.hash = '#/items?category=groceries&shop=pharmacy'
+    const { result } = renderHook(() => useCategoryAndShop())
+    expect(result.current).toEqual({ categoryId: groceries, shopId: pharmacy })
+  })
+
+  it('pushes a history entry with the filter, keeping the scanned Item filter, and re-renders', async () => {
+    window.location.hash = '#/items?item=a'
+    const { result } = renderHook(() => ({ filter: useCategoryAndShop(), ids: useItemIds() }))
+    const before = history.length
+    await act(async () => {
+      setCategoryAndShop({ categoryId: groceries, shopId: pharmacy })
+      await nextHashChange()
+    })
+    expect(window.location.hash).toBe('#/items?item=a&category=groceries&shop=pharmacy')
+    expect(history.length).toBe(before + 1)
+    expect(result.current).toEqual({ filter: { categoryId: groceries, shopId: pharmacy }, ids: [core.itemId('a')] })
   })
 })

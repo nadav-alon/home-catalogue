@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import type { core } from 'data-platform'
 import { afterPendingPop } from './pendingPop.ts'
-import { DEFAULT_ROUTE, hashOf, itemIdsOf, itemsHashOf, routeIn, routeOf, type Route } from './route.ts'
+import { categoryIdOf, DEFAULT_ROUTE, hashOf, itemIdsOf, itemsHashOf, routeIn, routeOf, shopIdOf, withCategoryAndShop, type CategoryAndShop, type Route } from './route.ts'
 
 /** Rewrites a hash that does not name a route to the default route's hash, replacing the history entry (and keeping its state) rather than pushing one. */
 function normaliseHash(): void {
@@ -33,6 +33,24 @@ export function useRoute(): Route {
 export function useItemIds(): core.ItemId[] {
   const hash = useHash()
   return useMemo(() => itemIdsOf(hash), [hash])
+}
+
+/** The Category and Shop the current URL hash's `category` and `shop` queries name, re-read whenever the hash changes. */
+export function useCategoryAndShop(): CategoryAndShop {
+  const hash = useHash()
+  const categoryId = categoryIdOf(hash)
+  const shopId = shopIdOf(hash)
+  return useMemo(() => ({ categoryId, shopId }), [categoryId, shopId])
+}
+
+/** Sets the Category and Shop filters on the current hash by pushing a history entry, so back returns to the previous filter. */
+export function setCategoryAndShop(filter: CategoryAndShop): void {
+  window.location.hash = withCategoryAndShop(window.location.hash, filter)
+}
+
+/** Shows the Items screen narrowed to `filter` alone, dropping any scanned Item filter, by pushing a history entry. */
+export function navigateToCategoryAndShop(filter: CategoryAndShop): void {
+  window.location.hash = withCategoryAndShop(itemsHashOf([]), filter)
 }
 
 /** Shows `value` by pushing a history entry, so back returns to the previous route; a no-op when `value` is already shown. */
