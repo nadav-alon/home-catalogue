@@ -714,7 +714,7 @@ describe('leaving the Item dialog without saving', () => {
     expect(buttons[buttons.length - 1]).toBe(save)
     expect(cancel.parentElement).toBe(save.parentElement)
     expect(del.parentElement).not.toBe(cancel.parentElement)
-    expect(del.parentElement).toHaveClass('item-form__delete')
+    expect(del.parentElement).toHaveClass('ui-dialog-actions__apart')
   })
 
   it('spaces the New Category fields like the rest of the form', () => {
@@ -1336,7 +1336,7 @@ describe('a scanned barcode', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
     const addDialog = await screen.findByRole('dialog', { name: 'Add Item' })
     const addConfirm = within(addDialog).getByRole('button', { name: 'Cancel' }).parentElement
-    expect(addConfirm?.parentElement).toHaveClass('item-form__actions')
+    expect(addConfirm?.parentElement).toHaveClass('ui-dialog-actions')
     expect(within(addDialog).getByRole('button', { name: 'Save' }).parentElement).toBe(addConfirm)
     fireEvent.click(within(addDialog).getByRole('button', { name: 'Cancel' }))
 
@@ -1344,7 +1344,7 @@ describe('a scanned barcode', () => {
     const editDialog = await screen.findByRole('dialog', { name: 'Edit Item' })
     const editConfirm = within(editDialog).getByRole('button', { name: 'Cancel' }).parentElement
     const editRow = editConfirm?.parentElement
-    expect(editRow).toHaveClass('item-form__actions')
+    expect(editRow).toHaveClass('ui-dialog-actions')
     expect(within(editDialog).getByRole('button', { name: 'Save' }).parentElement).toBe(editConfirm)
     expect(within(editDialog).getByRole('button', { name: 'Delete' }).parentElement?.parentElement).toBe(editRow)
   })

@@ -7,6 +7,7 @@ import type { ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
+import { DialogActions } from '../ui/DialogActions.tsx'
 import { Select } from '../ui/Select.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import CloseIcon from '~icons/material-symbols/close'
@@ -280,21 +281,20 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
           </ul>
         </section>
       )}
-      <div class="item-form__actions">
-        {item && onDelete && (
-          <div class="item-form__delete">
+      <DialogActions
+        apart={
+          item && onDelete ? (
             <Button variant="text" onClick={handleDelete}>
               Delete
             </Button>
-          </div>
-        )}
-        <div class="item-form__confirm">
-          <Button variant="text" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit">Save</Button>
-        </div>
-      </div>
+          ) : undefined
+        }
+      >
+        <Button variant="text" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit">Save</Button>
+      </DialogActions>
     </form>
   )
 }
