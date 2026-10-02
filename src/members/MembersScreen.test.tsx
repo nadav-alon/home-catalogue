@@ -191,6 +191,22 @@ describe('MembersScreen', () => {
     expect(screen.queryByText('No pending invites.')).not.toBeInTheDocument()
   })
 
+  it('shows a non-Owner Member no Pending invites section, even when invites are pending', () => {
+    currentUserUid.mockReturnValue(member.uid)
+    renderScreen([owner, member], [core.email('c@example.com')])
+
+    expect(screen.queryByRole('heading', { name: 'Pending invites' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Pending invites' })).not.toBeInTheDocument()
+    expect(screen.queryByText('c@example.com')).not.toBeInTheDocument()
+  })
+
+  it('shows a non-Owner Member no empty-state line when no invites are pending', () => {
+    currentUserUid.mockReturnValue(member.uid)
+    renderScreen([owner, member])
+
+    expect(screen.queryByText('No pending invites.')).not.toBeInTheDocument()
+  })
+
   it('offers the Owner Remove on every Member but their own', () => {
     renderScreen([
       owner,

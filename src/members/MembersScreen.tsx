@@ -78,42 +78,44 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
           />
         ))}
       </ul>
-      {viewerIsOwner && <InviteForm db={db} members={members} invites={invites ?? []} />}
-      <h3 id="pending-invites">Pending invites</h3>
-      {invites?.length === 0 && <p>No pending invites.</p>}
-      {invites !== undefined && invites.length > 0 && (
-        <ul aria-labelledby="pending-invites">
-          {invites.map((email) => (
-            <ListRow
-              key={email}
-              headline={email}
-              trailing={
-                viewerIsOwner && (
-                  <>
-                    <Button
-                      variant="text"
-                      aria-label={`Share invite for ${email}`}
-                      onClick={() => void shareInvite(config, email, showQr)}
-                    >
-                      Share
-                    </Button>
-                    <Button
-                      variant="text"
-                      destructive
-                      aria-label={`Revoke invite for ${email}`}
-                      onClick={() => {
-                        if (qrInviteEmail === email) setQrInviteEmail(null)
-                        void revokeInvite(db, email).then(() => showSnackbar({ text: `Revoked invite for ${email}` }))
-                      }}
-                    >
-                      Revoke
-                    </Button>
-                  </>
-                )
-              }
-            />
-          ))}
-        </ul>
+      {viewerIsOwner && (
+        <>
+          <InviteForm db={db} members={members} invites={invites ?? []} />
+          <h3 id="pending-invites">Pending invites</h3>
+          {invites?.length === 0 && <p>No pending invites.</p>}
+          {invites !== undefined && invites.length > 0 && (
+            <ul aria-labelledby="pending-invites">
+              {invites.map((email) => (
+                <ListRow
+                  key={email}
+                  headline={email}
+                  trailing={
+                    <>
+                      <Button
+                        variant="text"
+                        aria-label={`Share invite for ${email}`}
+                        onClick={() => void shareInvite(config, email, showQr)}
+                      >
+                        Share
+                      </Button>
+                      <Button
+                        variant="text"
+                        destructive
+                        aria-label={`Revoke invite for ${email}`}
+                        onClick={() => {
+                          if (qrInviteEmail === email) setQrInviteEmail(null)
+                          void revokeInvite(db, email).then(() => showSnackbar({ text: `Revoked invite for ${email}` }))
+                        }}
+                      >
+                        Revoke
+                      </Button>
+                    </>
+                  }
+                />
+              ))}
+            </ul>
+          )}
+        </>
       )}
       {qrInviteEmail !== null && (
         <div ref={qrBlock} className="members-qr-block">
