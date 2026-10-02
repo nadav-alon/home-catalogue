@@ -1,6 +1,8 @@
 import type { ComponentChildren } from 'preact'
 import { useId, useLayoutEffect, useRef } from 'preact/hooks'
 import { afterPendingPop, popEntry } from './pendingPop.ts'
+import { IconButton } from './IconButton.tsx'
+import CloseIcon from '~icons/material-symbols/close'
 import './Dialog.css'
 
 export interface DialogProps {
@@ -11,6 +13,8 @@ export interface DialogProps {
   onClose: () => void
   /** Extra class for the `<dialog>`, for a dialog that departs from the shared layout. */
   class?: string
+  /** Puts a Close icon button in the title row that asks to close like Escape does. */
+  closable?: boolean
   children: ComponentChildren
 }
 
@@ -22,7 +26,7 @@ const historyMarker = 'ui-dialog'
  * Each dialog tags its entry with its own id and only pops an entry it still owns, and a dialog
  * opening while another's pop is in flight waits for that pop to land before pushing its own entry.
  */
-export function Dialog({ open, title, onClose, class: className, children }: DialogProps) {
+export function Dialog({ open, title, onClose, class: className, closable, children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
   const entryId = useId()
@@ -73,9 +77,12 @@ export function Dialog({ open, title, onClose, class: className, children }: Dia
         if (openRef.current) onClose()
       }}
     >
-      <h2 class="ui-dialog__title" id={titleId}>
-        {title}
-      </h2>
+      <div class="ui-dialog__header">
+        <h2 class="ui-dialog__title" id={titleId}>
+          {title}
+        </h2>
+        {closable && <IconButton symbol={CloseIcon} label="Close" onClick={onClose} />}
+      </div>
       {children}
     </dialog>
   )

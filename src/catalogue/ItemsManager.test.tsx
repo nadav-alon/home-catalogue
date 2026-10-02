@@ -643,6 +643,15 @@ describe('leaving the Item dialog without saving', () => {
     expect(createItem).not.toHaveBeenCalled()
   })
 
+  it('discards the edit on the header Close icon', async () => {
+    await fillAndLeave(() => fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' })))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(updateItem).not.toHaveBeenCalled()
+    expect(createItem).not.toHaveBeenCalled()
+    await waitFor(() => expect(history.state).not.toHaveProperty('ui-dialog'))
+  })
+
   it('discards the edit on back', async () => {
     await fillAndLeave(() => window.dispatchEvent(new PopStateEvent('popstate')))
 
