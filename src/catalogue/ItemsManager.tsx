@@ -132,6 +132,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     if (unknownBarcode === undefined) return
     await attachBarcode(db, item, unknownBarcode)
     setUnknownBarcode(undefined)
+    showSnackbar({ text: `Added barcode to ${item.name}` })
     navigateToItems([item.id])
   }
 
