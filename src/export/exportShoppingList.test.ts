@@ -63,7 +63,7 @@ describe('exportShoppingList', () => {
   })
 
   it('falls back to a deep link per Shop when the token request fails', async () => {
-    requestCalendarAccessToken.mockRejectedValueOnce(new Error('popup blocked'))
+    requestCalendarAccessToken.mockRejectedValueOnce(new Error('network down'))
 
     const result = await exportShoppingList(groups, date)
 
