@@ -6,6 +6,7 @@ import { createCategory, watchCategories, type CategoryRecord } from './categori
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
+import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED, type GroupKey } from './collapsedCategories.ts'
 import { watchShops, type ShopRecord } from './shops.ts'
 import { navigateToItems } from '../ui/useRoute.ts'
 import { ItemDialog } from './ItemDialog.tsx'
@@ -55,6 +56,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   /** Set by a scan made before the Items arrived; shown only while they are still loading. */
   const [scanWaiting, setScanWaiting] = useState(false)
   const [search, setSearch] = useState('')
+  /** The groups collapsed on this device, remembered across reloads. */
+  const [collapsedGroups, setCollapsedGroups] = useState(getCollapsedGroups)
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
   const [unknownBarcode, setUnknownBarcode] = useState<core.Barcode | undefined>(undefined)
 
@@ -132,6 +135,13 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     navigateToItems([item.id])
   }
 
+  function toggleGroup(key: GroupKey) {
+    const next = new Set(collapsedGroups)
+    if (!next.delete(key)) next.add(key)
+    saveCollapsedGroups(next)
+    setCollapsedGroups(next)
+  }
+
   function openDialog(item: ItemRecord | undefined) {
     setDialog(item ? { kind: 'edit', item } : { kind: 'add' })
   }
@@ -204,10 +214,10 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         </p>
       )}
       {groups.map(({ category, items: categoryItems }) => (
-        <ItemGroup key={category.id} heading={category.name} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />
+        <ItemGroup key={category.id} heading={category.name} collapsed={collapsedGroups.has(category.id)} onToggle={() => toggleGroup(category.id)} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />
       ))}
       {uncategorisedItems.length > 0 && (
-        <ItemGroup heading="Uncategorised" items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
+        <ItemGroup heading="Uncategorised" collapsed={collapsedGroups.has(UNCATEGORISED)} onToggle={() => toggleGroup(UNCATEGORISED)} items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
       <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={handleDeclineRestore} />
       <UnknownBarcodeChooser
@@ -253,17 +263,18 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
 
 interface ItemGroupProps {
   heading: string
+  collapsed: boolean
+  onToggle: () => void
   items: ItemRecord[]
   onSetState: (item: ItemRecord, state: core.State) => Promise<void>
   onOpen: (item: ItemRecord) => void
 }
 
-function ItemGroup({ heading, items, onSetState, onOpen }: ItemGroupProps) {
-  const [collapsed, setCollapsed] = useState(false)
+function ItemGroup({ heading, collapsed, onToggle, items, onSetState, onOpen }: ItemGroupProps) {
   return (
     <div>
       <h3 class="item-group__heading">
-        <button type="button" class="item-group__toggle" aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}>
+        <button type="button" class="item-group__toggle" aria-expanded={!collapsed} onClick={onToggle}>
           <Icon symbol={ExpandMoreIcon} />
           {heading}
         </button>

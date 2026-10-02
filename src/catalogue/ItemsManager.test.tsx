@@ -1546,4 +1546,27 @@ describe('collapsing a Category', () => {
 
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
   })
+
+  it('remembers a collapsed Category across reloads, by Category id', () => {
+    const first = renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+    first.unmount()
+
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('button', { name: 'Cleaning' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('remembers a collapsed Uncategorised group across reloads', () => {
+    const orphan: ItemRecord = { ...bandages, categoryId: catalogue.categoryId('gone') }
+    const first = renderWith([orphan], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Uncategorised' }))
+    first.unmount()
+
+    renderWith([orphan], [medicine], [pharmacy])
+
+    expect(screen.getByRole('button', { name: 'Uncategorised' })).toHaveAttribute('aria-expanded', 'false')
+  })
 })
