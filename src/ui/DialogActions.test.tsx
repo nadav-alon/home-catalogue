@@ -29,12 +29,14 @@ describe('DialogActions', () => {
     expect(container.querySelector('.ui-dialog-actions__destructive')).toBeNull()
   })
 
-  it('colours a text Button in the destructive slot from the error token, including on hover', () => {
-    const slot = '.ui-dialog-actions__destructive .ui-button--text'
-    expect(declaration('src/ui/DialogActions.css', `${slot}:not(:disabled)`, 'color')).toBe('var(--md-sys-color-error)')
-    expect(mediaBlock('src/ui/DialogActions.css', '(hover: hover)')).toMatch(
-      /\.ui-dialog-actions__destructive \.ui-button--text:hover:not\(:disabled\)\s*{[^}]*var\(--md-sys-color-error\)/,
+  it('colours a text Button in the destructive slot from the error token, including on hover, from Button.css', () => {
+    const slotTextButton = '.ui-button--text:is(.ui-button--destructive, .ui-dialog-actions__destructive *)'
+    const escaped = slotTextButton.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    expect(declaration('src/ui/Button.css', slotTextButton, 'color')).toBe('var(--md-sys-color-error)')
+    expect(mediaBlock('src/ui/Button.css', '(hover: hover)')).toMatch(
+      new RegExp(`${escaped}:hover:not\\(:disabled\\)\\s*{[^}]*var\\(--md-sys-color-error\\)`),
     )
+    expect(read('src/ui/DialogActions.css')).not.toContain('--md-sys-color-error')
   })
 
   it('lays out the row right-aligned with Delete at the start', () => {
