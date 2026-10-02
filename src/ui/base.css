@@ -11,3 +11,10 @@ body {
   outline: 2px solid var(--md-sys-color-primary);
   outline-offset: 2px;
 }
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
