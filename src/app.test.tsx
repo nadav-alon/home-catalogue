@@ -27,6 +27,19 @@ vi.mock('./catalogue/items.ts', async (importOriginal) => ({
   watchItems: (db: unknown, cb: (items: ItemRecord[]) => void) => watchItems(db, cb),
 }))
 
+vi.mock('./members/members.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./members/members.ts')>()),
+  watchMembers: () => vi.fn(),
+}))
+vi.mock('./members/invites.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./members/invites.ts')>()),
+  watchInvites: () => vi.fn(),
+}))
+vi.mock('./auth/authClient.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./auth/authClient.ts')>()),
+  currentUserUid: () => undefined,
+}))
+
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
 const config = firebaseWebConfig({
@@ -58,7 +71,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Shopping list' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeInTheDocument()
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Items', level: 2 })).toBeNull()
+    expect(screen.queryByRole('searchbox', { name: 'Search Items' })).toBeNull()
   })
 
   it('shows a snackbar over any screen', () => {
@@ -164,18 +177,28 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Add a device' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Shops' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Categories' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { level: 2, name: 'Shops' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add Shop' })).toBeNull()
   })
 
   it('shows one management screen on each Settings sub-route', async () => {
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
     await goTo('#/settings/shops')
     expect(screen.getByRole('heading', { level: 1, name: 'Shops' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { level: 2, name: 'Categories' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add Category' })).toBeNull()
 
     await goTo('#/settings/categories')
     expect(screen.getByRole('heading', { level: 1, name: 'Categories' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { level: 2, name: 'Shops' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add Shop' })).toBeNull()
+  })
+
+  it('titles the Members screen with the top app bar heading alone', async () => {
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+    await goTo('#/settings/members')
+
+    const headings = screen.getAllByRole('heading', { name: 'Members' })
+    expect(headings).toHaveLength(1)
+    expect(headings[0].tagName).toBe('H1')
+    expect(screen.getByRole('banner')).toContainElement(headings[0])
   })
 
   it('returns from the Shops sub-page to Settings with the back arrow', async () => {

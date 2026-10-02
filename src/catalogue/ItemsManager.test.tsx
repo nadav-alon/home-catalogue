@@ -133,6 +133,14 @@ afterEach(() => {
 })
 
 describe('ItemsManager', () => {
+  it('leaves the title to the top app bar, with no heading of its own', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    const headings = screen.getAllByRole('heading', { name: 'Items' })
+    expect(headings).toHaveLength(1)
+    expect(screen.getByRole('banner')).toContainElement(headings[0])
+  })
+
   it('shows exactly the Items whose ids are given, ignoring unknown ids', () => {
     const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
     const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }

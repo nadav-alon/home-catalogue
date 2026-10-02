@@ -90,6 +90,14 @@ function renderScreen(members: MemberRecord[] = [], invites: core.Email[] = []) 
 }
 
 describe('MembersScreen', () => {
+  it('leaves the title to the top app bar, with no heading of its own', () => {
+    renderScreen()
+
+    const headings = screen.getAllByRole('heading', { name: 'Members' })
+    expect(headings).toHaveLength(1)
+    expect(screen.getByRole('banner')).toContainElement(headings[0])
+  })
+
   it('goes back to Settings', () => {
     renderScreen()
 

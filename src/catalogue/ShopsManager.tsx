@@ -132,7 +132,6 @@ export function ShopsManager({ db }: ShopsManagerProps) {
       <TopAppBarNavigation>
         <IconButton symbol={ArrowBackIcon} label="Back to Settings" onClick={() => navigate(SETTINGS)} />
       </TopAppBarNavigation>
-      <h2>Shops</h2>
       <ul>
         {shops.map((shop) => (
           <ListRow

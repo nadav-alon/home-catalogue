@@ -186,7 +186,6 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
 
   return (
     <section class="items-manager">
-      <h2>Items</h2>
       <ScanEntry onScan={(barcode) => void handleScan(barcode)} />
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === undefined && <p role="status">Items are still loading, scan again in a moment</p>}
