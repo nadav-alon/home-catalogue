@@ -191,9 +191,7 @@ export async function createItem(db: Firestore, input: NewItemInput): Promise<co
     batch.update(doc(db, catalogue.SHOPS_COLLECTION, catalogueItem.shopId), { referenceCount: increment(1) })
   }
   if (input.barcode !== undefined) {
-    for (const holder of input.barcode.movedOff) {
-      batch.update(doc(db, core.ITEMS_COLLECTION, holder.id), { barcodes: arrayRemove(input.barcode.value) })
-    }
+    moveBarcodeOff(batch, db, input.barcode.value, input.barcode.movedOff)
   }
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`new Item ${item.name}`, err)
@@ -432,6 +430,13 @@ export async function findBarcodeHolders(
   return [...holders.values()]
 }
 
+/** Stages taking `barcode` off each of `holders` in `batch`, leaving their other Barcodes. */
+function moveBarcodeOff(batch: WriteBatch, db: Firestore, barcode: core.Barcode, holders: readonly BarcodeHolder[]): void {
+  for (const holder of holders) {
+    batch.update(doc(db, core.ITEMS_COLLECTION, holder.id), { barcodes: arrayRemove(barcode) })
+  }
+}
+
 /**
  * Validates `barcode` with {@link core.barcode}, which throws naming it, before adding it to the Item's
  * `barcodes` with `arrayUnion`, so attaching one the Item already carries changes nothing. A Barcode sits
@@ -448,10 +453,7 @@ export async function attachBarcode(
 
   const batch = writeBatch(db)
   batch.update(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) })
-  for (const holder of holders) {
-    if (holder.id === item.id) continue
-    batch.update(doc(db, core.ITEMS_COLLECTION, holder.id), { barcodes: arrayRemove(validBarcode) })
-  }
+  moveBarcodeOff(batch, db, validBarcode, holders.filter((holder) => holder.id !== item.id))
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`barcode change for ${item.name}`, err)
   })
