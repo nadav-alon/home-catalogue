@@ -1279,6 +1279,7 @@ describe('a scanned barcode', () => {
     const barcode = within(dialog).getByRole('textbox', { name: 'Barcode' })
     expect(barcode).toHaveValue('4006381333931')
     expect(barcode).toHaveAttribute('readonly')
+    expect(barcode).toHaveClass('ui-field__control')
     expect(within(dialog).queryByRole('button', { name: /Remove barcode/ })).not.toBeInTheDocument()
   })
 
