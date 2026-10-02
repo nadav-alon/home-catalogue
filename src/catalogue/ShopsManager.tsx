@@ -20,6 +20,7 @@ import {
   renameShop,
   restoreShop,
   watchShops,
+  SHOP_IN_USE_MESSAGE,
   ShopInUseError,
   type ShopRecord,
 } from './shops.ts'
@@ -29,6 +30,8 @@ const SETTINGS = route('/settings')
 export interface ShopsManagerProps {
   db: Firestore
 }
+
+const IN_USE_NOTE_ID = 'shop-in-use-note'
 
 export const BLANK_NAME_MESSAGE = 'A Shop needs a name.'
 
@@ -99,6 +102,8 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
     }
   }
 
+  const inUse = shop.referenceCount > 0
+
   async function handleDelete() {
     try {
       await deleteShop(db, shop)
@@ -117,9 +122,15 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
       <form class={DIALOG_FORM_CLASS} onSubmit={handleRename}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
+        {inUse && <p id={IN_USE_NOTE_ID}>{SHOP_IN_USE_MESSAGE}</p>}
         <DialogActions
           destructive={
-            <Button variant="text" onClick={() => void handleDelete()}>
+            <Button
+              variant="text"
+              disabled={inUse}
+              aria-describedby={inUse ? IN_USE_NOTE_ID : undefined}
+              onClick={() => void handleDelete()}
+            >
               Delete
             </Button>
           }

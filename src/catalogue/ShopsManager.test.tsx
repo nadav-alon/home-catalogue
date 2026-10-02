@@ -26,6 +26,7 @@ vi.mock('./shops.ts', () => ({
   restoreShop: (db: unknown, shop: unknown) => restoreShop(db, shop),
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
   ShopInUseError: FakeShopInUseError,
+  SHOP_IN_USE_MESSAGE: 'This Shop is in use, and cannot be deleted.',
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -272,6 +273,23 @@ describe('ShopsManager', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('This Shop is in use.')
+  })
+
+  it('disables Delete for an in-use Shop and says why before any press', () => {
+    renderWithShops([{ ...pharmacy, referenceCount: 2 }])
+    openEditor('Pharmacy')
+
+    const deleteButton = screen.getByRole('button', { name: 'Delete' })
+    expect(deleteButton).toBeDisabled()
+    expect(deleteButton).toHaveAccessibleDescription('This Shop is in use, and cannot be deleted.')
+  })
+
+  it('keeps Delete enabled, with no in-use note, for an unused Shop', () => {
+    renderWithShops([pharmacy])
+    openEditor('Pharmacy')
+
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
+    expect(screen.queryByText(/in use/)).toBeNull()
   })
 
   it('opens the Edit Shop dialog when the row itself is tapped', () => {
