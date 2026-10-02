@@ -10,6 +10,9 @@ import { resetSnackbar, showSnackbar } from './ui/Snackbar.tsx'
 import { resetHash } from './testing/hash.ts'
 import { stubModalDialog } from './testing/dialog.ts'
 
+const registerSW = vi.hoisted(() => vi.fn<(options: { onNeedReload?: () => void }) => void>())
+vi.mock('virtual:pwa-register', () => ({ registerSW }))
+
 const watchItemsCallbacks: ((items: ItemRecord[]) => void)[] = []
 const watchItems = vi.fn((_db: unknown, cb: (items: ItemRecord[]) => void) => {
   watchItemsCallbacks.push(cb)
@@ -85,6 +88,14 @@ describe('App', () => {
 
     expect(screen.getByText('Deleted Bandages')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+  })
+
+  it('tells the user on any screen when a new version is available', () => {
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+
+    act(() => registerSW.mock.calls[0]![0].onNeedReload?.())
+
+    expect(within(screen.getByRole('main')).getByRole('status')).toHaveTextContent('A new version is available.')
   })
 
   it('puts Calendar Export in the top app bar on the Shopping list screen', () => {

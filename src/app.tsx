@@ -6,6 +6,7 @@ import { ShopsManager } from './catalogue/ShopsManager.tsx'
 import { ItemsManager } from './catalogue/ItemsManager.tsx'
 import { ShoppingList } from './catalogue/ShoppingList.tsx'
 import { MembersScreen } from './members/MembersScreen.tsx'
+import { UpdateNotice } from './pwa/UpdateNotice.tsx'
 import { SettingsScreen } from './settings/SettingsScreen.tsx'
 import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
@@ -33,6 +34,7 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
       <div class="app-content">
         <TopAppBar title={titleOf(current)}>
           <main>
+            <UpdateNotice />
             <WriteRejectionBanner />
             <Screen route={current} itemIds={itemIds} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
           </main>
