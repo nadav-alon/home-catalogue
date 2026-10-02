@@ -62,7 +62,7 @@ on the exported event) or **soon** (advisory banner).
 
 **Shopping list**:
 Live view of every Item at `running low` or `out`, grouped by Shop, `running low` rows
-flagged with their State. Ticking an Item sets it `enough` and shows an Undo snackbar.
+flagged with their State. Ticking an Item sets it `enough` and shows an Undo snackbar; so does scanning its Barcode, whether or not the Item was on the list; an Item already `enough` is left as it is, with no Undo.
 Canonical; works offline.
 
 **Export**:
@@ -80,6 +80,6 @@ barcodes; a Category or Shop comes back only through Undo.
 
 **Undo**:
 The snackbar action that restores a record just deleted, or reverts a Shopping list tick to the
-Item's previous State (`running low` or `out`). For a delete it is one way to restore, since
+Item's previous State (`running low` or `out`; a scan of an Item already `enough` changes nothing, so offers none). For a delete it is one way to restore, since
 scanning a deleted Item's barcode restores it too. Refused, and the failure reported, when the record's
 Category or Shop is a Deleted record.

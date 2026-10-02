@@ -1,8 +1,10 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/preact'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { ShoppingList } from './ShoppingList.tsx'
+import { choose } from '../testing/select.ts'
+import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
@@ -11,10 +13,16 @@ import { cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const watchItems = vi.fn()
 const setItemState = vi.fn()
+const findBarcodeHolders = vi.fn()
+const attachBarcode = vi.fn()
+const createItem = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
+  findBarcodeHolders: (...args: unknown[]) => findBarcodeHolders(...args),
+  attachBarcode: (...args: unknown[]) => attachBarcode(...args),
+  createItem: (db: unknown, input: unknown) => createItem(db, input),
 }))
 
 const watchCategories = vi.fn()
@@ -33,6 +41,9 @@ const fakeDb = { name: 'fake-db' } as unknown as Firestore
 beforeEach(() => {
   watchItems.mockReset()
   setItemState.mockReset().mockResolvedValue(undefined)
+  findBarcodeHolders.mockReset().mockResolvedValue([])
+  attachBarcode.mockReset().mockResolvedValue(undefined)
+  createItem.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
   resetSnackbar()
@@ -51,7 +62,11 @@ function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: Sh
     cb(shops)
     return vi.fn()
   })
-  return render(<ShoppingList db={fakeDb} />)
+  return render(
+    <TopAppBar title="Shopping list">
+      <ShoppingList db={fakeDb} />
+    </TopAppBar>,
+  )
 }
 
 describe('ShoppingList', () => {
@@ -388,4 +403,162 @@ describe('ticking an Item', () => {
       expect(within(row as HTMLElement).queryByText('running low') !== null).toBe(state === 'running low')
     },
   )
+})
+
+describe('a scanned barcode', () => {
+  const scanned = core.barcode('4006381333931')
+  const bandages: ItemRecord = {
+    id: core.itemId('bandages'),
+    name: 'Bandages',
+    state: 'out',
+    categoryId: medicine.id,
+    necessity: 'essential',
+    barcodes: [scanned],
+  }
+
+  beforeEach(() => {
+    HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.setAttribute('open', '')
+    })
+    HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+      this.removeAttribute('open')
+      this.dispatchEvent(new Event('close'))
+    })
+    HTMLMediaElement.prototype.play = vi.fn(() => Promise.resolve())
+    vi.stubGlobal(
+      'BarcodeDetector',
+      class {
+        detect = async () => [{ rawValue: scanned }]
+      },
+    )
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: vi.fn() }] })) },
+    })
+  })
+
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  })
+
+  function scan() {
+    fireEvent.click(screen.getByRole('button', { name: 'Scan barcode' }))
+  }
+
+  it('sets the Item it sits on enough, with an Undo that restores its State', async () => {
+    render(<SnackbarHost />)
+    renderWith([bandages], [medicine], [pharmacy])
+
+    scan()
+
+    await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'enough'))
+    setItemState.mockClear()
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'out')
+  })
+
+  it('sets an Item that is not on the list enough all the same, when it is not already enough', async () => {
+    render(<SnackbarHost />)
+    renderWith([bandages], [medicine], [pharmacy])
+
+    scan()
+
+    await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'enough'))
+  })
+
+  it('says an Item that is already enough is, without a write or an Undo', async () => {
+    render(<SnackbarHost />)
+    const stocked: ItemRecord = { ...bandages, state: 'enough' }
+    renderWith([stocked], [medicine], [pharmacy])
+
+    scan()
+
+    expect(await screen.findByText('Bandages is already enough')).toBeInTheDocument()
+    expect(setItemState).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+  })
+
+  it('asks for another scan instead of opening the chooser while the Items are loading', async () => {
+    watchItems.mockReturnValue(vi.fn())
+    watchCategories.mockReturnValue(vi.fn())
+    watchShops.mockReturnValue(vi.fn())
+    render(
+      <TopAppBar title="Shopping list">
+        <ShoppingList db={fakeDb} />
+      </TopAppBar>,
+    )
+
+    scan()
+
+    expect(await screen.findByText('Items are still loading, scan again in a moment')).toBeInTheDocument()
+    expect(findBarcodeHolders).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: 'Unknown barcode' })).not.toBeInTheDocument()
+  })
+
+  it('opens the Unknown barcode chooser for a barcode no Item carries', async () => {
+    renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
+
+    scan()
+
+    expect(await screen.findByRole('dialog', { name: 'Unknown barcode' })).toHaveTextContent(scanned)
+    expect(setItemState).not.toHaveBeenCalled()
+  })
+
+  it('attaches the barcode to the Item the Member picks in the chooser', async () => {
+    render(<SnackbarHost />)
+    const unscanned: ItemRecord = { ...bandages, barcodes: undefined }
+    renderWith([unscanned], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+    fireEvent.click(within(chooser).getByText('Bandages'))
+
+    await waitFor(() => expect(attachBarcode).toHaveBeenCalledWith(fakeDb, unscanned, scanned, []))
+    expect(await screen.findByText('Added barcode to Bandages')).toBeInTheDocument()
+  })
+
+  it('reports a failed barcode lookup instead of opening the chooser', async () => {
+    findBarcodeHolders.mockRejectedValue(new Error('Could not look up the barcode'))
+    renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
+
+    scan()
+
+    expect(await screen.findByText('Could not look up the barcode')).toHaveAttribute('role', 'alert')
+    expect(screen.queryByRole('dialog', { name: 'Unknown barcode' })).not.toBeInTheDocument()
+  })
+
+  it('reports a failed attach and keeps the chooser open', async () => {
+    attachBarcode.mockRejectedValue(new Error('Could not add the barcode'))
+    renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+    fireEvent.click(within(chooser).getByText('Bandages'))
+
+    expect(await screen.findByText('Could not add the barcode')).toHaveAttribute('role', 'alert')
+    expect(chooser).toHaveAttribute('open')
+  })
+
+  it('creates a new Item carrying the scanned barcode from the chooser', async () => {
+    renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    fireEvent.input(within(dialog).getByLabelText('Name'), { target: { value: 'Plasters' } })
+    choose(within(dialog).getByLabelText('Category'), medicine.id)
+    choose(within(dialog).getByLabelText('Necessity'), 'essential')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(createItem).toHaveBeenCalledWith(
+        fakeDb,
+        expect.objectContaining({ name: 'Plasters', barcode: { value: scanned, movedOff: [] } }),
+      ),
+    )
+  })
 })
