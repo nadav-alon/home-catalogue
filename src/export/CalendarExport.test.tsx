@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
@@ -29,6 +30,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
@@ -48,8 +50,51 @@ async function submit(dateValue: string) {
 }
 
 describe('CalendarExport', () => {
-  it('rejects submitting with no date chosen', async () => {
+  it('renders the date input in the TextField style at a 48px touch height', () => {
     renderWith([outBandages], [medicine], [pharmacy])
+
+    expect(screen.getByLabelText('Date')).toHaveClass('ui-field__control')
+    expect(readFileSync('src/ui/Field.css', 'utf8')).toMatch(/\.ui-field__control\s*{[^}]*min-height: 3rem/)
+  })
+
+  describe('with the clock frozen', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(2026, 2, 5, 12))
+    })
+
+    it('preselects today when the dialog opens', () => {
+      renderWith([outBandages], [medicine], [pharmacy])
+
+      expect(screen.getByLabelText('Date')).toHaveValue('2026-03-05')
+    })
+
+    it('resets the date to today when the dialog is reopened', () => {
+      renderWith([outBandages], [medicine], [pharmacy])
+      fireEvent.input(screen.getByLabelText('Date'), { target: { value: '2026-03-09' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+      vi.setSystemTime(new Date(2026, 2, 6, 12))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+      expect(screen.getByLabelText('Date')).toHaveValue('2026-03-06')
+    })
+
+    it('exports with the default date without further input', async () => {
+      exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
+      renderWith([outBandages], [medicine], [pharmacy])
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+      })
+
+      expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+    })
+  })
+
+  it('rejects submitting with the date cleared', async () => {
+    renderWith([outBandages], [medicine], [pharmacy])
+    fireEvent.input(screen.getByLabelText('Date'), { target: { value: '' } })
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Export' }))

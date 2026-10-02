@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { exportDate, InvalidExportDateError, isExportDate, nextExportDate } from './exportDate.ts'
+import { exportDate, InvalidExportDateError, isExportDate, nextExportDate, todayExportDate } from './exportDate.ts'
 
 describe('isExportDate', () => {
   it('accepts a real calendar date in YYYY-MM-DD', () => {
@@ -37,5 +37,16 @@ describe('nextExportDate', () => {
 
   it('rolls over a year boundary', () => {
     expect(nextExportDate(exportDate('2026-12-31'))).toBe('2027-01-01')
+  })
+})
+
+describe('todayExportDate', () => {
+  it('zero-pads single-digit months and days', () => {
+    expect(todayExportDate(new Date(2026, 0, 5, 12))).toBe('2026-01-05')
+  })
+
+  it('uses the local day rather than the UTC day', () => {
+    expect(todayExportDate(new Date(2026, 2, 5, 0, 30))).toBe('2026-03-05')
+    expect(todayExportDate(new Date(2026, 2, 5, 23, 30))).toBe('2026-03-05')
   })
 })

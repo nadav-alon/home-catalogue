@@ -29,3 +29,10 @@ export function nextExportDate(date: ExportDate): ExportDate {
   next.setUTCDate(next.getUTCDate() + 1)
   return exportDate(next.toISOString().slice(0, 10))
 }
+
+/** Today's calendar day in the user's local time zone. */
+export function todayExportDate(now: Date = new Date()): ExportDate {
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return exportDate(`${now.getFullYear()}-${month}-${day}`)
+}
