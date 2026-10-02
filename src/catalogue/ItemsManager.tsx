@@ -144,7 +144,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     try {
       await restoreItem(db, item, categories, shops)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not restore the Item')
+      setError(err instanceof Error ? err.message : `Could not restore ${item.name}`)
       return
     }
     navigateToItems([item.id])
