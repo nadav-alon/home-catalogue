@@ -1412,15 +1412,15 @@ describe('a scanned barcode', () => {
   })
 
   it('confirms with a snackbar that the barcode was added to the Item picked from the chooser', async () => {
-    render(<SnackbarHost />)
     renderWith([bandages], [medicine], [pharmacy])
+    render(<SnackbarHost />)
     scan()
     const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
     fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
 
     fireEvent.click(within(chooser).getByRole('button', { name: bandages.name }))
 
-    expect(await screen.findByText(`Added barcode to ${bandages.name}`)).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent(`Added barcode to ${bandages.name}`)
   })
 
   it('creates the Item carrying the barcode from "New Item"', async () => {
