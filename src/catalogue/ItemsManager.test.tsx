@@ -1286,7 +1286,27 @@ describe('a scanned barcode', () => {
     const barcode = within(dialog).getByRole('textbox', { name: 'Barcode' })
     expect(barcode).toHaveValue('4006381333931')
     expect(barcode).toHaveAttribute('readonly')
+    expect(barcode).toHaveClass('ui-field__control')
     expect(within(dialog).queryByRole('button', { name: /Remove barcode/ })).not.toBeInTheDocument()
+  })
+
+  it('keeps Cancel and Save in the Item dialog\'s one action row, with Delete joining it when editing', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+    const addDialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    const addConfirm = within(addDialog).getByRole('button', { name: 'Cancel' }).parentElement
+    expect(addConfirm?.parentElement).toHaveClass('item-form__actions')
+    expect(within(addDialog).getByRole('button', { name: 'Save' }).parentElement).toBe(addConfirm)
+    fireEvent.click(within(addDialog).getByRole('button', { name: 'Cancel' }))
+
+    fireEvent.click(screen.getByRole('button', { name: /^Bandages/ }))
+    const editDialog = await screen.findByRole('dialog', { name: 'Edit Item' })
+    const editConfirm = within(editDialog).getByRole('button', { name: 'Cancel' }).parentElement
+    const editRow = editConfirm?.parentElement
+    expect(editRow).toHaveClass('item-form__actions')
+    expect(within(editDialog).getByRole('button', { name: 'Save' }).parentElement).toBe(editConfirm)
+    expect(within(editDialog).getByRole('button', { name: 'Delete' }).parentElement?.parentElement).toBe(editRow)
   })
 
   it('shows no barcode in the Item dialog opened from the FAB', async () => {

@@ -242,11 +242,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
           </option>
         ))}
       </Select>
-      {!item && barcode !== undefined && (
-        <label>
-          Barcode <input readOnly value={barcode} />
-        </label>
-      )}
+      {!item && barcode !== undefined && <TextField label="Barcode" readOnly value={barcode} />}
       {keptBarcodes.length > 0 && (
         <section aria-labelledby="item-barcodes-heading">
           <h3 id="item-barcodes-heading">Barcodes</h3>
