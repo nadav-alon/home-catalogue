@@ -408,6 +408,25 @@ describe('CategoriesManager', () => {
     expect(names).toEqual(['Delete', 'Cancel', 'Save'])
   })
 
+  it('sets Delete apart from Cancel and Save in the Edit dialog', () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+
+    const dialog = screen.getByRole('dialog')
+    const del = within(dialog).getByRole('button', { name: 'Delete' })
+    expect(del.parentElement).toHaveClass('ui-dialog-actions__apart')
+    expect(within(dialog).getByRole('button', { name: 'Save' }).closest('.ui-dialog-actions')).toBe(
+      del.closest('.ui-dialog-actions'),
+    )
+  })
+
+  it('lays out the Add dialog actions in the shared action row', () => {
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+
+    expect(screen.getByRole('button', { name: 'Add' }).closest('.ui-dialog-actions')).not.toBeNull()
+  })
+
   it('unsubscribes from Categories and Shops on unmount', () => {
     const { unmount } = renderWith([], [])
     unmount()

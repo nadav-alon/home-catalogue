@@ -19,6 +19,7 @@ import { BLANK_NAME_MESSAGE } from './ShopsManager.tsx'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
+import { DialogActions } from '../ui/DialogActions.tsx'
 import { Fab } from '../ui/Fab.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
@@ -233,10 +234,12 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           <form onSubmit={handleCreate}>
             {error !== null && <p role="alert">{error}</p>}
             <CategoryFields nameLabel="New Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
-            <Button variant="text" onClick={closeDialogs}>
-              Cancel
-            </Button>
-            <Button type="submit">Add</Button>
+            <DialogActions>
+              <Button variant="text" onClick={closeDialogs}>
+                Cancel
+              </Button>
+              <Button type="submit">Add</Button>
+            </DialogActions>
           </form>
         )}
       </Dialog>
@@ -250,13 +253,18 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           >
             {error !== null && <p role="alert">{error}</p>}
             <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
-            <Button variant="text" onClick={() => void handleDelete(editing)}>
-              Delete
-            </Button>
-            <Button variant="text" onClick={closeDialogs}>
-              Cancel
-            </Button>
-            <Button type="submit">Save</Button>
+            <DialogActions
+              apart={
+                <Button variant="text" onClick={() => void handleDelete(editing)}>
+                  Delete
+                </Button>
+              }
+            >
+              <Button variant="text" onClick={closeDialogs}>
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogActions>
           </form>
         )}
       </Dialog>
