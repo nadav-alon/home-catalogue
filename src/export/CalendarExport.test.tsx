@@ -29,6 +29,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.useRealTimers()
 })
 
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
@@ -54,40 +55,39 @@ describe('CalendarExport', () => {
     expect(screen.getByLabelText('Date')).toHaveClass('ui-field__control')
   })
 
-  it('preselects today when the dialog opens', () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(2026, 2, 5, 12))
-    renderWith([outBandages], [medicine], [pharmacy])
-
-    expect(screen.getByLabelText('Date')).toHaveValue('2026-03-05')
-    vi.useRealTimers()
-  })
-
-  it('resets the date to today when the dialog is reopened', () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(2026, 2, 5, 12))
-    renderWith([outBandages], [medicine], [pharmacy])
-    fireEvent.input(screen.getByLabelText('Date'), { target: { value: '2026-03-09' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    vi.setSystemTime(new Date(2026, 2, 6, 12))
-
-    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
-
-    expect(screen.getByLabelText('Date')).toHaveValue('2026-03-06')
-  })
-
-  it('exports with the default date without further input', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(2026, 2, 5, 12))
-    exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
-    renderWith([outBandages], [medicine], [pharmacy])
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+  describe('with the clock frozen', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(2026, 2, 5, 12))
     })
-    vi.useRealTimers()
 
-    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+    it('preselects today when the dialog opens', () => {
+      renderWith([outBandages], [medicine], [pharmacy])
+
+      expect(screen.getByLabelText('Date')).toHaveValue('2026-03-05')
+    })
+
+    it('resets the date to today when the dialog is reopened', () => {
+      renderWith([outBandages], [medicine], [pharmacy])
+      fireEvent.input(screen.getByLabelText('Date'), { target: { value: '2026-03-09' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+      vi.setSystemTime(new Date(2026, 2, 6, 12))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+      expect(screen.getByLabelText('Date')).toHaveValue('2026-03-06')
+    })
+
+    it('exports with the default date without further input', async () => {
+      exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
+      renderWith([outBandages], [medicine], [pharmacy])
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+      })
+
+      expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+    })
   })
 
   it('rejects submitting with the date cleared', async () => {
