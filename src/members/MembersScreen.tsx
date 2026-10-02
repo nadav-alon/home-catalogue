@@ -53,7 +53,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
       </TopAppBarNavigation>
       <h2>Members</h2>
       <ul>
-        {members.map((member) => (
+        {ownerFirst(members).map((member) => (
           <ListRow
             key={member.uid}
             headline={member.email}
@@ -112,6 +112,11 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
       )}
     </section>
   )
+}
+
+/** The Owner ahead of the other Members, who keep their order. */
+function ownerFirst(members: MemberRecord[]): MemberRecord[] {
+  return [...members.filter((member) => member.isOwner), ...members.filter((member) => !member.isOwner)]
 }
 
 /** The tags under a Member's email: "Owner" and "you" (the signed-in Member); `undefined` when neither applies. */

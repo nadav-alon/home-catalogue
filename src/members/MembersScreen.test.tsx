@@ -138,6 +138,16 @@ describe('MembersScreen', () => {
     expect(memberRow).not.toHaveTextContent('you')
   })
 
+  it('lists the Owner first even when their email sorts after the Members\'', () => {
+    renderScreen([member, other, { ...owner, email: core.email('z@example.com') }])
+
+    expect(screen.getAllByRole('listitem').map((row) => row.textContent)).toEqual([
+      expect.stringContaining('z@example.com'),
+      expect.stringContaining('b@example.com'),
+      expect.stringContaining('c@example.com'),
+    ])
+  })
+
   it('says so when no invites are pending', () => {
     renderScreen([owner])
 
