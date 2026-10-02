@@ -1,0 +1,8 @@
+/* Beats the full-screen layout `Dialog` uses below 600px: the chooser is as tall as its content at every width. */
+.ui-dialog.unknown-barcode-dialog {
+  width: min(35rem, calc(100% - var(--md-sys-spacing-8)));
+  height: fit-content;
+  max-height: calc(100% - var(--md-sys-spacing-8));
+  margin: auto;
+  border-radius: var(--md-sys-shape-corner-extra-large);
+}

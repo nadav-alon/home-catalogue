@@ -1300,6 +1300,37 @@ describe('a scanned barcode', () => {
     expect(updateItem).not.toHaveBeenCalled()
   })
 
+  it('closes the chooser from its Close icon, writing nothing', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => expect(chooser).not.toHaveAttribute('open'))
+    expect(createItem).not.toHaveBeenCalled()
+    expect(updateItem).not.toHaveBeenCalled()
+  })
+
+  it('gives New Item and Add to existing Item the same button weight', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    const existing = within(chooser).getByRole('button', { name: 'Add to existing Item' })
+    const added = within(chooser).getByRole('button', { name: 'New Item' })
+
+    expect(existing).toHaveClass('ui-button--tonal')
+    expect(added).toHaveClass('ui-button--tonal')
+  })
+
+  it('opts out of the full-screen dialog layout through its own class', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+
+    expect(await screen.findByRole('dialog', { name: 'Unknown barcode' })).toHaveClass('unknown-barcode-dialog')
+  })
+
   it('attaches the barcode to the Item picked from the chooser, then opens its filter', async () => {
     const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
     renderWith([bandages, tape], [medicine], [pharmacy])
