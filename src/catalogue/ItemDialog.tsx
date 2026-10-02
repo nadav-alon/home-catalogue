@@ -10,6 +10,7 @@ import { Dialog } from '../ui/Dialog.tsx'
 import { Select } from '../ui/Select.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import CloseIcon from '~icons/material-symbols/close'
+import './ItemDialog.css'
 
 export interface ItemDialogProps {
   open: boolean
@@ -263,15 +264,21 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
           </ul>
         </section>
       )}
-      {item && onDelete && (
-        <Button variant="text" onClick={handleDelete}>
-          Delete
-        </Button>
-      )}
-      <Button variant="text" onClick={onClose}>
-        Cancel
-      </Button>
-      <Button type="submit">Save</Button>
+      <div class="item-form__actions">
+        {item && onDelete && (
+          <div class="item-form__delete">
+            <Button variant="text" onClick={handleDelete}>
+              Delete
+            </Button>
+          </div>
+        )}
+        <div class="item-form__confirm">
+          <Button variant="text" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">Save</Button>
+        </div>
+      </div>
     </form>
   )
 }

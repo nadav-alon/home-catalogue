@@ -643,6 +643,20 @@ describe('leaving the Item dialog without saving', () => {
     expect(createItem).not.toHaveBeenCalled()
   })
 
+  it('puts Save last, with Delete apart from Cancel and Save', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+
+    const dialog = screen.getByRole('dialog')
+    const save = within(dialog).getByRole('button', { name: 'Save' })
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' })
+    const del = within(dialog).getByRole('button', { name: 'Delete' })
+    const buttons = within(dialog).getAllByRole('button')
+    expect(buttons[buttons.length - 1]).toBe(save)
+    expect(cancel.parentElement).toBe(save.parentElement)
+    expect(del.parentElement).not.toBe(cancel.parentElement)
+  })
+
   it('discards the edit on the header Close icon', async () => {
     await fillAndLeave(() => fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' })))
 
