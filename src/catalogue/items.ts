@@ -402,21 +402,27 @@ export async function findDeletedItemByBarcode(db: Firestore, barcode: core.Barc
 
 /**
  * Validates `barcode` with {@link core.barcode}, which throws naming it, before adding it to the Item's
- * `barcodes` with `arrayUnion`, so attaching one the Item already carries changes nothing.
- * Resolves once the write is queued, see {@link createItem}.
+ * `barcodes` with `arrayUnion`, so attaching one the Item already carries changes nothing. A Barcode sits
+ * on at most one Item, so it leaves each of `from` (any other than `item` itself) in the same batch with
+ * `arrayRemove`. Resolves once the batch is queued, see {@link createItem}.
  */
 export async function attachBarcode(
   db: Firestore,
   item: Pick<ItemRecord, 'id' | 'name'>,
   barcode: string,
+  from: readonly Pick<ItemRecord, 'id' | 'name'>[] = [],
 ): Promise<void> {
   const validBarcode = core.barcode(barcode)
 
-  void updateDoc(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) }).catch(
-    (err: unknown) => {
-      reportWriteRejection(`barcode change for ${item.name}`, err)
-    },
-  )
+  const batch = writeBatch(db)
+  batch.update(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) })
+  for (const holder of from) {
+    if (holder.id === item.id) continue
+    batch.update(doc(db, core.ITEMS_COLLECTION, holder.id), { barcodes: arrayRemove(validBarcode) })
+  }
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`barcode change for ${item.name}`, err)
+  })
 }
 
 /**
