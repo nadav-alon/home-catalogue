@@ -5,6 +5,7 @@ import type { ItemRecord } from '../catalogue/items.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
+import { DIALOG_FORM_CLASS, DialogActions } from '../ui/DialogActions.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import { TopAppBarActions } from '../shell/TopAppBar.tsx'
 import { isExportDate, todayExportDate } from './exportDate.ts'
@@ -100,7 +101,7 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
             export.
           </p>
         )}
-        <form onSubmit={(event) => void handleExport(event)}>
+        <form class={DIALOG_FORM_CLASS} onSubmit={(event) => void handleExport(event)}>
           <TextField
             label="Date"
             type="date"
@@ -108,12 +109,14 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
             onInput={(event) => setDate(event.currentTarget.value)}
           />
 
-          <Button type="submit" disabled={status.phase === 'exporting'}>
-            Export
-          </Button>
-          <Button variant="text" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
+          <DialogActions>
+            <Button variant="text" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={status.phase === 'exporting'}>
+              Export
+            </Button>
+          </DialogActions>
         </form>
       </Dialog>
     </>

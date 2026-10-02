@@ -4,6 +4,7 @@ import type { Firestore } from 'firebase/firestore'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
+import { DIALOG_FORM_CLASS, DialogActions } from '../ui/DialogActions.tsx'
 import { Fab } from '../ui/Fab.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
@@ -58,13 +59,15 @@ function AddShopDialog({ db, onClose }: AddShopDialogProps) {
 
   return (
     <Dialog open title="Add Shop" onClose={onClose} closable>
-      <form onSubmit={handleSubmit}>
+      <form class={DIALOG_FORM_CLASS} onSubmit={handleSubmit}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="New Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
-        <Button variant="text" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit">Add</Button>
+        <DialogActions>
+          <Button variant="text" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">Add</Button>
+        </DialogActions>
       </form>
     </Dialog>
   )
@@ -111,16 +114,21 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
 
   return (
     <Dialog open title="Edit Shop" onClose={onClose} closable>
-      <form onSubmit={handleRename}>
+      <form class={DIALOG_FORM_CLASS} onSubmit={handleRename}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
-        <Button variant="text" onClick={() => void handleDelete()}>
-          Delete
-        </Button>
-        <Button variant="text" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit">Rename</Button>
+        <DialogActions
+          destructive={
+            <Button variant="text" onClick={() => void handleDelete()}>
+              Delete
+            </Button>
+          }
+        >
+          <Button variant="text" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">Rename</Button>
+        </DialogActions>
       </form>
     </Dialog>
   )

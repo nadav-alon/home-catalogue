@@ -1,0 +1,24 @@
+/* A dialog's form: its fields stacked, so the action row's margin adds to the same gap the Item dialog has above its row. */
+.ui-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-sys-spacing-4);
+}
+
+.ui-dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--md-sys-spacing-6);
+  margin-top: var(--md-sys-spacing-6);
+}
+
+/* Pushes the destructive action to the start, a gap away from the rest. */
+.ui-dialog-actions__destructive {
+  margin-right: auto;
+}
+
+.ui-dialog-actions__main {
+  display: flex;
+  gap: var(--md-sys-spacing-2);
+}
