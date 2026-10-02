@@ -77,13 +77,16 @@ function AddShopDialog({ db, onClose }: AddShopDialogProps) {
 
 interface EditShopDialogProps {
   db: Firestore
+  /** The Shop as it was when the dialog opened; seeds the draft name. */
+  opened: ShopRecord
+  /** The Shop as watchShops last reported it; drives everything that must stay current. */
   shop: ShopRecord
   onClose: () => void
 }
 
-/** Owns its draft name and error, so each opening starts from the Shop's current name; mount it only while open. */
-function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
-  const [name, setName] = useState(shop.name)
+/** Owns its draft name and error, so each opening starts from the Shop's name at that moment; mount it only while open. */
+function EditShopDialog({ db, opened, shop, onClose }: EditShopDialogProps) {
+  const [name, setName] = useState(opened.name)
   const inUseNoteId = useUniqueId()
   const [error, setError] = useState<string | null>(null)
 
@@ -148,9 +151,11 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
 export function ShopsManager({ db }: ShopsManagerProps) {
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [adding, setAdding] = useState(false)
-  const [editing, setEditing] = useState<ShopRecord | null>(null)
+  const [opened, setOpened] = useState<ShopRecord | null>(null)
 
   useEffect(() => watchShops(db, setShops), [db])
+
+  const editing = opened === null ? undefined : shops.find((shop) => shop.id === opened.id)
 
   return (
     <section>
@@ -163,7 +168,7 @@ export function ShopsManager({ db }: ShopsManagerProps) {
             key={shop.id}
             headline={shop.name}
             control={
-              <Button variant="text" aria-label={`Edit ${shop.name}`} onClick={() => setEditing(shop)}>
+              <Button variant="text" aria-label={`Edit ${shop.name}`} onClick={() => setOpened(shop)}>
                 Edit
               </Button>
             }
@@ -172,7 +177,9 @@ export function ShopsManager({ db }: ShopsManagerProps) {
       </ul>
       <Fab symbol={AddIcon} label="Add Shop" onClick={() => setAdding(true)} />
       {adding && <AddShopDialog db={db} onClose={() => setAdding(false)} />}
-      {editing !== null && <EditShopDialog db={db} shop={editing} onClose={() => setEditing(null)} />}
+      {opened !== null && editing !== undefined && (
+        <EditShopDialog db={db} opened={opened} shop={editing} onClose={() => setOpened(null)} />
+      )}
     </section>
   )
 }

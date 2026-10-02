@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
@@ -58,6 +58,13 @@ function renderWithShops(shops: ShopRecord[], { withSnackbar = false } = {}) {
       {withSnackbar && <SnackbarHost />}
     </>,
   )
+}
+
+/** Like renderWithShops, but `push` delivers a later watchShops update. */
+function renderLive(shops: ShopRecord[], options = {}) {
+  const utils = renderWithShops(shops, options)
+  const callback = watchShops.mock.calls[0][1] as (shops: ShopRecord[]) => void
+  return { ...utils, push: callback }
 }
 
 function openEditor(shopName: string) {
@@ -286,6 +293,28 @@ describe('ShopsManager', () => {
 
     expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete' })).not.toHaveAccessibleDescription()
+  })
+
+  it('disables Delete and shows the in-use note when the open Shop becomes in use', () => {
+    const { push } = renderLive([pharmacy])
+    openEditor('Pharmacy')
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
+
+    act(() => push([{ ...pharmacy, referenceCount: 1 }]))
+
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+    expect(screen.getByText(SHOP_IN_USE_MESSAGE)).toBeVisible()
+  })
+
+  it('enables Delete and removes the in-use note when the open Shop is freed', () => {
+    const { push } = renderLive([{ ...pharmacy, referenceCount: 1 }])
+    openEditor('Pharmacy')
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+
+    act(() => push([{ ...pharmacy, referenceCount: 0 }]))
+
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
+    expect(screen.queryByText(SHOP_IN_USE_MESSAGE)).toBeNull()
   })
 
   it('opens the Edit Shop dialog when the row itself is tapped', () => {
