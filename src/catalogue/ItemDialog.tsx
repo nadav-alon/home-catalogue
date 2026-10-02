@@ -57,6 +57,10 @@ interface ItemFormValues {
 
 type ItemFormErrors = Partial<Record<'name' | 'categoryId' | 'necessity', string>>
 
+function isErrorField(field: string): field is keyof ItemFormErrors {
+  return field === 'name' || field === 'categoryId' || field === 'necessity'
+}
+
 function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { errors: ItemFormErrors } {
   const trimmedName = values.name.trim()
   const necessity = catalogue.necessitySchema.safeParse(values.necessity)
@@ -120,10 +124,15 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
   /** Sets a field, and drops its shown error once the new value is valid, without waiting for the next Save. */
   function set(field: Exclude<keyof ItemFormValues, 'state'>, value: string) {
     setValues((current) => ({ ...current, [field]: value }))
-    if (!(field in errors)) return
-    const result = parseItemFormValues({ ...values, [field]: value })
-    if ('errors' in result && field in result.errors) return
-    setErrors(({ [field as keyof ItemFormErrors]: _cleared, ...rest }) => rest)
+    if (!isErrorField(field)) return
+    // Decided on the errors as they are when the update runs: a `set` after an await would otherwise read a stale `errors`.
+    setErrors((current) => {
+      if (!(field in current)) return current
+      const result = parseItemFormValues({ ...values, [field]: value })
+      if ('errors' in result && field in result.errors) return current
+      const { [field]: _cleared, ...rest } = current
+      return rest
+    })
   }
 
   const keptBarcodes = (item?.barcodes ?? []).filter((barcode) => !removedBarcodes.includes(barcode))
