@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { act, fireEvent, render, screen, within } from '@testing-library/preact'
+import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { CalendarExport } from './CalendarExport.tsx'
@@ -61,7 +61,7 @@ describe('CalendarExport', () => {
     renderWith([outBandages], [medicine], [pharmacy])
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
 
-    fireEvent.click(within(screen.getByRole('dialog')).getAllByRole('button', { name: 'Close' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
 
     expect(screen.queryByRole('dialog')).toBeNull()
   })
@@ -81,7 +81,7 @@ describe('CalendarExport', () => {
     it('resets the date to today when the dialog is reopened', () => {
       renderWith([outBandages], [medicine], [pharmacy])
       fireEvent.input(screen.getByLabelText('Date'), { target: { value: '2026-03-09' } })
-      fireEvent.click(screen.getByText('Close'))
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
       vi.setSystemTime(new Date(2026, 2, 6, 12))
 
       fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
@@ -173,7 +173,7 @@ describe('CalendarExport', () => {
     renderWith([outBandages], [medicine], [pharmacy])
     await submit('2026-03-05')
     expect(screen.getByText('Exported to Calendar.')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Close'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
 
@@ -188,7 +188,7 @@ describe('CalendarExport', () => {
     renderWith([outBandages], [medicine], [pharmacy])
     await submit('2026-03-05')
     expect(screen.getByRole('link', { name: 'Pharmacy' })).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Close'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
 
@@ -200,7 +200,7 @@ describe('CalendarExport', () => {
     exportShoppingList.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
     renderWith([outBandages], [medicine], [pharmacy])
     await submit('2026-03-05')
-    fireEvent.click(screen.getByText('Close'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
     const exportButton = screen.getByRole('button', { name: 'Export' })
@@ -218,7 +218,7 @@ describe('CalendarExport', () => {
     renderWith([], [medicine], [pharmacy])
     await submit('2026-03-05')
     expect(screen.getByRole('alert')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Close'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
 

@@ -112,7 +112,7 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
             Export
           </Button>
           <Button variant="text" onClick={() => setOpen(false)}>
-            Close
+            Cancel
           </Button>
         </form>
       </Dialog>
