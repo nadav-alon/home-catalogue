@@ -23,7 +23,6 @@ import {
   restoreShop,
   watchShops,
   SHOP_IN_USE_MESSAGE,
-  ShopInUseError,
   type ShopRecord,
 } from './shops.ts'
 
@@ -113,8 +112,8 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
         action: { label: 'Undo', onAction: () => void restoreShop(db, shop) },
       })
       onClose()
-    } catch (err) {
-      setError(err instanceof ShopInUseError ? err.message : 'Could not delete Shop')
+    } catch {
+      setError('Could not delete Shop')
     }
   }
 
