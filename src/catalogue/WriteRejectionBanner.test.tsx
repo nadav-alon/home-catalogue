@@ -63,11 +63,13 @@ describe('WriteRejectionBanner', () => {
     )
   })
 
-  it('carries no inline colour', () => {
+  it('styles the notice from the stylesheet, with no inline style', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     render(<WriteRejectionBanner />)
     act(() => reportWriteRejection('new Shop', new Error('x')))
 
-    expect(screen.getByRole('alert')).not.toHaveAttribute('style')
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveClass('write-rejection-banner')
+    expect(alert).not.toHaveAttribute('style')
   })
 })
