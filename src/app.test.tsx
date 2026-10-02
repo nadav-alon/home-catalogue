@@ -189,7 +189,7 @@ describe('App', () => {
     expect(screen.queryByText(/urgent Item/)).toBeNull()
   })
 
-  it('shows a red AlertBanner when a watched Item is now', () => {
+  it('shows a now-level AlertBanner when a watched Item is now', () => {
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
     const items: ItemRecord[] = [
