@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { render, screen, within } from '@testing-library/preact'
 import { describe, expect, it } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { AlertBanner } from './AlertBanner.tsx'
+const css = readFileSync('src/catalogue/AlertBanner.css', 'utf8')
 
 function item(necessity: catalogue.Necessity, state: core.State) {
   return { necessity, state }
@@ -15,7 +17,7 @@ describe('AlertBanner', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('shows a yellow banner naming the count when the worst level is soon', () => {
+  it('shows a soon banner naming the count when the worst level is soon', () => {
     render(
       <AlertBanner
         items={[item('important', 'running low'), item('optional', 'out'), item('essential', 'enough')]}
@@ -24,17 +26,17 @@ describe('AlertBanner', () => {
 
     const banner = screen.getByRole('status')
     expect(banner).toHaveTextContent('2 Items to buy soon (not urgent)')
-    expect(banner).toHaveStyle({ backgroundColor: '#fef9c3' })
+    expect(banner).toHaveClass('alert-banner--soon')
     expect(within(banner).queryByRole('link')).toBeNull()
   })
 
-  it('shows a yellow banner in the singular for one soon Item', () => {
+  it('shows a soon banner in the singular for one soon Item', () => {
     render(<AlertBanner items={[item('important', 'running low')]} />)
 
     expect(screen.getByRole('status')).toHaveTextContent('1 Item to buy soon (not urgent)')
   })
 
-  it('shows a red banner naming the count when any Item is now', () => {
+  it('shows a now banner naming the count when any Item is now', () => {
     render(
       <AlertBanner
         items={[
@@ -48,20 +50,28 @@ describe('AlertBanner', () => {
 
     const banner = screen.getByRole('alert')
     expect(banner).toHaveTextContent('2 urgent Items')
-    expect(banner).toHaveStyle({ backgroundColor: '#fee2e2' })
+    expect(banner).toHaveClass('alert-banner--now')
     expect(within(banner).queryByRole('link')).toBeNull()
   })
 
-  it('shows a red banner in the singular for one now Item', () => {
+  it('shows a now banner in the singular for one now Item', () => {
     render(<AlertBanner items={[item('essential', 'out')]} />)
 
     expect(screen.getByRole('alert')).toHaveTextContent('1 urgent Item')
   })
 
-  it('shows only the red banner when both now and soon Items exist', () => {
+  it('shows only the now banner when both now and soon Items exist', () => {
     render(<AlertBanner items={[item('essential', 'out'), item('important', 'running low')]} />)
 
     expect(screen.getByRole('alert')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('themes each level from tokens with the standard inset, and no hard-coded colour', () => {
+    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgb|hsl/i)
+    expect(css).toMatch(
+      /\.alert-banner--now\s*{[^}]*var\(--md-sys-color-error-container\)[^}]*var\(--md-sys-color-on-error-container\)/,
+    )
+    expect(css).toMatch(/\.alert-banner\s*{\s*padding: var\(--md-sys-spacing-2\) var\(--md-sys-spacing-4\);/)
   })
 })

@@ -1,6 +1,6 @@
-import type { JSX } from 'preact'
 import { catalogue, core } from 'data-platform'
 import { alertLevel, type AlertLevel } from './alerts.ts'
+import './AlertBanner.css'
 
 export interface AlertBannerItem {
   necessity: catalogue.Necessity
@@ -17,16 +17,16 @@ function itemNoun(count: number): string {
 
 const BANNERS: Record<
   Exclude<AlertLevel, 'none'>,
-  { role: 'alert' | 'status'; style: JSX.CSSProperties; text: (count: number) => string }
+  { role: 'alert' | 'status'; className: string; text: (count: number) => string }
 > = {
   now: {
     role: 'alert',
-    style: { backgroundColor: '#fee2e2', color: '#991b1b' },
+    className: 'alert-banner alert-banner--now',
     text: (count) => `${count} urgent ${itemNoun(count)}`,
   },
   soon: {
     role: 'status',
-    style: { backgroundColor: '#fef9c3', color: '#854d0e' },
+    className: 'alert-banner alert-banner--soon',
     text: (count) => `${count} ${itemNoun(count)} to buy soon (not urgent)`,
   },
 }
@@ -37,9 +37,9 @@ const BANNERS: Record<
  * differ.
  */
 function banner(level: Exclude<AlertLevel, 'none'>, count: number) {
-  const { role, style, text } = BANNERS[level]
+  const { role, className, text } = BANNERS[level]
   return (
-    <div role={role} style={style}>
+    <div role={role} className={className}>
       <p>
         {text(count)}
       </p>
@@ -47,7 +47,7 @@ function banner(level: Exclude<AlertLevel, 'none'>, count: number) {
   )
 }
 
-/** Red for any `now` Item, else yellow for any `soon`, else nothing. Never both at once. */
+/** Error-coloured for any `now` Item, else secondary-coloured for any `soon`, else nothing. Never both at once. */
 export function AlertBanner({ items }: AlertBannerProps) {
   const levels = items.map((item) => alertLevel(item.necessity, item.state))
 

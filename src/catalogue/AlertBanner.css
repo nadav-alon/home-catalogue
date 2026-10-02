@@ -1,0 +1,17 @@
+.alert-banner {
+  padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+}
+
+.alert-banner p {
+  margin: 0;
+}
+
+.alert-banner--now {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+.alert-banner--soon {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
