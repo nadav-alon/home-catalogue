@@ -132,4 +132,20 @@ describe('ListRow', () => {
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })
+
+  describe('control checkbox', () => {
+    const rule = () => read(stylesheet).match(/\.ui-list-row__trailing input\[type='checkbox'\]\s*{([^}]*)}/)?.[1] ?? ''
+
+    it('is drawn from theme colour tokens rather than the native control', () => {
+      expect(rule()).toMatch(/appearance:\s*none/)
+      expect(rule()).toMatch(/border:[^;]*var\(--md-sys-color-outline\)/)
+      expect(read(stylesheet)).toMatch(/input\[type='checkbox'\]:checked\s*{[^}]*background:\s*var\(--md-sys-color-primary\)/)
+    })
+
+    it('stays close to the native size and leaves the row height to the label', () => {
+      expect(rule()).toMatch(/width:\s*1\.125rem/)
+      expect(rule()).toMatch(/height:\s*1\.125rem/)
+      expect(read(stylesheet)).toMatch(/\.ui-list-row__label,\s*\.ui-list-row__link\s*{[^}]*min-height:\s*3\.5rem/)
+    })
+  })
 })

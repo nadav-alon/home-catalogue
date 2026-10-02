@@ -94,3 +94,20 @@
     background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
   }
 }
+
+.ui-list-row__trailing input[type='checkbox'] {
+  appearance: none;
+  display: block;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  border: 2px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: transparent;
+  cursor: pointer;
+}
+
+.ui-list-row__trailing input[type='checkbox']:checked {
+  border-color: var(--md-sys-color-primary);
+  background: var(--md-sys-color-primary);
+}
