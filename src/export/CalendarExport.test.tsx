@@ -54,8 +54,32 @@ describe('CalendarExport', () => {
     expect(screen.getByLabelText('Date')).toHaveClass('ui-field__control')
   })
 
-  it('rejects submitting with no date chosen', async () => {
+  it('preselects today when the dialog opens', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 2, 5, 12))
     renderWith([outBandages], [medicine], [pharmacy])
+
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-03-05')
+    vi.useRealTimers()
+  })
+
+  it('exports with the default date without further input', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 2, 5, 12))
+    exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
+    renderWith([outBandages], [medicine], [pharmacy])
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    })
+    vi.useRealTimers()
+
+    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+  })
+
+  it('rejects submitting with the date cleared', async () => {
+    renderWith([outBandages], [medicine], [pharmacy])
+    fireEvent.input(screen.getByLabelText('Date'), { target: { value: '' } })
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Export' }))

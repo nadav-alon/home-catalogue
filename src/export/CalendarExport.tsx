@@ -7,7 +7,7 @@ import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import { TopAppBarActions } from '../shell/TopAppBar.tsx'
-import { isExportDate } from './exportDate.ts'
+import { isExportDate, todayExportDate } from './exportDate.ts'
 import { exportShoppingList, type ShopFallbackLink } from './exportShoppingList.ts'
 import { pendingItemsByShop } from './shopGroups.ts'
 
@@ -30,7 +30,7 @@ type ExportStatus =
  */
 export function CalendarExport({ items, categories, shops }: CalendarExportProps) {
   const [open, setOpen] = useState(false)
-  const [date, setDate] = useState('')
+  const [date, setDate] = useState<string>(todayExportDate)
   const [status, setStatus] = useState<ExportStatus>({ phase: 'idle' })
 
 
@@ -59,10 +59,15 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
     setStatus(result.status === 'exported' ? { phase: 'exported' } : { phase: 'fallback', links: result.links })
   }
 
+  function openDialog() {
+    setDate(todayExportDate())
+    setOpen(true)
+  }
+
   return (
     <>
       <TopAppBarActions>
-        <Button variant="text" onClick={() => setOpen(true)}>
+        <Button variant="text" onClick={openDialog}>
           Export to Calendar
         </Button>
       </TopAppBarActions>
