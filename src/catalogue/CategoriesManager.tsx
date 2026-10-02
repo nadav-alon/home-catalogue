@@ -114,7 +114,7 @@ function CategoryFields({ nameLabel, draft, shops, onChange, onCreateShop }: Cat
         <option value={NEW_SHOP}>+ New Shop</option>
       </Select>
       {newShopName !== null && (
-        <div onKeyDown={handleShopPromptKeyDown}>
+        <div class={DIALOG_FORM_CLASS} onKeyDown={handleShopPromptKeyDown}>
           {shopError !== null && <p role="alert">{shopError}</p>}
           <TextField label="New Shop name" value={newShopName} onInput={(event) => setNewShopName(event.currentTarget.value)} />
           <DialogActions>
