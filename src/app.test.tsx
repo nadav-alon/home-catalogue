@@ -140,8 +140,8 @@ describe('App', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Add a device' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open Shops' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open Categories' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Shops' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Categories' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2, name: 'Shops' })).toBeNull()
   })
 

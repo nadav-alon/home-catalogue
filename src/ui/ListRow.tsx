@@ -13,10 +13,13 @@ export interface ListRowProps {
   muted?: boolean
   /** Makes the text a native button that calls this; the trailing slot stays a separate control. */
   onActivate?: () => void
+  /** Makes the whole row a native link to this href; `trailing` is then decoration inside the link, and `onFollow` handles the click. */
+  href?: string
+  onFollow?: () => void
 }
 
 /** A native `<li>`; render inside a `<ul>` or `<ol>`. */
-export function ListRow({ headline, supporting, trailing, control, muted = false, onActivate }: ListRowProps) {
+export function ListRow({ headline, supporting, trailing, control, muted = false, onActivate, href, onFollow }: ListRowProps) {
   const id = useId()
   const headlineId = `${id}-headline`
   const supportingId = `${id}-supporting`
@@ -51,6 +54,24 @@ export function ListRow({ headline, supporting, trailing, control, muted = false
       {control ? <div class="ui-list-row__trailing">{control}</div> : null}
     </>
   )
+  if (href !== undefined) {
+    return (
+      <li class={['ui-list-row', muted && 'ui-list-row--muted'].filter(Boolean).join(' ')}>
+        <a
+          class="ui-list-row__link"
+          href={href}
+          onClick={(event) => {
+            if (!onFollow) return
+            event.preventDefault()
+            onFollow()
+          }}
+        >
+          <div class="ui-list-row__text">{text}</div>
+          {trailing ? <div class="ui-list-row__trailing">{trailing}</div> : null}
+        </a>
+      </li>
+    )
+  }
   const classes = ['ui-list-row', muted && 'ui-list-row--muted', control && 'ui-list-row--labelled']
   return (
     <li class={classes.filter(Boolean).join(' ')}>

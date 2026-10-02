@@ -31,17 +31,34 @@ describe('SettingsScreen', () => {
   ])('navigates to %s', (name, hash) => {
     render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
-    const link = screen.getByRole('link', { name: `Open ${name}` })
+    const link = screen.getByRole('link', { name })
     expect(link).toHaveAttribute('href', hash)
     fireEvent.click(link)
 
     expect(window.location.hash).toBe(hash)
   })
 
+  it('navigates when the row text is tapped, not only the chevron', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    fireEvent.click(screen.getByText('Shops'))
+
+    expect(window.location.hash).toBe('#/settings/shops')
+  })
+
+  it('gives each navigation row one link, with the chevron hidden inside it', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    const link = screen.getByRole('link', { name: 'Shops' })
+    expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(link.closest('li')?.querySelectorAll('a, button')).toHaveLength(1)
+    expect(link.querySelector('.ui-list-row__trailing')).not.toBeNull()
+  })
+
   it('lists Members above Add device', () => {
     render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
-    const members = screen.getByRole('link', { name: 'Open Members' })
+    const members = screen.getByRole('link', { name: 'Members' })
     const addDevice = screen.getByRole('button', { name: 'Show QR code' })
 
     expect(members.compareDocumentPosition(addDevice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
