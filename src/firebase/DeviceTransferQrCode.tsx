@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import QRCode from 'qrcode'
 import { deviceTransferUrl } from './deviceTransfer.ts'
 import type { FirebaseWebConfig } from './webConfig.ts'
+import './DeviceTransferQrCode.css'
 
 export interface DeviceTransferQrCodeProps {
   config: FirebaseWebConfig
@@ -29,5 +30,5 @@ export function DeviceTransferQrCode({ config, label }: DeviceTransferQrCodeProp
 
   if (failed) return <p role="alert">Could not generate the QR code.</p>
   if (svg === null) return null
-  return <div role="img" aria-label={label} dangerouslySetInnerHTML={{ __html: svg }} />
+  return <div className="device-transfer-qr-code" role="img" aria-label={label} dangerouslySetInnerHTML={{ __html: svg }} />
 }

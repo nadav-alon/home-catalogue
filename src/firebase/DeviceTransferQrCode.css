@@ -1,0 +1,11 @@
+/* Capped so a phone-height screen still shows the control under it; the SVG keeps its own quiet zone. */
+.device-transfer-qr-code {
+  width: 100%;
+  max-width: 15rem;
+}
+
+.device-transfer-qr-code > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
