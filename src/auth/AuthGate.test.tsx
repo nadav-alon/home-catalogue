@@ -119,6 +119,27 @@ describe('AuthGate', () => {
     expect(signInWithGoogle).toHaveBeenCalledWith('fake-app')
   })
 
+  it('shows a decorative inline Google mark before the Sign in with Google label', () => {
+    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+      cb(null)
+      return unsubscribe
+    })
+
+    render(
+      <AuthGate client={fakeClient} onResetConfig={onResetConfig}>
+        <p>App content</p>
+      </AuthGate>,
+    )
+
+    const button = screen.getByRole('button', { name: 'Sign in with Google' })
+    const mark = button.querySelector('svg')
+    expect(mark).not.toBeNull()
+    expect(mark).toHaveAttribute('aria-hidden', 'true')
+    expect(button.firstElementChild).toBe(mark)
+    const fills = [...(mark?.querySelectorAll('path') ?? [])].map((path) => path.getAttribute('fill'))
+    expect(new Set(fills).size).toBe(4)
+  })
+
   it('offers Reset Firebase configuration on the signed-out card, only after the user confirms', () => {
     watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)

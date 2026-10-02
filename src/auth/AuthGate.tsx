@@ -7,6 +7,7 @@ import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 import { Button } from '../ui/Button.tsx'
 import { ResetConfigButton, type ResetConfigButtonProps } from '../setup/ResetConfigButton.tsx'
 import { CentredCard } from '../ui/CentredCard.tsx'
+import { GoogleMark } from './GoogleMark.tsx'
 
 export interface AuthGateProps {
   client: FirebaseClient
@@ -76,7 +77,10 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
     case 'signed-out':
       return (
         <CentredCard title="Sign in">
-          <Button onClick={() => void signInWithGoogle(client.app)}>Sign in with Google</Button>
+          <Button onClick={() => void signInWithGoogle(client.app)}>
+            <GoogleMark />
+            Sign in with Google
+          </Button>
           <ResetConfigRow onResetConfig={onResetConfig} />
         </CentredCard>
       )
