@@ -5,24 +5,24 @@ import { catalogue } from 'data-platform'
 import { pharmacy } from './testFixtures.ts'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
-const doc = vi.fn((_db: unknown, path: string, id: string) => ({ path, id }))
+const doc = vi.fn((first: unknown, path?: string, id?: string) => ({ path: path ?? (first as { path: string }).path, id: id ?? 'new-id' }))
 const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constraints }))
 const orderBy = vi.fn((field: string) => ({ kind: 'orderBy', field }))
 const onSnapshot = vi.fn()
 const serverTimestamp = vi.fn(() => ({ kind: 'serverTimestamp' }))
 const deleteField = vi.fn(() => ({ kind: 'deleteField' }))
-const addDoc = vi.fn()
+const setDoc = vi.fn()
 const updateDoc = vi.fn()
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
-  doc: (db: unknown, path: string, id: string) => doc(db, path, id),
+  doc: (first: unknown, path?: string, id?: string) => doc(first, path, id),
   query: (ref: unknown, ...constraints: unknown[]) => query(ref, ...constraints),
   orderBy: (field: string) => orderBy(field),
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
   serverTimestamp: () => serverTimestamp(),
   deleteField: () => deleteField(),
-  addDoc: (ref: unknown, data: unknown) => addDoc(ref, data),
+  setDoc: (ref: unknown, data: unknown) => setDoc(ref, data),
   updateDoc: (ref: unknown, data: unknown) => updateDoc(ref, data),
 }))
 
@@ -46,7 +46,7 @@ beforeEach(() => {
   query.mockClear()
   orderBy.mockClear()
   onSnapshot.mockReset()
-  addDoc.mockReset()
+  setDoc.mockReset()
   updateDoc.mockReset()
 })
 
@@ -107,31 +107,32 @@ describe('watchShops', () => {
 })
 
 describe('createShop', () => {
-  it('validates the name and writes a new Shop that starts unreferenced', async () => {
+  it('validates the name, writes a new Shop that starts unreferenced and resolves with its id', async () => {
     const { createShop } = await import('./shops.ts')
-    addDoc.mockResolvedValueOnce({ id: 'new-id' })
+    setDoc.mockResolvedValueOnce(undefined)
 
-    await createShop(fakeDb, 'Pharmacy')
+    const id = await createShop(fakeDb, 'Pharmacy')
 
     expect(collection).toHaveBeenCalledWith(fakeDb, catalogue.SHOPS_COLLECTION)
-    expect(addDoc).toHaveBeenCalledWith(
-      { path: catalogue.SHOPS_COLLECTION },
+    expect(setDoc).toHaveBeenCalledWith(
+      { path: catalogue.SHOPS_COLLECTION, id: 'new-id' },
       { name: 'Pharmacy', referenceCount: 0 },
     )
+    expect(id).toBe('new-id')
   })
 
   it('rejects an empty name without writing', async () => {
     const { createShop } = await import('./shops.ts')
 
     await expect(createShop(fakeDb, '')).rejects.toThrow()
-    expect(addDoc).not.toHaveBeenCalled()
+    expect(setDoc).not.toHaveBeenCalled()
   })
 
   it('resolves once the write is queued, without waiting for Firestore to acknowledge it', async () => {
     const { createShop } = await import('./shops.ts')
-    addDoc.mockReturnValueOnce(new Promise(() => {}))
+    setDoc.mockReturnValueOnce(new Promise(() => {}))
 
-    await expect(createShop(fakeDb, 'Pharmacy')).resolves.toBeUndefined()
+    await expect(createShop(fakeDb, 'Pharmacy')).resolves.toBe('new-id')
   })
 })
 
@@ -228,7 +229,7 @@ describe('a queued Shop write the server rejects', () => {
   it('reports a new Shop by name', async () => {
     const { createShop } = await import('./shops.ts')
     const latest = await rejections()
-    addDoc.mockRejectedValueOnce(new Error('permission-denied'))
+    setDoc.mockRejectedValueOnce(new Error('permission-denied'))
 
     await createShop(fakeDb, 'Pharmacy')
     await Promise.resolve()

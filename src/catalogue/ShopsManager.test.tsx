@@ -38,7 +38,7 @@ beforeEach(() => {
     this.removeAttribute('open')
     this.dispatchEvent(new Event('close'))
   })
-  createShop.mockReset().mockResolvedValue(undefined)
+  createShop.mockReset().mockResolvedValue("new-shop")
   renameShop.mockReset().mockResolvedValue(undefined)
   deleteShop.mockReset().mockResolvedValue(undefined)
   restoreShop.mockReset().mockResolvedValue(undefined)
