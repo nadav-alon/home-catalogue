@@ -13,6 +13,17 @@ afterEach(async () => {
   history.replaceState(null, '')
 })
 
+function boxAt(dialog: HTMLElement, box: { left: number; top: number; right: number; bottom: number }) {
+  dialog.getBoundingClientRect = () => ({
+    ...box,
+    x: box.left,
+    y: box.top,
+    width: box.right - box.left,
+    height: box.bottom - box.top,
+    toJSON: () => ({}),
+  })
+}
+
 describe('Dialog', () => {
   it('is a native dialog opened modally, named by its title', () => {
     render(
@@ -51,6 +62,19 @@ describe('Dialog', () => {
     const cancel = new Event('cancel', { cancelable: true })
     fireEvent(screen.getByRole('dialog'), cancel)
     expect(cancel.defaultPrevented).toBe(true)
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('asks once to close when the backdrop is tapped', () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog open title="New item" onClose={onClose}>
+        x
+      </Dialog>,
+    )
+    const dialog = screen.getByRole('dialog')
+    boxAt(dialog, { left: 100, top: 100, right: 300, bottom: 300 })
+    fireEvent.click(dialog, { clientX: 50, clientY: 200 })
     expect(onClose).toHaveBeenCalledOnce()
   })
 

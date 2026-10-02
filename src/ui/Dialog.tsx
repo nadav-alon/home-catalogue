@@ -9,7 +9,7 @@ export interface DialogProps {
   open: boolean
   /** Accessible name and visible heading. */
   title: string
-  /** Called on Escape, on browser back, and if the browser closes the dialog itself; the caller decides by setting `open`. */
+  /** Called on Escape, on a tap of the backdrop, on browser back, and if the browser closes the dialog itself; the caller decides by setting `open`. */
   onClose: () => void
   /** Extra class for the `<dialog>`, for a dialog that departs from the shared layout. */
   class?: string
@@ -72,6 +72,15 @@ export function Dialog({ open, title, onClose, class: className, closable, child
       onCancel={(event) => {
         event.preventDefault()
         onClose()
+      }}
+      onClick={(event) => {
+        if (event.target !== event.currentTarget) return
+        // The backdrop belongs to the dialog element, so a tap on it targets the dialog itself, as does a tap on its padding:
+        // only a point outside the box is the backdrop.
+        const box = event.currentTarget.getBoundingClientRect()
+        const inside =
+          event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom
+        if (!inside) onClose()
       }}
       onClose={() => {
         if (openRef.current) onClose()
