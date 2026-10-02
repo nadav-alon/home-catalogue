@@ -209,6 +209,18 @@ describe('CalendarExport', () => {
     expect(link).toHaveAttribute('href', 'https://calendar.google.com/calendar/render?text=Pharmacy')
   })
 
+  it('says sign-in was cancelled, with no fallback links, and leaves Export available to retry', async () => {
+    exportShoppingList.mockResolvedValueOnce({ status: 'cancelled' })
+    renderWith([outBandages], [medicine], [pharmacy])
+
+    await submit('2026-03-05')
+
+    expect(screen.getByText('Google sign-in was cancelled.')).toBeInTheDocument()
+    expect(screen.queryByText(/Couldn't reach Google Calendar/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Pharmacy' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled()
+  })
+
   it('shows no error when the dialog is reopened after an offline export attempt', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     renderWith([outBandages], [medicine], [pharmacy])

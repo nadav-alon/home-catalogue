@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { core } from 'data-platform'
 import type { ItemRecord } from '../catalogue/items.ts'
 import { bandages, cleaning, grocery, pharmacy } from '../catalogue/testFixtures.ts'
-import { accessToken } from './googleAuthClient.ts'
+import { accessToken, GoogleSignInCancelledError } from './googleAuthClient.ts'
 import { exportDate } from './exportDate.ts'
 import { exportShoppingList } from './exportShoppingList.ts'
 import { GoogleCalendarApiError } from './googleCalendarApi.ts'
@@ -71,6 +71,15 @@ describe('exportShoppingList', () => {
     if (result.status !== 'fallback') throw new Error('expected fallback')
     expect(result.links.map((link) => link.shopName)).toEqual(['Pharmacy', 'Grocery'])
     expect(result.links.every((link) => link.url.startsWith('https://calendar.google.com/calendar/render?'))).toBe(true)
+    expect(findOrCreateAppCalendar).not.toHaveBeenCalled()
+  })
+
+  it('reports a cancelled sign-in, not links, when the household closes the popup', async () => {
+    requestCalendarAccessToken.mockRejectedValueOnce(new GoogleSignInCancelledError('closed'))
+
+    const result = await exportShoppingList(groups, date)
+
+    expect(result).toEqual({ status: 'cancelled' })
     expect(findOrCreateAppCalendar).not.toHaveBeenCalled()
   })
 

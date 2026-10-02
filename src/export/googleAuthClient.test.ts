@@ -3,6 +3,7 @@ import {
   CALENDAR_APP_CREATED_SCOPE,
   GOOGLE_OAUTH_CLIENT_ID,
   GoogleIdentityUnavailableError,
+  GoogleSignInCancelledError,
   requestCalendarAccessToken,
 } from './googleAuthClient.ts'
 
@@ -82,7 +83,7 @@ describe('requestCalendarAccessToken', () => {
     await expect(requestCalendarAccessToken()).rejects.toThrow('access_denied')
   })
 
-  it('rejects when the user closes the popup, via error_callback rather than callback', async () => {
+  it('rejects as cancelled when the user closes the popup, via error_callback rather than callback', async () => {
     window.google = {
       accounts: {
         oauth2: {
@@ -93,6 +94,6 @@ describe('requestCalendarAccessToken', () => {
       },
     }
 
-    await expect(requestCalendarAccessToken()).rejects.toThrow('popup_closed')
+    await expect(requestCalendarAccessToken()).rejects.toBeInstanceOf(GoogleSignInCancelledError)
   })
 })
