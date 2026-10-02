@@ -7,6 +7,7 @@ import { firebaseWebConfig } from '../firebase/webConfig.ts'
 import { deviceTransferUrl } from '../firebase/deviceTransfer.ts'
 import { resetHash } from '../testing/hash.ts'
 import { createInvite, revokeInvite } from './invites.ts'
+import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
 import { MembersScreen } from './MembersScreen.tsx'
 import type { MemberRecord } from './members.ts'
 
@@ -65,6 +66,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  resetSnackbar()
   resetHash()
   Reflect.deleteProperty(navigator, 'share')
   vi.restoreAllMocks()
@@ -82,6 +84,7 @@ function renderScreen(members: MemberRecord[] = [], invites: core.Email[] = []) 
   return render(
     <TopAppBar title="Members">
       <MembersScreen db={fakeDb} config={config} />
+      <SnackbarHost />
     </TopAppBar>,
   )
 }
@@ -244,6 +247,23 @@ describe('MembersScreen', () => {
 
       await waitFor(() => expect(createInvite).toHaveBeenCalledWith(fakeDb, 'new@example.com'))
       expect(screen.getByLabelText('Invite by email')).toHaveValue('')
+    })
+
+    it('confirms the invite in a snackbar', async () => {
+      renderScreen([owner, member])
+
+      invite('New@Example.com')
+
+      expect(await screen.findByRole('status')).toHaveTextContent('Invited new@example.com')
+    })
+
+    it('shows no snackbar when the email is refused', async () => {
+      renderScreen([owner, member])
+
+      invite('B@example.com')
+
+      await screen.findByRole('alert')
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
     })
 
     it('refuses an email that is already a Member, on the field', async () => {

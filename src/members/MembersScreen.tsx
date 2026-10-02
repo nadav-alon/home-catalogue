@@ -6,6 +6,7 @@ import { currentUserUid } from '../auth/authClient.ts'
 import { reportFailure } from '../catalogue/writeRejections.ts'
 import type { FirebaseWebConfig } from '../firebase/webConfig.ts'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
+import { showSnackbar } from '../ui/Snackbar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
@@ -156,6 +157,7 @@ function InviteForm({ db, members, invites }: InviteFormProps) {
       return
     }
     await createInvite(db, key)
+    showSnackbar({ text: `Invited ${key}` })
     setValue('')
     setError(undefined)
   }
