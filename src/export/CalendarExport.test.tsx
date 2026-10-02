@@ -182,7 +182,7 @@ describe('CalendarExport', () => {
   it('notes pending Items with no resolved Shop are left out of the export', () => {
     renderWith([outBandages, orphan], [medicine], [pharmacy])
 
-    expect(screen.getByText("1 pending Item with no Shop won't be included in the export.")).toBeInTheDocument()
+    expect(screen.getByText("1 pending Item with no Shop to export under won't be included in the export.")).toBeInTheDocument()
   })
 
   it('shows a deep link per Shop when the export falls back', async () => {
@@ -254,6 +254,52 @@ describe('CalendarExport', () => {
     await act(async () => finish({ status: 'exported' }))
     expect(screen.getByText('Exported to Calendar.')).toBeInTheDocument()
     expect(exportButton).toBeEnabled()
+  })
+
+  it('says pending Items need a Shop, not that nothing is pending, when none has a Shop to export under', async () => {
+    const deletedShop: CategoryRecord = { ...medicine, defaultShopId: catalogue.shopId('deleted-shop') }
+    renderWith([orphan, outBandages], [deletedShop], [pharmacy])
+
+    await submit('2026-03-05')
+
+    expect(screen.getByRole('alert')).toHaveTextContent('2 pending Items need a Shop before they can be exported.')
+    expect(exportShoppingList).not.toHaveBeenCalled()
+  })
+
+  it("shows no won't-be-included note when nothing can be exported, leaving the alert to explain", async () => {
+    renderWith([orphan], [medicine], [pharmacy])
+
+    expect(screen.queryByText(/won't be included/)).not.toBeInTheDocument()
+    await submit('2026-03-05')
+
+    expect(screen.getByRole('alert')).toHaveTextContent('1 pending Item needs a Shop before it can be exported.')
+    expect(screen.queryByText(/won't be included/)).not.toBeInTheDocument()
+  })
+
+  it("counts a pending Item whose Shop record was deleted in the won't-be-included note, and exports the rest", async () => {
+    const deletedShopCategory: CategoryRecord = {
+      ...medicine,
+      id: catalogue.categoryId('deleted-shop-category'),
+      defaultShopId: catalogue.shopId('deleted-shop'),
+    }
+    const strandedItem: ItemRecord = { ...orphan, id: core.itemId('stranded'), categoryId: deletedShopCategory.id }
+    exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
+    renderWith([outBandages, strandedItem], [medicine, deletedShopCategory], [pharmacy])
+
+    expect(
+      screen.getByText("1 pending Item with no Shop to export under won't be included in the export."),
+    ).toBeInTheDocument()
+    await submit('2026-03-05')
+
+    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+  })
+
+  it('uses the singular when one pending Item needs a Shop', async () => {
+    renderWith([orphan], [medicine], [pharmacy])
+
+    await submit('2026-03-05')
+
+    expect(screen.getByRole('alert')).toHaveTextContent('1 pending Item needs a Shop before it can be exported.')
   })
 
   it('rejects exporting when the Items are marked enough while the dialog is open', async () => {
