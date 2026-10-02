@@ -38,6 +38,8 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
   async function handleExport(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
 
+    if (status.phase === 'exporting') return
+
     if (!isExportDate(date)) {
       setStatus({ phase: 'error', message: 'Choose a date to export to.' })
       return
@@ -59,8 +61,12 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
   }
 
   function openDialog() {
-    setDate(todayExportDate())
-    setStatus({ phase: 'idle' })
+    // An export still in flight keeps the dialog showing it, date included, so Export stays disabled and its
+    // result lands beside the date it was made for.
+    if (status.phase !== 'exporting') {
+      setDate(todayExportDate())
+      setStatus({ phase: 'idle' })
+    }
     setOpen(true)
   }
 

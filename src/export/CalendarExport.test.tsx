@@ -186,6 +186,25 @@ describe('CalendarExport', () => {
     expect(screen.queryByRole('link', { name: 'Pharmacy' })).not.toBeInTheDocument()
   })
 
+  it('keeps Export disabled and starts no second export when reopened while an export is in flight', async () => {
+    let finish: (result: { status: 'exported' }) => void = () => {}
+    exportShoppingList.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+    renderWith([outBandages], [medicine], [pharmacy])
+    await submit('2026-03-05')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+    const exportButton = screen.getByRole('button', { name: 'Export' })
+    expect(exportButton).toBeDisabled()
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-03-05')
+    fireEvent.submit(exportButton.closest('form')!)
+    expect(exportShoppingList).toHaveBeenCalledTimes(1)
+
+    await act(async () => finish({ status: 'exported' }))
+    expect(screen.getByText('Exported to Calendar.')).toBeInTheDocument()
+    expect(exportButton).toBeEnabled()
+  })
+
   it('shows no alert when the dialog is reopened after an export with no pending Items', async () => {
     renderWith([], [medicine], [pharmacy])
     await submit('2026-03-05')
