@@ -57,7 +57,7 @@ function AddShopDialog({ db, onClose }: AddShopDialogProps) {
   }
 
   return (
-    <Dialog open title="Add Shop" onClose={onClose}>
+    <Dialog open title="Add Shop" onClose={onClose} closable>
       <form onSubmit={handleSubmit}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="New Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
@@ -110,7 +110,7 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
   }
 
   return (
-    <Dialog open title="Edit Shop" onClose={onClose}>
+    <Dialog open title="Edit Shop" onClose={onClose} closable>
       <form onSubmit={handleRename}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />

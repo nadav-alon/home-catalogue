@@ -118,11 +118,23 @@ describe('ShopsManager', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
+  it('closes Add Shop from the title-row Close icon without creating a Shop', async () => {
+    renderWithShops([])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(createShop).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
   it('orders the Add Shop actions Cancel, Add', () => {
     renderWithShops([])
     fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
 
-    const labels = within(screen.getByRole('dialog')).getAllByRole('button').map((button) => button.textContent)
+    const labels = within(screen.getByRole('dialog'))
+      .getAllByRole('button', { name: (name) => name !== 'Close' })
+      .map((button) => button.textContent)
     expect(labels).toEqual(['Cancel', 'Add'])
   })
 
@@ -182,11 +194,24 @@ describe('ShopsManager', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
+  it('closes Edit Shop from the title-row Close icon without renaming or deleting the Shop', async () => {
+    renderWithShops([pharmacy])
+    openEditor('Pharmacy')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(renameShop).not.toHaveBeenCalled()
+    expect(deleteShop).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
   it('orders the Edit Shop actions Delete, Cancel, Rename', () => {
     renderWithShops([pharmacy])
     openEditor('Pharmacy')
 
-    const labels = within(screen.getByRole('dialog')).getAllByRole('button').map((button) => button.textContent)
+    const labels = within(screen.getByRole('dialog'))
+      .getAllByRole('button', { name: (name) => name !== 'Close' })
+      .map((button) => button.textContent)
     expect(labels).toEqual(['Delete', 'Cancel', 'Rename'])
   })
 
