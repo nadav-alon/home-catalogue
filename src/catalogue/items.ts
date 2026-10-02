@@ -42,8 +42,9 @@ export interface ItemInput {
   shopId?: catalogue.ShopId
 }
 
-/** What adding an Item carries: its fields, plus a Barcode it carries from the start. */
+/** What adding an Item carries: its fields, the State it starts at (`enough` when omitted), plus a Barcode it carries from the start. */
 export interface NewItemInput extends ItemInput {
+  state?: core.State
   barcode?: core.Barcode
 }
 
@@ -157,7 +158,7 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
 export async function createItem(db: Firestore, input: NewItemInput): Promise<core.ItemId> {
   const item = core.itemSchema.parse({
     name: input.name,
-    state: 'enough',
+    state: input.state ?? 'enough',
     ...(input.brandNote !== undefined ? { brandNote: input.brandNote } : {}),
     ...(input.barcode !== undefined ? { barcodes: [input.barcode] } : {}),
   })

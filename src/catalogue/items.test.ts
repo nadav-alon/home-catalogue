@@ -253,6 +253,23 @@ describe('createItem', () => {
     )
   })
 
+  it('writes the new Item at the State it is given', async () => {
+    const { createItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await createItem(fakeDb, {
+      name: 'Dish soap',
+      state: core.stateSchema.parse('out'),
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+    })
+
+    expect(batchSet).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'generated-id' },
+      { name: 'Dish soap', state: 'out' },
+    )
+  })
+
   it('resolves with the generated id of the new Item', async () => {
     const { createItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
