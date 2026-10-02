@@ -115,7 +115,7 @@ describe('exportShoppingList', () => {
 
     expect(forgetAppCalendar).not.toHaveBeenCalled()
   })
-  it('reports the underlying error to the global banner alongside the fallback', async () => {
+  it('logs the underlying error without raising a page-level banner', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     const { resetWriteRejections, watchWriteRejections } = await import('../catalogue/writeRejections.ts')
     resetWriteRejections()
@@ -130,7 +130,7 @@ describe('exportShoppingList', () => {
     const result = await exportShoppingList(groups, date)
 
     expect(result.status).toBe('fallback')
-    expect(messages).toEqual(["Could not add the Export to Google Calendar; add each Shop's event with the links below: 403 insufficient scope"])
+    expect(messages).toEqual([])
     expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure)
     consoleError.mockRestore()
   })
