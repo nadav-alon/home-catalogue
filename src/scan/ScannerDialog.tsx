@@ -1,10 +1,8 @@
 import { useEffect, useRef } from 'preact/hooks'
 import { core } from 'data-platform'
 import { Dialog } from '../ui/Dialog.tsx'
-import { IconButton } from '../ui/IconButton.tsx'
 import { nativeBarcodeDetector, type BarcodeFormat } from './barcodeDetector.ts'
 import './ScannerDialog.css'
-import CloseIcon from '~icons/material-symbols/close'
 
 export interface ScannerDialogProps {
   open: boolean
@@ -32,8 +30,7 @@ const DETECT_INTERVAL_MS = 150
  */
 export function ScannerDialog({ open, onScan, onDenied, onUnavailable, onClose }: ScannerDialogProps) {
   return (
-    <Dialog open={open} title="Scan barcode" class="scan-dialog" onClose={onClose}>
-      <IconButton symbol={CloseIcon} label="Close" onClick={onClose} />
+    <Dialog open={open} title="Scan barcode" class="scan-dialog" onClose={onClose} closable>
       {open && <CameraReader onScan={onScan} onDenied={onDenied} onUnavailable={onUnavailable} />}
     </Dialog>
   )
