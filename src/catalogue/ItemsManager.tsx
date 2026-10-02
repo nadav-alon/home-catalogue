@@ -270,13 +270,23 @@ interface ItemGroupProps {
   onOpen: (item: ItemRecord) => void
 }
 
+/** The heading of a collapsed group, followed by how many of its Items are running low or out; unchanged when none are. */
+function collapsedHeading(heading: string, items: ItemRecord[]): string {
+  const counts = [
+    { count: items.filter((item) => item.state === 'running low').length, label: 'running low' },
+    { count: items.filter((item) => item.state === 'out').length, label: 'out' },
+  ]
+  const summary = counts.filter(({ count }) => count > 0).map(({ count, label }) => `${count} ${label}`).join(', ')
+  return summary === '' ? heading : `${heading} · ${summary}`
+}
+
 function ItemGroup({ heading, collapsed, onToggle, items, onSetState, onOpen }: ItemGroupProps) {
   return (
     <div>
       <h3 class="item-group__heading">
         <button type="button" class="item-group__toggle" aria-expanded={!collapsed} onClick={onToggle}>
           <Icon symbol={ExpandMoreIcon} />
-          {heading}
+          {collapsed ? collapsedHeading(heading, items) : heading}
         </button>
       </h3>
       {!collapsed && (

@@ -1547,6 +1547,36 @@ describe('collapsing a Category', () => {
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
   })
 
+  it("summarises a collapsed heading with its Items' running low and out counts", () => {
+    const items = [
+      { ...soap, id: core.itemId('a'), state: 'running low' as const },
+      { ...soap, id: core.itemId('b'), state: 'running low' as const },
+      { ...soap, id: core.itemId('c'), state: 'out' as const },
+      { ...soap, id: core.itemId('d'), state: 'enough' as const },
+    ]
+    renderWith(items, [cleaning], [grocery])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cleaning' }))
+
+    expect(screen.getByRole('button', { name: 'Cleaning · 2 running low, 1 out' })).toBeInTheDocument()
+  })
+
+  it('counts only the States that occur, and adds nothing when every Item is enough', () => {
+    renderWith([{ ...soap, state: 'out' }, { ...bandages, state: 'enough' }], [medicine, cleaning], [pharmacy, grocery])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cleaning' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+
+    expect(screen.getByRole('button', { name: 'Cleaning · 1 out' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Medicine' })).toBeInTheDocument()
+  })
+
+  it('shows no summary while the Category is expanded', () => {
+    renderWith([{ ...soap, state: 'out' }], [cleaning], [grocery])
+
+    expect(screen.getByRole('button', { name: 'Cleaning' })).toBeInTheDocument()
+  })
+
   it('remembers a collapsed Category across reloads, by Category id', () => {
     const first = renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
     fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
