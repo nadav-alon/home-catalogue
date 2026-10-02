@@ -7,6 +7,8 @@ interface ListRowBaseProps {
   supporting?: string
   /** Content pinned to the row's end, such as a status. */
   trailing?: ComponentChildren
+  /** Below 600px, drops the trailing slot under the text so a wide control never squeezes the headline. */
+  stackTrailing?: boolean
   /** De-emphasises the row visually. */
   muted?: boolean
 }
@@ -31,7 +33,7 @@ export type ListRowProps = ListRowBaseProps &
   )
 
 /** A native `<li>`; render inside a `<ul>` or `<ol>`. */
-export function ListRow({ headline, supporting, trailing, control, muted = false, onActivate, href, onFollow }: ListRowProps) {
+export function ListRow({ headline, supporting, trailing, control, muted = false, stackTrailing = false, onActivate, href, onFollow }: ListRowProps) {
   const id = useId()
   const headlineId = `${id}-headline`
   const supportingId = `${id}-supporting`
@@ -66,7 +68,7 @@ export function ListRow({ headline, supporting, trailing, control, muted = false
       {control ? <div class="ui-list-row__trailing">{control}</div> : null}
     </>
   )
-  const classes = ['ui-list-row', muted && 'ui-list-row--muted', (control || href !== undefined) && 'ui-list-row--labelled']
+  const classes = ['ui-list-row', muted && 'ui-list-row--muted', (control || href !== undefined) && 'ui-list-row--labelled', stackTrailing && 'ui-list-row--stack-trailing']
   return (
     <li class={classes.filter(Boolean).join(' ')}>
       {href !== undefined ? (

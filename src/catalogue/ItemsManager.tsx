@@ -266,6 +266,7 @@ function ItemGroup({ heading, items, onSetState, onOpen }: ItemGroupProps) {
             key={item.id}
             headline={item.name}
             supporting={[item.brandNote, item.necessity].filter((part) => part !== undefined).join(' · ')}
+            stackTrailing
             onActivate={() => onOpen(item)}
             trailing={
               <SegmentedButton

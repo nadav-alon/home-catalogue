@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { ListRow } from './ListRow.tsx'
-import { tokenUsage } from '../testing/css.ts'
+import { read, tokenUsage } from '../testing/css.ts'
+
+const narrowQuery = /@media \(max-width: 599\.98px\)\s*{((?:[^{}]*{[^}]*})*)\s*}/
+
+const narrowBlock = () => read('src/ui/ListRow.css').match(narrowQuery)?.[1] ?? ''
+const outsideNarrowBlock = () => read('src/ui/ListRow.css').replace(narrowQuery, '')
 
 describe('ListRow', () => {
   it('renders a native list item with headline and supporting text', () => {
@@ -76,6 +81,22 @@ describe('ListRow', () => {
       </ul>,
     )
     expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('stacks the trailing slot under the text below 600px when asked to', () => {
+    render(
+      <ul>
+        <ListRow headline="Milk" stackTrailing trailing={<button type="button">Out</button>} />
+      </ul>,
+    )
+    expect(screen.getByRole('listitem')).toHaveClass('ui-list-row--stack-trailing')
+    expect(narrowBlock()).toMatch(/\.ui-list-row--stack-trailing\s*{[^}]*flex-wrap: wrap/)
+    expect(narrowBlock()).toMatch(/\.ui-list-row--stack-trailing \.ui-list-row__text\s*{[^}]*flex-basis: 100%/)
+    expect(outsideNarrowBlock()).not.toMatch(/stack-trailing/)
+  })
+
+  it('gives a stacked row\'s segmented options a 48px touch target below 600px', () => {
+    expect(narrowBlock()).toMatch(/\.ui-list-row--stack-trailing \.ui-segmented__option\s*{[^}]*min-height: 3rem/)
   })
 
   it('is styled only from defined tokens', () => {
