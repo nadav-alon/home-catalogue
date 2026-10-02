@@ -21,7 +21,7 @@ export interface UnknownBarcodeChooserProps {
 /** What to do with a scanned Barcode no Item carries yet. */
 export function UnknownBarcodeChooser({ barcode, items, onAttach, onNewItem, onClose }: UnknownBarcodeChooserProps) {
   return (
-    <Dialog open={barcode !== undefined} title="Unknown barcode" onClose={onClose}>
+    <Dialog open={barcode !== undefined} title="Unknown barcode" onClose={onClose} closable>
       {barcode !== undefined && <UnknownBarcodeChoice barcode={barcode} items={items} onAttach={onAttach} onNewItem={onNewItem} onClose={onClose} />}
     </Dialog>
   )

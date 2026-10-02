@@ -1300,6 +1300,18 @@ describe('a scanned barcode', () => {
     expect(updateItem).not.toHaveBeenCalled()
   })
 
+  it('closes the chooser from the Close icon in its title row, writing nothing', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Close' }))
+
+    await waitFor(() => expect(chooser).not.toHaveAttribute('open'))
+    expect(createItem).not.toHaveBeenCalled()
+    expect(updateItem).not.toHaveBeenCalled()
+  })
+
   it('attaches the barcode to the Item picked from the chooser, then opens its filter', async () => {
     const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
     renderWith([bandages, tape], [medicine], [pharmacy])
