@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
@@ -33,6 +33,7 @@ export interface ShopsManagerProps {
 }
 
 export const BLANK_NAME_MESSAGE = 'A Shop needs a name.'
+export const SHOP_DELETED_MESSAGE = 'This Shop was deleted.'
 
 interface AddShopDialogProps {
   db: Firestore
@@ -79,16 +80,25 @@ interface EditShopDialogProps {
   db: Firestore
   /** The Shop as it was when the dialog opened; seeds the draft name. */
   opened: ShopRecord
-  /** The Shop as watchShops last reported it; drives everything that must stay current. */
-  shop: ShopRecord
+  /** The Shop as watchShops last reported it; drives everything that must stay current. Undefined once it has left the live list. */
+  shop: ShopRecord | undefined
   onClose: () => void
 }
 
 /** Owns its draft name and error, so each opening starts from the Shop's name at that moment; mount it only while open. */
-function EditShopDialog({ db, opened, shop, onClose }: EditShopDialogProps) {
+function EditShopDialog({ db, opened, shop: live, onClose }: EditShopDialogProps) {
+  const shop = live ?? opened
+  const deleting = useRef(false)
   const [name, setName] = useState(opened.name)
   const inUseNoteId = useUniqueId()
   const [error, setError] = useState<string | null>(null)
+
+  // A Shop leaving the live list that this dialog did not delete itself was deleted elsewhere.
+  useEffect(() => {
+    if (live !== undefined || deleting.current) return
+    showSnackbar({ text: SHOP_DELETED_MESSAGE })
+    onClose()
+  }, [live, onClose])
 
   async function handleRename(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -108,6 +118,7 @@ function EditShopDialog({ db, opened, shop, onClose }: EditShopDialogProps) {
   const inUse = isShopInUse(shop)
 
   async function handleDelete() {
+    deleting.current = true
     try {
       await deleteShop(db, shop)
       showSnackbar({
@@ -116,6 +127,7 @@ function EditShopDialog({ db, opened, shop, onClose }: EditShopDialogProps) {
       })
       onClose()
     } catch {
+      deleting.current = false
       setError('Could not delete Shop')
     }
   }
@@ -177,7 +189,7 @@ export function ShopsManager({ db }: ShopsManagerProps) {
       </ul>
       <Fab symbol={AddIcon} label="Add Shop" onClick={() => setAdding(true)} />
       {adding && <AddShopDialog db={db} onClose={() => setAdding(false)} />}
-      {opened !== null && editing !== undefined && (
+      {opened !== null && (
         <EditShopDialog db={db} opened={opened} shop={editing} onClose={() => setOpened(null)} />
       )}
     </section>

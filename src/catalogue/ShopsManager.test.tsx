@@ -5,7 +5,7 @@ import { catalogue } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { actionLabels } from '../testing/dialog.ts'
 import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
-import { ShopsManager } from './ShopsManager.tsx'
+import { ShopsManager, SHOP_DELETED_MESSAGE } from './ShopsManager.tsx'
 import { SHOP_IN_USE_MESSAGE, type ShopRecord } from './shops.ts'
 import { grocery, pharmacy } from './testFixtures.ts'
 
@@ -315,6 +315,30 @@ describe('ShopsManager', () => {
 
     expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
     expect(screen.queryByText(SHOP_IN_USE_MESSAGE)).toBeNull()
+  })
+
+  it('closes the dialog and says the Shop was deleted when it leaves the live list', async () => {
+    const { push } = renderLive([pharmacy, grocery], { withSnackbar: true })
+    openEditor('Pharmacy')
+
+    act(() => push([grocery]))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getByRole('status')).toHaveTextContent(SHOP_DELETED_MESSAGE)
+  })
+
+  it('does not report a deletion the dialog made itself as deleted elsewhere', async () => {
+    const { push } = renderLive([pharmacy], { withSnackbar: true })
+    deleteShop.mockImplementationOnce(() => {
+      act(() => push([]))
+      return Promise.resolve()
+    })
+    openEditor('Pharmacy')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Deleted Pharmacy'))
+    expect(screen.getByRole('status')).not.toHaveTextContent(SHOP_DELETED_MESSAGE)
   })
 
   it('opens the Edit Shop dialog when the row itself is tapped', () => {
