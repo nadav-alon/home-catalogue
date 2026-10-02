@@ -70,7 +70,12 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
             supporting={memberSupportingText(member, viewerUid)}
             trailing={
               viewerIsOwner && !member.isOwner ? (
-                <Button variant="text" aria-label={`Remove ${member.email}`} onClick={() => handleRemove(member)}>
+                <Button
+                  variant="text"
+                  destructive
+                  aria-label={`Remove ${member.email}`}
+                  onClick={() => handleRemove(member)}
+                >
                   Remove
                 </Button>
               ) : undefined
