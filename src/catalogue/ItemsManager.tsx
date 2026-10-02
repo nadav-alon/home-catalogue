@@ -136,7 +136,6 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   }
 
   function toggleGroup(key: GroupKey) {
-    if (filterActive) return
     const next = new Set(collapsedGroups)
     if (!next.delete(key)) next.add(key)
     saveCollapsedGroups(next)
@@ -192,7 +191,11 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
     : candidateItems.filter((item) => matchesName(item, search))
   // A search or scan filter shows its matches whatever was collapsed; the remembered state is left alone for when it clears.
   const filterActive = scanFiltered || search !== ''
-  const isCollapsed = (key: GroupKey) => !filterActive && collapsedGroups.has(key)
+  const groupToggle = (key: GroupKey) => ({
+    collapsed: !filterActive && collapsedGroups.has(key),
+    toggleDisabled: filterActive,
+    onToggle: () => toggleGroup(key),
+  })
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
@@ -218,10 +221,10 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         </p>
       )}
       {groups.map(({ category, items: categoryItems }) => (
-        <ItemGroup key={category.id} heading={category.name} collapsed={isCollapsed(category.id)} onToggle={() => toggleGroup(category.id)} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />
+        <ItemGroup key={category.id} heading={category.name} {...groupToggle(category.id)} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />
       ))}
       {uncategorisedItems.length > 0 && (
-        <ItemGroup heading="Uncategorised" collapsed={isCollapsed(UNCATEGORISED)} onToggle={() => toggleGroup(UNCATEGORISED)} items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
+        <ItemGroup heading="Uncategorised" {...groupToggle(UNCATEGORISED)} items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
       <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={handleDeclineRestore} />
       <UnknownBarcodeChooser
@@ -268,6 +271,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
 interface ItemGroupProps {
   heading: string
   collapsed: boolean
+  /** True while a search or scan filter is showing its matches, when collapsing would change nothing. */
+  toggleDisabled: boolean
   onToggle: () => void
   items: ItemRecord[]
   onSetState: (item: ItemRecord, state: core.State) => Promise<void>
@@ -276,19 +281,19 @@ interface ItemGroupProps {
 
 /** The heading of a collapsed group, followed by how many of its Items are running low or out; unchanged when none are. */
 function collapsedHeading(heading: string, items: ItemRecord[]): string {
-  const counts = [
-    { count: items.filter((item) => item.state === 'running low').length, label: 'running low' },
-    { count: items.filter((item) => item.state === 'out').length, label: 'out' },
-  ]
+  const counts = (['running low', 'out'] as const).map((state) => ({
+    label: state,
+    count: items.filter((item) => item.state === state).length,
+  }))
   const summary = counts.filter(({ count }) => count > 0).map(({ count, label }) => `${count} ${label}`).join(', ')
   return summary === '' ? heading : `${heading} · ${summary}`
 }
 
-function ItemGroup({ heading, collapsed, onToggle, items, onSetState, onOpen }: ItemGroupProps) {
+function ItemGroup({ heading, collapsed, toggleDisabled, onToggle, items, onSetState, onOpen }: ItemGroupProps) {
   return (
     <div>
       <h3 class="item-group__heading">
-        <button type="button" class="item-group__toggle" aria-expanded={!collapsed} onClick={onToggle}>
+        <button type="button" class="item-group__toggle" aria-expanded={!collapsed} disabled={toggleDisabled} onClick={onToggle}>
           <Icon symbol={ExpandMoreIcon} />
           {collapsed ? collapsedHeading(heading, items) : heading}
         </button>

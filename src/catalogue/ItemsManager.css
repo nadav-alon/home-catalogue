@@ -25,3 +25,7 @@
 .item-group__toggle[aria-expanded='false'] svg {
   transform: rotate(-90deg);
 }
+
+.item-group__toggle:disabled {
+  cursor: default;
+}

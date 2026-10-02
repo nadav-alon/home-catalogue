@@ -1595,14 +1595,25 @@ describe('collapsing a Category', () => {
 
   it('shows the Items a scan filter matches in a collapsed Category, and restores the collapse when cleared', () => {
     localStorage.setItem('home-catalogue:collapsed-categories', JSON.stringify([medicine.id]))
-    const scanned = renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery], [bandages.id])
+    const { rerender } = renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery], [bandages.id])
 
     expect(screen.getByText('Bandages')).toBeInTheDocument()
-    scanned.unmount()
 
-    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+    rerender(<ItemsManager db={fakeDb} itemIds={[]} />)
 
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('disables the heading toggles while a filter is active, keeping the remembered state', () => {
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+    const remembered = localStorage.getItem('home-catalogue:collapsed-categories')
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'band' } })
+
+    expect(screen.getByRole('button', { name: 'Medicine' })).toBeDisabled()
+    expect(localStorage.getItem('home-catalogue:collapsed-categories')).toBe(remembered)
   })
 
   it('remembers a collapsed Category across reloads, by Category id', () => {
