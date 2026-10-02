@@ -242,10 +242,12 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
               ))}
             </Select>
           )}
-          <Button onClick={handleCreateCategory}>Create Category</Button>
-          <Button variant="text" onClick={closeCategoryPrompt}>
-            Cancel new Category
-          </Button>
+          <DialogActions>
+            <Button variant="text" onClick={closeCategoryPrompt}>
+              Cancel new Category
+            </Button>
+            <Button onClick={handleCreateCategory}>Create Category</Button>
+          </DialogActions>
         </div>
       )}
       <Select label="Necessity" error={errors.necessity} value={values.necessity} onChange={(event) => set('necessity', event.currentTarget.value)}>

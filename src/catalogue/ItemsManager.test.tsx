@@ -1011,6 +1011,18 @@ describe('adding a Category from the Item dialog', () => {
     expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
   })
 
+  it('lays the new Category actions out side by side like the dialog action row, Cancel before Create', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+    chooseNewCategory()
+
+    const cancel = screen.getByRole('button', { name: 'Cancel new Category' })
+    const create = screen.getByRole('button', { name: 'Create Category' })
+    expect(cancel.parentElement).toHaveClass('ui-dialog-actions__main')
+    expect(create.parentElement).toBe(cancel.parentElement)
+    expect(cancel.nextElementSibling).toBe(create)
+  })
+
   it('shows "+ New Category" in the picker while the prompt is open and restores the previous selection when it is cancelled', () => {
     renderWith([], [medicine, cleaning], [pharmacy])
     openDialog()
