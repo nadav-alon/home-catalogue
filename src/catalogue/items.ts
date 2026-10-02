@@ -29,6 +29,12 @@ export interface ItemRecord extends core.Item, catalogue.CatalogueItem {
   id: core.ItemId
 }
 
+/** A Barcode an Item carries from the start, with the holders it is moved off. */
+export interface CarriedBarcode {
+  value: core.Barcode
+  movedOff: readonly BarcodeHolder[]
+}
+
 /** An Item that carries a Barcode, live or soft-deleted: all a move needs to name it and to take the Barcode off it. */
 export type BarcodeHolder = Pick<ItemRecord, 'id' | 'name'>
 
@@ -45,11 +51,10 @@ export interface ItemInput {
   shopId?: catalogue.ShopId
 }
 
-/** What adding an Item carries: its fields, the State it starts at, plus a Barcode it carries from the start and the Items that Barcode is moved off. */
+/** What adding an Item carries: its fields, the State it starts at, plus a Barcode it carries from the start, and the Items it is moved off. */
 export interface NewItemInput extends ItemInput {
   state: core.State
-  barcode?: core.Barcode
-  barcodeFrom?: readonly BarcodeHolder[]
+  barcode?: CarriedBarcode
 }
 
 /** What saving an edit to an Item carries: its fields, plus the Barcodes the Member removed. */
@@ -154,7 +159,7 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
  * Validates against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema} before
  * writing a new Item's two docs, core `items` plus catalogue `catalogueItems`, keyed by the same
  * generated id, as one batch. A new Item starts at `input.state`, carrying `barcode` when given,
- * which leaves each of `barcodeFrom` in the same batch.
+ * which leaves each of its `movedOff` in the same batch.
  * No `stateHistory` entry is written for that starting State: the history records changes, and
  * the platform's create rule for `items` is not known to accept an initial entry. The batch also bumps the referenced Category's referenceCount, and the Shop
  * override's when set, matching the platform's create rule. Resolves with the new Item's id
@@ -166,7 +171,7 @@ export async function createItem(db: Firestore, input: NewItemInput): Promise<co
     name: input.name,
     state: input.state,
     ...(input.brandNote !== undefined ? { brandNote: input.brandNote } : {}),
-    ...(input.barcode !== undefined ? { barcodes: [input.barcode] } : {}),
+    ...(input.barcode !== undefined ? { barcodes: [input.barcode.value] } : {}),
   })
   const catalogueItem = catalogue.catalogueItemSchema.parse({
     categoryId: input.categoryId,
@@ -186,8 +191,8 @@ export async function createItem(db: Firestore, input: NewItemInput): Promise<co
     batch.update(doc(db, catalogue.SHOPS_COLLECTION, catalogueItem.shopId), { referenceCount: increment(1) })
   }
   if (input.barcode !== undefined) {
-    for (const holder of input.barcodeFrom ?? []) {
-      batch.update(doc(db, core.ITEMS_COLLECTION, holder.id), { barcodes: arrayRemove(input.barcode) })
+    for (const holder of input.barcode.movedOff) {
+      batch.update(doc(db, core.ITEMS_COLLECTION, holder.id), { barcodes: arrayRemove(input.barcode.value) })
     }
   }
   void batch.commit().catch((err: unknown) => {

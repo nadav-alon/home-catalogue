@@ -1473,7 +1473,7 @@ describe('a scanned barcode', () => {
       await waitFor(() =>
         expect(createItem).toHaveBeenCalledWith(
           fakeDb,
-          expect.objectContaining({ barcode: '4006381333931', barcodeFrom: [oldTape] }),
+          expect.objectContaining({ barcode: { value: '4006381333931', movedOff: [oldTape] } }),
         ),
       )
     })
@@ -1579,7 +1579,7 @@ describe('a scanned barcode', () => {
     await waitFor(() =>
       expect(createItem).toHaveBeenCalledWith(
         fakeDb,
-        expect.objectContaining({ name: 'Dish soap', barcode: '4006381333931' }),
+        expect.objectContaining({ name: 'Dish soap', barcode: { value: '4006381333931', movedOff: [] } }),
       ),
     )
     expect(attachBarcode).not.toHaveBeenCalled()
@@ -1601,7 +1601,7 @@ describe('a scanned barcode', () => {
     await waitFor(() =>
       expect(createItem).toHaveBeenCalledWith(
         fakeDb,
-        expect.objectContaining({ name: 'Dish soap', barcode: '4006381333931', state: 'out' }),
+        expect.objectContaining({ name: 'Dish soap', barcode: { value: '4006381333931', movedOff: [] }, state: 'out' }),
       ),
     )
   })

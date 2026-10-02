@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
@@ -60,7 +60,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [dialog, setDialog] = useState<
     | { kind: 'edit'; item: ItemRecord }
     | { kind: 'restore'; item: ItemRecord }
-    | { kind: 'add'; barcode?: core.Barcode; barcodeFrom?: readonly BarcodeHolder[] }
+    | { kind: 'add'; barcode?: CarriedBarcode }
     | null
   >(null)
   /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
@@ -197,7 +197,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   }
 
   // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.
-  const pendingBarcode = dialog?.kind === 'add' ? dialog.barcode : undefined
+  const pendingBarcode = dialog?.kind === 'add' ? dialog.barcode?.value : undefined
   const editedItem =
     dialog !== null && dialog.kind !== 'add'
       ? (items?.find((item) => item.id === dialog.item.id) ?? dialog.item)
@@ -294,7 +294,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         holders={barcodeHolders}
         onAttach={(item, from) => void handleAttach(item, from)}
         onNewItem={(from) => {
-          setDialog({ kind: 'add', barcode: unknownBarcode, barcodeFrom: from })
+          setDialog({ kind: 'add', barcode: unknownBarcode === undefined ? undefined : { value: unknownBarcode, movedOff: from } })
           setUnknownBarcode(undefined)
         }}
         onClose={() => setUnknownBarcode(undefined)}
@@ -315,7 +315,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             return
           }
           if (input.state !== undefined) {
-            const id = await createItem(db, { ...input, barcode: pendingBarcode, barcodeFrom: dialog?.kind === 'add' ? dialog.barcodeFrom : undefined })
+            const id = await createItem(db, { ...input, barcode: dialog?.kind === 'add' ? dialog.barcode : undefined })
             if (pendingBarcode !== undefined) filterOnClose.current = id
             return
           }

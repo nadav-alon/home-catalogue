@@ -245,7 +245,7 @@ describe('createItem', () => {
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
       state: core.stateSchema.parse('enough'),
-      barcode: core.barcode('12345678'),
+      barcode: { value: core.barcode('12345678'), movedOff: [] },
     })
 
     expect(batchSet).toHaveBeenCalledWith(
@@ -280,8 +280,7 @@ describe('createItem', () => {
       state: core.stateSchema.parse('out'),
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
-      barcode: core.barcode('12345678'),
-      barcodeFrom: [{ id: core.itemId('old-soap'), name: 'Old soap' }],
+      barcode: { value: core.barcode('12345678'), movedOff: [{ id: core.itemId('old-soap'), name: 'Old soap' }] },
     })
 
     expect(batchUpdate).toHaveBeenCalledWith(
