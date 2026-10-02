@@ -15,6 +15,13 @@ vi.mock('./exportShoppingList.ts', () => ({
 }))
 
 const outBandages: ItemRecord = { ...bandages, state: 'out' }
+const orphan: ItemRecord = {
+  id: core.itemId('orphan'),
+  name: 'Mystery item',
+  state: 'out',
+  categoryId: catalogue.categoryId('deleted-category'),
+  necessity: 'important',
+}
 
 /** jsdom has no modal dialog; stand in for the browser's open/close bookkeeping. */
 beforeEach(() => {
@@ -33,25 +40,21 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function bar(items: ItemRecord[]) {
-  return (
+/** Renders the export action; `rerender` swaps in new Items, keeping the Categories and Shops. */
+function renderExport(items: ItemRecord[], categories: CategoryRecord[] = [medicine], shops: ShopRecord[] = [pharmacy]) {
+  const bar = (current: ItemRecord[]) => (
     <TopAppBar title="Shopping list">
-      <CalendarExport items={items} categories={[medicine]} shops={[pharmacy]} />
+      <CalendarExport items={current} categories={categories} shops={shops} />
     </TopAppBar>
   )
-}
-
-function renderBar(items: ItemRecord[]) {
-  return render(bar(items))
+  const view = render(bar(items))
+  return { rerender: (current: ItemRecord[]) => view.rerender(bar(current)) }
 }
 
 function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
-  render(
-    <TopAppBar title="Shopping list">
-      <CalendarExport items={items} categories={categories} shops={shops} />
-    </TopAppBar>,
-  )
+  const view = renderExport(items, categories, shops)
   fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+  return view
 }
 
 async function submit(dateValue: string) {
@@ -126,16 +129,22 @@ describe('CalendarExport', () => {
   })
 
   it('disables Export to Calendar while the Shopping list has nothing to buy', () => {
-    renderWith([], [medicine], [pharmacy])
+    renderExport([])
 
     expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeDisabled()
   })
 
+  it('keeps Export to Calendar enabled when every pending Item is listed under Unknown Shop', () => {
+    renderExport([orphan])
+
+    expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeEnabled()
+  })
+
   it('enables Export to Calendar as soon as the Shopping list has an Item to buy', () => {
-    const view = renderBar([])
+    const view = renderExport([])
     expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeDisabled()
 
-    view.rerender(bar([outBandages]))
+    view.rerender([outBandages])
 
     expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeEnabled()
   })
@@ -161,13 +170,6 @@ describe('CalendarExport', () => {
   })
 
   it('notes pending Items with no resolved Shop are left out of the export', () => {
-    const orphan: ItemRecord = {
-      id: core.itemId('orphan'),
-      name: 'Mystery item',
-      state: 'out',
-      categoryId: catalogue.categoryId('deleted-category'),
-      necessity: 'important',
-    }
     renderWith([outBandages, orphan], [medicine], [pharmacy])
 
     expect(screen.getByText("1 pending Item with no Shop won't be included in the export.")).toBeInTheDocument()
@@ -184,6 +186,18 @@ describe('CalendarExport', () => {
 
     const link = screen.getByRole('link', { name: 'Pharmacy' })
     expect(link).toHaveAttribute('href', 'https://calendar.google.com/calendar/render?text=Pharmacy')
+  })
+
+  it('shows no error when the dialog is reopened after an offline export attempt', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    renderWith([outBandages], [medicine], [pharmacy])
+    await submit('2026-03-05')
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('shows no success status when the dialog is reopened after an export', async () => {
@@ -233,9 +247,8 @@ describe('CalendarExport', () => {
   })
 
   it('rejects exporting when the Items are marked enough while the dialog is open', async () => {
-    const view = renderBar([outBandages])
-    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
-    view.rerender(bar([]))
+    const view = renderWith([outBandages], [medicine], [pharmacy])
+    view.rerender([])
 
     await submit('2026-03-05')
 
