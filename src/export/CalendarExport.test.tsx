@@ -158,4 +158,15 @@ describe('CalendarExport', () => {
     const link = screen.getByRole('link', { name: 'Pharmacy' })
     expect(link).toHaveAttribute('href', 'https://calendar.google.com/calendar/render?text=Pharmacy')
   })
+
+  it('shows no success status when the dialog is reopened after an export', async () => {
+    exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
+    renderWith([outBandages], [medicine], [pharmacy])
+    await submit('2026-03-05')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.queryByText('Exported to Calendar.')).not.toBeInTheDocument()
+  })
 })

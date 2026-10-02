@@ -61,6 +61,7 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
 
   function openDialog() {
     setDate(todayExportDate())
+    setStatus({ phase: 'idle' })
     setOpen(true)
   }
 
