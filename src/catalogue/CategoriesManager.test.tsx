@@ -294,6 +294,16 @@ describe('CategoriesManager', () => {
     expect(createCategory).not.toHaveBeenCalled()
   })
 
+  it('orders the Add dialog actions Cancel, Add', () => {
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+
+    const names = within(screen.getByRole('dialog'))
+      .getAllByRole('button')
+      .map((button) => button.textContent)
+    expect(names).toEqual(['Cancel', 'Add'])
+  })
+
   it('closes the Edit dialog on Cancel without saving', () => {
     renderWith([medicine], [pharmacy])
     openEditor('Medicine')
@@ -304,9 +314,10 @@ describe('CategoriesManager', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(renameCategory).not.toHaveBeenCalled()
     expect(changeCategoryDefaultShop).not.toHaveBeenCalled()
+    expect(deleteCategory).not.toHaveBeenCalled()
   })
 
-  it('orders the Edit dialog actions Delete, Cancel, Save like the Item dialog', () => {
+  it('orders the Edit dialog actions Delete, Cancel, Save', () => {
     renderWith([medicine], [pharmacy])
     openEditor('Medicine')
 
