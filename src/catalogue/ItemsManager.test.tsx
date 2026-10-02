@@ -1312,6 +1312,17 @@ describe('a scanned barcode', () => {
     expect(updateItem).not.toHaveBeenCalled()
   })
 
+  it('gives New Item and Add to existing Item the same button weight', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    const existing = within(chooser).getByRole('button', { name: 'Add to existing Item' })
+    const added = within(chooser).getByRole('button', { name: 'New Item' })
+
+    expect(existing.className).toBe(added.className)
+  })
+
   it('attaches the barcode to the Item picked from the chooser, then opens its filter', async () => {
     const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
     renderWith([bandages, tape], [medicine], [pharmacy])
