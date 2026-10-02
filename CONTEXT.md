@@ -60,8 +60,9 @@ on the exported event) or **soon** (advisory banner).
 | optional          | —      | —           | **soon**|
 
 **Shopping list**:
-Live view of every Item at `running low` or `out`, grouped by Shop, `running low` flagged
-optional. Ticking an Item sets it `enough` and shows an Undo snackbar. Canonical; works offline.
+Live view of every Item at `running low` or `out`, grouped by Shop, `running low` rows
+flagged with their State. Ticking an Item sets it `enough` and shows an Undo snackbar.
+Canonical; works offline.
 
 **Export**:
 One tap creating one Google Calendar event per Shop with pending Items, list in the description,

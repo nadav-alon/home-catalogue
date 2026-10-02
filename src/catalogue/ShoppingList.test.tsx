@@ -182,7 +182,7 @@ describe('ShoppingList', () => {
     expect(screen.queryByRole('heading', { name: 'Grocery' })).not.toBeInTheDocument()
   })
 
-  it('flags a running low Item as optional', () => {
+  it('flags a running low Item as running low', () => {
     const soap: ItemRecord = {
       id: core.itemId('soap'),
       name: 'Dish soap',
@@ -192,7 +192,24 @@ describe('ShoppingList', () => {
     }
     renderWith([soap], [cleaning], [grocery])
 
-    expect(screen.getByText('Dish soap').closest('li')).toHaveTextContent('optional')
+    const row = screen.getByText('Dish soap').closest('li')
+    expect(row).toHaveTextContent('running low')
+    expect(row).not.toHaveTextContent('optional')
+  })
+
+  it('flags a running low Item whose Necessity is optional as running low only', () => {
+    const candles: ItemRecord = {
+      id: core.itemId('candles'),
+      name: 'Candles',
+      state: 'running low',
+      categoryId: cleaning.id,
+      necessity: 'optional',
+    }
+    renderWith([candles], [cleaning], [grocery])
+
+    const row = screen.getByText('Candles').closest('li')
+    expect(row).toHaveTextContent('running low')
+    expect(row).not.toHaveTextContent('optional')
   })
 
   it('sets a running low row back visually from an out row', () => {
@@ -216,7 +233,7 @@ describe('ShoppingList', () => {
     expect(screen.getByText('Bandages').closest('li')).not.toHaveClass('ui-list-row--muted')
   })
 
-  it('does not flag an out Item as optional', () => {
+  it('does not flag an out Item as running low', () => {
     const bandages: ItemRecord = {
       id: core.itemId('bandages'),
       name: 'Bandages',
@@ -226,7 +243,7 @@ describe('ShoppingList', () => {
     }
     renderWith([bandages], [medicine], [pharmacy])
 
-    expect(screen.getByText('Bandages').closest('li')).not.toHaveTextContent('optional')
+    expect(screen.getByText('Bandages').closest('li')).not.toHaveTextContent('running low')
   })
 
   it('groups an Item with no resolved Shop under Unknown Shop', () => {
@@ -368,7 +385,7 @@ describe('ticking an Item', () => {
       const shopHeading = screen.getByRole('heading', { name: pharmacy.name })
       const row = within(shopHeading.parentElement as HTMLElement).getByText('Bandages').closest('li')
       expect(row).not.toBeNull()
-      expect(within(row as HTMLElement).queryByText('optional') !== null).toBe(state === 'running low')
+      expect(within(row as HTMLElement).queryByText('running low') !== null).toBe(state === 'running low')
     },
   )
 })

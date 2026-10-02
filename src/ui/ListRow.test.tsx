@@ -49,10 +49,10 @@ describe('ListRow', () => {
   it('makes the whole row the label of its control', () => {
     render(
       <ul>
-        <ListRow headline="Milk" supporting="optional" control={<input type="checkbox" />} />
+        <ListRow headline="Milk" supporting="running low" control={<input type="checkbox" />} />
       </ul>,
     )
-    expect(screen.getByRole('checkbox', { name: /Milk\s*optional/ })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /Milk\s*running low/ })).toBeInTheDocument()
     expect(screen.getByText('Milk').closest('label')).toContainElement(screen.getByRole('checkbox'))
   })
 

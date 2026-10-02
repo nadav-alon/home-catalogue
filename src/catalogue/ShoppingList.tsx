@@ -87,7 +87,7 @@ function ShoppingListRow({ item, onTick }: ShoppingListRowProps) {
   return (
     <ListRow
       headline={item.name}
-      supporting={runningLow ? 'optional' : undefined}
+      supporting={runningLow ? 'running low' : undefined}
       muted={runningLow}
       control={<input type="checkbox" checked={false} onChange={onTick} />}
     />
