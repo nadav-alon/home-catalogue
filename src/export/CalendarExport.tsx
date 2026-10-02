@@ -34,7 +34,7 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
   const [date, setDate] = useState('')
   const [status, setStatus] = useState<ExportStatus>({ phase: 'idle' })
 
-  const { groups, unresolvedCount } = pendingItemsByShop(items, categories, shops)
+  const { groups, unresolvedCount, nothingToBuy } = pendingItemsByShop(items, categories, shops)
 
   async function handleExport(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -74,7 +74,7 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
   return (
     <>
       <TopAppBarActions>
-        <Button variant="text" onClick={openDialog}>
+        <Button variant="text" disabled={nothingToBuy} onClick={openDialog}>
           Export to Calendar
         </Button>
       </TopAppBarActions>

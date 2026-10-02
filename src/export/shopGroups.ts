@@ -9,6 +9,12 @@ export interface PendingItemGroups {
   groups: ShopGroup[]
   /** Pending Items left out of `groups`: no resolved Shop to name a Calendar event after. */
   unresolvedCount: number
+  /**
+   * Whether no Item is pending at all, the Items listed under "Unknown Shop" included (no Shop, or a Shop
+   * with no record in `shops`). Unlike `groups`,
+   * this matches the Shopping list's own "Nothing to buy" empty state.
+   */
+  nothingToBuy: boolean
 }
 
 /**
@@ -28,5 +34,5 @@ export function pendingItemsByShop(
   const unresolvedCount = unresolved.filter(
     (item) => resolvedShopId(item, categoriesById.get(item.categoryId)) === undefined,
   ).length
-  return { groups, unresolvedCount }
+  return { groups, unresolvedCount, nothingToBuy: groups.length === 0 && unresolved.length === 0 }
 }
