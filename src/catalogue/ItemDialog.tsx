@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
-import { catalogue, type core } from 'data-platform'
-import { isLiveReference, type ItemEdit, type ItemInput, type ItemRecord } from './items.ts'
+import { catalogue, core } from 'data-platform'
+import { isLiveReference, type ItemEdit, type ItemInput, type ItemRecord, type NewItemInput } from './items.ts'
 import { validateCategoryDraft, type CategoryDraft, type CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
@@ -26,9 +26,9 @@ export interface ItemDialogProps {
   onCreateCategory: (name: string, defaultShopId: catalogue.ShopId) => Promise<catalogue.CategoryId>
   /**
    * Called with the validated fields, and the Item's Barcodes the Member removed, when they save; a rejection
-   * is shown in the dialog and keeps it open.
+   * is shown in the dialog and keeps it open. Only an added Item carries the `state` it starts at.
    */
-  onSave: (input: ItemEdit) => Promise<void>
+  onSave: (input: ItemEdit & Pick<NewItemInput, 'state'>) => Promise<void>
   /**
    * Called when they delete the Item being edited, just before the dialog closes; the Delete button shows only when
    * editing and this is given, so a dialog restoring a deleted Item omits it.
@@ -47,6 +47,8 @@ interface ItemFormValues {
   categoryId: string
   necessity: string
   shopId: string
+  /** The State an added Item starts at; unused when editing. */
+  state: core.State
 }
 
 type ItemFormErrors = Partial<Record<'name' | 'categoryId' | 'necessity', string>>
@@ -73,7 +75,7 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
   }
 }
 
-/** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its Barcodes when editing or, when adding from a scan, the pending `barcode` shown read-only, in a dialog that starts from `item`, or empty, on each open. */
+/** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its State when adding, plus its Barcodes when editing or, when adding from a scan, the pending `barcode` shown read-only, in a dialog that starts from `item`, or empty, on each open. */
 export function ItemDialog({ open, item, restoring, barcode, categories, shops, onCreateCategory, onSave, onDelete, onClose }: ItemDialogProps) {
   return (
     <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose} closable>
@@ -100,6 +102,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
     brandNote: item?.brandNote ?? '',
     categoryId: item === undefined || (restoring && !isLiveReference(categories, item.categoryId)) ? '' : item.categoryId,
     necessity: item?.necessity ?? '',
+    state: 'enough',
     shopId: restoring && !isLiveReference(shops, item?.shopId) ? NO_SHOP_OVERRIDE : (item?.shopId ?? NO_SHOP_OVERRIDE),
   })
   const [errors, setErrors] = useState<ItemFormErrors>({})
@@ -110,7 +113,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
   /** The "+ New Category" prompt: `null` while it is closed. */
   const [categoryDraft, setCategoryDraft] = useState<CategoryDraft | null>(null)
 
-  function set(field: keyof ItemFormValues, value: string) {
+  function set(field: Exclude<keyof ItemFormValues, 'state'>, value: string) {
     setValues((current) => ({ ...current, [field]: value }))
   }
 
@@ -161,7 +164,8 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
     setErrors({})
     setSaveError(null)
     try {
-      await onSave(removedBarcodes.length > 0 ? { ...result.input, removedBarcodes } : result.input)
+      const input = removedBarcodes.length > 0 ? { ...result.input, removedBarcodes } : result.input
+      await onSave(item ? input : { ...input, state: values.state })
       onClose()
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Could not save Item')
@@ -234,6 +238,19 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
           </option>
         ))}
       </Select>
+      {!item && (
+        <Select
+          label="State"
+          value={values.state}
+          onChange={(event) => setValues((current) => ({ ...current, state: core.stateSchema.parse(event.currentTarget.value) }))}
+        >
+          {core.stateSchema.options.map((state) => (
+            <option key={state} value={state}>
+              {state}
+            </option>
+          ))}
+        </Select>
+      )}
       <Select label="Shop override" value={values.shopId} onChange={(event) => set('shopId', event.currentTarget.value)}>
         <option value={NO_SHOP_OVERRIDE}>Use Category default</option>
         {shops.map((shop) => (
