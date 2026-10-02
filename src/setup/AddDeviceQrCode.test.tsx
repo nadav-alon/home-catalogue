@@ -23,7 +23,7 @@ describe('AddDeviceQrCode', () => {
   it('renders the action with the Button component', () => {
     render(<AddDeviceQrCode config={config} />)
 
-    expect(screen.getByRole('button', { name: 'Show QR code' })).toHaveClass('ui-button')
+    expect(screen.getByRole('button', { name: 'Show QR code' })).toHaveClass('ui-button', 'ui-button--tonal')
   })
 
   it('shows a QR code once the action is used', async () => {

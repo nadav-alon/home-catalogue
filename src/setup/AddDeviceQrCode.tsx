@@ -14,7 +14,7 @@ export function AddDeviceQrCode({ config }: AddDeviceQrCodeProps) {
   return (
     <section>
       <h2>Add a device</h2>
-      <Button onClick={() => setShown(true)}>Show QR code</Button>
+      <Button variant="tonal" onClick={() => setShown(true)}>Show QR code</Button>
       {shown && <DeviceTransferQrCode config={config} label="Scan with the new device's camera to set it up" />}
     </section>
   )
