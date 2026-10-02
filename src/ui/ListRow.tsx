@@ -2,21 +2,36 @@ import type { ComponentChildren } from 'preact'
 import { useId } from 'preact/hooks'
 import './ListRow.css'
 
-export interface ListRowProps {
+interface ListRowBaseProps {
   headline: string
   supporting?: string
   /** Content pinned to the row's end, such as a status. */
   trailing?: ComponentChildren
-  /** A form control pinned to the row's end; the whole row is its label, so tapping anywhere on it operates the control. */
-  control?: ComponentChildren
   /** De-emphasises the row visually. */
   muted?: boolean
-  /** Makes the text a native button that calls this; the trailing slot stays a separate control. */
-  onActivate?: () => void
 }
 
+export type ListRowProps = ListRowBaseProps &
+  (
+    | {
+        /** Makes the whole row a native link to this href; `trailing` is then decoration inside the link, and `onFollow` handles the click. */
+        href: string
+        onFollow: () => void
+        control?: never
+        onActivate?: never
+      }
+    | {
+        href?: never
+        onFollow?: never
+        /** A form control pinned to the row's end; the whole row is its label, so tapping anywhere on it operates the control. */
+        control?: ComponentChildren
+        /** Makes the text a native button that calls this; the trailing slot stays a separate control. */
+        onActivate?: () => void
+      }
+  )
+
 /** A native `<li>`; render inside a `<ul>` or `<ol>`. */
-export function ListRow({ headline, supporting, trailing, control, muted = false, onActivate }: ListRowProps) {
+export function ListRow({ headline, supporting, trailing, control, muted = false, onActivate, href, onFollow }: ListRowProps) {
   const id = useId()
   const headlineId = `${id}-headline`
   const supportingId = `${id}-supporting`
@@ -51,10 +66,25 @@ export function ListRow({ headline, supporting, trailing, control, muted = false
       {control ? <div class="ui-list-row__trailing">{control}</div> : null}
     </>
   )
-  const classes = ['ui-list-row', muted && 'ui-list-row--muted', control && 'ui-list-row--labelled']
+  const classes = ['ui-list-row', muted && 'ui-list-row--muted', (control || href !== undefined) && 'ui-list-row--labelled']
   return (
     <li class={classes.filter(Boolean).join(' ')}>
-      {control ? <label class="ui-list-row__label">{content}</label> : content}
+      {href !== undefined ? (
+        <a
+          class="ui-list-row__link"
+          href={href}
+          onClick={(event) => {
+            event.preventDefault()
+            onFollow()
+          }}
+        >
+          {content}
+        </a>
+      ) : control ? (
+        <label class="ui-list-row__label">{content}</label>
+      ) : (
+        content
+      )}
     </li>
   )
 }

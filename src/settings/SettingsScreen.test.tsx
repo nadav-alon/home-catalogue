@@ -31,17 +31,51 @@ describe('SettingsScreen', () => {
   ])('navigates to %s', (name, hash) => {
     render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
-    const link = screen.getByRole('link', { name: `Open ${name}` })
+    const link = screen.getByRole('link', { name })
     expect(link).toHaveAttribute('href', hash)
     fireEvent.click(link)
 
     expect(window.location.hash).toBe(hash)
   })
 
+  it('navigates when the row text is tapped, not only the chevron', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    fireEvent.click(screen.getByText('Shops'))
+
+    expect(window.location.hash).toBe('#/settings/shops')
+  })
+
+  it('gives each navigation row one link, with the chevron hidden inside it', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    const link = screen.getByRole('link', { name: 'Shops' })
+    expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(link.closest('li')?.querySelectorAll('a, button')).toHaveLength(1)
+  })
+
+  it('makes the link the only child of its row, which has no padding of its own', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    const row = screen.getByRole('link', { name: 'Shops' }).closest('li')
+
+    expect(row?.children).toHaveLength(1)
+    expect(row?.firstElementChild?.tagName).toBe('A')
+    expect(row).toHaveClass('ui-list-row--labelled')
+  })
+
+  it('puts the chevron in the trailing slot, which takes its colour from the on-surface-variant token', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    const trailing = screen.getByRole('link', { name: 'Shops' }).querySelector('.ui-list-row__trailing')
+
+    expect(trailing?.querySelector('svg')).not.toBeNull()
+  })
+
   it('lists Members above Add device', () => {
     render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
-    const members = screen.getByRole('link', { name: 'Open Members' })
+    const members = screen.getByRole('link', { name: 'Members' })
     const addDevice = screen.getByRole('button', { name: 'Show QR code' })
 
     expect(members.compareDocumentPosition(addDevice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()

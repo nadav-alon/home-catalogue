@@ -47,22 +47,12 @@ export function SettingsScreen({ config, onResetConfig, onSignOut }: SettingsScr
 }
 
 function NavigationRow({ to }: { to: Route }) {
-  const title = titleOf(to)
   return (
     <ListRow
-      headline={title}
-      trailing={
-        <a
-          href={hashOf(to)}
-          aria-label={`Open ${title}`}
-          onClick={(event) => {
-            event.preventDefault()
-            navigate(to)
-          }}
-        >
-          <Icon symbol={ChevronRightIcon} size="1.5rem" />
-        </a>
-      }
+      headline={titleOf(to)}
+      href={hashOf(to)}
+      onFollow={() => navigate(to)}
+      trailing={<Icon symbol={ChevronRightIcon} size="1.5rem" />}
     />
   )
 }
