@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact'
-import { useId } from 'preact/hooks'
+import { useUniqueId } from './useUniqueId.ts'
 import './ListRow.css'
 
 interface ListRowBaseProps {
@@ -34,7 +34,7 @@ export type ListRowProps = ListRowBaseProps &
 
 /** A native `<li>`; render inside a `<ul>` or `<ol>`. */
 export function ListRow({ headline, supporting, trailing, control, muted = false, stackTrailing = false, onActivate, href, onFollow }: ListRowProps) {
-  const id = useId()
+  const id = useUniqueId()
   const headlineId = `${id}-headline`
   const supportingId = `${id}-supporting`
   const text = (

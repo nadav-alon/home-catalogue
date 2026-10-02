@@ -1,5 +1,6 @@
 import type { ComponentChildren } from 'preact'
-import { useId, useLayoutEffect, useRef } from 'preact/hooks'
+import { useLayoutEffect, useRef } from 'preact/hooks'
+import { useUniqueId } from './useUniqueId.ts'
 import { afterPendingPop, popEntry } from './pendingPop.ts'
 import { IconButton } from './IconButton.tsx'
 import CloseIcon from '~icons/material-symbols/close'
@@ -35,8 +36,8 @@ function isBackdropPoint(event: MouseEvent & { currentTarget: HTMLDialogElement 
  */
 export function Dialog({ open, title, onClose, class: className, closable, children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
-  const titleId = useId()
-  const entryId = useId()
+  const titleId = useUniqueId()
+  const entryId = useUniqueId()
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
   const openRef = useRef(open)

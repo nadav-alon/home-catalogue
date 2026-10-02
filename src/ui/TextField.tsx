@@ -1,5 +1,5 @@
 import type { JSX } from 'preact'
-import { useId } from 'preact/hooks'
+import { useUniqueId } from './useUniqueId.ts'
 import { FieldError, useFieldError } from './FieldError.tsx'
 import './Field.css'
 
@@ -11,7 +11,7 @@ export interface TextFieldProps extends Omit<JSX.InputHTMLAttributes<HTMLInputEl
 
 /** A native `<input>` with a visible `<label>` and an optional error message. */
 export function TextField({ label, error, id, 'aria-describedby': describedBy, ...rest }: TextFieldProps) {
-  const generatedId = useId()
+  const generatedId = useUniqueId()
   const inputId = id ?? generatedId
   const field = useFieldError(inputId, error, describedBy)
   return (

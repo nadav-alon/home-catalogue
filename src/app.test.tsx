@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { act, fireEvent, render, screen, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
@@ -26,6 +26,7 @@ vi.mock('./catalogue/categories.ts', () => ({
 vi.mock('./catalogue/items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalogue/items.ts')>()),
   watchItems: (db: unknown, cb: (items: ItemRecord[]) => void) => watchItems(db, cb),
+  findDeletedItemByBarcode: async () => undefined,
 }))
 
 vi.mock('./members/members.ts', async (importOriginal) => ({

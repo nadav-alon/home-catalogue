@@ -1,5 +1,5 @@
 import type { JSX } from 'preact'
-import { useId } from 'preact/hooks'
+import { useUniqueId } from './useUniqueId.ts'
 import { FieldError, useFieldError } from './FieldError.tsx'
 import './Field.css'
 
@@ -11,7 +11,7 @@ export interface SelectProps extends Omit<JSX.SelectHTMLAttributes<HTMLSelectEle
 
 /** A native `<select>` with a visible `<label>`, styled like a TextField; pass `<option>`s as children. */
 export function Select({ label, error, id, 'aria-describedby': describedBy, ...rest }: SelectProps) {
-  const generatedId = useId()
+  const generatedId = useUniqueId()
   const selectId = id ?? generatedId
   const field = useFieldError(selectId, error, describedBy)
   return (
