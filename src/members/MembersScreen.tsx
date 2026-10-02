@@ -51,7 +51,6 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
       <TopAppBarNavigation>
         <IconButton symbol={ArrowBackIcon} label="Back to Settings" onClick={() => navigate(SETTINGS)} />
       </TopAppBarNavigation>
-      <h2>Members</h2>
       <ul>
         {members.map((member) => (
           <ListRow

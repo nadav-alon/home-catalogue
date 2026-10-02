@@ -87,6 +87,13 @@ function renderScreen(members: MemberRecord[] = [], invites: core.Email[] = []) 
 }
 
 describe('MembersScreen', () => {
+  it('leaves the title to the top app bar, with no heading of its own', () => {
+    renderScreen()
+
+    expect(screen.getAllByRole('heading', { name: 'Members' })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 1, name: 'Members' })).toBeInTheDocument()
+  })
+
   it('goes back to Settings', () => {
     renderScreen()
 
