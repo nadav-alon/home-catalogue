@@ -102,6 +102,14 @@ describe('SettingsScreen', () => {
     expect(onResetConfig).toHaveBeenCalledTimes(1)
   })
 
+  it('gives every row action the tonal button style', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    for (const button of screen.getAllByRole('button')) {
+      expect(button).toHaveClass('ui-button--tonal')
+    }
+  })
+
   it('signs out', () => {
     render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 

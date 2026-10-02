@@ -32,7 +32,7 @@ export function SettingsScreen({ config, onResetConfig, onSignOut }: SettingsScr
       </li>
       <ListRow
         headline="Reset Firebase configuration"
-        trailing={<ResetConfigButton onResetConfig={onResetConfig} />}
+        trailing={<ResetConfigButton variant="tonal" onResetConfig={onResetConfig} />}
       />
       <ListRow
         headline="Sign out"
