@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import type { core } from 'data-platform'
-import { setItemState, watchItems, type ItemRecord } from './items.ts'
+import { itemsWithBarcode, setItemState, watchItems, type ItemRecord } from './items.ts'
 import { watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 import { AlertBanner } from './AlertBanner.tsx'
+import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { CalendarExport } from '../export/CalendarExport.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { showSnackbar } from '../ui/Snackbar.tsx'
@@ -47,6 +48,12 @@ export function ShoppingList({ db }: ShoppingListProps) {
     })
   }
 
+  /** A scanned Barcode sits on at most one Item; it is bought whether or not it was on today's list. */
+  function handleScan(barcode: core.Barcode) {
+    const [item] = itemsWithBarcode(items ?? [], barcode)
+    if (item !== undefined) handleTick(item)
+  }
+
   const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops)
   const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
     key: shop.id,
@@ -59,6 +66,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
 
   return (
     <section>
+      <ScanEntry onScan={handleScan} />
       <AlertBanner items={items ?? []} />
       <CalendarExport items={items ?? []} categories={categories} shops={shops} />
       {error !== null && <p role="alert">{error}</p>}

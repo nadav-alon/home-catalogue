@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/preact'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { ShoppingList } from './ShoppingList.tsx'
+import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
@@ -51,7 +52,11 @@ function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: Sh
     cb(shops)
     return vi.fn()
   })
-  return render(<ShoppingList db={fakeDb} />)
+  return render(
+    <TopAppBar title="Shopping list">
+      <ShoppingList db={fakeDb} />
+    </TopAppBar>,
+  )
 }
 
 describe('ShoppingList', () => {
@@ -388,4 +393,69 @@ describe('ticking an Item', () => {
       expect(within(row as HTMLElement).queryByText('running low') !== null).toBe(state === 'running low')
     },
   )
+})
+
+describe('a scanned barcode', () => {
+  const scanned = core.barcode('4006381333931')
+  const bandages: ItemRecord = {
+    id: core.itemId('bandages'),
+    name: 'Bandages',
+    state: 'out',
+    categoryId: medicine.id,
+    necessity: 'essential',
+    barcodes: [scanned],
+  }
+
+  beforeEach(() => {
+    HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.setAttribute('open', '')
+    })
+    HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+      this.removeAttribute('open')
+      this.dispatchEvent(new Event('close'))
+    })
+    HTMLMediaElement.prototype.play = vi.fn(() => Promise.resolve())
+    vi.stubGlobal(
+      'BarcodeDetector',
+      class {
+        detect = async () => [{ rawValue: scanned }]
+      },
+    )
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: vi.fn(async () => ({ getTracks: () => [{ stop: vi.fn() }] })) },
+    })
+  })
+
+  afterEach(async () => {
+    vi.unstubAllGlobals()
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  })
+
+  function scan() {
+    fireEvent.click(screen.getByRole('button', { name: 'Scan barcode' }))
+  }
+
+  it('sets the Item it sits on enough, with an Undo that restores its State', async () => {
+    render(<SnackbarHost />)
+    renderWith([bandages], [medicine], [pharmacy])
+
+    scan()
+
+    await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'enough'))
+    setItemState.mockClear()
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'out')
+  })
+
+  it('sets an Item that is not on the list enough all the same', async () => {
+    render(<SnackbarHost />)
+    const stocked: ItemRecord = { ...bandages, state: 'enough' }
+    renderWith([stocked], [medicine], [pharmacy])
+
+    scan()
+
+    await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, stocked, 'enough'))
+    expect(await screen.findByRole('button', { name: 'Undo' })).toBeInTheDocument()
+  })
 })

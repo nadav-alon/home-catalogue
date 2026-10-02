@@ -62,7 +62,7 @@ on the exported event) or **soon** (advisory banner).
 
 **Shopping list**:
 Live view of every Item at `running low` or `out`, grouped by Shop, `running low` rows
-flagged with their State. Ticking an Item sets it `enough` and shows an Undo snackbar.
+flagged with their State. Ticking an Item sets it `enough` and shows an Undo snackbar; so does scanning a Barcode on it, whether or not the Item was on the list.
 Canonical; works offline.
 
 **Export**:
