@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { ListRow } from './ListRow.tsx'
-import { read, tokenUsage } from '../testing/css.ts'
+import { mediaBlock, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
 
-const narrowQuery = /@media \(max-width: 599\.98px\)\s*{((?:[^{}]*{[^}]*})*)\s*}/
+const narrowQuery = '(max-width: 599.98px)'
 
-const narrowBlock = () => read('src/ui/ListRow.css').match(narrowQuery)?.[1] ?? ''
-const outsideNarrowBlock = () => read('src/ui/ListRow.css').replace(narrowQuery, '')
+const narrowBlock = () => mediaBlock('src/ui/ListRow.css', narrowQuery)
+const outsideNarrowBlock = () => outsideMediaBlock('src/ui/ListRow.css', narrowQuery)
 
 describe('ListRow', () => {
   it('renders a native list item with headline and supporting text', () => {
