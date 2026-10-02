@@ -11,12 +11,15 @@ export interface DeviceTransferQrCodeProps {
   config: FirebaseWebConfig
   /** What the QR code is described as to assistive technology. */
   label: string
-  /** Called once the QR code is on screen, so a caller can bring it into view at its final size. */
-  onRendered?: () => void
+  /**
+   * Called each time a QR code finishes generating, or fails to, so a caller can bring the result into view at its final size.
+   * The callback from the render that settled is the one called; it is not re-run when a later render passes a new one.
+   */
+  onSettled?: () => void
 }
 
 /** The device-transfer link for `config` as a QR code, for another device to scan; renders nothing until it is generated. */
-export function DeviceTransferQrCode({ config, label, onRendered }: DeviceTransferQrCodeProps) {
+export function DeviceTransferQrCode({ config, label, onSettled }: DeviceTransferQrCodeProps) {
   const [svg, setSvg] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -34,8 +37,8 @@ export function DeviceTransferQrCode({ config, label, onRendered }: DeviceTransf
   }, [config])
 
   useEffect(() => {
-    if (svg !== null) onRendered?.()
-  }, [svg])
+    if (svg !== null || failed) onSettled?.()
+  }, [svg, failed])
 
   if (failed) return <p role="alert">Could not generate the QR code.</p>
   if (svg === null) return null

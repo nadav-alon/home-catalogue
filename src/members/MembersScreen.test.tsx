@@ -368,16 +368,42 @@ describe('MembersScreen', () => {
       expect(await screen.findByRole('img', { name: /c@example\.com/ })).toBeInTheDocument()
     })
 
-    it('scrolls the QR code and its Close control into view', async () => {
+    describe('scrolling', () => {
       const scrollIntoView = vi.fn()
-      Object.defineProperty(Element.prototype, 'scrollIntoView', { value: scrollIntoView, configurable: true })
-      renderScreen([owner], invites)
+      const twoInvites = [core.email('c@example.com'), core.email('d@example.com')]
 
-      fireEvent.click(shareButton())
-      await screen.findByRole('img', { name: /c@example\.com/ })
+      beforeEach(() => {
+        scrollIntoView.mockClear()
+        Object.defineProperty(Element.prototype, 'scrollIntoView', { value: scrollIntoView, configurable: true })
+      })
 
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: 'end', behavior: 'smooth' }))
-      expect(scrollIntoView.mock.contexts[0]).toContain(screen.getByRole('button', { name: 'Close QR code' }))
+      afterEach(() => {
+        delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView
+      })
+
+      it('scrolls the QR code and its Close control into view', async () => {
+        renderScreen([owner], invites)
+
+        fireEvent.click(shareButton())
+        await screen.findByRole('img', { name: /c@example\.com/ })
+
+        await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: 'end', behavior: 'smooth' }))
+        expect(scrollIntoView.mock.contexts[0]).toContain(screen.getByRole('button', { name: 'Close QR code' }))
+      })
+
+      it('scrolls again when Share is tapped on another invite, or on the same one, while the QR code is open', async () => {
+        renderScreen([owner], twoInvites)
+        fireEvent.click(screen.getByRole('button', { name: 'Share invite for c@example.com' }))
+        await screen.findByRole('img', { name: /c@example\.com/ })
+        await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1))
+
+        fireEvent.click(screen.getByRole('button', { name: 'Share invite for d@example.com' }))
+        await screen.findByRole('img', { name: /d@example\.com/ })
+        await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(2))
+
+        fireEvent.click(screen.getByRole('button', { name: 'Share invite for d@example.com' }))
+        await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(3))
+      })
     })
 
     it('closes the QR code', async () => {

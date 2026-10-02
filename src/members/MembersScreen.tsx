@@ -18,6 +18,7 @@ import { DeviceTransferQrCode } from '../firebase/DeviceTransferQrCode.tsx'
 import { inviteShareMessage } from './shareInvite.ts'
 import { createInvite, inviteKey, revokeInvite, watchInvites } from './invites.ts'
 import { removeMember, watchMembers, type MemberRecord } from './members.ts'
+import './MembersScreen.css'
 
 const SETTINGS = route('/settings')
 
@@ -33,7 +34,14 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
   const [invites, setInvites] = useState<core.Email[] | undefined>(undefined)
   const [qrInviteEmail, setQrInviteEmail] = useState<core.Email | null>(null)
 
+  // Bumped on every Share so the QR block is remounted, regenerates, and scrolls into view again.
+  const [qrShareCount, setQrShareCount] = useState(0)
   const qrBlock = useRef<HTMLDivElement>(null)
+
+  function showQr(email: core.Email) {
+    setQrInviteEmail(email)
+    setQrShareCount((count) => count + 1)
+  }
 
   // Read once per render; safe because AuthGate only mounts this screen for a signed-in Member.
   const viewerUid = currentUserUid(db.app)
@@ -85,7 +93,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
                     <Button
                       variant="text"
                       aria-label={`Share invite for ${email}`}
-                      onClick={() => void shareInvite(config, email, setQrInviteEmail)}
+                      onClick={() => void shareInvite(config, email, showQr)}
                     >
                       Share
                     </Button>
@@ -107,11 +115,12 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
         </ul>
       )}
       {qrInviteEmail !== null && (
-        <div ref={qrBlock}>
+        <div ref={qrBlock} className="members-qr-block">
           <DeviceTransferQrCode
+            key={qrShareCount}
             config={config}
             label={`Scan with the device of ${qrInviteEmail} to join`}
-            onRendered={() => qrBlock.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })}
+            onSettled={() => qrBlock.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })}
           />
           <Button variant="text" onClick={() => setQrInviteEmail(null)}>
             Close QR code

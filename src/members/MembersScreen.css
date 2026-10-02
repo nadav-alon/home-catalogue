@@ -1,0 +1,10 @@
+/* Keeps the block's Close button clear of the fixed bottom bar when it is scrolled to the end of the viewport. */
+.members-qr-block {
+  scroll-margin-bottom: var(--shell-bar-height);
+}
+
+@media (min-width: 600px) {
+  .members-qr-block {
+    scroll-margin-bottom: 0;
+  }
+}
