@@ -55,6 +55,12 @@ declare global {
 
 export class GoogleIdentityUnavailableError extends Error {}
 
+/** The Member closed the Google sign-in popup themselves; nothing failed to reach Google. */
+export class GoogleSignInCancelledError extends Error {}
+
+/** The browser refused to open the Google sign-in popup. */
+export class GoogleSignInPopupBlockedError extends Error {}
+
 /**
  * Requests a Calendar access token via Google Identity Services. Must be called synchronously
  * from within the user's tap — the token client's own popup opens inside this call, and browsers
@@ -74,7 +80,16 @@ export function requestCalendarAccessToken(): Promise<AccessToken> {
         else reject(new Error(response.error ?? 'Google did not grant a Calendar access token.'))
       },
       error_callback: (error) => {
-        reject(new Error(error.message ?? `Google Identity Services failed: ${error.type}`))
+        switch (error.type) {
+          case 'popup_closed':
+            reject(new GoogleSignInCancelledError('Google sign-in was cancelled.'))
+            break
+          case 'popup_failed_to_open':
+            reject(new GoogleSignInPopupBlockedError('The browser blocked the Google sign-in window.'))
+            break
+          default:
+            reject(new Error(error.message ?? `Google Identity Services failed: ${error.type}`))
+        }
       },
     })
     client.requestAccessToken()

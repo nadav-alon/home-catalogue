@@ -26,6 +26,8 @@ type ExportStatus =
   | { phase: "exporting" }
   | { phase: "exported" }
   | { phase: "fallback"; links: ShopFallbackLink[] }
+  | { phase: "cancelled" }
+  | { phase: "popup-blocked" }
   | { phase: "error"; message: string };
 
 function pendingItems(count: number): string {
@@ -39,7 +41,8 @@ function needShopMessage(count: number): string {
 
 /**
  * Export of the Shopping list to Calendar, opened from a top app bar action: one event per Shop, or a
- * deep link per Shop if the token or API fails. Works from the Items, Categories and Shops it is given.
+ * deep link per Shop if the Calendar API or the token request fails; a cancelled or blocked Google
+ * sign-in just says so, so Export can be retried. Works from the Items, Categories and Shops it is given.
  */
 export function CalendarExport({
   items,
@@ -100,9 +103,9 @@ export function CalendarExport({
     setStatus({ phase: "exporting" });
     const result = await exportShoppingList(groups, date);
     setStatus(
-      result.status === "exported"
-        ? { phase: "exported" }
-        : { phase: "fallback", links: result.links },
+      result.status === "fallback"
+        ? { phase: "fallback", links: result.links }
+        : { phase: result.status },
     );
     if (!openRef.current) setUnseenResult(true);
   }
@@ -143,6 +146,15 @@ export function CalendarExport({
         {status.phase === "error" && <p role="alert">{status.message}</p>}
         {status.phase === "exported" && (
           <p role="status">Exported to Calendar.</p>
+        )}
+        {status.phase === "cancelled" && (
+          <p role="status">Google sign-in was cancelled.</p>
+        )}
+        {status.phase === "popup-blocked" && (
+          <p role="status">
+            Your browser blocked the Google sign-in window. Allow pop-ups and try
+            again.
+          </p>
         )}
         {status.phase === "fallback" && (
           <div role="status">

@@ -3,6 +3,8 @@ import {
   CALENDAR_APP_CREATED_SCOPE,
   GOOGLE_OAUTH_CLIENT_ID,
   GoogleIdentityUnavailableError,
+  GoogleSignInCancelledError,
+  GoogleSignInPopupBlockedError,
   requestCalendarAccessToken,
 } from './googleAuthClient.ts'
 
@@ -82,7 +84,7 @@ describe('requestCalendarAccessToken', () => {
     await expect(requestCalendarAccessToken()).rejects.toThrow('access_denied')
   })
 
-  it('rejects when the user closes the popup, via error_callback rather than callback', async () => {
+  it('rejects as cancelled when the user closes the popup, via error_callback rather than callback', async () => {
     window.google = {
       accounts: {
         oauth2: {
@@ -93,6 +95,38 @@ describe('requestCalendarAccessToken', () => {
       },
     }
 
-    await expect(requestCalendarAccessToken()).rejects.toThrow('popup_closed')
+    await expect(requestCalendarAccessToken()).rejects.toBeInstanceOf(GoogleSignInCancelledError)
+  })
+
+  it('rejects as popup-blocked when the browser refuses to open the popup', async () => {
+    window.google = {
+      accounts: {
+        oauth2: {
+          initTokenClient: (config) => ({
+            requestAccessToken: () => config.error_callback({ type: 'popup_failed_to_open' }),
+          }),
+        },
+      },
+    }
+
+    await expect(requestCalendarAccessToken()).rejects.toBeInstanceOf(GoogleSignInPopupBlockedError)
+  })
+
+  it('rejects with a plain error, neither cancelled nor popup-blocked, for any other error_callback type', async () => {
+    window.google = {
+      accounts: {
+        oauth2: {
+          initTokenClient: (config) => ({
+            requestAccessToken: () => config.error_callback({ type: 'unknown' }),
+          }),
+        },
+      },
+    }
+
+    const rejection = await requestCalendarAccessToken().catch((err: unknown) => err)
+
+    expect(rejection).toBeInstanceOf(Error)
+    expect(rejection).not.toBeInstanceOf(GoogleSignInCancelledError)
+    expect(rejection).not.toBeInstanceOf(GoogleSignInPopupBlockedError)
   })
 })

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { core } from 'data-platform'
 import type { ItemRecord } from '../catalogue/items.ts'
 import { bandages, cleaning, grocery, pharmacy } from '../catalogue/testFixtures.ts'
-import { accessToken } from './googleAuthClient.ts'
+import { accessToken, GoogleSignInCancelledError, GoogleSignInPopupBlockedError } from './googleAuthClient.ts'
 import { exportDate } from './exportDate.ts'
 import { exportShoppingList } from './exportShoppingList.ts'
 import { GoogleCalendarApiError } from './googleCalendarApi.ts'
@@ -63,7 +63,7 @@ describe('exportShoppingList', () => {
   })
 
   it('falls back to a deep link per Shop when the token request fails', async () => {
-    requestCalendarAccessToken.mockRejectedValueOnce(new Error('popup blocked'))
+    requestCalendarAccessToken.mockRejectedValueOnce(new Error('network down'))
 
     const result = await exportShoppingList(groups, date)
 
@@ -71,6 +71,24 @@ describe('exportShoppingList', () => {
     if (result.status !== 'fallback') throw new Error('expected fallback')
     expect(result.links.map((link) => link.shopName)).toEqual(['Pharmacy', 'Grocery'])
     expect(result.links.every((link) => link.url.startsWith('https://calendar.google.com/calendar/render?'))).toBe(true)
+    expect(findOrCreateAppCalendar).not.toHaveBeenCalled()
+  })
+
+  it('reports a cancelled sign-in, not links, when the Member closes the popup', async () => {
+    requestCalendarAccessToken.mockRejectedValueOnce(new GoogleSignInCancelledError('closed'))
+
+    const result = await exportShoppingList(groups, date)
+
+    expect(result).toEqual({ status: 'cancelled' })
+    expect(findOrCreateAppCalendar).not.toHaveBeenCalled()
+  })
+
+  it('reports a blocked popup, not links, when the browser refuses the sign-in window', async () => {
+    requestCalendarAccessToken.mockRejectedValueOnce(new GoogleSignInPopupBlockedError('blocked'))
+
+    const result = await exportShoppingList(groups, date)
+
+    expect(result).toEqual({ status: 'popup-blocked' })
     expect(findOrCreateAppCalendar).not.toHaveBeenCalled()
   })
 
@@ -128,9 +146,9 @@ describe('exportShoppingList', () => {
       return { messages: watched.messages, result }
     }
 
-    it('when the household closes the Google popup', async () => {
+    it('when the token request fails for a reason other than the popup', async () => {
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-      const failure = new Error('popup_closed')
+      const failure = new Error('network down')
       requestCalendarAccessToken.mockRejectedValueOnce(failure)
 
       const { messages, result } = await exportWatchingRejections()
@@ -138,6 +156,18 @@ describe('exportShoppingList', () => {
       expect(result.status).toBe('fallback')
       expect(messages).toEqual([])
       expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure)
+      consoleError.mockRestore()
+    })
+
+    it('not at all when the Member closes the Google popup', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      requestCalendarAccessToken.mockRejectedValueOnce(new GoogleSignInCancelledError('closed'))
+
+      const { messages, result } = await exportWatchingRejections()
+
+      expect(result).toEqual({ status: 'cancelled' })
+      expect(messages).toEqual([])
+      expect(consoleError).not.toHaveBeenCalled()
       consoleError.mockRestore()
     })
 
