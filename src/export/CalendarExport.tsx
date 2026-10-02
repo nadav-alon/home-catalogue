@@ -77,7 +77,7 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
           Export to Calendar
         </Button>
       </TopAppBarActions>
-      <Dialog open={open} title="Export to Calendar" onClose={() => setOpen(false)}>
+      <Dialog open={open} title="Export to Calendar" onClose={() => setOpen(false)} closable>
         {status.phase === 'error' && <p role="alert">{status.message}</p>}
         {status.phase === 'exported' && <p role="status">Exported to Calendar.</p>}
         {status.phase === 'fallback' && (
