@@ -78,6 +78,20 @@ describe('Dialog', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('does not ask to close when the dialog box is tapped, padding included', () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog open title="New item" onClose={onClose}>
+        <button type="button">Save</button>
+      </Dialog>,
+    )
+    const dialog = screen.getByRole('dialog')
+    boxAt(dialog, { left: 100, top: 100, right: 300, bottom: 300 })
+    fireEvent.click(dialog, { clientX: 105, clientY: 105 })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }), { clientX: 200, clientY: 200 })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('has no Close button unless closable', () => {
     render(
       <Dialog open title="New item" onClose={() => {}}>
