@@ -159,6 +159,12 @@ describe('MembersScreen', () => {
     ])
   })
 
+  it('shows the Owner the Pending invites heading when no invites are pending', () => {
+    renderScreen([owner])
+
+    expect(screen.getByRole('heading', { name: 'Pending invites' })).toBeInTheDocument()
+  })
+
   it('says so when no invites are pending', () => {
     renderScreen([owner])
 
@@ -187,6 +193,21 @@ describe('MembersScreen', () => {
 
   it('does not say no invites are pending when some are', () => {
     renderScreen([owner], [core.email('c@example.com')])
+
+    expect(screen.queryByText('No pending invites.')).not.toBeInTheDocument()
+  })
+
+  it('shows a non-Owner Member no Pending invites section, even when invites are pending', () => {
+    currentUserUid.mockReturnValue(member.uid)
+    renderScreen([owner, member], [core.email('c@example.com')])
+
+    expect(screen.queryByRole('heading', { name: 'Pending invites' })).not.toBeInTheDocument()
+    expect(screen.queryByText('c@example.com')).not.toBeInTheDocument()
+  })
+
+  it('shows a non-Owner Member no empty-state line when no invites are pending', () => {
+    currentUserUid.mockReturnValue(member.uid)
+    renderScreen([owner, member])
 
     expect(screen.queryByText('No pending invites.')).not.toBeInTheDocument()
   })
@@ -448,13 +469,6 @@ describe('MembersScreen', () => {
       await waitFor(() => expect(share).toHaveBeenCalled())
       expect(screen.queryByRole('img')).not.toBeInTheDocument()
     })
-
-    it('shows a non-Owner Member no share control', () => {
-      currentUserUid.mockReturnValue(member.uid)
-      renderScreen([owner, member], invites)
-
-      expect(screen.queryByRole('button', { name: /Share/ })).not.toBeInTheDocument()
-    })
   })
 
   describe('revoking', () => {
@@ -483,13 +497,6 @@ describe('MembersScreen', () => {
       expect(screen.getByRole('button', { name: 'Share invite for c@example.com' })).not.toHaveClass(
         'ui-button--destructive',
       )
-    })
-
-    it('shows a non-Owner Member no revoke control', () => {
-      currentUserUid.mockReturnValue(member.uid)
-      renderScreen([owner, member], [core.email('c@example.com')])
-
-      expect(screen.queryByRole('button', { name: /Revoke/ })).not.toBeInTheDocument()
     })
   })
 })
