@@ -11,7 +11,7 @@ export interface DialogActionsProps {
   children: ComponentChildren
 }
 
-/** The action row at the foot of a dialog's form. */
+/** The action row at the foot of a dialog's form, or of an inline sub-form inside it. */
 export function DialogActions({ destructive, children }: DialogActionsProps) {
   return (
     <div class="ui-dialog-actions">
