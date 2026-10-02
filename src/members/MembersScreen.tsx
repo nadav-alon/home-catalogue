@@ -6,6 +6,7 @@ import { currentUserUid } from '../auth/authClient.ts'
 import { reportFailure } from '../catalogue/writeRejections.ts'
 import type { FirebaseWebConfig } from '../firebase/webConfig.ts'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
+import { showSnackbar } from '../ui/Snackbar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
@@ -29,7 +30,7 @@ export interface MembersScreenProps {
 /** The Household's Members and pending Invites; every Member can open it, and only the Owner gets the controls to change them. */
 export function MembersScreen({ db, config }: MembersScreenProps) {
   const [members, setMembers] = useState<MemberRecord[]>([])
-  const [invites, setInvites] = useState<core.Email[]>([])
+  const [invites, setInvites] = useState<core.Email[] | undefined>(undefined)
   const [qrInviteEmail, setQrInviteEmail] = useState<core.Email | null>(null)
 
   // Read once per render; safe because AuthGate only mounts this screen for a signed-in Member.
@@ -53,11 +54,11 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
       </TopAppBarNavigation>
       <h2>Members</h2>
       <ul>
-        {members.map((member) => (
+        {ownerFirst(members).map((member) => (
           <ListRow
             key={member.uid}
             headline={member.email}
-            supporting={member.isOwner ? 'Owner' : undefined}
+            supporting={memberSupportingText(member, viewerUid)}
             control={
               viewerIsOwner && !member.isOwner ? (
                 <Button variant="text" aria-label={`Remove ${member.email}`} onClick={() => handleRemove(member)}>
@@ -68,39 +69,42 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
           />
         ))}
       </ul>
-      {viewerIsOwner && <InviteForm db={db} members={members} invites={invites} />}
+      {viewerIsOwner && <InviteForm db={db} members={members} invites={invites ?? []} />}
       <h3 id="pending-invites">Pending invites</h3>
-      <ul aria-labelledby="pending-invites">
-        {invites.map((email) => (
-          <ListRow
-            key={email}
-            headline={email}
-            trailing={
-              viewerIsOwner && (
-                <>
-                  <Button
-                    variant="text"
-                    aria-label={`Share invite for ${email}`}
-                    onClick={() => void shareInvite(config, email, setQrInviteEmail)}
-                  >
-                    Share
-                  </Button>
-                  <Button
-                    variant="text"
-                    aria-label={`Revoke invite for ${email}`}
-                    onClick={() => {
-                      if (qrInviteEmail === email) setQrInviteEmail(null)
-                      void revokeInvite(db, email)
-                    }}
-                  >
-                    Revoke
-                  </Button>
-                </>
-              )
-            }
-          />
-        ))}
-      </ul>
+      {invites?.length === 0 && <p>No pending invites.</p>}
+      {invites !== undefined && invites.length > 0 && (
+        <ul aria-labelledby="pending-invites">
+          {invites.map((email) => (
+            <ListRow
+              key={email}
+              headline={email}
+              trailing={
+                viewerIsOwner && (
+                  <>
+                    <Button
+                      variant="text"
+                      aria-label={`Share invite for ${email}`}
+                      onClick={() => void shareInvite(config, email, setQrInviteEmail)}
+                    >
+                      Share
+                    </Button>
+                    <Button
+                      variant="text"
+                      aria-label={`Revoke invite for ${email}`}
+                      onClick={() => {
+                        if (qrInviteEmail === email) setQrInviteEmail(null)
+                        void revokeInvite(db, email).then(() => showSnackbar({ text: `Revoked invite for ${email}` }))
+                      }}
+                    >
+                      Revoke
+                    </Button>
+                  </>
+                )
+              }
+            />
+          ))}
+        </ul>
+      )}
       {qrInviteEmail !== null && (
         <div>
           <DeviceTransferQrCode config={config} label={`Scan with the device of ${qrInviteEmail} to join`} />
@@ -111,6 +115,17 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
       )}
     </section>
   )
+}
+
+/** The Owner ahead of the other Members, who keep their order. */
+function ownerFirst(members: MemberRecord[]): MemberRecord[] {
+  return [...members.filter((member) => member.isOwner), ...members.filter((member) => !member.isOwner)]
+}
+
+/** The supporting text under a Member's email: "Owner" and "you" (the signed-in Member); `undefined` when neither applies. */
+function memberSupportingText(member: MemberRecord, viewerUid: core.Uid | null): string | undefined {
+  const labels = [member.isOwner ? 'Owner' : null, member.uid === viewerUid ? 'you' : null].filter((label) => label !== null)
+  return labels.length > 0 ? labels.join(' · ') : undefined
 }
 
 const INVALID_EMAIL_MESSAGE = 'Enter a Google email address.'
@@ -144,6 +159,7 @@ function InviteForm({ db, members, invites }: InviteFormProps) {
       return
     }
     await createInvite(db, key)
+    showSnackbar({ text: `Invited ${key}` })
     setValue('')
     setError(undefined)
   }

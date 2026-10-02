@@ -7,6 +7,7 @@ import { firebaseWebConfig } from '../firebase/webConfig.ts'
 import { deviceTransferUrl } from '../firebase/deviceTransfer.ts'
 import { resetHash } from '../testing/hash.ts'
 import { createInvite, revokeInvite } from './invites.ts'
+import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
 import { MembersScreen } from './MembersScreen.tsx'
 import type { MemberRecord } from './members.ts'
 
@@ -65,6 +66,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  resetSnackbar()
   resetHash()
   Reflect.deleteProperty(navigator, 'share')
   vi.restoreAllMocks()
@@ -82,6 +84,7 @@ function renderScreen(members: MemberRecord[] = [], invites: core.Email[] = []) 
   return render(
     <TopAppBar title="Members">
       <MembersScreen db={fakeDb} config={config} />
+      <SnackbarHost />
     </TopAppBar>,
   )
 }
@@ -118,6 +121,66 @@ describe('MembersScreen', () => {
     expect(within(pending).getAllByRole('listitem')).toHaveLength(1)
     expect(pending).toHaveTextContent('c@example.com')
     expect(pending).not.toHaveTextContent('a@example.com')
+  })
+
+  it('labels the signed-in Member\'s row "you" and no other', () => {
+    currentUserUid.mockReturnValue(core.uid('u2'))
+    renderScreen([owner, member])
+
+    const [ownerRow, memberRow] = screen.getAllByRole('listitem')
+    expect(memberRow).toHaveTextContent('you')
+    expect(ownerRow).not.toHaveTextContent('you')
+  })
+
+  it('labels the signed-in Owner as both Owner and "you"', () => {
+    renderScreen([owner, member])
+
+    const [ownerRow, memberRow] = screen.getAllByRole('listitem')
+    expect(ownerRow).toHaveTextContent('Owner')
+    expect(ownerRow).toHaveTextContent('you')
+    expect(memberRow).not.toHaveTextContent('you')
+  })
+
+  it('lists the Owner first even when their email sorts after the Members\'', () => {
+    renderScreen([member, other, { ...owner, email: core.email('z@example.com') }])
+
+    expect(screen.getAllByRole('listitem').map((row) => row.textContent)).toEqual([
+      expect.stringContaining('z@example.com'),
+      expect.stringContaining('b@example.com'),
+      expect.stringContaining('c@example.com'),
+    ])
+  })
+
+  it('says so when no invites are pending', () => {
+    renderScreen([owner])
+
+    expect(screen.getByText('No pending invites.')).toBeInTheDocument()
+  })
+
+  it('renders no Pending invites list beside the empty-state line', () => {
+    renderScreen([owner])
+
+    expect(screen.queryByRole('list', { name: 'Pending invites' })).not.toBeInTheDocument()
+  })
+
+  it('does not say no invites are pending before the first snapshot arrives', () => {
+    watchMembers.mockImplementation((_db, cb: (members: MemberRecord[]) => void) => {
+      cb([owner])
+      return unsubscribe
+    })
+    render(
+      <TopAppBar title="Members">
+        <MembersScreen db={fakeDb} config={config} />
+      </TopAppBar>,
+    )
+
+    expect(screen.queryByText('No pending invites.')).not.toBeInTheDocument()
+  })
+
+  it('does not say no invites are pending when some are', () => {
+    renderScreen([owner], [core.email('c@example.com')])
+
+    expect(screen.queryByText('No pending invites.')).not.toBeInTheDocument()
   })
 
   it('offers the Owner Remove on every Member but their own', () => {
@@ -204,6 +267,23 @@ describe('MembersScreen', () => {
 
       await waitFor(() => expect(createInvite).toHaveBeenCalledWith(fakeDb, 'new@example.com'))
       expect(screen.getByLabelText('Invite by email')).toHaveValue('')
+    })
+
+    it('confirms the invite in a snackbar', async () => {
+      renderScreen([owner, member])
+
+      invite('New@Example.com')
+
+      expect(await screen.findByText('Invited new@example.com')).toBeInTheDocument()
+    })
+
+    it('shows no snackbar when the email is refused', async () => {
+      renderScreen([owner, member])
+
+      invite('B@example.com')
+
+      await screen.findByRole('alert')
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
     })
 
     it('refuses an email that is already a Member, on the field', async () => {
@@ -327,6 +407,14 @@ describe('MembersScreen', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Revoke invite for c@example.com' }))
 
       expect(revokeInvite).toHaveBeenCalledWith(fakeDb, 'c@example.com')
+    })
+
+    it('confirms the revocation in a snackbar', async () => {
+      renderScreen([owner], [core.email('c@example.com')])
+
+      fireEvent.click(screen.getByRole('button', { name: 'Revoke invite for c@example.com' }))
+
+      expect(await screen.findByText('Revoked invite for c@example.com')).toBeInTheDocument()
     })
 
     it('shows a non-Owner Member no revoke control', () => {
