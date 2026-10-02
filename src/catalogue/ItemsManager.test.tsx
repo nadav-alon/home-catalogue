@@ -1128,7 +1128,7 @@ describe('adding a Category from the Item dialog', () => {
     expect(createCategory).not.toHaveBeenCalled()
   })
 
-  it('clears the name error once a name is typed', () => {
+  it('clears the name error once a name is typed, without pressing Create Category again', () => {
     renderWith([], [medicine], [pharmacy])
     openDialog()
     chooseNewCategory()
@@ -1141,7 +1141,7 @@ describe('adding a Category from the Item dialog', () => {
     expect(screen.getByLabelText('New Category name')).not.toHaveAccessibleDescription('A Category needs a name.')
   })
 
-  it('clears the Shop error once a Shop is chosen', () => {
+  it('clears the Shop error once a Shop is chosen, without pressing Create Category again', () => {
     renderWith([], [medicine], [pharmacy])
     openDialog()
     chooseNewCategory()
@@ -1152,6 +1152,7 @@ describe('adding a Category from the Item dialog', () => {
     choose(screen.getByLabelText('Default Shop'), pharmacy.id)
 
     expect(screen.getByLabelText('Default Shop')).toBeValid()
+    expect(screen.getByLabelText('Default Shop')).not.toHaveAccessibleDescription('Choose a default Shop.')
   })
 
   it('leaves the Shop error when only the name is edited', () => {
@@ -1178,7 +1179,7 @@ describe('adding a Category from the Item dialog', () => {
   })
 
   it('keeps a createCategory rejection while the fields are edited', async () => {
-    renderWith([], [medicine], [pharmacy])
+    renderWith([], [medicine], [pharmacy, grocery])
     createCategory.mockRejectedValue(new Error('Offline'))
     openDialog()
     chooseNewCategory()
@@ -1188,7 +1189,7 @@ describe('adding a Category from the Item dialog', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Offline')
 
     fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Medicine' } })
-    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+    choose(screen.getByLabelText('Default Shop'), grocery.id)
 
     expect(screen.getByRole('alert')).toHaveTextContent('Offline')
   })
