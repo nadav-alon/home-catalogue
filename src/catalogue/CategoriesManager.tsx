@@ -43,7 +43,7 @@ interface CategoryFieldsProps {
   nameLabel: string
   draft: CategoryDraft
   shops: ShopRecord[]
-  onChange: (draft: CategoryDraft) => void
+  onChange: (update: (draft: CategoryDraft) => CategoryDraft) => void
   onCreateShop: (name: string) => Promise<catalogue.ShopId>
 }
 
@@ -64,7 +64,7 @@ function CategoryFields({ nameLabel, draft, shops, onChange, onCreateShop }: Cat
     if (value === NEW_SHOP) {
       setNewShopName((current) => current ?? '')
     } else {
-      onChange({ ...draft, shopId: value })
+      onChange((current) => ({ ...current, shopId: value }))
       closeShopPrompt()
     }
   }
@@ -81,7 +81,8 @@ function CategoryFields({ nameLabel, draft, shops, onChange, onCreateShop }: Cat
     const trimmedName = newShopName.trim()
     if (trimmedName.length === 0) return setShopError('A Shop needs a name.')
     try {
-      onChange({ ...draft, shopId: await onCreateShop(trimmedName) })
+      const createdId = await onCreateShop(trimmedName)
+      onChange((current) => ({ ...current, shopId: createdId }))
       closeShopPrompt()
     } catch (err) {
       setShopError(err instanceof Error ? err.message : 'Could not add Shop')
@@ -93,7 +94,7 @@ function CategoryFields({ nameLabel, draft, shops, onChange, onCreateShop }: Cat
       <TextField
         label={nameLabel}
         value={draft.name}
-        onInput={(event) => onChange({ ...draft, name: event.currentTarget.value })}
+        onInput={(event) => onChange((current) => ({ ...current, name: event.currentTarget.value }))}
       />
       <Select
         label="Default Shop"
