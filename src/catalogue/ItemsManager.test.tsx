@@ -1400,6 +1400,27 @@ describe('a scanned barcode', () => {
     expect(attachBarcode).not.toHaveBeenCalled()
   })
 
+  it('creates the Item carrying both the barcode and the chosen State from "New Item"', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    fireEvent.input(within(dialog).getByLabelText('Name'), { target: { value: 'Dish soap' } })
+    choose(within(dialog).getByLabelText('Category'), medicine.id)
+    choose(within(dialog).getByLabelText('Necessity'), 'essential')
+    choose(within(dialog).getByLabelText('State'), 'out')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(createItem).toHaveBeenCalledWith(
+        fakeDb,
+        expect.objectContaining({ name: 'Dish soap', barcode: '4006381333931', state: 'out' }),
+      ),
+    )
+  })
+
   it('opens the new Item\'s scanned filter once the Item dialog opened from "New Item" is saved', async () => {
     createItem.mockResolvedValue(core.itemId('dish-soap'))
     renderWith([bandages], [medicine], [pharmacy])
