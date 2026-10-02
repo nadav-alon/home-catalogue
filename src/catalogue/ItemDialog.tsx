@@ -193,7 +193,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
         <option value={NEW_CATEGORY}>+ New Category</option>
       </Select>
       {categoryDraft !== null && (
-        <div onKeyDown={handleCategoryPromptKeyDown}>
+        <div class="item-form__group" onKeyDown={handleCategoryPromptKeyDown}>
           {categoryError?.field === 'create' && <p role="alert">{categoryError.message}</p>}
           <TextField
             label="New Category name"
