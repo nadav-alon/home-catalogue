@@ -1,11 +1,11 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { actionLabels } from '../testing/dialog.ts'
 import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
-import { ShopsManager } from './ShopsManager.tsx'
+import { ShopsManager, SHOP_DELETED_MESSAGE } from './ShopsManager.tsx'
 import { SHOP_IN_USE_MESSAGE, type ShopRecord } from './shops.ts'
 import { grocery, pharmacy } from './testFixtures.ts'
 
@@ -58,6 +58,13 @@ function renderWithShops(shops: ShopRecord[], { withSnackbar = false } = {}) {
       {withSnackbar && <SnackbarHost />}
     </>,
   )
+}
+
+/** Like renderWithShops, but `push` delivers a later watchShops update. */
+function renderLive(shops: ShopRecord[], options: Parameters<typeof renderWithShops>[1] = {}) {
+  const utils = renderWithShops(shops, options)
+  const callback = watchShops.mock.calls[0][1] as (shops: ShopRecord[]) => void
+  return { ...utils, push: callback }
 }
 
 function openEditor(shopName: string) {
@@ -286,6 +293,85 @@ describe('ShopsManager', () => {
 
     expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Delete' })).not.toHaveAccessibleDescription()
+  })
+
+  it('disables Delete and shows the in-use note when the open Shop becomes in use', () => {
+    const { push } = renderLive([pharmacy])
+    openEditor('Pharmacy')
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
+
+    act(() => push([{ ...pharmacy, referenceCount: 1 }]))
+
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+    expect(screen.getByText(SHOP_IN_USE_MESSAGE)).toBeVisible()
+  })
+
+  it('enables Delete and removes the in-use note when the open Shop is freed', () => {
+    const { push } = renderLive([{ ...pharmacy, referenceCount: 1 }])
+    openEditor('Pharmacy')
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+
+    act(() => push([{ ...pharmacy, referenceCount: 0 }]))
+
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
+    expect(screen.queryByText(SHOP_IN_USE_MESSAGE)).toBeNull()
+  })
+
+  it('hands the live record, not the one opened, to deleteShop once the Shop is freed', () => {
+    const { push } = renderLive([{ ...pharmacy, referenceCount: 1 }])
+    openEditor('Pharmacy')
+    act(() => push([{ ...pharmacy, referenceCount: 0 }]))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(deleteShop).toHaveBeenCalledWith(fakeDb, expect.objectContaining({ referenceCount: 0 }))
+  })
+
+  it('hands the live record, not the one opened, to renameShop', () => {
+    const { push } = renderLive([pharmacy])
+    openEditor('Pharmacy')
+    act(() => push([{ ...pharmacy, referenceCount: 3 }]))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
+
+    expect(renameShop).toHaveBeenCalledWith(fakeDb, expect.objectContaining({ referenceCount: 3 }), 'Pharmacy')
+  })
+
+  it('discards an unsaved draft name when the Shop is deleted elsewhere', async () => {
+    const { push } = renderLive([pharmacy, grocery])
+    openEditor('Pharmacy')
+    fireEvent.input(screen.getByLabelText('Shop name'), { target: { value: 'Chemist' } })
+
+    act(() => push([grocery]))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    act(() => push([pharmacy, grocery]))
+    openEditor('Pharmacy')
+
+    expect(screen.getByLabelText('Shop name')).toHaveValue('Pharmacy')
+  })
+
+  it('closes the dialog and says the Shop was deleted when it leaves the live list', async () => {
+    const { push } = renderLive([pharmacy, grocery], { withSnackbar: true })
+    openEditor('Pharmacy')
+
+    act(() => push([grocery]))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(screen.getByRole('status')).toHaveTextContent(SHOP_DELETED_MESSAGE)
+  })
+
+  it('does not report a deletion the dialog made itself as deleted elsewhere', async () => {
+    const { push } = renderLive([pharmacy], { withSnackbar: true })
+    deleteShop.mockImplementationOnce(() => {
+      act(() => push([]))
+      return Promise.resolve()
+    })
+    openEditor('Pharmacy')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Deleted Pharmacy'))
+    expect(screen.getByRole('status')).not.toHaveTextContent(SHOP_DELETED_MESSAGE)
   })
 
   it('opens the Edit Shop dialog when the row itself is tapped', () => {
