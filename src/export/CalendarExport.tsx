@@ -41,7 +41,8 @@ function needShopMessage(count: number): string {
 
 /**
  * Export of the Shopping list to Calendar, opened from a top app bar action: one event per Shop, or a
- * deep link per Shop if the token or API fails. Works from the Items, Categories and Shops it is given.
+ * deep link per Shop if the Calendar API or the token request fails; a cancelled or blocked Google
+ * sign-in just says so, so Export can be retried. Works from the Items, Categories and Shops it is given.
  */
 export function CalendarExport({
   items,
