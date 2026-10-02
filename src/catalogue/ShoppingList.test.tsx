@@ -465,6 +465,23 @@ describe('a scanned barcode', () => {
     expect(await screen.findByRole('button', { name: 'Undo' })).toBeInTheDocument()
   })
 
+  it('asks for another scan instead of opening the chooser while the Items are loading', async () => {
+    watchItems.mockReturnValue(vi.fn())
+    watchCategories.mockReturnValue(vi.fn())
+    watchShops.mockReturnValue(vi.fn())
+    render(
+      <TopAppBar title="Shopping list">
+        <ShoppingList db={fakeDb} />
+      </TopAppBar>,
+    )
+
+    scan()
+
+    expect(await screen.findByText('Items are still loading, scan again in a moment')).toBeInTheDocument()
+    expect(findBarcodeHolders).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: 'Unknown barcode' })).not.toBeInTheDocument()
+  })
+
   it('opens the Unknown barcode chooser for a barcode no Item carries', async () => {
     renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
 

@@ -33,6 +33,8 @@ export function ShoppingList({ db }: ShoppingListProps) {
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
 
+  /** Set by a scan made before the Items arrived; shown only while they are still loading. */
+  const [scanWaiting, setScanWaiting] = useState(false)
   /** The scanned Barcode no live Item carries, and the Items it still sits on, while the Member chooses what to do with it. */
   const [unknown, setUnknown] = useState<{ barcode: core.Barcode; holders: BarcodeHolder[] }>()
   /** The Barcode a new Item carries from the start, while the Item dialog is open. */
@@ -57,9 +59,14 @@ export function ShoppingList({ db }: ShoppingListProps) {
 
   /** A scanned Barcode sits on at most one Item; it is bought whether or not it was on today's list. */
   function handleScan(barcode: core.Barcode) {
-    const [item] = itemsWithBarcode(items ?? [], barcode)
+    if (items === null) {
+      setScanWaiting(true)
+      return
+    }
+    setScanWaiting(false)
+    const [item] = itemsWithBarcode(items, barcode)
     if (item !== undefined) return handleTick(item)
-    void findBarcodeHolders(db, items ?? [], barcode).then(
+    void findBarcodeHolders(db, items, barcode).then(
       (holders) => setUnknown({ barcode, holders }),
       (err: unknown) => setError(err instanceof Error ? err.message : 'Could not look up the barcode'),
     )
@@ -88,6 +95,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
       <AlertBanner items={items ?? []} />
       <CalendarExport items={items ?? []} categories={categories} shops={shops} />
       {error !== null && <p role="alert">{error}</p>}
+      {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
       {items !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
       {groups.map(({ key, name, items: groupItems }) => (
         <div key={key}>
