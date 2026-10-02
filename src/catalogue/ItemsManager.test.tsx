@@ -1300,7 +1300,7 @@ describe('a scanned barcode', () => {
     expect(updateItem).not.toHaveBeenCalled()
   })
 
-  it('closes the chooser from the Close icon in its title row, writing nothing', async () => {
+  it('closes the chooser from its Close icon, writing nothing', async () => {
     renderWith([bandages], [medicine], [pharmacy])
     scan()
     const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
@@ -1320,10 +1320,11 @@ describe('a scanned barcode', () => {
     const existing = within(chooser).getByRole('button', { name: 'Add to existing Item' })
     const added = within(chooser).getByRole('button', { name: 'New Item' })
 
-    expect(existing.className).toBe(added.className)
+    expect(existing).toHaveClass('ui-button--tonal')
+    expect(added).toHaveClass('ui-button--tonal')
   })
 
-  it('sizes the chooser to its content instead of the full-screen dialog layout', async () => {
+  it('opts out of the full-screen dialog layout through its own class', async () => {
     renderWith([bandages], [medicine], [pharmacy])
     scan()
 
