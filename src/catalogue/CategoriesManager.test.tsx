@@ -33,8 +33,10 @@ vi.mock('./categories.ts', async (importOriginal) => ({
 }))
 
 const watchShops = vi.fn()
+const createShop = vi.fn()
 vi.mock('./shops.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./shops.ts')>()),
+  createShop: (db: unknown, name: string) => createShop(db, name),
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
 }))
 
@@ -61,6 +63,7 @@ beforeEach(() => {
   changeCategoryDefaultShop.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
+  createShop.mockReset()
   categoriesUnsubscribe.mockClear()
   shopsUnsubscribe.mockClear()
 })
@@ -141,6 +144,43 @@ describe('CategoriesManager', () => {
 
     expect(createCategory).toHaveBeenCalledWith(fakeDb, 'Snacks', grocery.id)
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('lists "+ New Shop" in the default Shop picker of the Add and Edit dialogs', () => {
+    renderWith([medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    expect(screen.getByRole('option', { name: '+ New Shop' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    openEditor('Medicine')
+    expect(screen.getByRole('option', { name: '+ New Shop' })).toBeInTheDocument()
+  })
+
+  it('creates a Shop from the prompt and selects it, keeping the Category name', async () => {
+    createShop.mockResolvedValue(grocery.id)
+    const { publishShops } = renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Snacks' } })
+    choose(screen.getByLabelText('Default Shop'), '+new')
+    fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: ' Grocery ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create Shop' }))
+
+    await waitFor(() => expect(screen.queryByLabelText('New Shop name')).toBeNull())
+    expect(createShop).toHaveBeenCalledWith(fakeDb, 'Grocery')
+    act(() => publishShops([pharmacy, grocery]))
+    expect(screen.getByLabelText('Default Shop')).toHaveValue(grocery.id)
+    expect(screen.getByLabelText('New Category name')).toHaveValue('Snacks')
+    expect(createCategory).not.toHaveBeenCalled()
+  })
+
+  it('refuses a blank new Shop name without creating a Shop', () => {
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    choose(screen.getByLabelText('Default Shop'), '+new')
+    fireEvent.click(screen.getByRole('button', { name: 'Create Shop' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('A Shop needs a name.')
+    expect(createShop).not.toHaveBeenCalled()
   })
 
   it('refuses to add a Category without choosing a default Shop', () => {
