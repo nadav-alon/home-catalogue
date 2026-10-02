@@ -27,6 +27,7 @@ type ExportStatus =
   | { phase: "exported" }
   | { phase: "fallback"; links: ShopFallbackLink[] }
   | { phase: "cancelled" }
+  | { phase: "popup-blocked" }
   | { phase: "error"; message: string };
 
 function pendingItems(count: number): string {
@@ -147,6 +148,12 @@ export function CalendarExport({
         )}
         {status.phase === "cancelled" && (
           <p role="status">Google sign-in was cancelled.</p>
+        )}
+        {status.phase === "popup-blocked" && (
+          <p role="status">
+            Your browser blocked the Google sign-in window. Allow pop-ups and try
+            again.
+          </p>
         )}
         {status.phase === "fallback" && (
           <div role="status">

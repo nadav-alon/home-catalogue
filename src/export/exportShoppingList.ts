@@ -1,7 +1,7 @@
 import { buildShopEvent } from './calendarEvent.ts'
 import { shopDeepLink } from './calendarDeepLink.ts'
 import type { ExportDate } from './exportDate.ts'
-import { GoogleSignInCancelledError, requestCalendarAccessToken } from './googleAuthClient.ts'
+import { GoogleSignInCancelledError, GoogleSignInPopupBlockedError, requestCalendarAccessToken } from './googleAuthClient.ts'
 import { findOrCreateAppCalendar, forgetAppCalendar, GoogleCalendarApiError, insertCalendarEvent } from './googleCalendarApi.ts'
 import type { ShopGroup } from './shopGroups.ts'
 
@@ -14,6 +14,7 @@ export type ExportResult =
   | { status: 'exported' }
   | { status: 'fallback'; links: ShopFallbackLink[] }
   | { status: 'cancelled' }
+  | { status: 'popup-blocked' }
 
 /**
  * Exports one Calendar event per `groups` entry, in order. A Shop's event is never retried or
@@ -22,7 +23,7 @@ export type ExportResult =
  * If the app calendar itself is gone (404) or no longer accessible (403), the persisted calendar
  * id is forgotten so the next export creates a fresh one instead of failing the same way again.
  * A household that closes the Google sign-in popup gets `cancelled`, not links: nothing failed, and
- * they can simply export again. The underlying error of any other failure is only logged; the
+ * they can simply export again; a blocked popup likewise gets `popup-blocked`. The underlying error of any other failure is only logged; the
  * dialog's fallback links are the user-facing report.
  */
 export async function exportShoppingList(groups: ShopGroup[], date: ExportDate): Promise<ExportResult> {
@@ -37,6 +38,7 @@ export async function exportShoppingList(groups: ShopGroup[], date: ExportDate):
     return { status: 'exported' }
   } catch (err) {
     if (err instanceof GoogleSignInCancelledError) return { status: 'cancelled' }
+    if (err instanceof GoogleSignInPopupBlockedError) return { status: 'popup-blocked' }
     console.error('Could not add the Export to Google Calendar', err)
     if (err instanceof GoogleCalendarApiError && (err.status === 404 || err.status === 403)) {
       forgetAppCalendar()

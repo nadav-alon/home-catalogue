@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { core } from 'data-platform'
 import type { ItemRecord } from '../catalogue/items.ts'
 import { bandages, cleaning, grocery, pharmacy } from '../catalogue/testFixtures.ts'
-import { accessToken, GoogleSignInCancelledError } from './googleAuthClient.ts'
+import { accessToken, GoogleSignInCancelledError, GoogleSignInPopupBlockedError } from './googleAuthClient.ts'
 import { exportDate } from './exportDate.ts'
 import { exportShoppingList } from './exportShoppingList.ts'
 import { GoogleCalendarApiError } from './googleCalendarApi.ts'
@@ -80,6 +80,15 @@ describe('exportShoppingList', () => {
     const result = await exportShoppingList(groups, date)
 
     expect(result).toEqual({ status: 'cancelled' })
+    expect(findOrCreateAppCalendar).not.toHaveBeenCalled()
+  })
+
+  it('reports a blocked popup, not links, when the browser refuses the sign-in window', async () => {
+    requestCalendarAccessToken.mockRejectedValueOnce(new GoogleSignInPopupBlockedError('blocked'))
+
+    const result = await exportShoppingList(groups, date)
+
+    expect(result).toEqual({ status: 'popup-blocked' })
     expect(findOrCreateAppCalendar).not.toHaveBeenCalled()
   })
 

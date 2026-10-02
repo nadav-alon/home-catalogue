@@ -221,6 +221,20 @@ describe('CalendarExport', () => {
     expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled()
   })
 
+  it('asks to allow pop-ups, with no fallback links, and leaves Export available to retry', async () => {
+    exportShoppingList.mockResolvedValueOnce({ status: 'popup-blocked' })
+    renderWith([outBandages], [medicine], [pharmacy])
+
+    await submit('2026-03-05')
+
+    expect(
+      screen.getByText('Your browser blocked the Google sign-in window. Allow pop-ups and try again.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/Couldn't reach Google Calendar/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Pharmacy' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled()
+  })
+
   it('shows no error when the dialog is reopened after an offline export attempt', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     renderWith([outBandages], [medicine], [pharmacy])

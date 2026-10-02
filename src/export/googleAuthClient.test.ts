@@ -4,6 +4,7 @@ import {
   GOOGLE_OAUTH_CLIENT_ID,
   GoogleIdentityUnavailableError,
   GoogleSignInCancelledError,
+  GoogleSignInPopupBlockedError,
   requestCalendarAccessToken,
 } from './googleAuthClient.ts'
 
@@ -95,5 +96,19 @@ describe('requestCalendarAccessToken', () => {
     }
 
     await expect(requestCalendarAccessToken()).rejects.toBeInstanceOf(GoogleSignInCancelledError)
+  })
+
+  it('rejects as popup-blocked when the browser refuses to open the popup', async () => {
+    window.google = {
+      accounts: {
+        oauth2: {
+          initTokenClient: (config) => ({
+            requestAccessToken: () => config.error_callback({ type: 'popup_failed_to_open' }),
+          }),
+        },
+      },
+    }
+
+    await expect(requestCalendarAccessToken()).rejects.toBeInstanceOf(GoogleSignInPopupBlockedError)
   })
 })
