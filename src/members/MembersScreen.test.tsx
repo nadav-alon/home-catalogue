@@ -210,6 +210,7 @@ describe('MembersScreen', () => {
     renderScreen([owner, member])
 
     fireEvent.click(screen.getByText('b@example.com'))
+    fireEvent.click(screen.getByText('b@example.com').closest('li')!)
 
     expect(confirmSpy).not.toHaveBeenCalled()
     expect(removeMember).not.toHaveBeenCalled()
