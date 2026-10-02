@@ -70,7 +70,9 @@ describe('Dialog', () => {
         x
       </Dialog>,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    const close = screen.getByRole('button', { name: 'Close' })
+    expect(close.parentElement).toBe(screen.getByRole('heading', { name: 'New item' }).parentElement)
+    fireEvent.click(close)
     expect(onClose).toHaveBeenCalledOnce()
   })
 
