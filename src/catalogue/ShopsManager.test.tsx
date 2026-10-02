@@ -61,7 +61,7 @@ function renderWithShops(shops: ShopRecord[], { withSnackbar = false } = {}) {
 }
 
 /** Like renderWithShops, but `push` delivers a later watchShops update. */
-function renderLive(shops: ShopRecord[], options = {}) {
+function renderLive(shops: ShopRecord[], options: Parameters<typeof renderWithShops>[1] = {}) {
   const utils = renderWithShops(shops, options)
   const callback = watchShops.mock.calls[0][1] as (shops: ShopRecord[]) => void
   return { ...utils, push: callback }
@@ -315,6 +315,39 @@ describe('ShopsManager', () => {
 
     expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
     expect(screen.queryByText(SHOP_IN_USE_MESSAGE)).toBeNull()
+  })
+
+  it('hands the live record, not the one opened, to deleteShop once the Shop is freed', () => {
+    const { push } = renderLive([{ ...pharmacy, referenceCount: 1 }])
+    openEditor('Pharmacy')
+    act(() => push([{ ...pharmacy, referenceCount: 0 }]))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    expect(deleteShop).toHaveBeenCalledWith(fakeDb, expect.objectContaining({ referenceCount: 0 }))
+  })
+
+  it('hands the live record, not the one opened, to renameShop', () => {
+    const { push } = renderLive([pharmacy])
+    openEditor('Pharmacy')
+    act(() => push([{ ...pharmacy, referenceCount: 3 }]))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
+
+    expect(renameShop).toHaveBeenCalledWith(fakeDb, expect.objectContaining({ referenceCount: 3 }), 'Pharmacy')
+  })
+
+  it('discards an unsaved draft name when the Shop is deleted elsewhere', async () => {
+    const { push } = renderLive([pharmacy, grocery])
+    openEditor('Pharmacy')
+    fireEvent.input(screen.getByLabelText('Shop name'), { target: { value: 'Chemist' } })
+
+    act(() => push([grocery]))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    act(() => push([pharmacy, grocery]))
+    openEditor('Pharmacy')
+
+    expect(screen.getByLabelText('Shop name')).toHaveValue('Pharmacy')
   })
 
   it('closes the dialog and says the Shop was deleted when it leaves the live list', async () => {

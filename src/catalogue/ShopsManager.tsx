@@ -81,21 +81,23 @@ interface EditShopDialogProps {
   /** The Shop as it was when the dialog opened; seeds the draft name. */
   opened: ShopRecord
   /** The Shop as watchShops last reported it; drives everything that must stay current. Undefined once it has left the live list. */
-  shop: ShopRecord | undefined
+  live: ShopRecord | undefined
   onClose: () => void
 }
 
 /** Owns its draft name and error, so each opening starts from the Shop's name at that moment; mount it only while open. */
-function EditShopDialog({ db, opened, shop: live, onClose }: EditShopDialogProps) {
+function EditShopDialog({ db, opened, live, onClose }: EditShopDialogProps) {
   const shop = live ?? opened
-  const deleting = useRef(false)
+  const deletingHere = useRef(false)
   const [name, setName] = useState(opened.name)
   const inUseNoteId = useUniqueId()
   const [error, setError] = useState<string | null>(null)
 
   // A Shop leaving the live list that this dialog did not delete itself was deleted elsewhere.
+  // watchShops also drops documents that fail validation, so absence can occasionally mean "invalid" rather than "deleted";
+  // the dialog cannot show such a Shop either way, so the notice is best-effort wording, not proof of deletion.
   useEffect(() => {
-    if (live !== undefined || deleting.current) return
+    if (live !== undefined || deletingHere.current) return
     showSnackbar({ text: SHOP_DELETED_MESSAGE })
     onClose()
   }, [live, onClose])
@@ -118,7 +120,7 @@ function EditShopDialog({ db, opened, shop: live, onClose }: EditShopDialogProps
   const inUse = isShopInUse(shop)
 
   async function handleDelete() {
-    deleting.current = true
+    deletingHere.current = true
     try {
       await deleteShop(db, shop)
       showSnackbar({
@@ -127,7 +129,7 @@ function EditShopDialog({ db, opened, shop: live, onClose }: EditShopDialogProps
       })
       onClose()
     } catch {
-      deleting.current = false
+      deletingHere.current = false
       setError('Could not delete Shop')
     }
   }
@@ -167,7 +169,7 @@ export function ShopsManager({ db }: ShopsManagerProps) {
 
   useEffect(() => watchShops(db, setShops), [db])
 
-  const editing = opened === null ? undefined : shops.find((shop) => shop.id === opened.id)
+  const live = opened === null ? undefined : shops.find((shop) => shop.id === opened.id)
 
   return (
     <section>
@@ -190,7 +192,7 @@ export function ShopsManager({ db }: ShopsManagerProps) {
       <Fab symbol={AddIcon} label="Add Shop" onClick={() => setAdding(true)} />
       {adding && <AddShopDialog db={db} onClose={() => setAdding(false)} />}
       {opened !== null && (
-        <EditShopDialog db={db} opened={opened} shop={editing} onClose={() => setOpened(null)} />
+        <EditShopDialog db={db} opened={opened} live={live} onClose={() => setOpened(null)} />
       )}
     </section>
   )
