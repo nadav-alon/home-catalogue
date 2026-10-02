@@ -57,6 +57,12 @@ describe('WriteRejectionBanner', () => {
     expect(undefinedTokens).toEqual([])
   })
 
+  it("gives the notice's text and Dismiss button the AlertBanner's inset", () => {
+    expect(css).toMatch(
+      /\.write-rejection-banner\s*{[^}]*padding:\s*var\(--md-sys-spacing-2\)\s+var\(--md-sys-spacing-4\)/,
+    )
+  })
+
   it('carries no inline colour', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     render(<WriteRejectionBanner />)
