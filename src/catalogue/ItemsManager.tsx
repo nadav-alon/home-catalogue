@@ -14,9 +14,8 @@ import { showSnackbar } from '../ui/Snackbar.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { SegmentedButton } from '../ui/SegmentedButton.tsx'
 import { TextField } from '../ui/TextField.tsx'
-import { IconButton } from '../ui/IconButton.tsx'
+import { Chip } from '../ui/Chip.tsx'
 import AddIcon from '~icons/material-symbols/add'
-import CloseIcon from '~icons/material-symbols/close'
 import './ItemsManager.css'
 
 export interface ItemsManagerProps {
@@ -195,10 +194,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
       ) : (
         items !== undefined && (
-          <span>
-            Scanned: {scannedLabel}
-            <IconButton symbol={CloseIcon} label="Clear scanned filter" onClick={onClearFilter} />
-          </span>
+          <Chip label={`Scanned: ${scannedLabel}`} dismissLabel="Clear scanned filter" onDismiss={() => onClearFilter?.()} />
         )
       )}
       {items !== undefined && visibleItems.length === 0 && (

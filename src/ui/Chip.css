@@ -1,0 +1,14 @@
+.ui-chip {
+  display: inline-flex;
+  /* Centres the 3rem close button on the 2rem chip: its overflow splits evenly above and below. */
+  align-items: center;
+  height: 2rem;
+  padding-inline: var(--md-sys-spacing-3) 0;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-small);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.ui-chip__label {
+  font-size: var(--md-sys-typescale-label-size);
+}

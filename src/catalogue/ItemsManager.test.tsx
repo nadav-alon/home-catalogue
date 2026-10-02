@@ -146,7 +146,8 @@ describe('ItemsManager', () => {
   it('names a single filtered Item in a chip in place of the search box', () => {
     renderWith([bandages], [medicine], [pharmacy], [bandages.id])
 
-    expect(screen.getByText('Scanned: Bandages')).toBeInTheDocument()
+    const chip = screen.getByText('Scanned: Bandages').parentElement!
+    expect(within(chip).getByRole('button', { name: 'Clear scanned filter' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Search Items')).not.toBeInTheDocument()
   })
 
