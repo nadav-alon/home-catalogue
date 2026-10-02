@@ -141,7 +141,12 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     if (!isLiveReference(categories, item.categoryId) || !isLiveReference(shops, item.shopId)) {
       return setDialog({ kind: 'restore', item })
     }
-    await restoreItem(db, item, categories, shops)
+    try {
+      await restoreItem(db, item, categories, shops)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Could not restore ${item.name}`)
+      return
+    }
     navigateToItems([item.id])
   }
 
@@ -149,7 +154,11 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     if (deletedMatch === undefined) return
     const { barcode } = deletedMatch
     setDeletedMatch(undefined)
-    await openChooser(barcode)
+    try {
+      await openChooser(barcode)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not look up the barcode')
+    }
   }
 
   async function handleAttach(item: ItemRecord, holders: readonly BarcodeHolder[]) {

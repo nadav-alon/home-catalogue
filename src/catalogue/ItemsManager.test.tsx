@@ -1343,6 +1343,55 @@ describe('a scanned barcode', () => {
     expect(restoreItem).toHaveBeenCalledWith(fakeDb, bandages, [medicine], [pharmacy])
   })
 
+  it('reports a failed restore on Yes in the alert banner', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    restoreItem.mockRejectedValue(new Error('Restore refused'))
+    renderWith([], [medicine], [pharmacy])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Restore refused')
+    expect(window.location.hash).toBe('')
+  })
+
+  it('reports a failed holder lookup on No in the alert banner', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    findBarcodeHolders.mockRejectedValue(new Error('Lookup refused'))
+    renderWith([], [medicine], [pharmacy])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'No' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Lookup refused')
+  })
+
+  it('falls back to a fixed message when the restore rejects with a non-Error', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    restoreItem.mockRejectedValue('nope')
+    renderWith([], [medicine], [pharmacy])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not restore Bandages')
+  })
+
+  it('falls back to a fixed message when the holder lookup rejects with a non-Error', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    findBarcodeHolders.mockRejectedValue('nope')
+    renderWith([], [medicine], [pharmacy])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'No' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not look up the barcode')
+  })
+
   it('opens the Item dialog on Yes when the deleted Item\'s Category is gone, restoring it with the new choice on save', async () => {
     findDeletedItemByBarcode.mockResolvedValue(bandages)
     renderWith([], [cleaning], [grocery])
