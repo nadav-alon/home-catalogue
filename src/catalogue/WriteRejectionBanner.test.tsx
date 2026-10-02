@@ -5,6 +5,7 @@ import { read, tokenUsage } from '../testing/css.ts'
 import { reportWriteRejection, resetWriteRejections } from './writeRejections.ts'
 
 const css = read('src/catalogue/WriteRejectionBanner.css')
+const alertBannerCss = read('src/catalogue/AlertBanner.css')
 
 afterEach(() => {
   resetWriteRejections()
@@ -58,9 +59,11 @@ describe('WriteRejectionBanner', () => {
   })
 
   it("gives the notice's text and Dismiss button the AlertBanner's inset", () => {
-    expect(css).toMatch(
-      /\.write-rejection-banner\s*{[^}]*padding:\s*var\(--md-sys-spacing-2\)\s+var\(--md-sys-spacing-4\)/,
-    )
+    const inset = (sheet: string, selector: string) =>
+      sheet.match(new RegExp(`\\.${selector}\\s*{[^}]*?padding:\\s*([^;]+);`))?.[1]
+
+    expect(inset(css, 'write-rejection-banner')).toBeDefined()
+    expect(inset(css, 'write-rejection-banner')).toBe(inset(alertBannerCss, 'alert-banner'))
   })
 
   it('styles the notice from the stylesheet, with no inline style', () => {
