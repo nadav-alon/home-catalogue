@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import { registerSW } from 'virtual:pwa-register'
+import { Button } from '../ui/Button.tsx'
 import './UpdateNotice.css'
 
 /**
@@ -8,16 +9,23 @@ import './UpdateNotice.css'
  */
 export function UpdateNotice() {
   const [updated, setUpdated] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
     registerSW({ onNeedReload: () => setUpdated(true) })
   }, [])
 
-  if (!updated) return null
+  if (!updated || dismissed) return null
 
   return (
     <div role="status" class="update-notice">
       <p>A new version is available.</p>
+      <Button variant="text" onClick={() => location.reload()}>
+        Reload
+      </Button>
+      <Button variant="text" onClick={() => setDismissed(true)}>
+        Dismiss
+      </Button>
     </div>
   )
 }
