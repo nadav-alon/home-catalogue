@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { ListRow } from './ListRow.tsx'
-import { mediaBlock, outsideMediaBlock, read, tokenUsage } from '../testing/css.ts'
+import { declaration, mediaBlock, outsideMediaBlock, read, tokenUsage } from '../testing/css.ts'
 
 const stylesheet = 'src/ui/ListRow.css'
 const narrowBlock = () => mediaBlock(stylesheet, '(max-width: 599.98px)')
@@ -131,5 +131,25 @@ describe('ListRow', () => {
     const { used, undefinedTokens } = tokenUsage('src/ui/ListRow.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
+  })
+
+  describe('Shopping list tick', () => {
+    const tick = ".ui-list-row__trailing input[type='checkbox']"
+
+    it('is drawn from theme colour tokens rather than the native control', () => {
+      expect(declaration(stylesheet, tick, 'appearance')).toBe('none')
+      expect(declaration(stylesheet, tick, 'border')).toMatch(/var\(--md-sys-color-outline\)/)
+      expect(declaration(stylesheet, `${tick}:checked`, 'background')).toBe('var(--md-sys-color-primary)')
+    })
+
+    it('draws a check mark in the on-primary colour when ticked', () => {
+      expect(declaration(stylesheet, `${tick}:checked::after`, 'border')).toMatch(/var\(--md-sys-color-on-primary\)/)
+    })
+
+    it('stays close to the native size and leaves the row height to the label', () => {
+      expect(declaration(stylesheet, tick, 'width')).toBe('1.125rem')
+      expect(declaration(stylesheet, tick, 'height')).toBe('1.125rem')
+      expect(declaration(stylesheet, '.ui-list-row__link', 'min-height')).toBe('3.5rem')
+    })
   })
 })
