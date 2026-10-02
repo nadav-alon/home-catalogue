@@ -77,10 +77,8 @@
   .ui-list-row--stack-trailing .ui-list-row__text {
     flex-basis: 100%;
   }
-}
 
-/* Stacked, the control has the row's full width, so its segments grow to a 48px touch target. */
-@media (max-width: 599.98px) {
+  /* Stacked, the State control's segments reach a 48px touch target. */
   .ui-list-row--stack-trailing .ui-segmented__option {
     min-height: 3rem;
   }
