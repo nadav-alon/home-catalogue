@@ -48,6 +48,12 @@ async function submit(dateValue: string) {
 }
 
 describe('CalendarExport', () => {
+  it('renders the date input in the TextField style', () => {
+    renderWith([outBandages], [medicine], [pharmacy])
+
+    expect(screen.getByLabelText('Date')).toHaveClass('ui-field__control')
+  })
+
   it('rejects submitting with no date chosen', async () => {
     renderWith([outBandages], [medicine], [pharmacy])
 
