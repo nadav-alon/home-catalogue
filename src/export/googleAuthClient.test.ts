@@ -111,4 +111,22 @@ describe('requestCalendarAccessToken', () => {
 
     await expect(requestCalendarAccessToken()).rejects.toBeInstanceOf(GoogleSignInPopupBlockedError)
   })
+
+  it('rejects with a plain error, neither cancelled nor popup-blocked, for any other error_callback type', async () => {
+    window.google = {
+      accounts: {
+        oauth2: {
+          initTokenClient: (config) => ({
+            requestAccessToken: () => config.error_callback({ type: 'unknown' }),
+          }),
+        },
+      },
+    }
+
+    const rejection = await requestCalendarAccessToken().catch((err: unknown) => err)
+
+    expect(rejection).toBeInstanceOf(Error)
+    expect(rejection).not.toBeInstanceOf(GoogleSignInCancelledError)
+    expect(rejection).not.toBeInstanceOf(GoogleSignInPopupBlockedError)
+  })
 })
