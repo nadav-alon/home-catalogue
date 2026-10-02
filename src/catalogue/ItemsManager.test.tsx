@@ -443,6 +443,18 @@ describe('adding an Item', () => {
     expect(createItem).not.toHaveBeenCalled()
   })
 
+  it('clears the Category error once a Category is chosen, without saving again', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
+    choose(screen.getByLabelText('Category'), medicine.id)
+
+    expect(screen.getByLabelText('Category')).toBeValid()
+    expect(screen.getByLabelText('Name')).toHaveAccessibleDescription('An Item needs a name.')
+  })
+
   it('refuses to add an Item without choosing a Necessity', () => {
     renderWith([], [medicine], [pharmacy])
     openDialog()
