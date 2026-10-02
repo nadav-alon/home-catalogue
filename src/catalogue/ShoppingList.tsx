@@ -65,6 +65,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
     }
     setScanWaiting(false)
     const [item] = itemsWithBarcode(items, barcode)
+    if (item?.state === 'enough') return showSnackbar({ text: `${item.name} is already enough` })
     if (item !== undefined) return handleTick(item)
     void findBarcodeHolders(db, items, barcode).then(
       (holders) => setUnknown({ barcode, holders }),

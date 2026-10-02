@@ -454,15 +454,25 @@ describe('a scanned barcode', () => {
     expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'out')
   })
 
-  it('sets an Item that is not on the list enough all the same', async () => {
+  it('sets an Item that is not on the list enough all the same, when it is not already enough', async () => {
+    render(<SnackbarHost />)
+    renderWith([bandages], [medicine], [pharmacy])
+
+    scan()
+
+    await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'enough'))
+  })
+
+  it('says an Item that is already enough is, without a write or an Undo', async () => {
     render(<SnackbarHost />)
     const stocked: ItemRecord = { ...bandages, state: 'enough' }
     renderWith([stocked], [medicine], [pharmacy])
 
     scan()
 
-    await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, stocked, 'enough'))
-    expect(await screen.findByRole('button', { name: 'Undo' })).toBeInTheDocument()
+    expect(await screen.findByText('Bandages is already enough')).toBeInTheDocument()
+    expect(setItemState).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
   })
 
   it('asks for another scan instead of opening the chooser while the Items are loading', async () => {
