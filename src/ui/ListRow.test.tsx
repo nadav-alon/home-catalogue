@@ -3,15 +3,12 @@ import { fireEvent, render, screen } from '@testing-library/preact'
 import { ListRow } from './ListRow.tsx'
 import { mediaBlock, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
 
-const narrowQuery = '(max-width: 599.98px)'
-
-const narrowBlock = () => mediaBlock('src/ui/ListRow.css', narrowQuery)
-const outsideNarrowBlock = () => outsideMediaBlock('src/ui/ListRow.css', narrowQuery)
-const hoverQuery = '(hover: hover)'
-
-const hoverBlock = () => mediaBlock('src/ui/ListRow.css', hoverQuery)
-const outsideHoverBlock = () => outsideMediaBlock('src/ui/ListRow.css', hoverQuery)
-const stateLayer = 'background: color-mix\\(in srgb, var\\(--md-sys-color-on-surface\\) 8%, transparent\\)'
+const stylesheet = 'src/ui/ListRow.css'
+const narrowBlock = () => mediaBlock(stylesheet, '(max-width: 599.98px)')
+const outsideNarrowBlock = () => outsideMediaBlock(stylesheet, '(max-width: 599.98px)')
+const hoverBlock = () => mediaBlock(stylesheet, '(hover: hover)')
+const outsideHoverBlock = () => outsideMediaBlock(stylesheet, '(hover: hover)')
+const hoverStateLayerDeclaration = 'background: color-mix\\(in srgb, var\\(--md-sys-color-on-surface\\) 8%, transparent\\)'
 
 describe('ListRow', () => {
   it('renders a native list item with headline and supporting text', () => {
@@ -105,20 +102,21 @@ describe('ListRow', () => {
   })
 
   it('highlights a Settings row link on hover with an 8% on-surface state layer', () => {
-    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__link:hover\\s*{[^}]*${stateLayer}`))
+    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__link:hover[^{]*{[^}]*${hoverStateLayerDeclaration}`))
   })
 
   it('highlights the label of a row with a control on hover', () => {
-    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__label:hover[^{]*{[^}]*${stateLayer}`))
+    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__label:hover[^{]*{[^}]*${hoverStateLayerDeclaration}`))
   })
 
   it('highlights only the clickable text area of an activatable row on hover', () => {
-    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__activate:hover[^{]*{[^}]*${stateLayer}`))
+    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__activate:hover[^{]*{[^}]*${hoverStateLayerDeclaration}`))
   })
 
   it('applies no hover highlight outside the hover-capable media query, nor to a plain row', () => {
     expect(outsideHoverBlock()).not.toMatch(/:hover/)
-    expect(hoverBlock()).not.toMatch(/\.ui-list-row(--[\w-]+)?:hover/)
+    const hovered = [...hoverBlock().matchAll(/([^{}]+){/g)].flatMap((m) => m[1].split(',').map((selector) => selector.trim()))
+    expect(hovered.toSorted()).toEqual(['.ui-list-row__activate:hover', '.ui-list-row__label:hover', '.ui-list-row__link:hover'])
   })
 
   it('is styled only from defined tokens', () => {
