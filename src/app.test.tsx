@@ -9,6 +9,10 @@ import { firebaseWebConfig } from './firebase/webConfig.ts'
 import { resetSnackbar, showSnackbar } from './ui/Snackbar.tsx'
 import { resetHash } from './testing/hash.ts'
 import { stubModalDialog } from './testing/dialog.ts'
+import { announceNewBuild, registerSW } from './testing/pwa.ts'
+import { resetUpdateWatch, startUpdateWatch } from './pwa/updates.ts'
+
+vi.mock('virtual:pwa-register', async () => (await import('./testing/pwa.ts')).pwaRegisterModule)
 
 const watchItemsCallbacks: ((items: ItemRecord[]) => void)[] = []
 const watchItems = vi.fn((_db: unknown, cb: (items: ItemRecord[]) => void) => {
@@ -85,6 +89,17 @@ describe('App', () => {
 
     expect(screen.getByText('Deleted Bandages')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+  })
+
+  it('tells the user on any screen when a new version is available', () => {
+    registerSW.mockReset()
+    resetUpdateWatch()
+    startUpdateWatch()
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+
+    act(() => announceNewBuild())
+
+    expect(within(screen.getByRole('main')).getByRole('status')).toHaveTextContent('A new version is available.')
   })
 
   it('puts Calendar Export in the top app bar on the Shopping list screen', () => {
