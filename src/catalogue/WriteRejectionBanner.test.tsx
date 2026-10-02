@@ -66,6 +66,10 @@ describe('WriteRejectionBanner', () => {
     expect(inset(css, 'write-rejection-banner')).toBe(inset(alertBannerCss, 'alert-banner'))
   })
 
+  it('spaces each notice from whatever stacks beneath it, using a spacing token', () => {
+    expect(css).toMatch(/\.write-rejection-banner\s*{[^}]*margin-block-end:\s*var\(--md-sys-spacing-2\)/)
+  })
+
   it('styles the notice from the stylesheet, with no inline style', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     render(<WriteRejectionBanner />)
