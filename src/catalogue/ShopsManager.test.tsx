@@ -70,8 +70,9 @@ describe('ShopsManager', () => {
   it('leaves the title to the top app bar, with no heading of its own', () => {
     renderWithShops([])
 
-    expect(screen.getAllByRole('heading', { name: 'Shops' })).toHaveLength(1)
-    expect(screen.getByRole('heading', { level: 1, name: 'Shops' })).toBeInTheDocument()
+    const headings = screen.getAllByRole('heading', { name: 'Shops' })
+    expect(headings).toHaveLength(1)
+    expect(screen.getByRole('banner')).toContainElement(headings[0])
   })
 
   it('has a back arrow in the top app bar’s leading slot that returns to Settings', () => {

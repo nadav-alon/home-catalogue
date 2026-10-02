@@ -136,8 +136,9 @@ describe('ItemsManager', () => {
   it('leaves the title to the top app bar, with no heading of its own', () => {
     renderWith([bandages], [medicine], [pharmacy])
 
-    expect(screen.getAllByRole('heading', { name: 'Items' })).toHaveLength(1)
-    expect(screen.getByRole('heading', { level: 1, name: 'Items' })).toBeInTheDocument()
+    const headings = screen.getAllByRole('heading', { name: 'Items' })
+    expect(headings).toHaveLength(1)
+    expect(screen.getByRole('banner')).toContainElement(headings[0])
   })
 
   it('shows exactly the Items whose ids are given, ignoring unknown ids', () => {

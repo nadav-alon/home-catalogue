@@ -90,8 +90,9 @@ describe('MembersScreen', () => {
   it('leaves the title to the top app bar, with no heading of its own', () => {
     renderScreen()
 
-    expect(screen.getAllByRole('heading', { name: 'Members' })).toHaveLength(1)
-    expect(screen.getByRole('heading', { level: 1, name: 'Members' })).toBeInTheDocument()
+    const headings = screen.getAllByRole('heading', { name: 'Members' })
+    expect(headings).toHaveLength(1)
+    expect(screen.getByRole('banner')).toContainElement(headings[0])
   })
 
   it('goes back to Settings', () => {
