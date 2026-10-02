@@ -17,6 +17,7 @@ import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 import {
   createShop,
   deleteShop,
+  isShopInUse,
   renameShop,
   restoreShop,
   watchShops,
@@ -102,7 +103,7 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
     }
   }
 
-  const inUse = shop.referenceCount > 0
+  const inUse = isShopInUse(shop)
 
   async function handleDelete() {
     try {

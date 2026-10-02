@@ -6,7 +6,7 @@ import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { actionLabels } from '../testing/dialog.ts'
 import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
 import { ShopsManager } from './ShopsManager.tsx'
-import type { ShopRecord } from './shops.ts'
+import { SHOP_IN_USE_MESSAGE, type ShopRecord } from './shops.ts'
 import { grocery, pharmacy } from './testFixtures.ts'
 
 const createShop = vi.fn()
@@ -19,14 +19,14 @@ const { FakeShopInUseError } = vi.hoisted(() => ({
   FakeShopInUseError: class extends Error {},
 }))
 
-vi.mock('./shops.ts', () => ({
+vi.mock('./shops.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./shops.ts')>()),
   createShop: (db: unknown, name: string) => createShop(db, name),
   renameShop: (db: unknown, shop: unknown, name: string) => renameShop(db, shop, name),
   deleteShop: (db: unknown, shop: unknown) => deleteShop(db, shop),
   restoreShop: (db: unknown, shop: unknown) => restoreShop(db, shop),
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
   ShopInUseError: FakeShopInUseError,
-  SHOP_IN_USE_MESSAGE: 'This Shop is in use, and cannot be deleted.',
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -281,7 +281,8 @@ describe('ShopsManager', () => {
 
     const deleteButton = screen.getByRole('button', { name: 'Delete' })
     expect(deleteButton).toBeDisabled()
-    expect(deleteButton).toHaveAccessibleDescription('This Shop is in use, and cannot be deleted.')
+    expect(deleteButton).toHaveAccessibleDescription(SHOP_IN_USE_MESSAGE)
+    expect(screen.getByText(SHOP_IN_USE_MESSAGE)).toBeVisible()
   })
 
   it('keeps Delete enabled, with no in-use note, for an unused Shop', () => {
@@ -289,7 +290,7 @@ describe('ShopsManager', () => {
     openEditor('Pharmacy')
 
     expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
-    expect(screen.queryByText(/in use/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Delete' })).not.toHaveAccessibleDescription()
   })
 
   it('opens the Edit Shop dialog when the row itself is tapped', () => {
