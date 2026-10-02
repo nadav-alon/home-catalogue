@@ -722,4 +722,27 @@ describe('a scanned barcode', () => {
     expect(await screen.findByRole('dialog', { name: 'Unknown barcode' })).toHaveTextContent(scanned)
     expect(restoreItem).not.toHaveBeenCalled()
   })
+
+  it('preselects enough as the State of a New Item created from the chooser, and marks nothing', async () => {
+    renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+
+    expect(within(dialog).getByLabelText('State')).toHaveValue('enough')
+    expect(setItemState).not.toHaveBeenCalled()
+  })
+
+  it('marks nothing when the chooser is cancelled', async () => {
+    renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Cancel' }))
+
+    expect(attachBarcode).not.toHaveBeenCalled()
+    expect(setItemState).not.toHaveBeenCalled()
+  })
 })
