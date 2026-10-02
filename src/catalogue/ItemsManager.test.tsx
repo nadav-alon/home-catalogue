@@ -145,7 +145,7 @@ describe('ItemsManager', () => {
   it('names a single filtered Item in a chip in place of the search box', () => {
     renderWith([bandages], [medicine], [pharmacy], [bandages.id])
 
-    expect(screen.getByText('Scanned: Bandages')).toBeInTheDocument()
+    expect(screen.getByText('Scanned: Bandages').closest('.ui-chip')).not.toBeNull()
     expect(screen.queryByLabelText('Search Items')).not.toBeInTheDocument()
   })
 
