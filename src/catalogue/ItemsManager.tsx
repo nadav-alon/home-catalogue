@@ -16,6 +16,8 @@ import { SegmentedButton } from '../ui/SegmentedButton.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import { Chip } from '../ui/Chip.tsx'
 import AddIcon from '~icons/material-symbols/add'
+import ExpandMoreIcon from '~icons/material-symbols/expand-more'
+import { Icon } from '../ui/Icon.tsx'
 import './ItemsManager.css'
 
 export interface ItemsManagerProps {
@@ -257,30 +259,38 @@ interface ItemGroupProps {
 }
 
 function ItemGroup({ heading, items, onSetState, onOpen }: ItemGroupProps) {
+  const [collapsed, setCollapsed] = useState(false)
   return (
     <div>
-      <h3>{heading}</h3>
-      <ul>
-        {items.map((item) => (
-          <ListRow
-            key={item.id}
-            headline={item.name}
-            supporting={[item.brandNote, item.necessity].filter((part) => part !== undefined).join(' · ')}
-            stackTrailing
-            onActivate={() => onOpen(item)}
-            trailing={
-              <SegmentedButton
-                label={`State for ${item.name}`}
-                options={core.stateSchema.options.map((state) => ({ value: state, label: state }))}
-                value={item.state}
-                onChange={(state) => {
-                  if (state !== item.state) void onSetState(item, state)
-                }}
-              />
-            }
-          />
-        ))}
-      </ul>
+      <h3 class="item-group__heading">
+        <button type="button" class="item-group__toggle" aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}>
+          <Icon symbol={ExpandMoreIcon} />
+          {heading}
+        </button>
+      </h3>
+      {!collapsed && (
+        <ul>
+          {items.map((item) => (
+            <ListRow
+              key={item.id}
+              headline={item.name}
+              supporting={[item.brandNote, item.necessity].filter((part) => part !== undefined).join(' · ')}
+              stackTrailing
+              onActivate={() => onOpen(item)}
+              trailing={
+                <SegmentedButton
+                  label={`State for ${item.name}`}
+                  options={core.stateSchema.options.map((state) => ({ value: state, label: state }))}
+                  value={item.state}
+                  onChange={(state) => {
+                    if (state !== item.state) void onSetState(item, state)
+                  }}
+                />
+              }
+            />
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

@@ -73,6 +73,7 @@ beforeEach(() => {
   watchCategories.mockReset()
   createCategory.mockReset()
   watchShops.mockReset()
+  localStorage.clear()
 })
 
 /** Records `history.back` calls and hash changes in the order they happen; call `stop` to detach. */
@@ -1508,5 +1509,41 @@ describe('a scanned barcode', () => {
 
     await waitFor(() => expect(createItem).toHaveBeenCalled())
     expect(createItem.mock.calls[0]![1].barcode).toBeUndefined()
+  })
+})
+
+describe('collapsing a Category', () => {
+  const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
+
+  it('starts every Category expanded, its heading a toggle button', () => {
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+
+    const toggle = within(screen.getByRole('heading', { name: 'Medicine' })).getByRole('button', { name: 'Medicine' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+
+  it("hides a Category's Items when its heading is pressed, and shows them when pressed again", () => {
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+
+  it('collapses Uncategorised too', () => {
+    const orphan: ItemRecord = { ...bandages, categoryId: catalogue.categoryId('gone') }
+    renderWith([orphan], [medicine], [pharmacy])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Uncategorised' }))
+
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
   })
 })

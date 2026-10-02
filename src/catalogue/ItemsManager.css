@@ -2,3 +2,26 @@
 .items-manager {
   padding-bottom: calc(3.5rem + var(--md-sys-spacing-8));
 }
+
+.item-group__heading {
+  margin: 0;
+}
+
+.item-group__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--md-sys-spacing-2);
+  width: 100%;
+  min-height: 3rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.item-group__toggle[aria-expanded='false'] svg {
+  transform: rotate(-90deg);
+}
