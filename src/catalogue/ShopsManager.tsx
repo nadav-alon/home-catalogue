@@ -61,6 +61,9 @@ function AddShopDialog({ db, onClose }: AddShopDialogProps) {
       <form onSubmit={handleSubmit}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="New Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
+        <Button variant="text" onClick={onClose}>
+          Cancel
+        </Button>
         <Button type="submit">Add</Button>
       </form>
     </Dialog>

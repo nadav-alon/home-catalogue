@@ -101,6 +101,26 @@ describe('ShopsManager', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
+  it('cancels Add Shop without creating a Shop', async () => {
+    renderWithShops([])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+
+    fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: 'Hardware' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(createShop).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('orders the Add Shop actions Cancel, Add', () => {
+    renderWithShops([])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+
+    const form = screen.getByLabelText('New Shop name').closest('form')!
+    const labels = within(form).getAllByRole('button').map((button) => button.textContent)
+    expect(labels).toEqual(['Cancel', 'Add'])
+  })
+
   it('shows a message and keeps the input when adding fails', async () => {
     createShop.mockRejectedValueOnce(new Error('Could not add Shop'))
     renderWithShops([])
