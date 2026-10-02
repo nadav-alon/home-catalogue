@@ -960,6 +960,33 @@ describe('findDeletedItemByBarcode', () => {
   })
 })
 
+describe('findBarcodeHolders', () => {
+  const barcode = core.barcode('12345678')
+  const coreDoc = (id: string, name: string, deleted = false) => ({
+    id,
+    data: () => ({ name, state: 'out', barcodes: [barcode], ...(deleted ? { deletedAt: { seconds: 1, nanoseconds: 0 } } : {}) }),
+  })
+
+  it('returns the live Items and the cached deleted Items carrying the barcode, each once', async () => {
+    const { findBarcodeHolders } = await import('./items.ts')
+    getDocsFromCache.mockResolvedValueOnce({ docs: [coreDoc('bandages', 'Bandages'), coreDoc('old-tape', 'Old tape', true)] })
+
+    const holders = await findBarcodeHolders(fakeDb, [{ ...bandages, barcodes: [barcode] }], barcode)
+
+    expect(holders).toEqual([
+      { id: 'bandages', name: 'Bandages' },
+      { id: 'old-tape', name: 'Old tape' },
+    ])
+  })
+
+  it('is empty when no Item carries it, and when the cache has nothing', async () => {
+    const { findBarcodeHolders } = await import('./items.ts')
+    getDocsFromCache.mockRejectedValueOnce(new Error('cache miss'))
+
+    expect(await findBarcodeHolders(fakeDb, [bandages], barcode)).toEqual([])
+  })
+})
+
 describe('attachBarcode', () => {
   const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
   const sponge = { id: core.itemId('sponge'), name: 'Sponge' }

@@ -401,6 +401,23 @@ export async function findDeletedItemByBarcode(db: Firestore, barcode: core.Barc
 }
 
 /**
+ * Every Item, live or soft-deleted, carrying `barcode`: the ones in `items` plus the ones the local
+ * cache holds, each once. Empty when none does. Like {@link findDeletedItemByBarcode} it never waits on
+ * the server.
+ */
+export async function findBarcodeHolders(
+  db: Firestore,
+  items: readonly ItemRecord[],
+  barcode: core.Barcode,
+): Promise<Pick<ItemRecord, 'id' | 'name'>[]> {
+  const holders = new Map<core.ItemId, Pick<ItemRecord, 'id' | 'name'>>()
+  for (const found of [...itemsWithBarcode(items, barcode), ...(await queryCoreItemsByBarcode(db, barcode))]) {
+    holders.set(found.id, { id: found.id, name: found.name })
+  }
+  return [...holders.values()]
+}
+
+/**
  * Validates `barcode` with {@link core.barcode}, which throws naming it, before adding it to the Item's
  * `barcodes` with `arrayUnion`, so attaching one the Item already carries changes nothing. A Barcode sits
  * on at most one Item, so it leaves each of `from` (any other than `item` itself) in the same batch with
