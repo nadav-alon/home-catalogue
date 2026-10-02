@@ -183,4 +183,14 @@ describe('CalendarExport', () => {
 
     expect(screen.queryByRole('link', { name: 'Pharmacy' })).not.toBeInTheDocument()
   })
+
+  it('shows no alert when the dialog is reopened after a rejected export', async () => {
+    renderWith([], [medicine], [pharmacy])
+    await submit('2026-03-05')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
 })
