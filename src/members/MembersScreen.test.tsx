@@ -205,6 +205,16 @@ describe('MembersScreen', () => {
     expect(currentUserUid).toHaveBeenCalledWith(fakeApp)
   })
 
+  it('does not start Remove when the Owner taps a Member row outside the Remove button', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    renderScreen([owner, member])
+
+    fireEvent.click(screen.getByText('b@example.com'))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(removeMember).not.toHaveBeenCalled()
+  })
+
   it('offers a non-Owner Member no Remove', () => {
     currentUserUid.mockReturnValue(core.uid('u2'))
     renderScreen([
