@@ -283,6 +283,50 @@ describe('CategoriesManager', () => {
     expect(screen.getByLabelText('New Category name')).toHaveValue('')
   })
 
+  it('closes the Add dialog on Cancel without creating a Category', () => {
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Snacks' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(createCategory).not.toHaveBeenCalled()
+  })
+
+  it('orders the Add dialog actions Cancel, Add', () => {
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+
+    const names = within(screen.getByRole('dialog'))
+      .getAllByRole('button')
+      .map((button) => button.textContent)
+    expect(names).toEqual(['Cancel', 'Add'])
+  })
+
+  it('closes the Edit dialog on Cancel without saving', () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Other' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(renameCategory).not.toHaveBeenCalled()
+    expect(changeCategoryDefaultShop).not.toHaveBeenCalled()
+    expect(deleteCategory).not.toHaveBeenCalled()
+  })
+
+  it('orders the Edit dialog actions Delete, Cancel, Save', () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+
+    const names = within(screen.getByRole('dialog'))
+      .getAllByRole('button')
+      .map((button) => button.textContent)
+    expect(names).toEqual(['Delete', 'Cancel', 'Save'])
+  })
+
   it('unsubscribes from Categories and Shops on unmount', () => {
     const { unmount } = renderWith([], [])
     unmount()
