@@ -18,6 +18,17 @@
   margin-right: auto;
 }
 
+/* The slot is destructive by position, so a text Button in it takes the error tone without the caller asking. */
+.ui-dialog-actions__destructive .ui-button--text:not(:disabled) {
+  color: var(--md-sys-color-error);
+}
+
+@media (hover: hover) {
+  .ui-dialog-actions__destructive .ui-button--text:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--md-sys-color-error) 8%, transparent);
+  }
+}
+
 .ui-dialog-actions__main {
   display: flex;
   gap: var(--md-sys-spacing-2);
