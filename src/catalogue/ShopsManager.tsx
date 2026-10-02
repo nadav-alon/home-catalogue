@@ -118,7 +118,7 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
         <DialogActions
-          apart={
+          destructive={
             <Button variant="text" onClick={() => void handleDelete()}>
               Delete
             </Button>

@@ -282,7 +282,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
         </section>
       )}
       <DialogActions
-        apart={
+        destructive={
           item && onDelete ? (
             <Button variant="text" onClick={handleDelete}>
               Delete

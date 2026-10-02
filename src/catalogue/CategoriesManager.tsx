@@ -255,7 +255,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
             {error !== null && <p role="alert">{error}</p>}
             <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
             <DialogActions
-              apart={
+              destructive={
                 <Button variant="text" onClick={() => void handleDelete(editing)}>
                   Delete
                 </Button>

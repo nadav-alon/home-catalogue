@@ -714,7 +714,7 @@ describe('leaving the Item dialog without saving', () => {
     expect(buttons[buttons.length - 1]).toBe(save)
     expect(cancel.parentElement).toBe(save.parentElement)
     expect(del.parentElement).not.toBe(cancel.parentElement)
-    expect(del.parentElement).toHaveClass('ui-dialog-actions__apart')
+    expect(del.parentElement).toHaveClass('ui-dialog-actions__destructive')
   })
 
   it('spaces the New Category fields like the rest of the form', () => {

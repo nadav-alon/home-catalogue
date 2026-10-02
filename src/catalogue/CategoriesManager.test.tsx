@@ -414,7 +414,7 @@ describe('CategoriesManager', () => {
 
     const dialog = screen.getByRole('dialog')
     const del = within(dialog).getByRole('button', { name: 'Delete' })
-    expect(del.parentElement).toHaveClass('ui-dialog-actions__apart')
+    expect(del.parentElement).toHaveClass('ui-dialog-actions__destructive')
     expect(within(dialog).getByRole('button', { name: 'Save' }).closest('.ui-dialog-actions')).toBe(
       del.closest('.ui-dialog-actions'),
     )
