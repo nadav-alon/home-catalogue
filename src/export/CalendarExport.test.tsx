@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
@@ -49,10 +50,11 @@ async function submit(dateValue: string) {
 }
 
 describe('CalendarExport', () => {
-  it('renders the date input in the TextField style', () => {
+  it('renders the date input in the TextField style at a 48px touch height', () => {
     renderWith([outBandages], [medicine], [pharmacy])
 
     expect(screen.getByLabelText('Date')).toHaveClass('ui-field__control')
+    expect(readFileSync('src/ui/Field.css', 'utf8')).toMatch(/\.ui-field__control\s*{[^}]*min-height: 3rem/)
   })
 
   describe('with the clock frozen', () => {
