@@ -20,6 +20,13 @@ export interface DialogProps {
 
 const historyMarker = 'ui-dialog'
 
+/** The backdrop belongs to the dialog element, so a pointer event on it targets the dialog itself, as does one on its padding: only a point outside the box is the backdrop. */
+function isBackdropPoint(event: MouseEvent & { currentTarget: HTMLDialogElement }) {
+  if (event.target !== event.currentTarget) return false
+  const box = event.currentTarget.getBoundingClientRect()
+  return event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom
+}
+
 /**
  * A native modal `<dialog>`: the browser traps focus and inerts the page behind it. Opening pushes a
  * history entry so back closes it; the entry is popped again when the caller closes it another way.
@@ -34,6 +41,7 @@ export function Dialog({ open, title, onClose, class: className, closable, child
   onCloseRef.current = onClose
   const openRef = useRef(open)
   openRef.current = open
+  const pressedBackdropRef = useRef(false)
 
   // A layout effect, so closing issues the pop in the same commit as the render that closed it, not after paint: a navigation
   // that follows the close at once (a resolved lookup) must already find the pop pending.
@@ -73,14 +81,15 @@ export function Dialog({ open, title, onClose, class: className, closable, child
         event.preventDefault()
         onClose()
       }}
+      onMouseDown={(event) => {
+        pressedBackdropRef.current = isBackdropPoint(event)
+      }}
       onClick={(event) => {
-        if (event.target !== event.currentTarget) return
-        // The backdrop belongs to the dialog element, so a tap on it targets the dialog itself, as does a tap on its padding:
-        // only a point outside the box is the backdrop.
-        const box = event.currentTarget.getBoundingClientRect()
-        const inside =
-          event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom
-        if (!inside) onClose()
+        // A drag that starts inside the box and ends outside it still clicks the dialog element, so a tap only closes
+        // when the press and the release both landed on the backdrop.
+        const pressedBackdrop = pressedBackdropRef.current
+        pressedBackdropRef.current = false
+        if (pressedBackdrop && isBackdropPoint(event)) onClose()
       }}
       onClose={() => {
         if (openRef.current) onClose()

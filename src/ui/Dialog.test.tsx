@@ -74,8 +74,23 @@ describe('Dialog', () => {
     )
     const dialog = screen.getByRole('dialog')
     boxAt(dialog, { left: 100, top: 100, right: 300, bottom: 300 })
+    fireEvent.mouseDown(dialog, { clientX: 50, clientY: 200 })
     fireEvent.click(dialog, { clientX: 50, clientY: 200 })
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('does not ask to close when a press inside the box is released on the backdrop', () => {
+    const onClose = vi.fn()
+    render(
+      <Dialog open title="New item" onClose={onClose}>
+        <input aria-label="Name" />
+      </Dialog>,
+    )
+    const dialog = screen.getByRole('dialog')
+    boxAt(dialog, { left: 100, top: 100, right: 300, bottom: 300 })
+    fireEvent.mouseDown(screen.getByLabelText('Name'), { clientX: 200, clientY: 200 })
+    fireEvent.click(dialog, { clientX: 50, clientY: 200 })
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('does not ask to close when the dialog box is tapped, padding included', () => {
@@ -87,6 +102,7 @@ describe('Dialog', () => {
     )
     const dialog = screen.getByRole('dialog')
     boxAt(dialog, { left: 100, top: 100, right: 300, bottom: 300 })
+    fireEvent.mouseDown(dialog, { clientX: 105, clientY: 105 })
     fireEvent.click(dialog, { clientX: 105, clientY: 105 })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }), { clientX: 200, clientY: 200 })
     expect(onClose).not.toHaveBeenCalled()
