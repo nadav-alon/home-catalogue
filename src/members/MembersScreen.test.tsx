@@ -205,6 +205,12 @@ describe('MembersScreen', () => {
     expect(currentUserUid).toHaveBeenCalledWith(fakeApp)
   })
 
+  it('gives Remove on a Member row the destructive tone', () => {
+    renderScreen([owner, member])
+
+    expect(screen.getByRole('button', { name: 'Remove b@example.com' })).toHaveClass('ui-button--destructive')
+  })
+
   it('does not start Remove when the Owner taps a Member row outside the Remove button', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderScreen([owner, member])
