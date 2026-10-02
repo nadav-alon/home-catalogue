@@ -105,8 +105,8 @@ describe('SettingsScreen', () => {
   it('gives every row action the tonal button style', () => {
     render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
-    for (const name of ['Show QR code', 'Reset Firebase configuration', 'Sign out']) {
-      expect(screen.getByRole('button', { name }).classList.contains('ui-button--tonal')).toBe(true)
+    for (const button of screen.getAllByRole('button')) {
+      expect(button).toHaveClass('ui-button--tonal')
     }
   })
 
