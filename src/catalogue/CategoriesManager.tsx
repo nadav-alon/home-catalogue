@@ -197,7 +197,6 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
 
   /** deleteCategory resolves once queued, so the dialog closes at once even offline; Undo restores the Category. */
   async function handleDelete(category: CategoryRecord) {
-    setError(null)
     await deleteCategory(db, category)
     closeDialogs()
     showSnackbar({
@@ -205,6 +204,8 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
       action: { label: 'Undo', onAction: () => void restoreCategory(db, category, shopsRef.current) },
     })
   }
+
+  const editingInUse = editing !== null && isCategoryInUse(editing)
 
   return (
     <section>
@@ -251,13 +252,13 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           >
             {error !== null && <p role="alert">{error}</p>}
             <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
-            {isCategoryInUse(editing) && <p id={inUseNoteId}>{CATEGORY_IN_USE_MESSAGE}</p>}
+            {editingInUse && <p id={inUseNoteId}>{CATEGORY_IN_USE_MESSAGE}</p>}
             <DialogActions
               destructive={
                 <Button
                   variant="text"
-                  disabled={isCategoryInUse(editing)}
-                  aria-describedby={isCategoryInUse(editing) ? inUseNoteId : undefined}
+                  disabled={editingInUse}
+                  aria-describedby={editingInUse ? inUseNoteId : undefined}
                   onClick={() => void handleDelete(editing)}
                 >
                   Delete

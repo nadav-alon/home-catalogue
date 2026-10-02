@@ -319,8 +319,9 @@ describe('CategoriesManager', () => {
     renderWith([medicine], [pharmacy])
     openEditor('Medicine')
 
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled()
-    expect(screen.getByRole('button', { name: 'Delete' })).not.toHaveAccessibleDescription()
+    const deleteButton = screen.getByRole('button', { name: 'Delete' })
+    expect(deleteButton).toBeEnabled()
+    expect(deleteButton).not.toHaveAccessibleDescription()
   })
 
   it('shows the Choose a Shop placeholder when the default Shop is not among the Shops', () => {
