@@ -63,6 +63,19 @@ describe('CalendarExport', () => {
     vi.useRealTimers()
   })
 
+  it('resets the date to today when the dialog is reopened', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 2, 5, 12))
+    renderWith([outBandages], [medicine], [pharmacy])
+    fireEvent.input(screen.getByLabelText('Date'), { target: { value: '2026-03-09' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    vi.setSystemTime(new Date(2026, 2, 6, 12))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-03-06')
+  })
+
   it('exports with the default date without further input', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(new Date(2026, 2, 5, 12))

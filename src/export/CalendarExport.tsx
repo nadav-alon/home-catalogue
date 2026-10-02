@@ -30,7 +30,7 @@ type ExportStatus =
  */
 export function CalendarExport({ items, categories, shops }: CalendarExportProps) {
   const [open, setOpen] = useState(false)
-  const [date, setDate] = useState<string>(todayExportDate)
+  const [date, setDate] = useState('')
   const [status, setStatus] = useState<ExportStatus>({ phase: 'idle' })
 
 
