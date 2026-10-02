@@ -42,10 +42,11 @@ export interface ItemInput {
   shopId?: catalogue.ShopId
 }
 
-/** What adding an Item carries: its fields, the State it starts at, plus a Barcode it carries from the start. */
+/** What adding an Item carries: its fields, the State it starts at, plus a Barcode it carries from the start and the Items that Barcode is moved off. */
 export interface NewItemInput extends ItemInput {
   state: core.State
   barcode?: core.Barcode
+  barcodeFrom?: readonly Pick<ItemRecord, 'id' | 'name'>[]
 }
 
 /** What saving an edit to an Item carries: its fields, plus the Barcodes the Member removed. */
@@ -149,7 +150,8 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
 /**
  * Validates against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema} before
  * writing a new Item's two docs, core `items` plus catalogue `catalogueItems`, keyed by the same
- * generated id, as one batch. A new Item starts at `input.state`, carrying `barcode` when given.
+ * generated id, as one batch. A new Item starts at `input.state`, carrying `barcode` when given,
+ * which leaves each of `barcodeFrom` in the same batch.
  * No `stateHistory` entry is written for that starting State: the history records changes, and
  * the platform's create rule for `items` is not known to accept an initial entry. The batch also bumps the referenced Category's referenceCount, and the Shop
  * override's when set, matching the platform's create rule. Resolves with the new Item's id
@@ -179,6 +181,11 @@ export async function createItem(db: Firestore, input: NewItemInput): Promise<co
   })
   if (catalogueItem.shopId !== undefined) {
     batch.update(doc(db, catalogue.SHOPS_COLLECTION, catalogueItem.shopId), { referenceCount: increment(1) })
+  }
+  if (input.barcode !== undefined) {
+    for (const holder of input.barcodeFrom ?? []) {
+      batch.update(doc(db, core.ITEMS_COLLECTION, holder.id), { barcodes: arrayRemove(input.barcode) })
+    }
   }
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`new Item ${item.name}`, err)

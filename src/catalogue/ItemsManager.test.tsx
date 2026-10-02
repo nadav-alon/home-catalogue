@@ -1453,6 +1453,31 @@ describe('a scanned barcode', () => {
       await waitFor(() => expect(attachBarcode).toHaveBeenCalledWith(fakeDb, tape, '4006381333931', [oldTape]))
     })
 
+    it('asks before moving it to a new Item, then creates that Item moving it off', async () => {
+      findBarcodeHolders.mockResolvedValue([oldTape])
+      renderWith([bandages], [medicine], [pharmacy])
+      scan()
+      const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+      fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+      expect(chooser).toHaveTextContent('4006381333931 is on Old tape. Move it to a new Item?')
+      expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument()
+      fireEvent.click(within(chooser).getByRole('button', { name: 'Move' }))
+
+      const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+      fireEvent.input(within(dialog).getByLabelText('Name'), { target: { value: 'Dish soap' } })
+      choose(within(dialog).getByLabelText('Category'), medicine.id)
+      choose(within(dialog).getByLabelText('Necessity'), 'essential')
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+      await waitFor(() =>
+        expect(createItem).toHaveBeenCalledWith(
+          fakeDb,
+          expect.objectContaining({ barcode: '4006381333931', barcodeFrom: [oldTape] }),
+        ),
+      )
+    })
+
     it('changes nothing when cancelled, leaving the Item list to pick again', async () => {
       const { chooser } = await pickTape()
 

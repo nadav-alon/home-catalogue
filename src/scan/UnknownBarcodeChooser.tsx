@@ -16,8 +16,8 @@ export interface UnknownBarcodeChooserProps {
   holders: readonly Pick<ItemRecord, 'id' | 'name'>[]
   /** Called with the Item the Member picked to carry the Barcode, and the Items it is to be moved off. */
   onAttach: (item: ItemRecord, from: readonly Pick<ItemRecord, 'id' | 'name'>[]) => void
-  /** Called when the Member chooses to add a new Item carrying the Barcode. */
-  onNewItem: () => void
+  /** Called when the Member chooses to add a new Item carrying the Barcode, with the Items it is to be moved off. */
+  onNewItem: (from: readonly Pick<ItemRecord, 'id' | 'name'>[]) => void
   onClose: () => void
 }
 
@@ -33,14 +33,14 @@ export function UnknownBarcodeChooser({ barcode, items, holders, onAttach, onNew
 function UnknownBarcodeChoice({ barcode, items, holders, onAttach, onNewItem, onClose }: UnknownBarcodeChooserProps & { barcode: core.Barcode }) {
   const [picking, setPicking] = useState(false)
   const [search, setSearch] = useState('')
-  const [moving, setMoving] = useState<{ item: ItemRecord; from: readonly Pick<ItemRecord, 'id' | 'name'>[] }>()
+  const [moving, setMoving] = useState<{ item: ItemRecord | undefined; from: readonly Pick<ItemRecord, 'id' | 'name'>[] }>()
   if (moving !== undefined) {
     return (
       <>
         <p>
-          {barcode} is on {moving.from.map((holder) => holder.name).join(', ')}. Move it to {moving.item.name}?
+          {barcode} is on {moving.from.map((holder) => holder.name).join(', ')}. Move it to {moving.item?.name ?? 'a new Item'}?
         </p>
-        <Button onClick={() => onAttach(moving.item, moving.from)}>Move</Button>
+        <Button onClick={() => (moving.item === undefined ? onNewItem(moving.from) : onAttach(moving.item, moving.from))}>Move</Button>
         <Button variant="text" onClick={() => setMoving(undefined)}>
           Cancel
         </Button>
@@ -53,7 +53,7 @@ function UnknownBarcodeChoice({ barcode, items, holders, onAttach, onNewItem, on
       {!picking ? (
         <>
           <Button variant="tonal" onClick={() => setPicking(true)}>Add to existing Item</Button>
-          <Button variant="tonal" onClick={onNewItem}>
+          <Button variant="tonal" onClick={() => (holders.length === 0 ? onNewItem([]) : setMoving({ item: undefined, from: holders }))}>
             New Item
           </Button>
         </>

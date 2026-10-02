@@ -60,7 +60,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [dialog, setDialog] = useState<
     | { kind: 'edit'; item: ItemRecord }
     | { kind: 'restore'; item: ItemRecord }
-    | { kind: 'add'; barcode?: core.Barcode }
+    | { kind: 'add'; barcode?: core.Barcode; barcodeFrom?: readonly Pick<ItemRecord, 'id' | 'name'>[] }
     | null
   >(null)
   /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
@@ -293,8 +293,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         items={items ?? []}
         holders={barcodeHolders}
         onAttach={(item, from) => void handleAttach(item, from)}
-        onNewItem={() => {
-          setDialog({ kind: 'add', barcode: unknownBarcode })
+        onNewItem={(from) => {
+          setDialog({ kind: 'add', barcode: unknownBarcode, barcodeFrom: from })
           setUnknownBarcode(undefined)
         }}
         onClose={() => setUnknownBarcode(undefined)}
@@ -315,7 +315,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             return
           }
           if (input.state !== undefined) {
-            const id = await createItem(db, { ...input, barcode: pendingBarcode })
+            const id = await createItem(db, { ...input, barcode: pendingBarcode, barcodeFrom: dialog?.kind === 'add' ? dialog.barcodeFrom : undefined })
             if (pendingBarcode !== undefined) filterOnClose.current = id
             return
           }

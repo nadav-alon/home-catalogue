@@ -271,6 +271,26 @@ describe('createItem', () => {
     )
   })
 
+  it('moves its barcode off the Items it was on, in the same batch', async () => {
+    const { createItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await createItem(fakeDb, {
+      name: 'Dish soap',
+      state: core.stateSchema.parse('out'),
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+      barcode: core.barcode('12345678'),
+      barcodeFrom: [{ id: core.itemId('old-soap'), name: 'Old soap' }],
+    })
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'old-soap' },
+      { barcodes: { kind: 'arrayRemove', values: ['12345678'] } },
+    )
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
   it('resolves with the generated id of the new Item', async () => {
     const { createItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
