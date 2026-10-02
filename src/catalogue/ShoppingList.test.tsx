@@ -595,6 +595,41 @@ describe('a scanned barcode', () => {
     expect(setItemState).not.toHaveBeenCalled()
   })
 
+  it('opens the Item dialog on Yes when the deleted Item\'s Category is gone, restoring it with the new choice on save', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    renderWith([], [cleaning], [grocery])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Restore Item' })
+    expect(restoreItem).not.toHaveBeenCalled()
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Bandages')
+    expect(within(dialog).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+    choose(within(dialog).getByLabelText('Category'), cleaning.id)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(restoreItemWithEdit).toHaveBeenCalledWith(fakeDb, bandages, expect.objectContaining({ categoryId: cleaning.id })),
+    )
+    expect(restoreItem).not.toHaveBeenCalled()
+  })
+
+  it('leaves the Item deleted when the restoring dialog is cancelled', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    renderWith([], [cleaning], [grocery])
+    scan()
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Deleted Item' })).getByRole('button', { name: 'Yes' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Restore Item' })
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(dialog).not.toHaveAttribute('open'))
+    expect(restoreItem).not.toHaveBeenCalled()
+    expect(restoreItemWithEdit).not.toHaveBeenCalled()
+  })
+
   it('leaves the Item deleted on No and opens the unknown-barcode chooser', async () => {
     findDeletedItemByBarcode.mockResolvedValue(bandages)
     renderWith([], [medicine], [pharmacy])

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import type { core } from 'data-platform'
-import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, itemsWithBarcode, restoreItem, setItemState, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, isLiveReference, itemsWithBarcode, restoreItem, restoreItemWithEdit, setItemState, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 import { AlertBanner } from './AlertBanner.tsx'
@@ -56,6 +56,8 @@ export function ShoppingList({ db }: ShoppingListProps) {
   const [unknownBarcode, setUnknownBarcode] = useState<{ barcode: core.Barcode; holders: BarcodeHolder[] }>()
   /** The deleted Item a scanned Barcode belongs to, and that Barcode, while the Member is deciding whether to bring it back. */
   const [deletedMatch, setDeletedMatch] = useState<{ item: ItemRecord; barcode: core.Barcode }>()
+  /** The deleted Item whose Category or Shop is gone, while the Member picks live ones to restore it with. */
+  const [restoring, setRestoring] = useState<ItemRecord>()
   /** The Barcode a new Item carries from the start, while the Item dialog is open. */
   const [newItemBarcode, setNewItemBarcode] = useState<CarriedBarcode>()
 
@@ -107,6 +109,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
     // Until both lists have loaded, a Category or Shop cannot be told from a deleted one; the offer stays open.
     if (!listsLoaded.categories || !listsLoaded.shops) return
     setDeletedMatch(undefined)
+    if (!isLiveReference(categories, item.categoryId) || !isLiveReference(shops, item.shopId)) return setRestoring(item)
     await restoreItem(db, item, categories, shops)
   }
 
@@ -183,6 +186,18 @@ export function ShoppingList({ db }: ShoppingListProps) {
           if (input.state !== undefined) await createItem(db, { ...input, barcode: newItemBarcode })
         }}
         onClose={() => setNewItemBarcode(undefined)}
+      />
+      <ItemDialog
+        open={restoring !== undefined}
+        item={restoring}
+        restoring
+        categories={categories}
+        shops={shops}
+        onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
+        onSave={async (input) => {
+          if (restoring !== undefined) await restoreItemWithEdit(db, restoring, input)
+        }}
+        onClose={() => setRestoring(undefined)}
       />
     </section>
   )
