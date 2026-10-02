@@ -141,7 +141,12 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     if (!isLiveReference(categories, item.categoryId) || !isLiveReference(shops, item.shopId)) {
       return setDialog({ kind: 'restore', item })
     }
-    await restoreItem(db, item, categories, shops)
+    try {
+      await restoreItem(db, item, categories, shops)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not restore the Item')
+      return
+    }
     navigateToItems([item.id])
   }
 
