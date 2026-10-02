@@ -1,7 +1,10 @@
 import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WriteRejectionBanner } from './WriteRejectionBanner.tsx'
+import { read, tokenUsage } from '../testing/css.ts'
 import { reportWriteRejection, resetWriteRejections } from './writeRejections.ts'
+
+const css = read('src/catalogue/WriteRejectionBanner.css')
 
 afterEach(() => {
   resetWriteRejections()
@@ -43,5 +46,22 @@ describe('WriteRejectionBanner', () => {
 
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.getByRole('alert')).toHaveTextContent('Could not save new Category')
+  })
+
+  it('is styled only from defined tokens, which cover light and dark, and no hard-coded colour', () => {
+    const { used, undefinedTokens } = tokenUsage('src/catalogue/WriteRejectionBanner.css')
+    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgb|hsl/i)
+    expect(used).toEqual(
+      expect.arrayContaining(['--md-sys-color-error-container', '--md-sys-color-on-error-container']),
+    )
+    expect(undefinedTokens).toEqual([])
+  })
+
+  it('carries no inline colour', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(<WriteRejectionBanner />)
+    act(() => reportWriteRejection('new Shop', new Error('x')))
+
+    expect(screen.getByRole('alert')).not.toHaveAttribute('style')
   })
 })
