@@ -1,4 +1,4 @@
-import { core } from 'data-platform'
+import { catalogue, core } from 'data-platform'
 
 const ROUTES = ['/list', '/items', '/settings', '/settings/shops', '/settings/categories', '/settings/members'] as const
 
@@ -38,18 +38,37 @@ function hashParts(hash: string): [path: string, query: string] {
 /** The query key, and the separator between ids, of the Items screen's Item filter. */
 const ITEM_KEY = 'item'
 const ITEM_ID_SEPARATOR = ','
+const CATEGORY_KEY = 'category'
+const SHOP_KEY = 'shop'
+
+/** The value of the `key` query on the hash; undefined when there is none or it is empty. */
+function queryValueOf(hash: string, key: string): string | undefined {
+  const [, query] = hashParts(hash)
+  return new URLSearchParams(query).get(key) || undefined
+}
+
+/**
+ * `path` with `params` as its query. Each value is written as `encodeURIComponent` does, except that the separator
+ * between the ids of the `item` value stays a literal comma, so the hash reads `item=a,b`.
+ */
+function hashWithQuery(path: string, params: URLSearchParams): string {
+  const query = [...params]
+    .map(([key, value]) => {
+      const written =
+        key === ITEM_KEY ? value.split(ITEM_ID_SEPARATOR).map(encodeURIComponent).join(ITEM_ID_SEPARATOR) : encodeURIComponent(value)
+      return `${encodeURIComponent(key)}=${written}`
+    })
+    .join('&')
+  return query === '' ? `#${path}` : `#${path}?${query}`
+}
 
 /**
  * The Item ids an `item=<id>[,<id>…]` query on the hash names, in order; empty when there is none.
  * Says nothing about whether an Item with that id exists.
  */
 export function itemIdsOf(hash: string): core.ItemId[] {
-  const [, query] = hashParts(hash)
-  const listed = new URLSearchParams(query).get(ITEM_KEY) ?? ''
-  return listed
-    .split(ITEM_ID_SEPARATOR)
-    .filter((id) => id.length > 0)
-    .map((id) => core.itemId(id))
+  const listed = queryValueOf(hash, ITEM_KEY) ?? ''
+  return listed.split(ITEM_ID_SEPARATOR).filter(core.isItemId)
 }
 
 /** The URL hash that names `value`. */
@@ -59,6 +78,36 @@ export function hashOf(value: Route): string {
 
 /** The URL hash of the Items screen filtered to `ids`; the unfiltered Items screen's when there are none. */
 export function itemsHashOf(ids: readonly core.ItemId[]): string {
-  const items = hashOf(route('/items'))
-  return ids.length === 0 ? items : `${items}?${ITEM_KEY}=${ids.join(ITEM_ID_SEPARATOR)}`
+  const params = new URLSearchParams()
+  if (ids.length > 0) params.set(ITEM_KEY, ids.join(ITEM_ID_SEPARATOR))
+  return hashWithQuery(route('/items'), params)
+}
+
+/** The Category a `category=<id>` query on the hash names; undefined when there is none. Says nothing about whether it exists. */
+export function categoryIdOf(hash: string): catalogue.CategoryId | undefined {
+  const id = queryValueOf(hash, CATEGORY_KEY)
+  return id !== undefined && catalogue.isCategoryId(id) ? id : undefined
+}
+
+/** The Shop a `shop=<id>` query on the hash names; undefined when there is none. Says nothing about whether it exists. */
+export function shopIdOf(hash: string): catalogue.ShopId | undefined {
+  const id = queryValueOf(hash, SHOP_KEY)
+  return id !== undefined && catalogue.isShopId(id) ? id : undefined
+}
+
+/** The Category and Shop an Items screen is narrowed to; undefined for each that is not. */
+export interface CategoryAndShop {
+  categoryId: catalogue.CategoryId | undefined
+  shopId: catalogue.ShopId | undefined
+}
+
+/** `hash` with its Category and Shop filters set to those given (cleared when undefined); every other query is kept. */
+export function withCategoryAndShop(hash: string, filter: CategoryAndShop): string {
+  const [path, query] = hashParts(hash)
+  const params = new URLSearchParams(query)
+  for (const [key, id] of [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId]] as const) {
+    if (id === undefined) params.delete(key)
+    else params.set(key, id)
+  }
+  return hashWithQuery(path, params)
 }

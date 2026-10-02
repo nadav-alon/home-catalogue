@@ -12,8 +12,8 @@ import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
 import { titleOf } from './shell/titles.ts'
 import { SnackbarHost } from './ui/Snackbar.tsx'
-import { route, type Route } from './ui/route.ts'
-import { navigate, useItemIds, useRoute } from './ui/useRoute.ts'
+import type { CategoryAndShop, Route } from './ui/route.ts'
+import { navigateToCategoryAndShop, setCategoryAndShop, useCategoryAndShop, useItemIds, useRoute } from './ui/useRoute.ts'
 import './app.css'
 import type { FirebaseWebConfig } from './firebase/webConfig.ts'
 
@@ -27,6 +27,7 @@ export interface AppProps {
 export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
   const current = useRoute()
   const itemIds = useItemIds()
+  const filter = useCategoryAndShop()
 
   return (
     <>
@@ -36,7 +37,7 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
           <main>
             <UpdateNotice />
             <WriteRejectionBanner />
-            <Screen route={current} itemIds={itemIds} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
+            <Screen route={current} itemIds={itemIds} filter={filter} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
           </main>
         </TopAppBar>
       </div>
@@ -49,16 +50,17 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
 function Screen({
   route: current,
   itemIds,
+  filter,
   db,
   config,
   onResetConfig,
   onSignOut,
-}: { route: Route; itemIds: readonly core.ItemId[] } & AppProps) {
+}: { route: Route; itemIds: readonly core.ItemId[]; filter: CategoryAndShop } & AppProps) {
   switch (current) {
     case '/list':
       return <ShoppingList db={db} />
     case '/items':
-      return <ItemsManager db={db} itemIds={itemIds} onClearFilter={() => navigate(route('/items'))} />
+      return <ItemsManager db={db} itemIds={itemIds} filter={filter} onFilterChange={setCategoryAndShop} onClearFilter={navigateToCategoryAndShop} />
     case '/settings':
       return <SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
     case '/settings/shops':

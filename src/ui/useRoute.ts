@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import type { core } from 'data-platform'
 import { afterPendingPop } from './pendingPop.ts'
-import { DEFAULT_ROUTE, hashOf, itemIdsOf, itemsHashOf, routeIn, routeOf, type Route } from './route.ts'
+import { categoryIdOf, DEFAULT_ROUTE, hashOf, itemIdsOf, itemsHashOf, routeIn, routeOf, shopIdOf, withCategoryAndShop, type CategoryAndShop, type Route } from './route.ts'
 
 /** Rewrites a hash that does not name a route to the default route's hash, replacing the history entry (and keeping its state) rather than pushing one. */
 function normaliseHash(): void {
@@ -35,6 +35,24 @@ export function useItemIds(): core.ItemId[] {
   return useMemo(() => itemIdsOf(hash), [hash])
 }
 
+/** The Category and Shop the current URL hash's `category` and `shop` queries name, re-read whenever the hash changes. */
+export function useCategoryAndShop(): CategoryAndShop {
+  const hash = useHash()
+  const categoryId = categoryIdOf(hash)
+  const shopId = shopIdOf(hash)
+  return useMemo(() => ({ categoryId, shopId }), [categoryId, shopId])
+}
+
+/** Sets the Category and Shop filters on the current hash by pushing a history entry, so back returns to the previous filter. */
+export function setCategoryAndShop(filter: CategoryAndShop): void {
+  window.location.hash = withCategoryAndShop(window.location.hash, filter)
+}
+
+/** Shows the Items screen narrowed to `filter` alone, dropping any scanned Item filter, by pushing a history entry. */
+export function navigateToCategoryAndShop(filter: CategoryAndShop): void {
+  window.location.hash = withCategoryAndShop(itemsHashOf([]), filter)
+}
+
 /** Shows `value` by pushing a history entry, so back returns to the previous route; a no-op when `value` is already shown. */
 export function navigate(value: Route): void {
   window.location.hash = hashOf(value)
@@ -42,6 +60,7 @@ export function navigate(value: Route): void {
 
 /**
  * Shows the Items screen filtered to `ids` by pushing a history entry; unfiltered when there are none.
+ * The Category and Shop filters on the current hash are kept, so a scan narrows them by AND like dismissing the scan does.
  * A Dialog closed earlier in the same tick has its history pop issued, and landed, before the push, so that pop
  * cannot move back from the new entry. The push is always asynchronous: the hash never changes before this returns.
  */
@@ -51,7 +70,10 @@ export function navigateToItems(ids: readonly core.ItemId[]): void {
   // longer one.
   void Promise.resolve().then(() =>
     afterPendingPop(() => {
-      window.location.hash = itemsHashOf(ids)
+      window.location.hash = withCategoryAndShop(itemsHashOf(ids), {
+        categoryId: categoryIdOf(window.location.hash),
+        shopId: shopIdOf(window.location.hash),
+      })
     }),
   )
 }

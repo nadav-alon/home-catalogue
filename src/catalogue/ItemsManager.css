@@ -29,3 +29,9 @@
 .item-group__toggle:disabled {
   cursor: default;
 }
+
+.items-manager__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--md-sys-spacing-2);
+}
