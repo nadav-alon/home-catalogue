@@ -4,6 +4,9 @@ import { fireEvent, render, screen } from '@testing-library/preact'
 import { Button } from './Button.tsx'
 import { declaration, mediaBlock, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
 
+const TEXT_DESTRUCTIVE = '.ui-button--text:is(.ui-button--destructive, .ui-dialog-actions__destructive *)'
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
 describe('Button', () => {
   it('renders a native button that does not submit by default', () => {
     render(<Button>Save</Button>)
@@ -28,9 +31,9 @@ describe('Button', () => {
       </Button>,
     )
     expect(screen.getByRole('button')).toHaveClass('ui-button--text', 'ui-button--destructive')
-    expect(declaration('src/ui/Button.css', '.ui-button--text.ui-button--destructive', 'color')).toBe('var(--md-sys-color-error)')
+    expect(declaration('src/ui/Button.css', TEXT_DESTRUCTIVE, 'color')).toBe('var(--md-sys-color-error)')
     expect(mediaBlock('src/ui/Button.css', '(hover: hover)')).toMatch(
-      /\.ui-button--text\.ui-button--destructive:hover:not\(:disabled\)\s*{[^}]*var\(--md-sys-color-error\)/,
+      new RegExp(`${escapeRegExp(TEXT_DESTRUCTIVE)}:hover:not\\(:disabled\\)\\s*{[^}]*var\\(--md-sys-color-error\\)`),
     )
   })
 
@@ -39,7 +42,7 @@ describe('Button', () => {
     const selectors = [...css.matchAll(/([^{}]+){/g)].map((match) => match[1].trim())
     const destructive = selectors.filter((selector) => selector.includes('.ui-button--destructive'))
     expect(destructive.length).toBeGreaterThan(0)
-    for (const selector of destructive) expect(selector).toContain('.ui-button--text.ui-button--destructive')
+    for (const selector of destructive) expect(selector).toContain(TEXT_DESTRUCTIVE)
   })
 
   it('keeps native click and disabled behaviour', () => {

@@ -7,8 +7,7 @@ export interface ButtonProps extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonEle
   variant?: ButtonVariant
   /**
    * Colours a `variant="text"` Button from the error token so it reads apart from its neighbours; the other variants
-   * ignore it. It is only the colour: it does not set the action apart by position, which is `DialogActions`'
-   * `destructive` slot, and neither implies the other.
+   * ignore it. It is only the colour; position is `DialogActions`' destructive slot.
    */
   destructive?: boolean
 }

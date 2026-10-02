@@ -5,7 +5,7 @@ import './DialogActions.css'
 export const DIALOG_FORM_CLASS = 'ui-dialog-form'
 
 export interface DialogActionsProps {
-  /** A destructive action such as Delete, set on the far left a gap away from the rest. */
+  /** A destructive action such as Delete, set on the far left a gap away from the rest; a text Button here takes the error tone itself. */
   destructive?: ComponentChildren
   /** Right-aligned, in order; the primary action goes last. */
   children: ComponentChildren

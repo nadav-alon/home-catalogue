@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/preact'
 import { DialogActions } from './DialogActions.tsx'
-import { read, tokenUsage } from '../testing/css.ts'
+import { declaration, mediaBlock, read, tokenUsage } from '../testing/css.ts'
 
 describe('DialogActions', () => {
   it('keeps the destructive action out of the group the confirm actions share', () => {
@@ -27,6 +27,16 @@ describe('DialogActions', () => {
     )
 
     expect(container.querySelector('.ui-dialog-actions__destructive')).toBeNull()
+  })
+
+  it('colours a text Button in the destructive slot from the error token, including on hover, from Button.css', () => {
+    const slotTextButton = '.ui-button--text:is(.ui-button--destructive, .ui-dialog-actions__destructive *)'
+    const escaped = slotTextButton.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    expect(declaration('src/ui/Button.css', slotTextButton, 'color')).toBe('var(--md-sys-color-error)')
+    expect(mediaBlock('src/ui/Button.css', '(hover: hover)')).toMatch(
+      new RegExp(`${escaped}:hover:not\\(:disabled\\)\\s*{[^}]*var\\(--md-sys-color-error\\)`),
+    )
+    expect(read('src/ui/DialogActions.css')).not.toContain('--md-sys-color-error')
   })
 
   it('lays out the row right-aligned with Delete at the start', () => {
