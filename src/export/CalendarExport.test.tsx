@@ -209,29 +209,34 @@ describe('CalendarExport', () => {
     expect(link).toHaveAttribute('href', 'https://calendar.google.com/calendar/render?text=Pharmacy')
   })
 
-  it('says sign-in was cancelled, with no fallback links, and leaves Export available to retry', async () => {
-    exportShoppingList.mockResolvedValueOnce({ status: 'cancelled' })
+  it.each([
+    ['cancelled', 'Google sign-in was cancelled.'],
+    ['popup-blocked', 'Your browser blocked the Google sign-in window. Allow pop-ups and try again.'],
+  ] as const)('on %s shows its copy, no fallback links, and leaves Export available to retry', async (status, copy) => {
+    exportShoppingList.mockResolvedValueOnce({ status })
     renderWith([outBandages], [medicine], [pharmacy])
 
     await submit('2026-03-05')
 
-    expect(screen.getByText('Google sign-in was cancelled.')).toBeInTheDocument()
+    expect(screen.getByText(copy)).toBeInTheDocument()
     expect(screen.queryByText(/Couldn't reach Google Calendar/)).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Pharmacy' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled()
   })
 
-  it('asks to allow pop-ups, with no fallback links, and leaves Export available to retry', async () => {
-    exportShoppingList.mockResolvedValueOnce({ status: 'popup-blocked' })
+  it.each([
+    ['cancelled', 'Google sign-in was cancelled.'],
+    ['popup-blocked', 'Your browser blocked the Google sign-in window. Allow pop-ups and try again.'],
+  ] as const)('shows a fresh dialog when reopened after %s', async (status, copy) => {
+    exportShoppingList.mockResolvedValueOnce({ status })
     renderWith([outBandages], [medicine], [pharmacy])
-
     await submit('2026-03-05')
+    expect(screen.getByText(copy)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
-    expect(
-      screen.getByText('Your browser blocked the Google sign-in window. Allow pop-ups and try again.'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/Couldn't reach Google Calendar/)).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Pharmacy' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.queryByText(copy)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Export' })).toBeEnabled()
   })
 
