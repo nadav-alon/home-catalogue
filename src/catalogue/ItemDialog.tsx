@@ -147,6 +147,15 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
     }
   }
 
+  /** Updates the prompt's draft, and drops the shown error for `field` once the edited draft is valid for it, without waiting for the next Create Category. */
+  function editCategoryDraft(field: keyof CategoryDraft, next: CategoryDraft) {
+    setCategoryDraft(next)
+    if (categoryError?.field !== field) return
+    const result = validateCategoryDraft(next, shops)
+    if ('error' in result && result.field === field) return
+    setCategoryError(null)
+  }
+
   function closeCategoryPrompt() {
     setCategoryDraft(null)
     setCategoryError(null)
@@ -221,7 +230,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
             label="New Category name"
             error={categoryError?.field === 'name' ? categoryError.message : undefined}
             value={categoryDraft.name}
-            onInput={(event) => setCategoryDraft({ ...categoryDraft, name: event.currentTarget.value })}
+            onInput={(event) => editCategoryDraft('name', { ...categoryDraft, name: event.currentTarget.value })}
           />
           {shops.length === 0 ? (
             <p>Add a Shop in Settings before adding a Category.</p>

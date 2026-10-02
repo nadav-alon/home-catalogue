@@ -1128,6 +1128,19 @@ describe('adding a Category from the Item dialog', () => {
     expect(createCategory).not.toHaveBeenCalled()
   })
 
+  it('clears the name error once a name is typed', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+    chooseNewCategory()
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+    expect(screen.getByLabelText('New Category name')).toHaveAccessibleDescription('A Category needs a name.')
+
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+
+    expect(screen.getByLabelText('New Category name')).toBeValid()
+    expect(screen.getByLabelText('New Category name')).not.toHaveAccessibleDescription('A Category needs a name.')
+  })
+
   it('shows a createCategory rejection and keeps the prompt and the Item fields', async () => {
     renderWith([], [medicine], [pharmacy])
     createCategory.mockRejectedValue(new Error('Offline'))
