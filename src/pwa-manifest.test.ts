@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createServer } from 'vite'
 import { describe, expect, it } from 'vitest'
 import { manifest } from './pwa-manifest'
 import { themeColor } from './theme'
@@ -73,6 +74,22 @@ describe('manifest', () => {
     for (const { source } of appIcons) {
       const svg = readFileSync(fromRepo(`src/ui/icons/${source}`), 'utf8')
       expect(/<rect[^>]*fill="([^"]+)"/.exec(svg)?.[1], source).toBe(themeColor)
+    }
+  })
+})
+
+describe('browser tab icon', () => {
+  it('links the 192px app icon from public/ under the base', async () => {
+    const server = await createServer({ configFile: fromRepo('vite.config.ts'), server: { middlewareMode: true }, appType: 'custom' })
+    try {
+      const html = await server.transformIndexHtml('/index.html', readFileSync(fromRepo('index.html'), 'utf8'))
+      const href = new DOMParser().parseFromString(html, 'text/html').querySelector('link[rel="icon"]')?.getAttribute('href')
+      const file = appIcons.find((icon) => icon.purpose === 'any')!.output(192)
+
+      expect(href).toBe(`${server.config.base}${file}`)
+      expect(existsSync(fromRepo(`public/${file}`))).toBe(true)
+    } finally {
+      await server.close()
     }
   })
 })
