@@ -455,6 +455,18 @@ describe('adding an Item', () => {
     expect(screen.getByLabelText('Name')).toHaveAccessibleDescription('An Item needs a name.')
   })
 
+  it('clears the Necessity error once a Necessity is chosen, without saving again', () => {
+    renderWith([], [medicine], [pharmacy])
+    openDialog()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByLabelText('Necessity')).toHaveAccessibleDescription('Choose a Necessity.')
+    choose(screen.getByLabelText('Necessity'), 'essential')
+
+    expect(screen.getByLabelText('Necessity')).toBeValid()
+    expect(screen.getByLabelText('Name')).toHaveAccessibleDescription('An Item needs a name.')
+  })
+
   it('refuses to add an Item without choosing a Necessity', () => {
     renderWith([], [medicine], [pharmacy])
     openDialog()
@@ -486,6 +498,18 @@ describe('editing an Item', () => {
     expect(screen.getByLabelText('Category')).toHaveValue(medicine.id)
     expect(screen.getByLabelText('Necessity')).toHaveValue('essential')
     expect(screen.getByLabelText('Shop override')).toHaveValue(grocery.id)
+  })
+
+  it('clears the name error once a name is typed, without saving again', () => {
+    renderWith([waterproofBandages], [medicine, cleaning], [pharmacy, grocery])
+    openRow('Bandages')
+
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByLabelText('Name')).toHaveAccessibleDescription('An Item needs a name.')
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+
+    expect(screen.getByLabelText('Name')).toBeValid()
   })
 
   it('has no State field in the Edit Item dialog', () => {
@@ -1036,6 +1060,26 @@ describe('adding a Category from the Item dialog', () => {
     expect(createCategory).toHaveBeenCalledWith(fakeDb, 'First aid', pharmacy.id)
     expect(createItem).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+  })
+
+  it('clears the Category error when the new Category is created after Save was pressed meanwhile', async () => {
+    const created: CategoryRecord = { ...cleaning, id: catalogue.categoryId('first-aid'), name: 'First aid' }
+    const { publishCategories } = renderWith([], [medicine], [pharmacy])
+    let resolveCreate: (id: typeof created.id) => void = () => {}
+    createCategory.mockReturnValue(new Promise<typeof created.id>((resolve) => (resolveCreate = resolve)))
+    openDialog()
+    chooseNewCategory()
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'First aid' } })
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+    fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
+    act(() => publishCategories([medicine, created]))
+    resolveCreate(created.id)
+
+    await waitFor(() => expect(screen.getByLabelText('Category')).toHaveValue(created.id))
+    expect(screen.getByLabelText('Category')).toBeValid()
   })
 
   it('ends on the new Category when the snapshot listing it arrives after createCategory resolves', async () => {
