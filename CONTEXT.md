@@ -61,7 +61,7 @@ the exported event) or **soon** (yellow banner).
 
 **Shopping list**:
 Live view of every Item at `running low` or `out`, grouped by Shop, `running low` flagged
-optional. Ticking an Item sets it `enough`. Canonical; works offline.
+optional. Ticking an Item sets it `enough` and shows an Undo snackbar. Canonical; works offline.
 
 **Export**:
 One tap creating one Google Calendar event per Shop with pending Items, list in the description,
@@ -77,6 +77,7 @@ A record that has been soft-deleted. An Item comes back through Undo, or by scan
 barcodes; a Category or Shop comes back only through Undo.
 
 **Undo**:
-The snackbar action that restores a record just deleted; one way to restore, since scanning a
-deleted Item's barcode restores it too. Refused, and the failure reported, when the record's
+The snackbar action that restores a record just deleted, or reverts a Shopping list tick to the
+Item's previous State (`running low` or `out`). For a delete it is one way to restore, since
+scanning a deleted Item's barcode restores it too. Refused, and the failure reported, when the record's
 Category or Shop is a Deleted record.
