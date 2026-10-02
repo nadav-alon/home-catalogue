@@ -212,6 +212,25 @@ describe('ShopsManager', () => {
     expect(labels).toEqual(['Delete', 'Cancel', 'Rename'])
   })
 
+  it('sets Delete apart from Cancel and Rename in the Edit Shop dialog', () => {
+    renderWithShops([pharmacy])
+    openEditor('Pharmacy')
+
+    const dialog = screen.getByRole('dialog')
+    const del = within(dialog).getByRole('button', { name: 'Delete' })
+    expect(del.parentElement).toHaveClass('ui-dialog-actions__apart')
+    expect(within(dialog).getByRole('button', { name: 'Rename' }).closest('.ui-dialog-actions')).toBe(
+      del.closest('.ui-dialog-actions'),
+    )
+  })
+
+  it('lays out the Add Shop actions in the shared action row', () => {
+    renderWithShops([])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+
+    expect(screen.getByRole('button', { name: 'Add' }).closest('.ui-dialog-actions')).not.toBeNull()
+  })
+
   it('deletes a Shop', async () => {
     renderWithShops([pharmacy])
     openEditor('Pharmacy')
