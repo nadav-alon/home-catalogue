@@ -26,7 +26,7 @@ export function reportWriteRejection(what: string, err: unknown): void {
 
 /**
  * Shows `message` in the same banner, followed by the readable cause from `err`, and logs `err`.
- * For failures that are not a rejected queued write, such as the Export falling back to deep links.
+ * For failures that are not a rejected queued write, such as removing a Member.
  */
 export function reportFailure(message: string, err: unknown): void {
   show(err instanceof Error && err.message.length > 0 ? `${message}: ${err.message}` : message, err)

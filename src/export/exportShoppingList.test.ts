@@ -115,23 +115,44 @@ describe('exportShoppingList', () => {
 
     expect(forgetAppCalendar).not.toHaveBeenCalled()
   })
-  it('reports the underlying error to the global banner alongside the fallback', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const { resetWriteRejections, watchWriteRejections } = await import('../catalogue/writeRejections.ts')
-    resetWriteRejections()
-    let messages: string[] = []
-    watchWriteRejections((list) => {
-      messages = list.map((rejection) => rejection.message)
+
+  describe('logs the underlying error without raising a write-rejection banner', () => {
+    async function exportWatchingRejections() {
+      const { resetWriteRejections, watchWriteRejections } = await import('../catalogue/writeRejections.ts')
+      resetWriteRejections()
+      const watched = { messages: [] as string[] }
+      watchWriteRejections((list) => {
+        watched.messages = list.map((rejection) => rejection.message)
+      })
+      const result = await exportShoppingList(groups, date)
+      return { messages: watched.messages, result }
+    }
+
+    it('when the household closes the Google popup', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const failure = new Error('popup_closed')
+      requestCalendarAccessToken.mockRejectedValueOnce(failure)
+
+      const { messages, result } = await exportWatchingRejections()
+
+      expect(result.status).toBe('fallback')
+      expect(messages).toEqual([])
+      expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure)
+      consoleError.mockRestore()
     })
-    const failure = new Error('403 insufficient scope')
-    requestCalendarAccessToken.mockResolvedValueOnce('a-token')
-    findOrCreateAppCalendar.mockRejectedValueOnce(failure)
 
-    const result = await exportShoppingList(groups, date)
+    it('when the Calendar API refuses the request', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const failure = new Error('403 insufficient scope')
+      requestCalendarAccessToken.mockResolvedValueOnce(accessToken('a-token'))
+      findOrCreateAppCalendar.mockRejectedValueOnce(failure)
 
-    expect(result.status).toBe('fallback')
-    expect(messages).toEqual(["Could not add the Export to Google Calendar; add each Shop's event with the links below: 403 insufficient scope"])
-    expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure)
-    consoleError.mockRestore()
+      const { messages, result } = await exportWatchingRejections()
+
+      expect(result.status).toBe('fallback')
+      expect(messages).toEqual([])
+      expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure)
+      consoleError.mockRestore()
+    })
   })
 })
