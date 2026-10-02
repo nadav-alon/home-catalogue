@@ -165,6 +165,27 @@ describe('ShopsManager', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
+  it('cancels Edit Shop without renaming or deleting the Shop', async () => {
+    renderWithShops([pharmacy])
+    openEditor('Pharmacy')
+
+    fireEvent.input(screen.getByLabelText('Shop name'), { target: { value: 'Changed' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(renameShop).not.toHaveBeenCalled()
+    expect(deleteShop).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('orders the Edit Shop actions Delete, Cancel, Rename', () => {
+    renderWithShops([pharmacy])
+    openEditor('Pharmacy')
+
+    const form = screen.getByLabelText('Shop name').closest('form')!
+    const labels = within(form).getAllByRole('button').map((button) => button.textContent)
+    expect(labels).toEqual(['Delete', 'Cancel', 'Rename'])
+  })
+
   it('deletes a Shop', async () => {
     renderWithShops([pharmacy])
     openEditor('Pharmacy')

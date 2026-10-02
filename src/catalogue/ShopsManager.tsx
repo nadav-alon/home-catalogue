@@ -114,10 +114,13 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
       <form onSubmit={handleRename}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
-        <Button type="submit">Rename</Button>
         <Button variant="text" onClick={() => void handleDelete()}>
           Delete
         </Button>
+        <Button variant="text" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit">Rename</Button>
       </form>
     </Dialog>
   )
