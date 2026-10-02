@@ -57,7 +57,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
   /** The deleted Item a scanned Barcode belongs to, and that Barcode, while the Member is deciding whether to bring it back. */
   const [deletedMatch, setDeletedMatch] = useState<{ item: ItemRecord; barcode: core.Barcode }>()
   /** The deleted Item whose Category or Shop is gone, while the Member picks live ones to restore it with. */
-  const [restoring, setRestoring] = useState<ItemRecord>()
+  const [itemToRestore, setItemToRestore] = useState<ItemRecord>()
   /** The Barcode a new Item carries from the start, while the Item dialog is open. */
   const [newItemBarcode, setNewItemBarcode] = useState<CarriedBarcode>()
 
@@ -95,33 +95,41 @@ export function ShoppingList({ db }: ShoppingListProps) {
     try {
       const deleted = await findDeletedItemByBarcode(db, barcode)
       if (deleted !== undefined) return setDeletedMatch({ item: deleted, barcode })
-      await openChooser(liveItems, barcode)
+    } catch (err) {
+      return setError(err instanceof Error ? err.message : 'Could not look up the barcode')
+    }
+    await openChooser(liveItems, barcode)
+  }
+
+  async function openChooser(liveItems: readonly ItemRecord[], barcode: core.Barcode) {
+    try {
+      setUnknownBarcode({ barcode, holders: await findBarcodeHolders(db, liveItems, barcode) })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not look up the barcode')
     }
   }
 
-  async function openChooser(liveItems: readonly ItemRecord[], barcode: core.Barcode) {
-    setUnknownBarcode({ barcode, holders: await findBarcodeHolders(db, liveItems, barcode) })
-  }
-
   async function handleRestore(item: ItemRecord) {
     // Until both lists have loaded, a Category or Shop cannot be told from a deleted one; the offer stays open.
-    if (!listsLoaded.categories || !listsLoaded.shops) return
+    if (!listsLoaded.categories || !listsLoaded.shops) {
+      return showSnackbar({ text: 'Categories and Shops are still loading, try again in a moment' })
+    }
     setDeletedMatch(undefined)
-    if (!isLiveReference(categories, item.categoryId) || !isLiveReference(shops, item.shopId)) return setRestoring(item)
-    await restoreItem(db, item, categories, shops)
+    if (!isLiveReference(categories, item.categoryId) || !isLiveReference(shops, item.shopId)) return setItemToRestore(item)
+    try {
+      await restoreItem(db, item, categories, shops)
+      setError(null)
+      showSnackbar({ text: `Restored ${item.name}` })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not restore the Item')
+    }
   }
 
   async function handleDeclineRestore() {
     if (deletedMatch === undefined) return
     const { barcode } = deletedMatch
     setDeletedMatch(undefined)
-    try {
-      await openChooser(items ?? [], barcode)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not look up the barcode')
-    }
+    await openChooser(items ?? [], barcode)
   }
 
   async function handleAttach(item: ItemRecord, holders: readonly BarcodeHolder[]) {
@@ -188,16 +196,16 @@ export function ShoppingList({ db }: ShoppingListProps) {
         onClose={() => setNewItemBarcode(undefined)}
       />
       <ItemDialog
-        open={restoring !== undefined}
-        item={restoring}
+        open={itemToRestore !== undefined}
+        item={itemToRestore}
         restoring
         categories={categories}
         shops={shops}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
         onSave={async (input) => {
-          if (restoring !== undefined) await restoreItemWithEdit(db, restoring, input)
+          if (itemToRestore !== undefined) await restoreItemWithEdit(db, itemToRestore, input)
         }}
-        onClose={() => setRestoring(undefined)}
+        onClose={() => setItemToRestore(undefined)}
       />
     </section>
   )

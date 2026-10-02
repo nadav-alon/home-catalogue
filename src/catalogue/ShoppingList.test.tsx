@@ -630,6 +630,70 @@ describe('a scanned barcode', () => {
     expect(restoreItemWithEdit).not.toHaveBeenCalled()
   })
 
+  it('reports a failed restore and confirms nothing', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    restoreItem.mockRejectedValue(new Error('Restore refused'))
+    render(<SnackbarHost />)
+    renderWith([], [medicine], [pharmacy])
+    scan()
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Deleted Item' })).getByRole('button', { name: 'Yes' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Restore refused')
+    expect(screen.queryByText('Restored Bandages')).not.toBeInTheDocument()
+  })
+
+  it('confirms a restore with a snackbar', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    render(<SnackbarHost />)
+    renderWith([], [medicine], [pharmacy])
+    scan()
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Deleted Item' })).getByRole('button', { name: 'Yes' }))
+
+    expect(await screen.findByText('Restored Bandages')).toBeInTheDocument()
+  })
+
+  it('keeps the offer open and says why when Yes is pressed before the Categories and Shops have loaded', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
+      cb([])
+      return vi.fn()
+    })
+    watchCategories.mockReturnValue(vi.fn())
+    watchShops.mockReturnValue(vi.fn())
+    render(
+      <TopAppBar title="Shopping list">
+        <ShoppingList db={fakeDb} />
+        <SnackbarHost />
+      </TopAppBar>,
+    )
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
+
+    expect(await screen.findByText('Categories and Shops are still loading, try again in a moment')).toBeInTheDocument()
+    expect(offer).toHaveAttribute('open')
+    expect(restoreItem).not.toHaveBeenCalled()
+  })
+
+  it('opens the Item dialog on Yes when only the deleted Item\'s Shop is gone', async () => {
+    findDeletedItemByBarcode.mockResolvedValue({ ...bandages, shopId: pharmacy.id })
+    renderWith([], [medicine], [grocery])
+    scan()
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Deleted Item' })).getByRole('button', { name: 'Yes' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Restore Item' })).toBeInTheDocument()
+    expect(restoreItem).not.toHaveBeenCalled()
+  })
+
+  it('ticks a live Item holding the barcode without looking for a deleted one', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+
+    await waitFor(() => expect(setItemState).toHaveBeenCalled())
+    expect(findDeletedItemByBarcode).not.toHaveBeenCalled()
+  })
+
   it('leaves the Item deleted on No and opens the unknown-barcode chooser', async () => {
     findDeletedItemByBarcode.mockResolvedValue(bandages)
     renderWith([], [medicine], [pharmacy])
