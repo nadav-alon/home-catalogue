@@ -101,7 +101,7 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
         )}
         {unresolvedCount > 0 && groups.length > 0 && (
           <p>
-            {unresolvedCount} pending Item{unresolvedCount === 1 ? '' : 's'} with no Shop won't be included in the
+            {unresolvedCount} pending Item{unresolvedCount === 1 ? '' : 's'} with no Shop to export under won't be included in the
             export.
           </p>
         )}
