@@ -1,9 +1,10 @@
-import { readFileSync } from 'node:fs'
 import { render, screen, within } from '@testing-library/preact'
 import { describe, expect, it } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { AlertBanner } from './AlertBanner.tsx'
-const css = readFileSync('src/catalogue/AlertBanner.css', 'utf8')
+import { read, tokenUsage } from '../testing/css.ts'
+
+const css = read('src/catalogue/AlertBanner.css')
 
 function item(necessity: catalogue.Necessity, state: core.State) {
   return { necessity, state }
@@ -67,11 +68,21 @@ describe('AlertBanner', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('themes each level from tokens with the standard inset, and no hard-coded colour', () => {
+  it('is styled only from defined tokens, which cover light and dark, and no hard-coded colour', () => {
+    const { used, undefinedTokens } = tokenUsage('src/catalogue/AlertBanner.css')
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgb|hsl/i)
-    expect(css).toMatch(
-      /\.alert-banner--now\s*{[^}]*var\(--md-sys-color-error-container\)[^}]*var\(--md-sys-color-on-error-container\)/,
+    expect(used).toEqual(
+      expect.arrayContaining([
+        '--md-sys-color-error-container',
+        '--md-sys-color-on-error-container',
+        '--md-sys-color-secondary-container',
+        '--md-sys-color-on-secondary-container',
+      ]),
     )
-    expect(css).toMatch(/\.alert-banner\s*{\s*padding: var\(--md-sys-spacing-2\) var\(--md-sys-spacing-4\);/)
+    expect(undefinedTokens).toEqual([])
+  })
+
+  it('gives the banner text the standard inset', () => {
+    expect(css).toMatch(/\.alert-banner\s*{[^}]*padding:\s*var\(--md-sys-spacing-2\)\s+var\(--md-sys-spacing-4\)/)
   })
 })
