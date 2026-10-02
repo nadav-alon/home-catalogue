@@ -15,7 +15,8 @@
   --md-sys-spacing-8: 2rem;
 
   --shell-bar-height: 5.5rem;
-  --shell-rail-width: 5rem;
+  /* Wide enough for "Shopping list" at the label size (about 83px) inside the rail's padding, with headroom. */
+  --shell-rail-width: 6.5rem;
   --shell-content-width: 45rem;
 
   --md-sys-shape-corner-extra-small: 4px;
