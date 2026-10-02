@@ -8,6 +8,7 @@ import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
 import { bandages, medicine, pharmacy } from '../catalogue/testFixtures.ts'
+import type { ExportResult } from './exportShoppingList.ts'
 
 const exportShoppingList = vi.fn()
 vi.mock('./exportShoppingList.ts', () => ({
@@ -62,6 +63,16 @@ async function submit(dateValue: string) {
   await act(async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Export' }))
   })
+}
+
+/** Starts an export that stays in flight, then closes the dialog; `finish` lands its result. */
+async function startExportThenClose() {
+  let resolve: (result: ExportResult) => void = () => {}
+  exportShoppingList.mockReturnValueOnce(new Promise((r) => (resolve = r)))
+  const view = renderWith([outBandages], [medicine], [pharmacy])
+  await submit('2026-03-05')
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  return { view, finish: (result: ExportResult) => act(async () => resolve(result)) }
 }
 
 describe('CalendarExport', () => {
@@ -238,11 +249,7 @@ describe('CalendarExport', () => {
   })
 
   it('keeps Export disabled and starts no second export when reopened while an export is in flight', async () => {
-    let finish: (result: { status: 'exported' }) => void = () => {}
-    exportShoppingList.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
-    renderWith([outBandages], [medicine], [pharmacy])
-    await submit('2026-03-05')
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    const { finish } = await startExportThenClose()
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
     const exportButton = screen.getByRole('button', { name: 'Export' })
@@ -251,9 +258,71 @@ describe('CalendarExport', () => {
     fireEvent.submit(exportButton.closest('form')!)
     expect(exportShoppingList).toHaveBeenCalledTimes(1)
 
-    await act(async () => finish({ status: 'exported' }))
+    await finish({ status: 'exported' })
     expect(screen.getByText('Exported to Calendar.')).toBeInTheDocument()
     expect(exportButton).toBeEnabled()
+  })
+
+  it('keeps a result that landed while the dialog was closed reachable after the list empties', async () => {
+    const { view, finish } = await startExportThenClose()
+    view.rerender([])
+    await finish({ status: 'exported' })
+
+    const open = screen.getByRole('button', { name: 'Export to Calendar' })
+    expect(open).toBeEnabled()
+    fireEvent.click(open)
+    expect(screen.getByText('Exported to Calendar.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('button', { name: 'Export to Calendar' })).toBeDisabled()
+  })
+
+  it('keeps fallback links that landed while the dialog was closed reachable after the list empties', async () => {
+    const { view, finish } = await startExportThenClose()
+    view.rerender([])
+    await finish({ status: 'fallback' as const, links: [{ shopName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }] })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.getByRole('link', { name: 'Pharmacy' })).toBeInTheDocument()
+  })
+
+  it('keeps the unseen fallback links when Export is pressed with an empty list', async () => {
+    const { view, finish } = await startExportThenClose()
+    view.rerender([])
+    await finish({ status: 'fallback' as const, links: [{ shopName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }] })
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    const exportButton = screen.getByRole('button', { name: 'Export' })
+    expect(exportButton).toBeDisabled()
+    fireEvent.submit(exportButton.closest('form')!)
+
+    expect(screen.getByRole('link', { name: 'Pharmacy' })).toBeInTheDocument()
+    expect(screen.queryByText('No pending Items to export.')).not.toBeInTheDocument()
+  })
+
+  it('keeps the old status and date when reopened after a result landed while closed, with Items still pending', async () => {
+    const { finish } = await startExportThenClose()
+    await finish({ status: 'exported' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.getByText('Exported to Calendar.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-03-05')
+  })
+
+  it('opens a fresh dialog with today\'s date once a result landed while closed has been seen', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(2026, 5, 15, 12))
+    const { finish } = await startExportThenClose()
+    await finish({ status: 'exported' })
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.queryByText('Exported to Calendar.')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Date')).toHaveValue('2026-06-15')
   })
 
   it('says pending Items need a Shop, not that nothing is pending, when none has a Shop to export under', async () => {

@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import type { CategoryRecord } from "../catalogue/categories.ts";
 import type { ItemRecord } from "../catalogue/items.ts";
@@ -49,6 +49,11 @@ export function CalendarExport({
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
   const [status, setStatus] = useState<ExportStatus>({ phase: "idle" });
+  // A result that landed while the dialog was closed and has not been shown yet.
+  const [unseenResult, setUnseenResult] = useState(false);
+  // Mirrors `open` for the async export continuation, which needs the current value, not its render's.
+  // Open and close only through `setDialogOpen`, or an unseen result is never flagged.
+  const openRef = useRef(false);
 
   const { groups, unresolvedCount, nothingToBuy } = pendingItemsByShop(
     items,
@@ -56,10 +61,16 @@ export function CalendarExport({
     shops,
   );
 
+  // With nothing left to export, a pressed Export would replace the result's fallback links with an error.
+  const exportDisabled =
+    status.phase === "exporting" ||
+    (nothingToBuy &&
+      (status.phase === "exported" || status.phase === "fallback"));
+
   async function handleExport(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (status.phase === "exporting") return;
+    if (exportDisabled) return;
 
     if (!isExportDate(date)) {
       setStatus({ phase: "error", message: "Choose a date to export to." });
@@ -93,29 +104,40 @@ export function CalendarExport({
         ? { phase: "exported" }
         : { phase: "fallback", links: result.links },
     );
+    if (!openRef.current) setUnseenResult(true);
   }
 
   function openDialog() {
     // An export still in flight keeps the dialog showing it, date included, so Export stays disabled and its
     // result lands beside the date it was made for.
-    if (status.phase !== "exporting") {
+    if (status.phase !== "exporting" && !unseenResult) {
       setDate(todayExportDate());
       setStatus({ phase: "idle" });
     }
-    setOpen(true);
+    setUnseenResult(false);
+    setDialogOpen(true);
+  }
+
+  function setDialogOpen(next: boolean) {
+    openRef.current = next;
+    setOpen(next);
   }
 
   return (
     <>
       <TopAppBarActions>
-        <Button variant="text" disabled={nothingToBuy} onClick={openDialog}>
+        <Button
+          variant="text"
+          disabled={nothingToBuy && !unseenResult}
+          onClick={openDialog}
+        >
           Export to Calendar
         </Button>
       </TopAppBarActions>
       <Dialog
         open={open}
         title="Export to Calendar"
-        onClose={() => setOpen(false)}
+        onClose={() => setDialogOpen(false)}
         closable
       >
         {status.phase === "error" && <p role="alert">{status.message}</p>}
@@ -154,10 +176,10 @@ export function CalendarExport({
           />
 
           <DialogActions>
-            <Button variant="text" onClick={() => setOpen(false)}>
+            <Button variant="text" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={status.phase === "exporting"}>
+            <Button type="submit" disabled={exportDisabled}>
               Export
             </Button>
           </DialogActions>
