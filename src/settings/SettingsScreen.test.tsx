@@ -52,7 +52,24 @@ describe('SettingsScreen', () => {
     const link = screen.getByRole('link', { name: 'Shops' })
     expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     expect(link.closest('li')?.querySelectorAll('a, button')).toHaveLength(1)
-    expect(link.querySelector('.ui-list-row__trailing')).not.toBeNull()
+  })
+
+  it('makes the link the only child of its row, which has no padding of its own', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    const row = screen.getByRole('link', { name: 'Shops' }).closest('li')
+
+    expect(row?.children).toHaveLength(1)
+    expect(row?.firstElementChild?.tagName).toBe('A')
+    expect(row).toHaveClass('ui-list-row--labelled')
+  })
+
+  it('puts the chevron in the trailing slot, which takes its colour from the on-surface-variant token', () => {
+    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    const trailing = screen.getByRole('link', { name: 'Shops' }).querySelector('.ui-list-row__trailing')
+
+    expect(trailing?.querySelector('svg')).not.toBeNull()
   })
 
   it('lists Members above Add device', () => {
