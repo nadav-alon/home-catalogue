@@ -169,4 +169,18 @@ describe('CalendarExport', () => {
 
     expect(screen.queryByText('Exported to Calendar.')).not.toBeInTheDocument()
   })
+
+  it('shows no fallback links when the dialog is reopened after a fallback', async () => {
+    exportShoppingList.mockResolvedValueOnce({
+      status: 'fallback',
+      links: [{ shopName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }],
+    })
+    renderWith([outBandages], [medicine], [pharmacy])
+    await submit('2026-03-05')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    expect(screen.queryByRole('link', { name: 'Pharmacy' })).not.toBeInTheDocument()
+  })
 })
