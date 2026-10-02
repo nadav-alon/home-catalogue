@@ -22,3 +22,13 @@ export const mediaBlock = (stylesheet: string, query: string) => read(stylesheet
 
 /** A stylesheet with its `@media <query>` block removed. */
 export const outsideMediaBlock = (stylesheet: string, query: string) => read(stylesheet).replace(mediaPattern(query), '')
+
+/** The value a stylesheet's last `selector { … }` rule gives `property`, or undefined when no rule sets it. */
+export function declaration(stylesheet: string, selector: string, property: string): string | undefined {
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const rule = new RegExp(`${escape(selector)}\\s*{([^}]*)}`, 'g')
+  const values = [...read(stylesheet).matchAll(rule)].flatMap(([, body]) =>
+    [...body!.matchAll(new RegExp(`(?:^|[;\\s])${escape(property)}\\s*:\\s*([^;]+)`, 'g'))].map((m) => m[1]!.trim()),
+  )
+  return values.at(-1)
+}
