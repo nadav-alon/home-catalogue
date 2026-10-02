@@ -1,5 +1,10 @@
-import { beforeEach, describe, expect, it } from 'vitest'
-import { getCollapsedGroups, saveCollapsedGroups } from './collapsedCategories.ts'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { catalogue } from 'data-platform'
+import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED } from './collapsedCategories.ts'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 beforeEach(() => {
   localStorage.clear()
@@ -11,7 +16,7 @@ describe('getCollapsedGroups', () => {
   })
 
   it('returns what was saved', () => {
-    saveCollapsedGroups(new Set(['medicine', '/uncategorised']))
+    saveCollapsedGroups(new Set([catalogue.categoryId('medicine'), UNCATEGORISED]))
 
     expect([...getCollapsedGroups()]).toEqual(['medicine', '/uncategorised'])
   })
@@ -26,5 +31,23 @@ describe('getCollapsedGroups', () => {
     localStorage.setItem('home-catalogue:collapsed-categories', '["medicine", 3, null]')
 
     expect([...getCollapsedGroups()]).toEqual(['medicine'])
+  })
+
+  it('is empty when reading storage throws', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+
+    expect(getCollapsedGroups().size).toBe(0)
+  })
+})
+
+describe('saveCollapsedGroups', () => {
+  it('does nothing when writing storage throws', () => {
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+
+    expect(() => saveCollapsedGroups(new Set([UNCATEGORISED]))).not.toThrow()
   })
 })
