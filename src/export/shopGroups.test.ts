@@ -56,7 +56,7 @@ describe('pendingItemsByShop', () => {
     expect(unresolvedCount).toBe(1)
   })
 
-  it('leaves out an Item whose resolved Shop has no record, without counting it as unresolved', () => {
+  it('leaves out an Item whose resolved Shop has no record, counting it as unresolved', () => {
     const garden: CategoryRecord = {
       ...medicine,
       id: catalogue.categoryId('garden'),
@@ -74,6 +74,6 @@ describe('pendingItemsByShop', () => {
     const { groups, unresolvedCount } = pendingItemsByShop([seeds], [garden], [pharmacy])
 
     expect(groups).toEqual([])
-    expect(unresolvedCount).toBe(0)
+    expect(unresolvedCount).toBe(1)
   })
 })
