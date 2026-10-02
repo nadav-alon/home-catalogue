@@ -32,7 +32,7 @@
 @media (min-width: 600px) {
   .ui-dialog {
     width: min(35rem, calc(100% - var(--md-sys-spacing-8)));
-    height: auto;
+    height: fit-content;
     max-height: calc(100% - var(--md-sys-spacing-8));
     margin: auto;
     border-radius: var(--md-sys-shape-corner-extra-large);

@@ -278,6 +278,14 @@ describe('Dialog', () => {
     expect(css).toMatch(/@media \(min-width: 600px\)\s*{[\s\S]*margin: auto/)
   })
 
+  it('is as tall as its content from 600px up, capped at the viewport', () => {
+    const css = readFileSync('src/ui/Dialog.css', 'utf8')
+    const desktop = css.slice(css.indexOf('@media (min-width: 600px)'))
+    expect(desktop).toMatch(/height: fit-content/)
+    expect(desktop).not.toMatch(/height: auto/)
+    expect(desktop).toMatch(/max-height: calc\(100% - var\(--md-sys-spacing-8\)\)/)
+  })
+
   it('is styled only from defined tokens', () => {
     const { used, undefinedTokens } = tokenUsage('src/ui/Dialog.css')
     expect(used.length).toBeGreaterThan(0)
