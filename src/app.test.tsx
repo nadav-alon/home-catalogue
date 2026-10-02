@@ -1,5 +1,5 @@
-import { act, render, screen, within } from '@testing-library/preact'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/preact'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { App } from './app'
@@ -8,6 +8,7 @@ import { bandages } from './catalogue/testFixtures.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 import { resetSnackbar, showSnackbar } from './ui/Snackbar.tsx'
 import { resetHash } from './testing/hash.ts'
+import { stubModalDialog } from './testing/dialog.ts'
 
 const watchItemsCallbacks: ((items: ItemRecord[]) => void)[] = []
 const watchItems = vi.fn((_db: unknown, cb: (items: ItemRecord[]) => void) => {
@@ -25,6 +26,7 @@ vi.mock('./catalogue/categories.ts', () => ({
 vi.mock('./catalogue/items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalogue/items.ts')>()),
   watchItems: (db: unknown, cb: (items: ItemRecord[]) => void) => watchItems(db, cb),
+  findDeletedItemByBarcode: async () => undefined,
 }))
 
 vi.mock('./members/members.ts', async (importOriginal) => ({
@@ -50,6 +52,8 @@ const config = firebaseWebConfig({
   messagingSenderId: '123456789',
   appId: '1:123456789:web:abcdef',
 })
+
+beforeEach(stubModalDialog)
 
 afterEach(() => {
   resetSnackbar()
@@ -249,5 +253,40 @@ describe('App', () => {
     act(() => watchItemsCallbacks.forEach((cb) => cb(items)))
 
     expect(screen.getByRole('alert')).toHaveTextContent('1')
+  })
+
+  it('labels the Item dialog opened from the unknown barcode chooser and duplicates no id', async () => {
+    vi.stubGlobal(
+      'BarcodeDetector',
+      class {
+        detect = async () => [{ rawValue: '4006381333931' }]
+      },
+    )
+    const mediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices')
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: { getUserMedia: async () => ({ getTracks: () => [] }) },
+    })
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(async () => {})
+    onTestFinished(() => {
+      play.mockRestore()
+      if (mediaDevices) Object.defineProperty(navigator, 'mediaDevices', mediaDevices)
+      else Reflect.deleteProperty(navigator, 'mediaDevices')
+    })
+    window.location.hash = '#/items'
+    render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
+    await act(async () => watchItemsCallbacks.forEach((cb) => cb([bandages])))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Scan barcode' }))
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    for (const label of ['Name', 'Brand note', 'Category', 'Necessity', 'State', 'Shop override', 'Barcode']) {
+      expect(within(dialog).getByLabelText(label)).toBeInTheDocument()
+    }
+    expect(screen.getByRole('searchbox', { name: 'Search Items' })).toBeInTheDocument()
+    const ids = [...document.querySelectorAll('[id]')].map((element) => element.id)
+    expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([])
   })
 })
