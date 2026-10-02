@@ -1,0 +1,11 @@
+/* Capped, for every caller (Members invite, Settings add device), so a caller's Close button stays above the bottom nav on a phone-height screen; the SVG keeps its own quiet zone. */
+.device-transfer-qr-code {
+  width: 100%;
+  max-width: 15rem;
+}
+
+.device-transfer-qr-code > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}

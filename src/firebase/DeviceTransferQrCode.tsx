@@ -2,6 +2,10 @@ import { useEffect, useState } from 'preact/hooks'
 import QRCode from 'qrcode'
 import { deviceTransferUrl } from './deviceTransfer.ts'
 import type { FirebaseWebConfig } from './webConfig.ts'
+import './DeviceTransferQrCode.css'
+
+/** The blank border, in modules, a QR code needs around it to scan. */
+const QUIET_ZONE_MODULES = 4
 
 export interface DeviceTransferQrCodeProps {
   config: FirebaseWebConfig
@@ -18,7 +22,7 @@ export function DeviceTransferQrCode({ config, label }: DeviceTransferQrCodeProp
     let cancelled = false
     setSvg(null)
     setFailed(false)
-    QRCode.toString(deviceTransferUrl(config), { type: 'svg' }).then(
+    QRCode.toString(deviceTransferUrl(config), { type: 'svg', margin: QUIET_ZONE_MODULES }).then(
       (result) => !cancelled && setSvg(result),
       () => !cancelled && setFailed(true),
     )
@@ -29,5 +33,5 @@ export function DeviceTransferQrCode({ config, label }: DeviceTransferQrCodeProp
 
   if (failed) return <p role="alert">Could not generate the QR code.</p>
   if (svg === null) return null
-  return <div role="img" aria-label={label} dangerouslySetInnerHTML={{ __html: svg }} />
+  return <div className="device-transfer-qr-code" role="img" aria-label={label} dangerouslySetInnerHTML={{ __html: svg }} />
 }
