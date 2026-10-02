@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { core } from 'data-platform'
-import { DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, itemsHashOf, route, routeOf } from './route.ts'
+import { catalogue, core } from 'data-platform'
+import { categoryIdOf, DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, itemsHashOf, route, routeOf, shopIdOf, withCategoryAndShop } from './route.ts'
 
 const ROUTE_HASHES = ['#/list', '#/items', '#/settings', '#/settings/shops', '#/settings/categories'] as const
 
@@ -62,5 +62,36 @@ describe('itemsHashOf', () => {
 
   it('names the unfiltered Items screen when there are no ids', () => {
     expect(itemsHashOf([])).toBe('#/items')
+  })
+})
+
+describe('Category and Shop filter in the hash', () => {
+  const groceries = catalogue.categoryId('groceries')
+  const pharmacy = catalogue.shopId('pharmacy')
+
+  it('reads the Category and Shop ids from the category and shop queries', () => {
+    expect(categoryIdOf('#/items?category=groceries&shop=pharmacy')).toBe(groceries)
+    expect(shopIdOf('#/items?category=groceries&shop=pharmacy')).toBe(pharmacy)
+  })
+
+  it('reads none when the query is absent or empty', () => {
+    expect(categoryIdOf('#/items')).toBeUndefined()
+    expect(categoryIdOf('#/items?category=')).toBeUndefined()
+    expect(shopIdOf('#/items?item=a')).toBeUndefined()
+  })
+
+  it('sets the Category and Shop, keeping the Item filter', () => {
+    const hash = withCategoryAndShop('#/items?item=a,b', { categoryId: groceries, shopId: pharmacy })
+    expect(hash).toBe('#/items?item=a,b&category=groceries&shop=pharmacy')
+    expect(itemIdsOf(hash)).toEqual([core.itemId('a'), core.itemId('b')])
+  })
+
+  it('replaces one and clears the other', () => {
+    const hash = withCategoryAndShop('#/items?category=old&shop=pharmacy', { categoryId: groceries, shopId: undefined })
+    expect(hash).toBe('#/items?category=groceries')
+  })
+
+  it('names the bare Items screen once both are cleared', () => {
+    expect(withCategoryAndShop('#/items?category=a&shop=b', { categoryId: undefined, shopId: undefined })).toBe('#/items')
   })
 })

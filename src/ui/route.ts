@@ -1,4 +1,4 @@
-import { core } from 'data-platform'
+import { catalogue, core } from 'data-platform'
 
 const ROUTES = ['/list', '/items', '/settings', '/settings/shops', '/settings/categories', '/settings/members'] as const
 
@@ -61,4 +61,36 @@ export function hashOf(value: Route): string {
 export function itemsHashOf(ids: readonly core.ItemId[]): string {
   const items = hashOf(route('/items'))
   return ids.length === 0 ? items : `${items}?${ITEM_KEY}=${ids.join(ITEM_ID_SEPARATOR)}`
+}
+
+const CATEGORY_KEY = 'category'
+const SHOP_KEY = 'shop'
+
+/** The Category a `category=<id>` query on the hash names; undefined when there is none. Says nothing about whether it exists. */
+export function categoryIdOf(hash: string): catalogue.CategoryId | undefined {
+  const [, query] = hashParts(hash)
+  const id = new URLSearchParams(query).get(CATEGORY_KEY)
+  return id ? catalogue.categoryId(id) : undefined
+}
+
+/** The Shop a `shop=<id>` query on the hash names; undefined when there is none. Says nothing about whether it exists. */
+export function shopIdOf(hash: string): catalogue.ShopId | undefined {
+  const [, query] = hashParts(hash)
+  const id = new URLSearchParams(query).get(SHOP_KEY)
+  return id ? catalogue.shopId(id) : undefined
+}
+
+/** `hash` with its Category and Shop filters set to those given (cleared when undefined); every other query is kept. */
+export function withCategoryAndShop(
+  hash: string,
+  filter: { categoryId: catalogue.CategoryId | undefined; shopId: catalogue.ShopId | undefined },
+): string {
+  const [path, query] = hashParts(hash)
+  const params = new URLSearchParams(query)
+  for (const [key, id] of [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId]] as const) {
+    if (id === undefined) params.delete(key)
+    else params.set(key, id)
+  }
+  const rest = params.toString().replaceAll('%2C', ITEM_ID_SEPARATOR)
+  return rest === '' ? `#${path}` : `#${path}?${rest}`
 }
