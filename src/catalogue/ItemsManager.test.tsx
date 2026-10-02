@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { tokenUsage } from '../testing/css.ts'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
@@ -641,6 +643,20 @@ describe('leaving the Item dialog without saving', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(updateItem).not.toHaveBeenCalled()
     expect(createItem).not.toHaveBeenCalled()
+  })
+
+  it('spaces the fields vertically', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+
+    const form = screen.getByLabelText('Name').closest('form')
+    expect(form).toHaveClass('item-form')
+    expect(readFileSync('src/catalogue/ItemDialog.css', 'utf8')).toMatch(
+      /\.item-form\s*{[^}]*flex-direction: column[^}]*gap: var\(--md-sys-spacing-\d+\)/,
+    )
+    const { used, undefinedTokens } = tokenUsage('src/catalogue/ItemDialog.css')
+    expect(used.length).toBeGreaterThan(0)
+    expect(undefinedTokens).toEqual([])
   })
 
   it('puts Save last, with Delete apart from Cancel and Save', () => {

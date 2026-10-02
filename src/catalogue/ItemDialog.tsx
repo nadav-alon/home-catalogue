@@ -175,7 +175,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form class="item-form" onSubmit={handleSubmit}>
       {saveError !== null && <p role="alert">{saveError}</p>}
       <TextField label="Name" error={errors.name} value={values.name} onInput={(event) => set('name', event.currentTarget.value)} />
       <TextField
