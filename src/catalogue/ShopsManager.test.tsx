@@ -116,8 +116,7 @@ describe('ShopsManager', () => {
     renderWithShops([])
     fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
 
-    const form = screen.getByLabelText('New Shop name').closest('form')!
-    const labels = within(form).getAllByRole('button').map((button) => button.textContent)
+    const labels = within(screen.getByRole('dialog')).getAllByRole('button').map((button) => button.textContent)
     expect(labels).toEqual(['Cancel', 'Add'])
   })
 
@@ -181,8 +180,7 @@ describe('ShopsManager', () => {
     renderWithShops([pharmacy])
     openEditor('Pharmacy')
 
-    const form = screen.getByLabelText('Shop name').closest('form')!
-    const labels = within(form).getAllByRole('button').map((button) => button.textContent)
+    const labels = within(screen.getByRole('dialog')).getAllByRole('button').map((button) => button.textContent)
     expect(labels).toEqual(['Delete', 'Cancel', 'Rename'])
   })
 
