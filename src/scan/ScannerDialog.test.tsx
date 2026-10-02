@@ -57,6 +57,7 @@ describe('ScannerDialog', () => {
     const onClose = vi.fn()
     const { rerender } = render(<ScannerDialog open onScan={onScan} onDenied={() => {}} onUnavailable={() => {}} onClose={onClose} />)
     await waitFor(() => expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalled())
+    expect(screen.getByRole('button', { name: 'Close' }).closest('.ui-dialog__header')).not.toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(onClose).toHaveBeenCalledOnce()
     rerender(<ScannerDialog open={false} onScan={onScan} onDenied={() => {}} onUnavailable={() => {}} onClose={onClose} />)
