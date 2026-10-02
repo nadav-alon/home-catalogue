@@ -49,7 +49,7 @@ function UnknownBarcodeChoice({ barcode, items, holders, onAttach, onNewItem, on
   }
   return (
     <>
-      <p>No Item carries {barcode}.</p>
+      <p>No {holders.length > 0 ? 'live ' : ''}Item carries {barcode}.</p>
       {!picking ? (
         <>
           <Button variant="tonal" onClick={() => setPicking(true)}>Add to existing Item</Button>
