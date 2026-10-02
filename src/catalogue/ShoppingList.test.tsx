@@ -16,6 +16,9 @@ const setItemState = vi.fn()
 const findBarcodeHolders = vi.fn()
 const attachBarcode = vi.fn()
 const createItem = vi.fn()
+const findDeletedItemByBarcode = vi.fn()
+const restoreItem = vi.fn()
+const restoreItemWithEdit = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
@@ -23,6 +26,9 @@ vi.mock('./items.ts', async (importOriginal) => ({
   findBarcodeHolders: (...args: unknown[]) => findBarcodeHolders(...args),
   attachBarcode: (...args: unknown[]) => attachBarcode(...args),
   createItem: (db: unknown, input: unknown) => createItem(db, input),
+  findDeletedItemByBarcode: (db: unknown, barcode: unknown) => findDeletedItemByBarcode(db, barcode),
+  restoreItem: (db: unknown, item: unknown, categories: unknown, shops: unknown) => restoreItem(db, item, categories, shops),
+  restoreItemWithEdit: (db: unknown, item: unknown, edit: unknown) => restoreItemWithEdit(db, item, edit),
 }))
 
 const watchCategories = vi.fn()
@@ -44,6 +50,9 @@ beforeEach(() => {
   findBarcodeHolders.mockReset().mockResolvedValue([])
   attachBarcode.mockReset().mockResolvedValue(undefined)
   createItem.mockReset().mockResolvedValue(undefined)
+  findDeletedItemByBarcode.mockReset().mockResolvedValue(undefined)
+  restoreItem.mockReset().mockResolvedValue(undefined)
+  restoreItemWithEdit.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
   resetSnackbar()
@@ -560,5 +569,41 @@ describe('a scanned barcode', () => {
         expect.objectContaining({ name: 'Plasters', barcode: { value: scanned, movedOff: [] } }),
       ),
     )
+  })
+
+  it('offers to bring back a deleted Item that holds the barcode, instead of the unknown chooser', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    renderWith([], [medicine], [pharmacy])
+
+    scan()
+
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+    expect(offer).toHaveTextContent('Bandages was deleted. Bring it back?')
+    expect(screen.queryByRole('dialog', { name: 'Unknown barcode' })).not.toBeInTheDocument()
+    expect(findDeletedItemByBarcode).toHaveBeenCalledWith(fakeDb, scanned)
+  })
+
+  it('restores the deleted Item on Yes without marking it enough', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    renderWith([], [medicine], [pharmacy])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'Yes' }))
+
+    await waitFor(() => expect(restoreItem).toHaveBeenCalledWith(fakeDb, bandages, [medicine], [pharmacy]))
+    expect(setItemState).not.toHaveBeenCalled()
+  })
+
+  it('leaves the Item deleted on No and opens the unknown-barcode chooser', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    renderWith([], [medicine], [pharmacy])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'No' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Unknown barcode' })).toHaveTextContent(scanned)
+    expect(restoreItem).not.toHaveBeenCalled()
   })
 })

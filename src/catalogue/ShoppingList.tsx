@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import type { core } from 'data-platform'
-import { attachBarcode, createItem, findBarcodeHolders, itemsWithBarcode, setItemState, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, itemsWithBarcode, restoreItem, setItemState, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 import { AlertBanner } from './AlertBanner.tsx'
 import { ItemDialog } from './ItemDialog.tsx'
+import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { CalendarExport } from '../export/CalendarExport.tsx'
@@ -30,13 +31,31 @@ export function ShoppingList({ db }: ShoppingListProps) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchItems(db, setItems), [db])
-  useEffect(() => watchCategories(db, setCategories), [db])
-  useEffect(() => watchShops(db, setShops), [db])
+  /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
+  const [listsLoaded, setListsLoaded] = useState({ categories: false, shops: false })
+  useEffect(
+    () =>
+      watchCategories(db, (records) => {
+        setCategories(records)
+        setListsLoaded((current) => ({ ...current, categories: true }))
+      }),
+    [db],
+  )
+  useEffect(
+    () =>
+      watchShops(db, (records) => {
+        setShops(records)
+        setListsLoaded((current) => ({ ...current, shops: true }))
+      }),
+    [db],
+  )
 
   /** Set by a scan made before the Items arrived; shown only while they are still loading. */
   const [scanWaiting, setScanWaiting] = useState(false)
   /** The scanned Barcode no live Item carries, and the Items it still sits on, while the Member chooses what to do with it. */
   const [unknownBarcode, setUnknownBarcode] = useState<{ barcode: core.Barcode; holders: BarcodeHolder[] }>()
+  /** The deleted Item a scanned Barcode belongs to, and that Barcode, while the Member is deciding whether to bring it back. */
+  const [deletedMatch, setDeletedMatch] = useState<{ item: ItemRecord; barcode: core.Barcode }>()
   /** The Barcode a new Item carries from the start, while the Item dialog is open. */
   const [newItemBarcode, setNewItemBarcode] = useState<CarriedBarcode>()
 
@@ -67,10 +86,39 @@ export function ShoppingList({ db }: ShoppingListProps) {
     const [item] = itemsWithBarcode(items, barcode)
     if (item?.state === 'enough') return showSnackbar({ text: `${item.name} is already enough` })
     if (item !== undefined) return handleTick(item)
-    void findBarcodeHolders(db, items, barcode).then(
-      (holders) => setUnknownBarcode({ barcode, holders }),
-      (err: unknown) => setError(err instanceof Error ? err.message : 'Could not look up the barcode'),
-    )
+    void lookUpUnknown(items, barcode)
+  }
+
+  async function lookUpUnknown(liveItems: readonly ItemRecord[], barcode: core.Barcode) {
+    try {
+      const deleted = await findDeletedItemByBarcode(db, barcode)
+      if (deleted !== undefined) return setDeletedMatch({ item: deleted, barcode })
+      await openChooser(liveItems, barcode)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not look up the barcode')
+    }
+  }
+
+  async function openChooser(liveItems: readonly ItemRecord[], barcode: core.Barcode) {
+    setUnknownBarcode({ barcode, holders: await findBarcodeHolders(db, liveItems, barcode) })
+  }
+
+  async function handleRestore(item: ItemRecord) {
+    // Until both lists have loaded, a Category or Shop cannot be told from a deleted one; the offer stays open.
+    if (!listsLoaded.categories || !listsLoaded.shops) return
+    setDeletedMatch(undefined)
+    await restoreItem(db, item, categories, shops)
+  }
+
+  async function handleDeclineRestore() {
+    if (deletedMatch === undefined) return
+    const { barcode } = deletedMatch
+    setDeletedMatch(undefined)
+    try {
+      await openChooser(items ?? [], barcode)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not look up the barcode')
+    }
   }
 
   async function handleAttach(item: ItemRecord, holders: readonly BarcodeHolder[]) {
@@ -113,6 +161,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
           </ul>
         </div>
       ))}
+      <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={() => void handleDeclineRestore()} />
       <UnknownBarcodeChooser
         barcode={unknownBarcode?.barcode}
         items={items ?? []}
