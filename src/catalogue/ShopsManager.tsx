@@ -12,6 +12,7 @@ import { route } from '../ui/route.ts'
 import { showSnackbar } from '../ui/Snackbar.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import { navigate } from '../ui/useRoute.ts'
+import { useUniqueId } from '../ui/useUniqueId.ts'
 import AddIcon from '~icons/material-symbols/add'
 import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 import {
@@ -31,8 +32,6 @@ const SETTINGS = route('/settings')
 export interface ShopsManagerProps {
   db: Firestore
 }
-
-const IN_USE_NOTE_ID = 'shop-in-use-note'
 
 export const BLANK_NAME_MESSAGE = 'A Shop needs a name.'
 
@@ -86,6 +85,7 @@ interface EditShopDialogProps {
 /** Owns its draft name and error, so each opening starts from the Shop's current name; mount it only while open. */
 function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
   const [name, setName] = useState(shop.name)
+  const inUseNoteId = useUniqueId()
   const [error, setError] = useState<string | null>(null)
 
   async function handleRename(event: JSX.TargetedEvent<HTMLFormElement>) {
@@ -123,13 +123,13 @@ function EditShopDialog({ db, shop, onClose }: EditShopDialogProps) {
       <form class={DIALOG_FORM_CLASS} onSubmit={handleRename}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
-        {inUse && <p id={IN_USE_NOTE_ID}>{SHOP_IN_USE_MESSAGE}</p>}
+        {inUse && <p id={inUseNoteId}>{SHOP_IN_USE_MESSAGE}</p>}
         <DialogActions
           destructive={
             <Button
               variant="text"
               disabled={inUse}
-              aria-describedby={inUse ? IN_USE_NOTE_ID : undefined}
+              aria-describedby={inUse ? inUseNoteId : undefined}
               onClick={() => void handleDelete()}
             >
               Delete
