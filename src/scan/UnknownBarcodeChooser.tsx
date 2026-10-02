@@ -5,6 +5,7 @@ import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { TextField } from '../ui/TextField.tsx'
+import './UnknownBarcodeChooser.css'
 
 export interface UnknownBarcodeChooserProps {
   /** The scanned Barcode no Item carries; the chooser is closed while there is none. */
@@ -21,7 +22,7 @@ export interface UnknownBarcodeChooserProps {
 /** What to do with a scanned Barcode no Item carries yet. */
 export function UnknownBarcodeChooser({ barcode, items, onAttach, onNewItem, onClose }: UnknownBarcodeChooserProps) {
   return (
-    <Dialog open={barcode !== undefined} title="Unknown barcode" onClose={onClose} closable>
+    <Dialog open={barcode !== undefined} title="Unknown barcode" class="unknown-barcode-dialog" onClose={onClose} closable>
       {barcode !== undefined && <UnknownBarcodeChoice barcode={barcode} items={items} onAttach={onAttach} onNewItem={onNewItem} onClose={onClose} />}
     </Dialog>
   )

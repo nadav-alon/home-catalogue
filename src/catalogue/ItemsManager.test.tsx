@@ -1323,6 +1323,13 @@ describe('a scanned barcode', () => {
     expect(existing.className).toBe(added.className)
   })
 
+  it('sizes the chooser to its content instead of the full-screen dialog layout', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    scan()
+
+    expect(await screen.findByRole('dialog', { name: 'Unknown barcode' })).toHaveClass('unknown-barcode-dialog')
+  })
+
   it('attaches the barcode to the Item picked from the chooser, then opens its filter', async () => {
     const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
     renderWith([bandages, tape], [medicine], [pharmacy])
