@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { ShoppingList } from './ShoppingList.tsx'
+import { choose } from '../testing/select.ts'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import type { ItemRecord } from './items.ts'
@@ -14,12 +15,14 @@ const watchItems = vi.fn()
 const setItemState = vi.fn()
 const findBarcodeHolders = vi.fn()
 const attachBarcode = vi.fn()
+const createItem = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
   findBarcodeHolders: (...args: unknown[]) => findBarcodeHolders(...args),
   attachBarcode: (...args: unknown[]) => attachBarcode(...args),
+  createItem: (db: unknown, input: unknown) => createItem(db, input),
 }))
 
 const watchCategories = vi.fn()
@@ -40,6 +43,7 @@ beforeEach(() => {
   setItemState.mockReset().mockResolvedValue(undefined)
   findBarcodeHolders.mockReset().mockResolvedValue([])
   attachBarcode.mockReset().mockResolvedValue(undefined)
+  createItem.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
   resetSnackbar()
@@ -513,5 +517,48 @@ describe('a scanned barcode', () => {
 
     await waitFor(() => expect(attachBarcode).toHaveBeenCalledWith(fakeDb, unscanned, scanned, []))
     expect(await screen.findByText('Added barcode to Bandages')).toBeInTheDocument()
+  })
+
+  it('reports a failed barcode lookup instead of opening the chooser', async () => {
+    findBarcodeHolders.mockRejectedValue(new Error('Could not look up the barcode'))
+    renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
+
+    scan()
+
+    expect(await screen.findByText('Could not look up the barcode')).toHaveAttribute('role', 'alert')
+    expect(screen.queryByRole('dialog', { name: 'Unknown barcode' })).not.toBeInTheDocument()
+  })
+
+  it('reports a failed attach and keeps the chooser open', async () => {
+    attachBarcode.mockRejectedValue(new Error('Could not add the barcode'))
+    renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+    fireEvent.click(within(chooser).getByText('Bandages'))
+
+    expect(await screen.findByText('Could not add the barcode')).toHaveAttribute('role', 'alert')
+    expect(chooser).toHaveAttribute('open')
+  })
+
+  it('creates a new Item carrying the scanned barcode from the chooser', async () => {
+    renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    fireEvent.input(within(dialog).getByLabelText('Name'), { target: { value: 'Plasters' } })
+    choose(within(dialog).getByLabelText('Category'), medicine.id)
+    choose(within(dialog).getByLabelText('Necessity'), 'essential')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(createItem).toHaveBeenCalledWith(
+        fakeDb,
+        expect.objectContaining({ name: 'Plasters', barcode: { value: scanned, movedOff: [] } }),
+      ),
+    )
   })
 })
