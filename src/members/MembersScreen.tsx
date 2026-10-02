@@ -28,7 +28,7 @@ export interface MembersScreenProps {
   config: FirebaseWebConfig
 }
 
-/** The Household's Members and pending Invites; every Member can open it, and only the Owner gets the controls to change them. */
+/** The Household's Members and pending Invites; every Member can open it; only the Owner sees pending Invites and the controls to change them. */
 export function MembersScreen({ db, config }: MembersScreenProps) {
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [invites, setInvites] = useState<core.Email[] | undefined>(undefined)

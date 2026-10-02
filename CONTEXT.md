@@ -12,7 +12,8 @@ The one group of people sharing this Catalogue. Has one Owner and any number of 
 
 **Member**:
 A person who belongs to the Household and can read and change its data, including which Invites are
-pending. Only the Owner can remove a Member. Listed by email.
+pending, though the Members screen shows pending Invites only to the Owner. Only the Owner can remove a
+Member. Listed by email.
 
 **Owner**:
 The Member who claimed the Household. The only one who creates or revokes Invites. Immutable once
