@@ -216,7 +216,7 @@ describe('ShoppingList', () => {
     expect(screen.getByText('Bandages').closest('li')).not.toHaveClass('ui-list-row--muted')
   })
 
-  it('does not flag an out Item as optional', () => {
+  it('does not flag an out Item as running low', () => {
     const bandages: ItemRecord = {
       id: core.itemId('bandages'),
       name: 'Bandages',
