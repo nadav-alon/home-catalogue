@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { Chip } from './Chip.tsx'
-import { tokenUsage } from '../testing/css.ts'
+import { read, tokenUsage } from '../testing/css.ts'
 
 describe('Chip', () => {
   it('shows its label beside a close button named by dismissLabel', () => {
@@ -24,5 +24,9 @@ describe('Chip', () => {
     const { used, undefinedTokens } = tokenUsage('src/ui/Chip.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
+  })
+
+  it('centres its close button by aligning items on the chip', () => {
+    expect(read('src/ui/Chip.css')).toMatch(/\.ui-chip\s*\{[^}]*align-items:\s*center/)
   })
 })

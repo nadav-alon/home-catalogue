@@ -13,7 +13,7 @@ export interface ChipProps {
 export function Chip({ label, dismissLabel, onDismiss }: ChipProps) {
   return (
     <span class="ui-chip">
-      <span class="ui-chip-label">{label}</span>
+      <span class="ui-chip__label">{label}</span>
       <IconButton symbol={CloseIcon} label={dismissLabel} onClick={onDismiss} />
     </span>
   )

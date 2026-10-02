@@ -1,5 +1,6 @@
 .ui-chip {
   display: inline-flex;
+  /* Centres the 3rem close button on the 2rem chip: its overflow splits evenly above and below. */
   align-items: center;
   height: 2rem;
   padding-inline: var(--md-sys-spacing-3) 0;
@@ -8,7 +9,6 @@
   color: var(--md-sys-color-on-surface-variant);
 }
 
-/* The 3rem touch target overflows the 2rem chip equally above and below, so the icon stays centred. */
-.ui-chip .ui-icon-button {
-  margin-block: -0.5rem;
+.ui-chip__label {
+  font-size: var(--md-sys-typescale-label-size);
 }
