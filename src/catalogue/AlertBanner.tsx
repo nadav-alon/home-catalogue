@@ -39,15 +39,16 @@ const BANNERS: Record<
 function banner(level: Exclude<AlertLevel, 'none'>, count: number) {
   const { role, className, text } = BANNERS[level]
   return (
-    <div role={role} className={className}>
-      <p>
-        {text(count)}
-      </p>
+    <div role={role} class={className}>
+      <p>{text(count)}</p>
     </div>
   )
 }
 
-/** Error-coloured for any `now` Item, else secondary-coloured for any `soon`, else nothing. Never both at once. */
+/**
+ * Urgent-styled for any `now` Item, else advisory-styled for any `soon`, else nothing. Never both
+ * at once.
+ */
 export function AlertBanner({ items }: AlertBannerProps) {
   const levels = items.map((item) => alertLevel(item.necessity, item.state))
 
