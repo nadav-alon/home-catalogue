@@ -112,6 +112,10 @@ describe('ListRow', () => {
     expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__label:hover[^{]*{[^}]*${stateLayer}`))
   })
 
+  it('highlights only the clickable text area of an activatable row on hover', () => {
+    expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__activate:hover[^{]*{[^}]*${stateLayer}`))
+  })
+
   it('applies no hover highlight outside the hover-capable media query, nor to a plain row', () => {
     expect(outsideHoverBlock()).not.toMatch(/:hover/)
     expect(hoverBlock()).not.toMatch(/\.ui-list-row(--[\w-]+)?:hover/)
