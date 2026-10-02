@@ -50,6 +50,14 @@ async function submit(dateValue: string) {
 }
 
 describe('CalendarExport', () => {
+  it('lays out the dialog actions in the shared action row', () => {
+    renderWith([outBandages], [medicine], [pharmacy])
+
+    const row = screen.getByRole('button', { name: 'Export' }).closest('.ui-dialog-actions')
+    expect(row).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Cancel' }).closest('.ui-dialog-actions')).toBe(row)
+  })
+
   it('renders the date input in the TextField style at a 48px touch height', () => {
     renderWith([outBandages], [medicine], [pharmacy])
 
