@@ -29,7 +29,7 @@
   color: var(--md-sys-color-primary);
 }
 
-.ui-button--destructive {
+.ui-button--text.ui-button--destructive {
   color: var(--md-sys-color-error);
 }
 
@@ -44,7 +44,7 @@
     background: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
   }
 
-  .ui-button--destructive:hover:not(:disabled) {
+  .ui-button--text.ui-button--destructive:hover:not(:disabled) {
     background: color-mix(in srgb, var(--md-sys-color-error) 8%, transparent);
   }
 }
