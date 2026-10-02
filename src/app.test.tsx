@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/preact'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { App } from './app'
@@ -262,11 +262,17 @@ describe('App', () => {
         detect = async () => [{ rawValue: '4006381333931' }]
       },
     )
+    const mediaDevices = Object.getOwnPropertyDescriptor(navigator, 'mediaDevices')
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: { getUserMedia: async () => ({ getTracks: () => [] }) },
     })
-    HTMLMediaElement.prototype.play = vi.fn(async () => {})
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(async () => {})
+    onTestFinished(() => {
+      play.mockRestore()
+      if (mediaDevices) Object.defineProperty(navigator, 'mediaDevices', mediaDevices)
+      else Reflect.deleteProperty(navigator, 'mediaDevices')
+    })
     window.location.hash = '#/items'
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
     await act(async () => watchItemsCallbacks.forEach((cb) => cb([bandages])))
@@ -279,7 +285,7 @@ describe('App', () => {
     for (const label of ['Name', 'Brand note', 'Category', 'Necessity', 'State', 'Shop override', 'Barcode']) {
       expect(within(dialog).getByLabelText(label)).toBeInTheDocument()
     }
-    expect(screen.getByLabelText('Search Items')).toHaveAttribute('type', 'search')
+    expect(screen.getByRole('searchbox', { name: 'Search Items' })).toBeInTheDocument()
     const ids = [...document.querySelectorAll('[id]')].map((element) => element.id)
     expect(ids.filter((id, index) => ids.indexOf(id) !== index)).toEqual([])
   })
