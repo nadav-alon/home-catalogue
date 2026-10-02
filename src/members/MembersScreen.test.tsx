@@ -368,6 +368,18 @@ describe('MembersScreen', () => {
       expect(await screen.findByRole('img', { name: /c@example\.com/ })).toBeInTheDocument()
     })
 
+    it('scrolls the QR code and its Close control into view', async () => {
+      const scrollIntoView = vi.fn()
+      Object.defineProperty(Element.prototype, 'scrollIntoView', { value: scrollIntoView, configurable: true })
+      renderScreen([owner], invites)
+
+      fireEvent.click(shareButton())
+      await screen.findByRole('img', { name: /c@example\.com/ })
+
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: 'end', behavior: 'smooth' }))
+      expect(scrollIntoView.mock.contexts[0]).toContain(screen.getByRole('button', { name: 'Close QR code' }))
+    })
+
     it('closes the QR code', async () => {
       renderScreen([owner], invites)
       fireEvent.click(shareButton())

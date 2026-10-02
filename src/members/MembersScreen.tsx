@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
@@ -32,6 +32,8 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
   const [members, setMembers] = useState<MemberRecord[]>([])
   const [invites, setInvites] = useState<core.Email[] | undefined>(undefined)
   const [qrInviteEmail, setQrInviteEmail] = useState<core.Email | null>(null)
+
+  const qrBlock = useRef<HTMLDivElement>(null)
 
   // Read once per render; safe because AuthGate only mounts this screen for a signed-in Member.
   const viewerUid = currentUserUid(db.app)
@@ -105,8 +107,12 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
         </ul>
       )}
       {qrInviteEmail !== null && (
-        <div>
-          <DeviceTransferQrCode config={config} label={`Scan with the device of ${qrInviteEmail} to join`} />
+        <div ref={qrBlock}>
+          <DeviceTransferQrCode
+            config={config}
+            label={`Scan with the device of ${qrInviteEmail} to join`}
+            onRendered={() => qrBlock.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })}
+          />
           <Button variant="text" onClick={() => setQrInviteEmail(null)}>
             Close QR code
           </Button>
