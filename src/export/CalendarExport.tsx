@@ -9,7 +9,6 @@ import { TextField } from '../ui/TextField.tsx'
 import { TopAppBarActions } from '../shell/TopAppBar.tsx'
 import { isExportDate, todayExportDate } from './exportDate.ts'
 import { exportShoppingList, type ShopFallbackLink } from './exportShoppingList.ts'
-import { groupPendingItemsByShop } from '../catalogue/pendingItemsByShop.ts'
 import { pendingItemsByShop } from './shopGroups.ts'
 
 export interface CalendarExportProps {
@@ -25,12 +24,6 @@ type ExportStatus =
   | { phase: 'fallback'; links: ShopFallbackLink[] }
   | { phase: 'error'; message: string }
 
-/** Whether the Shopping list has no Item to buy, counting the ones with no Shop that it lists as "Unknown Shop". */
-function isShoppingListEmpty(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]): boolean {
-  const { groups, unresolved } = groupPendingItemsByShop(items, categories, shops)
-  return groups.length === 0 && unresolved.length === 0
-}
-
 /**
  * Export of the Shopping list to Calendar, opened from a top app bar action: one event per Shop, or a
  * deep link per Shop if the token or API fails. Works from the Items, Categories and Shops it is given.
@@ -40,8 +33,7 @@ export function CalendarExport({ items, categories, shops }: CalendarExportProps
   const [date, setDate] = useState('')
   const [status, setStatus] = useState<ExportStatus>({ phase: 'idle' })
 
-  const { groups, unresolvedCount } = pendingItemsByShop(items, categories, shops)
-  const nothingToBuy = isShoppingListEmpty(items, categories, shops)
+  const { groups, unresolvedCount, nothingToBuy } = pendingItemsByShop(items, categories, shops)
 
   async function handleExport(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
