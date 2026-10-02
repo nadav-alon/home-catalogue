@@ -58,7 +58,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
             key={member.uid}
             headline={member.email}
             supporting={memberSupportingText(member, viewerUid)}
-            control={
+            trailing={
               viewerIsOwner && !member.isOwner ? (
                 <Button variant="text" aria-label={`Remove ${member.email}`} onClick={() => handleRemove(member)}>
                   Remove
