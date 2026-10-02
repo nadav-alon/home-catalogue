@@ -27,10 +27,10 @@ describe('Fab', () => {
   })
 
   it('keeps the phone offset and, from 600px, insets from the content column rather than the viewport edge', () => {
-    const [base, wide] = read('src/ui/Fab.css').split('@media (min-width: 600px)')
-    expect(base).toMatch(/right:\s*var\(--md-sys-spacing-4\)/)
-    expect(wide).toMatch(/right:\s*max\(/)
-    expect(wide).toContain('--shell-content-width')
-    expect(wide).toContain('--shell-rail-width')
+    const css = read('src/ui/Fab.css').replace(/\s+/g, ' ')
+    expect(css).toContain('z-index: 1; right: var(--md-sys-spacing-4);')
+    expect(css).toContain(
+      'right: max( var(--md-sys-spacing-4), calc((100% - var(--shell-rail-width) - var(--shell-content-width)) / 2 + var(--md-sys-spacing-4)) );',
+    )
   })
 })
