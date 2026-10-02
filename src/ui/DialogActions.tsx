@@ -1,6 +1,9 @@
 import type { ComponentChildren } from 'preact'
 import './DialogActions.css'
 
+/** The class a dialog's `<form>` carries so its fields and `DialogActions` space out like the Item dialog's. */
+export const DIALOG_FORM_CLASS = 'ui-dialog-form'
+
 export interface DialogActionsProps {
   /** Set apart on the far left, a gap away from the rest: a destructive action such as Delete. */
   apart?: ComponentChildren

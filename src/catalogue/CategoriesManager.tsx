@@ -19,7 +19,7 @@ import { BLANK_NAME_MESSAGE } from './ShopsManager.tsx'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
-import { DialogActions } from '../ui/DialogActions.tsx'
+import { DIALOG_FORM_CLASS, DialogActions } from '../ui/DialogActions.tsx'
 import { Fab } from '../ui/Fab.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
@@ -231,7 +231,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
       <Fab symbol={AddIcon} label="Add Category" onClick={openAdd} />
       <Dialog open={adding} title="Add Category" onClose={closeDialogs} closable>
         {adding && (
-          <form onSubmit={handleCreate}>
+          <form class={DIALOG_FORM_CLASS} onSubmit={handleCreate}>
             {error !== null && <p role="alert">{error}</p>}
             <CategoryFields nameLabel="New Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
             <DialogActions>
@@ -246,6 +246,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
       <Dialog open={editing !== null} title="Edit Category" onClose={closeDialogs} closable>
         {editing !== null && (
           <form
+            class={DIALOG_FORM_CLASS}
             onSubmit={(event) => {
               event.preventDefault()
               void handleSave(editing)

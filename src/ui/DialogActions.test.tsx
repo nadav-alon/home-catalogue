@@ -29,14 +29,16 @@ describe('DialogActions', () => {
     expect(container.querySelector('.ui-dialog-actions__apart')).toBeNull()
   })
 
-  it('lays out like the Item dialog: right-aligned, Delete at the start, same gap above', () => {
+  it('lays out the row right-aligned with Delete at the start', () => {
     const css = read('src/ui/DialogActions.css')
-    const item = read('src/catalogue/ItemDialog.css')
-    for (const declaration of ['justify-content: flex-end', 'margin-top: var(--md-sys-spacing-6)', 'gap: var(--md-sys-spacing-6)']) {
-      expect(css).toContain(declaration)
-      expect(item).toContain(declaration)
-    }
-    expect(css).toMatch(/__apart\s*{\s*margin-right: auto/)
+    expect(css).toMatch(/\.ui-dialog-actions\s*\{[^}]*justify-content:\s*flex-end/)
+    expect(css).toMatch(/\.ui-dialog-actions\s*\{[^}]*margin-top:\s*var\(--md-sys-spacing-6\)/)
+    expect(css).toMatch(/__apart\s*\{\s*margin-right:\s*auto/)
+  })
+
+  it('stacks the form with the gap the Item dialog has, so the space above the row is 2.5rem', () => {
+    const css = read('src/ui/DialogActions.css')
+    expect(css).toMatch(/\.ui-dialog-form\s*\{[^}]*flex-direction:\s*column[^}]*gap:\s*var\(--md-sys-spacing-4\)/)
     const { used, undefinedTokens } = tokenUsage('src/ui/DialogActions.css')
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
