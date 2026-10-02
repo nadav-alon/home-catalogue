@@ -130,6 +130,18 @@ describe('navigateToItems', () => {
     expect(window.location.hash).toBe('#/items?item=a,b')
   })
 
+  it('keeps the Category and Shop filters on the current hash', async () => {
+    window.location.hash = '#/items?category=groceries&shop=pharmacy'
+    const { result } = renderHook(() => ({ filter: useCategoryAndShop(), ids: useItemIds() }))
+    await act(async () => {
+      navigateToItems([core.itemId('a')])
+      await nextHashChange()
+    })
+    expect(window.location.hash).toBe('#/items?item=a&category=groceries&shop=pharmacy')
+    expect(result.current.ids).toEqual([core.itemId('a')])
+    expect(result.current.filter).toEqual({ categoryId: catalogue.categoryId('groceries'), shopId: catalogue.shopId('pharmacy') })
+  })
+
   it("waits for a closing Dialog's history pop to land before pushing the filter", async () => {
     const back = vi.spyOn(history, 'back').mockImplementation(() => {})
     const { rerender } = render(
@@ -207,5 +219,21 @@ describe('useCategoryAndShop and setCategoryAndShop', () => {
     expect(window.location.hash).toBe('#/items?item=a&category=groceries&shop=pharmacy')
     expect(history.length).toBe(before + 1)
     expect(result.current).toEqual({ filter: { categoryId: groceries, shopId: pharmacy }, ids: [core.itemId('a')] })
+  })
+
+  it('restores the earlier filter when Back is pressed after a chip press', async () => {
+    window.location.hash = '#/items?category=groceries'
+    await nextHashChange()
+    const { result } = renderHook(() => useCategoryAndShop())
+    await act(async () => {
+      setCategoryAndShop({ categoryId: undefined, shopId: pharmacy })
+      await nextHashChange()
+    })
+    expect(result.current).toEqual({ categoryId: undefined, shopId: pharmacy })
+    await act(async () => {
+      history.back()
+      await vi.waitFor(() => expect(window.location.hash).toBe('#/items?category=groceries'))
+    })
+    expect(result.current).toEqual({ categoryId: groceries, shopId: undefined })
   })
 })

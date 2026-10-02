@@ -60,6 +60,7 @@ export function navigate(value: Route): void {
 
 /**
  * Shows the Items screen filtered to `ids` by pushing a history entry; unfiltered when there are none.
+ * The Category and Shop filters on the current hash are kept, so a scan narrows them by AND like dismissing the scan does.
  * A Dialog closed earlier in the same tick has its history pop issued, and landed, before the push, so that pop
  * cannot move back from the new entry. The push is always asynchronous: the hash never changes before this returns.
  */
@@ -69,7 +70,10 @@ export function navigateToItems(ids: readonly core.ItemId[]): void {
   // longer one.
   void Promise.resolve().then(() =>
     afterPendingPop(() => {
-      window.location.hash = itemsHashOf(ids)
+      window.location.hash = withCategoryAndShop(itemsHashOf(ids), {
+        categoryId: categoryIdOf(window.location.hash),
+        shopId: shopIdOf(window.location.hash),
+      })
     }),
   )
 }
