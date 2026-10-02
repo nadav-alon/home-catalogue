@@ -136,6 +136,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   }
 
   function toggleGroup(key: GroupKey) {
+    if (filterActive) return
     const next = new Set(collapsedGroups)
     if (!next.delete(key)) next.add(key)
     saveCollapsedGroups(next)
@@ -189,6 +190,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
   const visibleItems = scanFiltered
     ? candidateItems
     : candidateItems.filter((item) => matchesName(item, search))
+  // A search or scan filter shows its matches whatever was collapsed; the remembered state is left alone for when it clears.
+  const filterActive = scanFiltered || search !== ''
+  const isCollapsed = (key: GroupKey) => !filterActive && collapsedGroups.has(key)
   const groups = categories
     .map((category) => ({ category, items: visibleItems.filter((item) => item.categoryId === category.id) }))
     .filter((group) => group.items.length > 0)
@@ -214,10 +218,10 @@ export function ItemsManager({ db, itemIds = [], onClearFilter }: ItemsManagerPr
         </p>
       )}
       {groups.map(({ category, items: categoryItems }) => (
-        <ItemGroup key={category.id} heading={category.name} collapsed={collapsedGroups.has(category.id)} onToggle={() => toggleGroup(category.id)} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />
+        <ItemGroup key={category.id} heading={category.name} collapsed={isCollapsed(category.id)} onToggle={() => toggleGroup(category.id)} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />
       ))}
       {uncategorisedItems.length > 0 && (
-        <ItemGroup heading="Uncategorised" collapsed={collapsedGroups.has(UNCATEGORISED)} onToggle={() => toggleGroup(UNCATEGORISED)} items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
+        <ItemGroup heading="Uncategorised" collapsed={isCollapsed(UNCATEGORISED)} onToggle={() => toggleGroup(UNCATEGORISED)} items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
       <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={handleDeclineRestore} />
       <UnknownBarcodeChooser

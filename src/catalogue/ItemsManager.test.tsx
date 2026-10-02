@@ -1577,6 +1577,34 @@ describe('collapsing a Category', () => {
     expect(screen.getByRole('button', { name: 'Cleaning' })).toBeInTheDocument()
   })
 
+  it('shows the Items a search matches in a collapsed Category, and restores the collapse when cleared', () => {
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+    fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
+
+    const search = screen.getByRole('searchbox', { name: 'Search Items' })
+    fireEvent.input(search, { target: { value: 'band' } })
+
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'true')
+
+    fireEvent.input(search, { target: { value: '' } })
+
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Medicine' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('shows the Items a scan filter matches in a collapsed Category, and restores the collapse when cleared', () => {
+    localStorage.setItem('home-catalogue:collapsed-categories', JSON.stringify([medicine.id]))
+    const scanned = renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery], [bandages.id])
+
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+    scanned.unmount()
+
+    renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
+
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
   it('remembers a collapsed Category across reloads, by Category id', () => {
     const first = renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
     fireEvent.click(screen.getByRole('button', { name: 'Medicine' }))
