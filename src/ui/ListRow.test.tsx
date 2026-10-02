@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { ListRow } from './ListRow.tsx'
-import { mediaBlock, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
+import { mediaBlock, outsideMediaBlock, read, tokenUsage } from '../testing/css.ts'
 
 const stylesheet = 'src/ui/ListRow.css'
 const narrowBlock = () => mediaBlock(stylesheet, '(max-width: 599.98px)')
@@ -111,6 +111,14 @@ describe('ListRow', () => {
 
   it('highlights only the clickable text area of an activatable row on hover', () => {
     expect(hoverBlock()).toMatch(new RegExp(`\\.ui-list-row__activate:hover[^{]*{[^}]*${hoverStateLayerDeclaration}`))
+  })
+
+  it('stretches the activatable text over the row\'s full height', () => {
+    const rule = read(stylesheet).match(/\.ui-list-row__activate\s*{([^}]*)}/)?.[1] ?? ''
+    expect(rule).toMatch(/align-self: stretch/)
+    expect(rule).toMatch(/justify-content: center/)
+    expect(rule).toMatch(/margin: calc\(-1 \* var\(--md-sys-spacing-2\)\) 0/)
+    expect(rule).toMatch(/padding: var\(--md-sys-spacing-2\) 0/)
   })
 
   it('applies no hover highlight outside the hover-capable media query, nor to a plain row', () => {

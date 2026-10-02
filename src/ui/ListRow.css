@@ -54,7 +54,11 @@
 
 .ui-list-row__activate {
   align-items: flex-start;
-  padding: 0;
+  justify-content: center;
+  /* Stretch over the row's own vertical padding so the hover layer covers the row's full height. */
+  align-self: stretch;
+  margin: calc(-1 * var(--md-sys-spacing-2)) 0;
+  padding: var(--md-sys-spacing-2) 0;
   border: 0;
   background: none;
   color: inherit;
