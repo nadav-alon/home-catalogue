@@ -306,6 +306,16 @@ describe('CategoriesManager', () => {
     expect(changeCategoryDefaultShop).not.toHaveBeenCalled()
   })
 
+  it('orders the Edit dialog actions Delete, Cancel, Save like the Item dialog', () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+
+    const names = within(screen.getByRole('dialog'))
+      .getAllByRole('button')
+      .map((button) => button.textContent)
+    expect(names).toEqual(['Delete', 'Cancel', 'Save'])
+  })
+
   it('unsubscribes from Categories and Shops on unmount', () => {
     const { unmount } = renderWith([], [])
     unmount()

@@ -192,13 +192,13 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           >
             {error !== null && <p role="alert">{error}</p>}
             <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} />
-            <Button type="submit">Save</Button>
-            <Button variant="text" onClick={closeDialogs}>
-              Cancel
-            </Button>
             <Button variant="text" onClick={() => void handleDelete(editing)}>
               Delete
             </Button>
+            <Button variant="text" onClick={closeDialogs}>
+              Cancel
+            </Button>
+            <Button type="submit">Save</Button>
           </form>
         )}
       </Dialog>
