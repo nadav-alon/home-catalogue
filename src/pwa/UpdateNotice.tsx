@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'preact/hooks'
-import { registerSW } from 'virtual:pwa-register'
 import { Button } from '../ui/Button.tsx'
+import { announcedUpdates, watchUpdates } from './updates.ts'
 import './UpdateNotice.css'
 
 /**
- * Registers the service worker and, once a newer build has taken over while the app is open,
- * says so. A first install or an already-current build never calls `onNeedReload`, so it shows nothing.
+ * Says so once a newer build has taken over while the app is open. Registration happens at startup
+ * (`startUpdateWatch`); this only listens. Dismissing hides the current announcement, not later ones.
  */
 export function UpdateNotice() {
-  const [updated, setUpdated] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
+  const [announced, setAnnounced] = useState(announcedUpdates)
+  const [dismissed, setDismissed] = useState(0)
 
   useEffect(() => {
-    registerSW({ onNeedReload: () => setUpdated(true) })
+    setAnnounced(announcedUpdates())
+    return watchUpdates(() => setAnnounced(announcedUpdates()))
   }, [])
 
-  if (!updated || dismissed) return null
+  if (announced === 0 || dismissed === announced) return null
 
   return (
     <div role="status" class="update-notice">
@@ -23,7 +24,7 @@ export function UpdateNotice() {
       <Button variant="text" onClick={() => location.reload()}>
         Reload
       </Button>
-      <Button variant="text" onClick={() => setDismissed(true)}>
+      <Button variant="text" onClick={() => setDismissed(announced)}>
         Dismiss
       </Button>
     </div>

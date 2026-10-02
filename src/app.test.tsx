@@ -9,9 +9,10 @@ import { firebaseWebConfig } from './firebase/webConfig.ts'
 import { resetSnackbar, showSnackbar } from './ui/Snackbar.tsx'
 import { resetHash } from './testing/hash.ts'
 import { stubModalDialog } from './testing/dialog.ts'
+import { announceNewBuild, registerSW } from './testing/pwa.ts'
+import { resetUpdateWatch, startUpdateWatch } from './pwa/updates.ts'
 
-const registerSW = vi.hoisted(() => vi.fn<(options: { onNeedReload?: () => void }) => void>())
-vi.mock('virtual:pwa-register', () => ({ registerSW }))
+vi.mock('virtual:pwa-register', async () => (await import('./testing/pwa.ts')).pwaRegisterModule)
 
 const watchItemsCallbacks: ((items: ItemRecord[]) => void)[] = []
 const watchItems = vi.fn((_db: unknown, cb: (items: ItemRecord[]) => void) => {
@@ -91,9 +92,12 @@ describe('App', () => {
   })
 
   it('tells the user on any screen when a new version is available', () => {
+    registerSW.mockReset()
+    resetUpdateWatch()
+    startUpdateWatch()
     render(<App db={fakeDb} config={config} onResetConfig={vi.fn()} onSignOut={vi.fn()} />)
 
-    act(() => registerSW.mock.calls[0]![0].onNeedReload?.())
+    act(() => announceNewBuild())
 
     expect(within(screen.getByRole('main')).getByRole('status')).toHaveTextContent('A new version is available.')
   })
