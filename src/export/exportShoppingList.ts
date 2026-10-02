@@ -22,9 +22,9 @@ export type ExportResult =
  * a deep link, so the household is never asked to add an event that is already on the Calendar.
  * If the app calendar itself is gone (404) or no longer accessible (403), the persisted calendar
  * id is forgotten so the next export creates a fresh one instead of failing the same way again.
- * A household that closes the Google sign-in popup gets `cancelled`, not links: nothing failed, and
- * they can simply export again; a blocked popup likewise gets `popup-blocked`. The underlying error of any other failure is only logged; the
- * dialog's fallback links are the user-facing report.
+ * A Member who closes the Google sign-in popup gets `cancelled`, not links: nothing failed, and
+ * they can simply export again; a blocked popup likewise gets `popup-blocked`. The underlying error
+ * of any other failure is only logged; the dialog's fallback links are the user-facing report.
  */
 export async function exportShoppingList(groups: ShopGroup[], date: ExportDate): Promise<ExportResult> {
   let insertedCount = 0
