@@ -1,97 +1,80 @@
-import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-import type { ComponentChildren } from "preact";
-import type { FirebaseClient } from "../firebase/client.ts";
-import {
-  signInWithGoogle,
-  signOutUser,
-  watchAuthState,
-  type AuthUser,
-} from "./authClient.ts";
-import {
-  claimHousehold,
-  householdExists,
-  isHouseholdMember,
-  joinFromInvite,
-} from "./household.ts";
-import { isRulesRefusal } from "../firebase/rulesRefusal.ts";
-import { Button } from "../ui/Button.tsx";
-import {
-  ResetConfigButton,
-  type ResetConfigButtonProps,
-} from "../setup/ResetConfigButton.tsx";
-import { CentredCard } from "../ui/CentredCard.tsx";
-import { GoogleMark } from "./GoogleMark.tsx";
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
+import type { ComponentChildren } from 'preact'
+import type { FirebaseClient } from '../firebase/client.ts'
+import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
+import { claimHousehold, householdExists, isHouseholdMember, joinFromInvite } from './household.ts'
+import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
+import { Button } from '../ui/Button.tsx'
+import { ResetConfigButton, type ResetConfigButtonProps } from '../setup/ResetConfigButton.tsx'
+import { CentredCard } from '../ui/CentredCard.tsx'
+import { GoogleMark } from './GoogleMark.tsx'
 
 export interface AuthGateProps {
-  client: FirebaseClient;
+  client: FirebaseClient
   /** Forgets the stored Firebase configuration; offered on the screens a device with a bad configuration gets stuck on. */
-  onResetConfig: ResetConfigButtonProps["onResetConfig"];
-  children: ComponentChildren;
+  onResetConfig: ResetConfigButtonProps['onResetConfig']
+  children: ComponentChildren
 }
 
 type AuthGateState =
-  | { status: "checking" }
-  | { status: "signed-out" }
-  | { status: "claim-available"; user: AuthUser }
-  | { status: "non-member"; user: AuthUser }
-  | { status: "unreachable"; user: AuthUser }
-  | { status: "member" };
+  | { status: 'checking' }
+  | { status: 'signed-out' }
+  | { status: 'claim-available'; user: AuthUser }
+  | { status: 'non-member'; user: AuthUser }
+  | { status: 'unreachable'; user: AuthUser }
+  | { status: 'member' }
 
 /** Gates `children` behind Google sign-in, household first-claim, and membership. */
 export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
-  const [state, setState] = useState<AuthGateState>({ status: "checking" });
+  const [state, setState] = useState<AuthGateState>({ status: 'checking' })
 
   /** Counts the lookups started, sign-outs seen and unmounts; a lookup or claim may set state only while it still holds the latest count. */
-  const stateGeneration = useRef(0);
+  const stateGeneration = useRef(0)
   const discardPendingWork = () => {
-    stateGeneration.current++;
-  };
+    stateGeneration.current++
+  }
 
   /** Returns a setter that applies a state only while no lookup, sign-out or unmount has happened since this call. */
   const captureGuardedSetter = () => {
-    const generation = stateGeneration.current;
+    const generation = stateGeneration.current
     return (next: AuthGateState) => {
-      if (generation === stateGeneration.current) setState(next);
-    };
-  };
+      if (generation === stateGeneration.current) setState(next)
+    }
+  }
 
   const resolveMembership = useCallback(
     async (user: AuthUser) => {
-      discardPendingWork();
-      const setIfCurrent = captureGuardedSetter();
+      discardPendingWork()
+      const setIfCurrent = captureGuardedSetter()
       try {
-        setIfCurrent(await lookUpMembership(client, user));
+        setIfCurrent(await lookUpMembership(client, user))
       } catch (error) {
-        setIfCurrent(
-          isRulesRefusal(error)
-            ? { status: "non-member", user }
-            : { status: "unreachable", user },
-        );
+        setIfCurrent(isRulesRefusal(error) ? { status: 'non-member', user } : { status: 'unreachable', user })
       }
     },
     [client],
-  );
+  )
 
   useEffect(() => {
     const unwatch = watchAuthState(client.app, (user) => {
       if (user === null) {
-        discardPendingWork();
-        setState({ status: "signed-out" });
-        return;
+        discardPendingWork()
+        setState({ status: 'signed-out' })
+        return
       }
-      void resolveMembership(user);
-    });
+      void resolveMembership(user)
+    })
     return () => {
-      discardPendingWork();
-      unwatch();
-    };
-  }, [client, resolveMembership]);
+      discardPendingWork()
+      unwatch()
+    }
+  }, [client, resolveMembership])
 
   switch (state.status) {
-    case "checking":
-      return null;
+    case 'checking':
+      return null
 
-    case "signed-out":
+    case 'signed-out':
       return (
         <CentredCard title="Sign in">
           <Button onClick={() => void signInWithGoogle(client.app)}>
@@ -100,25 +83,25 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
           </Button>
           <ResetConfigRow onResetConfig={onResetConfig} />
         </CentredCard>
-      );
+      )
 
-    case "claim-available":
+    case 'claim-available':
       return (
         <CentredCard title="Claim this household">
           <p>No one has claimed this household yet.</p>
           <Button
             onClick={async () => {
-              const setIfCurrent = captureGuardedSetter();
-              await claimHousehold(client.db, state.user.uid, state.user.email);
-              setIfCurrent({ status: "member" });
+              const setIfCurrent = captureGuardedSetter()
+              await claimHousehold(client.db, state.user.uid, state.user.email)
+              setIfCurrent({ status: 'member' })
             }}
           >
             Claim household
           </Button>
         </CentredCard>
-      );
+      )
 
-    case "non-member":
+    case 'non-member':
       return (
         <CentredCard title="Not a member">
           <p>Signed in as {state.user.email}.</p>
@@ -126,16 +109,16 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
           <SignOutButton app={client.app} />
           <ResetConfigRow onResetConfig={onResetConfig} />
         </CentredCard>
-      );
+      )
 
-    case "unreachable":
+    case 'unreachable':
       return (
         <CentredCard title="Couldn't reach your Household">
           <p>Check your connection and try again.</p>
           <Button
             onClick={() => {
-              setState({ status: "checking" });
-              void resolveMembership(state.user);
+              setState({ status: 'checking' })
+              void resolveMembership(state.user)
             }}
           >
             Retry
@@ -143,10 +126,10 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
           <SignOutButton app={client.app} />
           <ResetConfigRow onResetConfig={onResetConfig} />
         </CentredCard>
-      );
+      )
 
-    case "member":
-      return <>{children}</>;
+    case 'member':
+      return <>{children}</>
   }
 }
 
@@ -154,33 +137,25 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
 async function lookUpMembership(
   { db }: FirebaseClient,
   user: AuthUser,
-): Promise<
-  Extract<
-    AuthGateState,
-    { status: "claim-available" | "member" | "non-member" }
-  >
-> {
-  if (!(await householdExists(db))) return { status: "claim-available", user };
-  if (await isHouseholdMember(db, user.uid)) return { status: "member" };
-  const joined = await joinFromInvite(db, user.uid, user.email);
-  return joined ? { status: "member" } : { status: "non-member", user };
+): Promise<Extract<AuthGateState, { status: 'claim-available' | 'member' | 'non-member' }>> {
+  if (!(await householdExists(db))) return { status: 'claim-available', user }
+  if (await isHouseholdMember(db, user.uid)) return { status: 'member' }
+  const joined = await joinFromInvite(db, user.uid, user.email)
+  return joined ? { status: 'member' } : { status: 'non-member', user }
 }
 
-function SignOutButton({ app }: { app: FirebaseClient["app"] }) {
+function SignOutButton({ app }: { app: FirebaseClient['app'] }) {
   return (
     <Button variant="tonal" onClick={() => void signOutUser(app)}>
       Sign out
     </Button>
-  );
+  )
 }
 
-function ResetConfigRow({
-  onResetConfig,
-}: Pick<ResetConfigButtonProps, "onResetConfig">) {
+function ResetConfigRow({ onResetConfig }: Pick<ResetConfigButtonProps, 'onResetConfig'>) {
   return (
     <p>
-      Wrong Firebase configuration?{" "}
-      <ResetConfigButton onResetConfig={onResetConfig} />
+      Wrong Firebase configuration? <ResetConfigButton onResetConfig={onResetConfig} />
     </p>
-  );
+  )
 }

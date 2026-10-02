@@ -11,7 +11,6 @@ export function GoogleMark() {
       width="20"
       height="20"
       viewBox="0 0 20 20"
-      data-testid="google-mark"
     >
       <circle cx="10" cy="10" r="10" fill="#ffffff" />
       <g transform="translate(2 2) scale(0.6667)">
@@ -33,5 +32,5 @@ export function GoogleMark() {
         />
       </g>
     </svg>
-  );
+  )
 }
