@@ -76,3 +76,11 @@ describe('manifest', () => {
     }
   })
 })
+
+describe('browser tab icon', () => {
+  it('links the 192px app icon from public/, which Vite serves under the base', () => {
+    const html = readFileSync(fromRepo('index.html'), 'utf8')
+    expect(html).toMatch(/<link\s+rel="icon"\s+type="image\/png"\s+href="\/pwa-192x192\.png"\s*\/>/)
+    expect(existsSync(fromRepo('public/pwa-192x192.png'))).toBe(true)
+  })
+})
