@@ -58,7 +58,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
           <ListRow
             key={member.uid}
             headline={member.email}
-            supporting={memberTags(member, viewerUid)}
+            supporting={memberSupportingText(member, viewerUid)}
             control={
               viewerIsOwner && !member.isOwner ? (
                 <Button variant="text" aria-label={`Remove ${member.email}`} onClick={() => handleRemove(member)}>
@@ -122,10 +122,10 @@ function ownerFirst(members: MemberRecord[]): MemberRecord[] {
   return [...members.filter((member) => member.isOwner), ...members.filter((member) => !member.isOwner)]
 }
 
-/** The tags under a Member's email: "Owner" and "you" (the signed-in Member); `undefined` when neither applies. */
-function memberTags(member: MemberRecord, viewerUid: core.Uid | null): string | undefined {
-  const tags = [member.isOwner ? 'Owner' : null, member.uid === viewerUid ? 'you' : null].filter((tag) => tag !== null)
-  return tags.length > 0 ? tags.join(' · ') : undefined
+/** The supporting text under a Member's email: "Owner" and "you" (the signed-in Member); `undefined` when neither applies. */
+function memberSupportingText(member: MemberRecord, viewerUid: core.Uid | null): string | undefined {
+  const labels = [member.isOwner ? 'Owner' : null, member.uid === viewerUid ? 'you' : null].filter((label) => label !== null)
+  return labels.length > 0 ? labels.join(' · ') : undefined
 }
 
 const INVALID_EMAIL_MESSAGE = 'Enter a Google email address.'

@@ -123,7 +123,7 @@ describe('MembersScreen', () => {
     expect(pending).not.toHaveTextContent('a@example.com')
   })
 
-  it('tags the signed-in Member\'s row "you" and no other', () => {
+  it('labels the signed-in Member\'s row "you" and no other', () => {
     currentUserUid.mockReturnValue(core.uid('u2'))
     renderScreen([owner, member])
 
@@ -132,7 +132,7 @@ describe('MembersScreen', () => {
     expect(ownerRow).not.toHaveTextContent('you')
   })
 
-  it('tags the signed-in Owner as both Owner and "you"', () => {
+  it('labels the signed-in Owner as both Owner and "you"', () => {
     renderScreen([owner, member])
 
     const [ownerRow, memberRow] = screen.getAllByRole('listitem')
