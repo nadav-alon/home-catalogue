@@ -283,6 +283,17 @@ describe('CategoriesManager', () => {
     expect(screen.getByLabelText('New Category name')).toHaveValue('')
   })
 
+  it('closes the Add dialog on Cancel without creating a Category', () => {
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Snacks' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(createCategory).not.toHaveBeenCalled()
+  })
+
   it('unsubscribes from Categories and Shops on unmount', () => {
     const { unmount } = renderWith([], [])
     unmount()

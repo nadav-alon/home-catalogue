@@ -175,6 +175,9 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           <form onSubmit={handleCreate}>
             {error !== null && <p role="alert">{error}</p>}
             <CategoryFields nameLabel="New Category name" draft={draft} shops={shops} onChange={setDraft} />
+            <Button variant="text" onClick={closeDialogs}>
+              Cancel
+            </Button>
             <Button type="submit">Add</Button>
           </form>
         )}
