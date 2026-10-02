@@ -18,8 +18,7 @@ export type ExportResult = { status: 'exported' } | { status: 'fallback'; links:
  * a deep link, so the household is never asked to add an event that is already on the Calendar.
  * If the app calendar itself is gone (404) or no longer accessible (403), the persisted calendar
  * id is forgotten so the next export creates a fresh one instead of failing the same way again.
- * The underlying error is logged to the console only: the dialog shows the fallback links, so no
- * page-level banner or raw error text is raised for it.
+ * The underlying error is only logged; the dialog's fallback links are the user-facing report.
  */
 export async function exportShoppingList(groups: ShopGroup[], date: ExportDate): Promise<ExportResult> {
   let insertedCount = 0
