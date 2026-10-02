@@ -182,7 +182,7 @@ describe('ShoppingList', () => {
     expect(screen.queryByRole('heading', { name: 'Grocery' })).not.toBeInTheDocument()
   })
 
-  it('flags a running low Item as optional', () => {
+  it('flags a running low Item as running low', () => {
     const soap: ItemRecord = {
       id: core.itemId('soap'),
       name: 'Dish soap',
@@ -192,7 +192,7 @@ describe('ShoppingList', () => {
     }
     renderWith([soap], [cleaning], [grocery])
 
-    expect(screen.getByText('Dish soap').closest('li')).toHaveTextContent('optional')
+    expect(screen.getByText('Dish soap').closest('li')).toHaveTextContent('running low')
   })
 
   it('sets a running low row back visually from an out row', () => {
@@ -226,7 +226,7 @@ describe('ShoppingList', () => {
     }
     renderWith([bandages], [medicine], [pharmacy])
 
-    expect(screen.getByText('Bandages').closest('li')).not.toHaveTextContent('optional')
+    expect(screen.getByText('Bandages').closest('li')).not.toHaveTextContent('running low')
   })
 
   it('groups an Item with no resolved Shop under Unknown Shop', () => {
@@ -368,7 +368,7 @@ describe('ticking an Item', () => {
       const shopHeading = screen.getByRole('heading', { name: pharmacy.name })
       const row = within(shopHeading.parentElement as HTMLElement).getByText('Bandages').closest('li')
       expect(row).not.toBeNull()
-      expect(within(row as HTMLElement).queryByText('optional') !== null).toBe(state === 'running low')
+      expect(within(row as HTMLElement).queryByText('running low') !== null).toBe(state === 'running low')
     },
   )
 })
