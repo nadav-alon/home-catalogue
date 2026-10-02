@@ -1005,7 +1005,7 @@ describe('adding a Category from the Item dialog', () => {
     expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
   })
 
-  it('lays the new Category actions out in the dialog action row, Cancel before Create', () => {
+  it('lays the new Category actions out side by side like the dialog action row, Cancel before Create', () => {
     renderWith([], [medicine], [pharmacy])
     openDialog()
     chooseNewCategory()
