@@ -1356,6 +1356,18 @@ describe('a scanned barcode', () => {
     expect(window.location.hash).toBe('')
   })
 
+  it('reports a failed holder lookup on No in the alert banner', async () => {
+    findDeletedItemByBarcode.mockResolvedValue(bandages)
+    findBarcodeHolders.mockRejectedValue(new Error('Lookup refused'))
+    renderWith([], [medicine], [pharmacy])
+    scan()
+    const offer = await screen.findByRole('dialog', { name: 'Deleted Item' })
+
+    fireEvent.click(within(offer).getByRole('button', { name: 'No' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Lookup refused')
+  })
+
   it('opens the Item dialog on Yes when the deleted Item\'s Category is gone, restoring it with the new choice on save', async () => {
     findDeletedItemByBarcode.mockResolvedValue(bandages)
     renderWith([], [cleaning], [grocery])

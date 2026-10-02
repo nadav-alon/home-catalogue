@@ -154,7 +154,11 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     if (deletedMatch === undefined) return
     const { barcode } = deletedMatch
     setDeletedMatch(undefined)
-    await openChooser(barcode)
+    try {
+      await openChooser(barcode)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not look up the barcode')
+    }
   }
 
   async function handleAttach(item: ItemRecord, holders: readonly BarcodeHolder[]) {
