@@ -4,6 +4,9 @@ import { deviceTransferUrl } from './deviceTransfer.ts'
 import type { FirebaseWebConfig } from './webConfig.ts'
 import './DeviceTransferQrCode.css'
 
+/** The blank border, in modules, a QR code needs around it to scan. */
+const QUIET_ZONE_MODULES = 4
+
 export interface DeviceTransferQrCodeProps {
   config: FirebaseWebConfig
   /** What the QR code is described as to assistive technology. */
@@ -19,7 +22,7 @@ export function DeviceTransferQrCode({ config, label }: DeviceTransferQrCodeProp
     let cancelled = false
     setSvg(null)
     setFailed(false)
-    QRCode.toString(deviceTransferUrl(config), { type: 'svg' }).then(
+    QRCode.toString(deviceTransferUrl(config), { type: 'svg', margin: QUIET_ZONE_MODULES }).then(
       (result) => !cancelled && setSvg(result),
       () => !cancelled && setFailed(true),
     )
