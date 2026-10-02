@@ -228,7 +228,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
         ))}
       </ul>
       <Fab symbol={AddIcon} label="Add Category" onClick={openAdd} />
-      <Dialog open={adding} title="Add Category" onClose={closeDialogs}>
+      <Dialog open={adding} title="Add Category" onClose={closeDialogs} closable>
         {adding && (
           <form onSubmit={handleCreate}>
             {error !== null && <p role="alert">{error}</p>}
@@ -240,7 +240,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           </form>
         )}
       </Dialog>
-      <Dialog open={editing !== null} title="Edit Category" onClose={closeDialogs}>
+      <Dialog open={editing !== null} title="Edit Category" onClose={closeDialogs} closable>
         {editing !== null && (
           <form
             onSubmit={(event) => {

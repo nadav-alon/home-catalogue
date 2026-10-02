@@ -57,6 +57,15 @@ describe('CalendarExport', () => {
     expect(readFileSync('src/ui/Field.css', 'utf8')).toMatch(/\.ui-field__control\s*{[^}]*min-height: 3rem/)
   })
 
+  it('closes from the title-row Close icon', () => {
+    renderWith([outBandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
   describe('with the clock frozen', () => {
     beforeEach(() => {
       vi.useFakeTimers({ toFake: ['Date'] })
@@ -72,7 +81,7 @@ describe('CalendarExport', () => {
     it('resets the date to today when the dialog is reopened', () => {
       renderWith([outBandages], [medicine], [pharmacy])
       fireEvent.input(screen.getByLabelText('Date'), { target: { value: '2026-03-09' } })
-      fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
       vi.setSystemTime(new Date(2026, 2, 6, 12))
 
       fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
@@ -164,7 +173,7 @@ describe('CalendarExport', () => {
     renderWith([outBandages], [medicine], [pharmacy])
     await submit('2026-03-05')
     expect(screen.getByText('Exported to Calendar.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
 
@@ -179,7 +188,7 @@ describe('CalendarExport', () => {
     renderWith([outBandages], [medicine], [pharmacy])
     await submit('2026-03-05')
     expect(screen.getByRole('link', { name: 'Pharmacy' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
 
@@ -191,7 +200,7 @@ describe('CalendarExport', () => {
     exportShoppingList.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
     renderWith([outBandages], [medicine], [pharmacy])
     await submit('2026-03-05')
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
     const exportButton = screen.getByRole('button', { name: 'Export' })
@@ -209,7 +218,7 @@ describe('CalendarExport', () => {
     renderWith([], [medicine], [pharmacy])
     await submit('2026-03-05')
     expect(screen.getByRole('alert')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
+import { actionLabels } from '../testing/dialog.ts'
 import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
 import { ShopsManager } from './ShopsManager.tsx'
 import type { ShopRecord } from './shops.ts'
@@ -118,11 +119,21 @@ describe('ShopsManager', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
+  it('closes Add Shop from the title-row Close icon without creating a Shop', async () => {
+    renderWithShops([])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(createShop).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
   it('orders the Add Shop actions Cancel, Add', () => {
     renderWithShops([])
     fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
 
-    const labels = within(screen.getByRole('dialog')).getAllByRole('button').map((button) => button.textContent)
+    const labels = actionLabels(screen.getByRole('dialog'))
     expect(labels).toEqual(['Cancel', 'Add'])
   })
 
@@ -182,11 +193,22 @@ describe('ShopsManager', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   })
 
+  it('closes Edit Shop from the title-row Close icon without renaming or deleting the Shop', async () => {
+    renderWithShops([pharmacy])
+    openEditor('Pharmacy')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(renameShop).not.toHaveBeenCalled()
+    expect(deleteShop).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
   it('orders the Edit Shop actions Delete, Cancel, Rename', () => {
     renderWithShops([pharmacy])
     openEditor('Pharmacy')
 
-    const labels = within(screen.getByRole('dialog')).getAllByRole('button').map((button) => button.textContent)
+    const labels = actionLabels(screen.getByRole('dialog'))
     expect(labels).toEqual(['Delete', 'Cancel', 'Rename'])
   })
 
