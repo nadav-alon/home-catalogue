@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WriteRejectionBanner } from './WriteRejectionBanner.tsx'
-import { read, tokenUsage } from '../testing/css.ts'
+import { declaration, defined, read, tokenUsage } from '../testing/css.ts'
 import { reportWriteRejection, resetWriteRejections } from './writeRejections.ts'
 
 const css = read('src/catalogue/WriteRejectionBanner.css')
@@ -64,6 +64,14 @@ describe('WriteRejectionBanner', () => {
 
     expect(inset(css, 'write-rejection-banner')).toBeDefined()
     expect(inset(css, 'write-rejection-banner')).toBe(inset(alertBannerCss, 'alert-banner'))
+  })
+
+  it('spaces each notice from whatever stacks beneath it, using a spacing token', () => {
+    const gap = declaration('src/catalogue/WriteRejectionBanner.css', '.write-rejection-banner', 'margin-block-end')
+    const token = gap?.match(/^var\((--md-sys-spacing-\d+)\)$/)?.[1]
+
+    expect(token).toBeDefined()
+    expect(defined.has(token!)).toBe(true)
   })
 
   it('styles the notice from the stylesheet, with no inline style', () => {
