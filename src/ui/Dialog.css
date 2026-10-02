@@ -15,8 +15,16 @@
   background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
 }
 
-.ui-dialog__title {
+.ui-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--md-sys-spacing-4);
   margin: 0 0 var(--md-sys-spacing-4);
+}
+
+.ui-dialog__title {
+  margin: 0;
   font-size: var(--md-sys-typescale-headline-size);
   font-weight: 400;
 }

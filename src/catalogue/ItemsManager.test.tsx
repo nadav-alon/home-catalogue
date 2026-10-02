@@ -12,6 +12,7 @@ import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy }
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { choose } from '../testing/select.ts'
 import { resetPendingPop } from '../ui/pendingPop.ts'
+import { tokenUsage } from '../testing/css.ts'
 
 const watchItems = vi.fn()
 const createItem = vi.fn()
@@ -641,6 +642,65 @@ describe('leaving the Item dialog without saving', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(updateItem).not.toHaveBeenCalled()
     expect(createItem).not.toHaveBeenCalled()
+  })
+
+  it('spaces the fields vertically', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+
+    const form = screen.getByLabelText('Name').closest('form')
+    expect(form).toHaveClass('item-form')
+    const { used, undefinedTokens } = tokenUsage('src/catalogue/ItemDialog.css')
+    expect(used.length).toBeGreaterThan(0)
+    expect(undefinedTokens).toEqual([])
+  })
+
+  it('puts Save last, with Delete apart from Cancel and Save', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+
+    const dialog = screen.getByRole('dialog')
+    const save = within(dialog).getByRole('button', { name: 'Save' })
+    const cancel = within(dialog).getByRole('button', { name: 'Cancel' })
+    const del = within(dialog).getByRole('button', { name: 'Delete' })
+    const buttons = within(dialog).getAllByRole('button')
+    expect(buttons[buttons.length - 1]).toBe(save)
+    expect(cancel.parentElement).toBe(save.parentElement)
+    expect(del.parentElement).not.toBe(cancel.parentElement)
+    expect(del.parentElement).toHaveClass('item-form__delete')
+  })
+
+  it('spaces the New Category fields like the rest of the form', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+    const option = screen.getByRole<HTMLOptionElement>('option', { name: '+ New Category' })
+    choose(screen.getByLabelText('Category'), option.value)
+
+    expect(screen.getByLabelText('New Category name').closest('.item-form__group')).toBe(
+      screen.getByLabelText('Default Shop').closest('.item-form__group'),
+    )
+  })
+
+  it('discards the edit on the header Close icon', async () => {
+    await fillAndLeave(() => fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' })))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(updateItem).not.toHaveBeenCalled()
+    expect(createItem).not.toHaveBeenCalled()
+    await waitFor(() => expect(history.state?.['ui-dialog']).toBeUndefined())
+  })
+
+  it('returns exactly one step on the Back after the header Close icon', async () => {
+    window.location.hash = '#/start'
+    window.location.hash = '#/items'
+    await fillAndLeave(() => fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' })))
+    await waitFor(() => expect(history.state?.['ui-dialog']).toBeUndefined())
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(window.location.hash).toBe('#/items')
+
+    history.back()
+
+    await waitFor(() => expect(window.location.hash).toBe('#/start'))
   })
 
   it('discards the edit on back', async () => {

@@ -10,6 +10,7 @@ import { Dialog } from '../ui/Dialog.tsx'
 import { Select } from '../ui/Select.tsx'
 import { TextField } from '../ui/TextField.tsx'
 import CloseIcon from '~icons/material-symbols/close'
+import './ItemDialog.css'
 
 export interface ItemDialogProps {
   open: boolean
@@ -75,7 +76,7 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 /** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its Barcodes when editing or, when adding from a scan, the pending `barcode` shown read-only, in a dialog that starts from `item`, or empty, on each open. */
 export function ItemDialog({ open, item, restoring, barcode, categories, shops, onCreateCategory, onSave, onDelete, onClose }: ItemDialogProps) {
   return (
-    <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose}>
+    <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose} closable>
       {open && (
         <ItemForm
           item={item}
@@ -174,7 +175,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form class="item-form" onSubmit={handleSubmit}>
       {saveError !== null && <p role="alert">{saveError}</p>}
       <TextField label="Name" error={errors.name} value={values.name} onInput={(event) => set('name', event.currentTarget.value)} />
       <TextField
@@ -192,7 +193,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
         <option value={NEW_CATEGORY}>+ New Category</option>
       </Select>
       {categoryDraft !== null && (
-        <div onKeyDown={handleCategoryPromptKeyDown}>
+        <div class="item-form__group" onKeyDown={handleCategoryPromptKeyDown}>
           {categoryError?.field === 'create' && <p role="alert">{categoryError.message}</p>}
           <TextField
             label="New Category name"
@@ -263,15 +264,21 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
           </ul>
         </section>
       )}
-      {item && onDelete && (
-        <Button variant="text" onClick={handleDelete}>
-          Delete
-        </Button>
-      )}
-      <Button variant="text" onClick={onClose}>
-        Cancel
-      </Button>
-      <Button type="submit">Save</Button>
+      <div class="item-form__actions">
+        {item && onDelete && (
+          <div class="item-form__delete">
+            <Button variant="text" onClick={handleDelete}>
+              Delete
+            </Button>
+          </div>
+        )}
+        <div class="item-form__confirm">
+          <Button variant="text" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit">Save</Button>
+        </div>
+      </div>
     </form>
   )
 }
