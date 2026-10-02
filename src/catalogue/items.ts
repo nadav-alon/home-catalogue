@@ -29,6 +29,15 @@ export interface ItemRecord extends core.Item, catalogue.CatalogueItem {
   id: core.ItemId
 }
 
+/** A Barcode an Item carries from the start, with the holders it is moved off. */
+export interface CarriedBarcode {
+  value: core.Barcode
+  movedOff: readonly BarcodeHolder[]
+}
+
+/** An Item that carries a Barcode, live or soft-deleted: all a move needs to name it and to take the Barcode off it. */
+export type BarcodeHolder = Pick<ItemRecord, 'id' | 'name'>
+
 /** Whether `item`'s name contains `search`, ignoring case and surrounding whitespace; every Item matches an empty search. */
 export function matchesName(item: ItemRecord, search: string): boolean {
   return item.name.toLowerCase().includes(search.trim().toLowerCase())
@@ -42,10 +51,10 @@ export interface ItemInput {
   shopId?: catalogue.ShopId
 }
 
-/** What adding an Item carries: its fields, the State it starts at, plus a Barcode it carries from the start. */
+/** What adding an Item carries: its fields, the State it starts at, plus a Barcode it carries from the start, and the Items it is moved off. */
 export interface NewItemInput extends ItemInput {
   state: core.State
-  barcode?: core.Barcode
+  barcode?: CarriedBarcode
 }
 
 /** What saving an edit to an Item carries: its fields, plus the Barcodes the Member removed. */
@@ -149,7 +158,8 @@ export function watchItems(db: Firestore, callback: (items: ItemRecord[]) => voi
 /**
  * Validates against {@link core.itemSchema} and {@link catalogue.catalogueItemSchema} before
  * writing a new Item's two docs, core `items` plus catalogue `catalogueItems`, keyed by the same
- * generated id, as one batch. A new Item starts at `input.state`, carrying `barcode` when given.
+ * generated id, as one batch. A new Item starts at `input.state`, carrying `barcode` when given,
+ * which leaves each of its `movedOff` in the same batch.
  * No `stateHistory` entry is written for that starting State: the history records changes, and
  * the platform's create rule for `items` is not known to accept an initial entry. The batch also bumps the referenced Category's referenceCount, and the Shop
  * override's when set, matching the platform's create rule. Resolves with the new Item's id
@@ -161,7 +171,7 @@ export async function createItem(db: Firestore, input: NewItemInput): Promise<co
     name: input.name,
     state: input.state,
     ...(input.brandNote !== undefined ? { brandNote: input.brandNote } : {}),
-    ...(input.barcode !== undefined ? { barcodes: [input.barcode] } : {}),
+    ...(input.barcode !== undefined ? { barcodes: [input.barcode.value] } : {}),
   })
   const catalogueItem = catalogue.catalogueItemSchema.parse({
     categoryId: input.categoryId,
@@ -179,6 +189,9 @@ export async function createItem(db: Firestore, input: NewItemInput): Promise<co
   })
   if (catalogueItem.shopId !== undefined) {
     batch.update(doc(db, catalogue.SHOPS_COLLECTION, catalogueItem.shopId), { referenceCount: increment(1) })
+  }
+  if (input.barcode !== undefined) {
+    moveBarcodeOff(batch, db, input.barcode.value, input.barcode.movedOff)
   }
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`new Item ${item.name}`, err)
@@ -401,22 +414,49 @@ export async function findDeletedItemByBarcode(db: Firestore, barcode: core.Barc
 }
 
 /**
+ * Every Item, live or soft-deleted, carrying `barcode`: the ones in `items` plus the ones the local
+ * cache holds, each once. Empty when none does. Like {@link findDeletedItemByBarcode} it never waits on
+ * the server.
+ */
+export async function findBarcodeHolders(
+  db: Firestore,
+  items: readonly ItemRecord[],
+  barcode: core.Barcode,
+): Promise<BarcodeHolder[]> {
+  const holders = new Map<core.ItemId, BarcodeHolder>()
+  for (const found of [...itemsWithBarcode(items, barcode), ...(await queryCoreItemsByBarcode(db, barcode))]) {
+    holders.set(found.id, { id: found.id, name: found.name })
+  }
+  return [...holders.values()]
+}
+
+/** Stages taking `barcode` off each of `holders` in `batch`, leaving their other Barcodes. */
+function moveBarcodeOff(batch: WriteBatch, db: Firestore, barcode: core.Barcode, holders: readonly BarcodeHolder[]): void {
+  for (const holder of holders) {
+    batch.update(doc(db, core.ITEMS_COLLECTION, holder.id), { barcodes: arrayRemove(barcode) })
+  }
+}
+
+/**
  * Validates `barcode` with {@link core.barcode}, which throws naming it, before adding it to the Item's
- * `barcodes` with `arrayUnion`, so attaching one the Item already carries changes nothing.
- * Resolves once the write is queued, see {@link createItem}.
+ * `barcodes` with `arrayUnion`, so attaching one the Item already carries changes nothing. A Barcode sits
+ * on at most one Item, so it leaves each of `holders` (any other than `item` itself) in the same batch with
+ * `arrayRemove`. Resolves once the batch is queued, see {@link createItem}.
  */
 export async function attachBarcode(
   db: Firestore,
-  item: Pick<ItemRecord, 'id' | 'name'>,
+  item: BarcodeHolder,
   barcode: string,
+  holders: readonly BarcodeHolder[] = [],
 ): Promise<void> {
   const validBarcode = core.barcode(barcode)
 
-  void updateDoc(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) }).catch(
-    (err: unknown) => {
-      reportWriteRejection(`barcode change for ${item.name}`, err)
-    },
-  )
+  const batch = writeBatch(db)
+  batch.update(doc(db, core.ITEMS_COLLECTION, item.id), { barcodes: arrayUnion(validBarcode) })
+  moveBarcodeOff(batch, db, validBarcode, holders.filter((holder) => holder.id !== item.id))
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`barcode change for ${item.name}`, err)
+  })
 }
 
 /**

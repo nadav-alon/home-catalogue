@@ -245,7 +245,7 @@ describe('createItem', () => {
       categoryId: catalogue.categoryId('cleaning'),
       necessity: catalogue.necessitySchema.parse('essential'),
       state: core.stateSchema.parse('enough'),
-      barcode: core.barcode('12345678'),
+      barcode: { value: core.barcode('12345678'), movedOff: [] },
     })
 
     expect(batchSet).toHaveBeenCalledWith(
@@ -269,6 +269,25 @@ describe('createItem', () => {
       { path: core.ITEMS_COLLECTION, id: 'generated-id' },
       { name: 'Dish soap', state: 'out' },
     )
+  })
+
+  it('moves its barcode off the Items it was on, in the same batch', async () => {
+    const { createItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await createItem(fakeDb, {
+      name: 'Dish soap',
+      state: core.stateSchema.parse('out'),
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+      barcode: { value: core.barcode('12345678'), movedOff: [{ id: core.itemId('old-soap'), name: 'Old soap' }] },
+    })
+
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'old-soap' },
+      { barcodes: { kind: 'arrayRemove', values: ['12345678'] } },
+    )
+    expect(batchCommit).toHaveBeenCalledTimes(1)
   })
 
   it('resolves with the generated id of the new Item', async () => {
@@ -960,20 +979,68 @@ describe('findDeletedItemByBarcode', () => {
   })
 })
 
+describe('findBarcodeHolders', () => {
+  const barcode = core.barcode('12345678')
+  const coreDoc = (id: string, name: string, deleted = false) => ({
+    id,
+    data: () => ({ name, state: 'out', barcodes: [barcode], ...(deleted ? { deletedAt: { seconds: 1, nanoseconds: 0 } } : {}) }),
+  })
+
+  it('returns the live Items and the cached deleted Items carrying the barcode, each once', async () => {
+    const { findBarcodeHolders } = await import('./items.ts')
+    getDocsFromCache.mockResolvedValueOnce({ docs: [coreDoc('bandages', 'Bandages'), coreDoc('old-tape', 'Old tape', true)] })
+
+    const holders = await findBarcodeHolders(fakeDb, [{ ...bandages, barcodes: [barcode] }], barcode)
+
+    expect(holders).toEqual([
+      { id: 'bandages', name: 'Bandages' },
+      { id: 'old-tape', name: 'Old tape' },
+    ])
+  })
+
+  it('is empty when no Item carries it, and when the cache has nothing', async () => {
+    const { findBarcodeHolders } = await import('./items.ts')
+    getDocsFromCache.mockRejectedValueOnce(new Error('cache miss'))
+
+    expect(await findBarcodeHolders(fakeDb, [bandages], barcode)).toEqual([])
+  })
+})
+
 describe('attachBarcode', () => {
   const dishSoap = { id: core.itemId('dish-soap'), name: 'Dish soap' }
+  const sponge = { id: core.itemId('sponge'), name: 'Sponge' }
 
   it('writes the barcode to the Item with arrayUnion', async () => {
     const { attachBarcode } = await import('./items.ts')
-    updateDoc.mockResolvedValueOnce(undefined)
+    batchCommit.mockResolvedValueOnce(undefined)
 
     await attachBarcode(fakeDb, dishSoap, '12345678')
 
     expect(arrayUnion).toHaveBeenCalledWith('12345678')
-    expect(updateDoc).toHaveBeenCalledWith(
+    expect(batchUpdate).toHaveBeenCalledTimes(1)
+    expect(batchUpdate).toHaveBeenCalledWith(
       { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
       { barcodes: { kind: 'arrayUnion', values: ['12345678'] } },
     )
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves the barcode off the Items it was on, in the same batch', async () => {
+    const { attachBarcode } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await attachBarcode(fakeDb, dishSoap, '12345678', [sponge, dishSoap])
+
+    expect(batchUpdate).toHaveBeenCalledTimes(2)
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'dish-soap' },
+      { barcodes: { kind: 'arrayUnion', values: ['12345678'] } },
+    )
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: core.ITEMS_COLLECTION, id: 'sponge' },
+      { barcodes: { kind: 'arrayRemove', values: ['12345678'] } },
+    )
+    expect(batchCommit).toHaveBeenCalledTimes(1)
   })
 
   it('rejects a non-GTIN before writing', async () => {
@@ -982,12 +1049,12 @@ describe('attachBarcode', () => {
     await expect(attachBarcode(fakeDb, dishSoap, '12345')).rejects.toThrow('Not a Barcode: "12345"')
     await expect(attachBarcode(fakeDb, dishSoap, '1234567A')).rejects.toThrow('Not a Barcode: "1234567A"')
 
-    expect(updateDoc).not.toHaveBeenCalled()
+    expect(batchCommit).not.toHaveBeenCalled()
   })
 
   it('does not wait for the server, so a caller offline is not left waiting', async () => {
     const { attachBarcode } = await import('./items.ts')
-    updateDoc.mockReturnValueOnce(new Promise(() => {}))
+    batchCommit.mockReturnValueOnce(new Promise(() => {}))
 
     await attachBarcode(fakeDb, dishSoap, '12345678')
   })
@@ -1031,7 +1098,7 @@ describe('barcode write rejections', () => {
   it('reports an attach the server rejects', async () => {
     const { attachBarcode } = await import('./items.ts')
     const latest = await rejections()
-    updateDoc.mockRejectedValueOnce(new Error('permission-denied'))
+    batchCommit.mockRejectedValueOnce(new Error('permission-denied'))
 
     await attachBarcode(fakeDb, dishSoap, '12345678')
     await Promise.resolve()

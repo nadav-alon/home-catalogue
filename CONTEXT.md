@@ -29,7 +29,7 @@ State. Its Shop comes from its Category, overridable per Item. A platform Core e
 
 **Barcode**:
 A GTIN (8, 12, 13 or 14 digits, no check-digit validation) read from a scan, never typed in.
-An Item carries any number of them; the same one may sit on several Items.
+An Item carries any number of them; a Barcode sits on at most one Item, and attaching it to another moves it, after asking.
 
 **Category**:
 User-defined, flat grouping of Items. Carries a default Shop.

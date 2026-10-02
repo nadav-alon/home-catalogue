@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
@@ -60,7 +60,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [dialog, setDialog] = useState<
     | { kind: 'edit'; item: ItemRecord }
     | { kind: 'restore'; item: ItemRecord }
-    | { kind: 'add'; barcode?: core.Barcode }
+    | { kind: 'add'; barcode?: CarriedBarcode }
     | null
   >(null)
   /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
@@ -75,6 +75,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [collapsedGroups, setCollapsedGroups] = useState(getCollapsedGroups)
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
   const [unknownBarcode, setUnknownBarcode] = useState<core.Barcode | undefined>(undefined)
+
+  /** The Items the unknown Barcode still sits on, a deleted Item among them; empty when none. */
+  const [barcodeHolders, setBarcodeHolders] = useState<BarcodeHolder[]>([])
 
   /** The deleted Item a scanned Barcode belongs to, and that Barcode, while the Member is deciding whether to bring it back. */
   const [deletedMatch, setDeletedMatch] = useState<{ item: ItemRecord; barcode: core.Barcode } | undefined>(undefined)
@@ -119,11 +122,16 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     if (found.length > 0) return navigateToItems(found.map((item) => item.id))
     try {
       const deleted = await findDeletedItemByBarcode(db, barcode)
-      if (deleted === undefined) setUnknownBarcode(barcode)
+      if (deleted === undefined) await openChooser(barcode)
       else setDeletedMatch({ item: deleted, barcode })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not look up the barcode')
     }
+  }
+
+  async function openChooser(barcode: core.Barcode) {
+    setBarcodeHolders(await findBarcodeHolders(db, items ?? [], barcode))
+    setUnknownBarcode(barcode)
   }
 
   async function handleRestore(item: ItemRecord) {
@@ -137,15 +145,16 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     navigateToItems([item.id])
   }
 
-  function handleDeclineRestore() {
+  async function handleDeclineRestore() {
     if (deletedMatch === undefined) return
-    setUnknownBarcode(deletedMatch.barcode)
+    const { barcode } = deletedMatch
     setDeletedMatch(undefined)
+    await openChooser(barcode)
   }
 
-  async function handleAttach(item: ItemRecord) {
+  async function handleAttach(item: ItemRecord, holders: readonly BarcodeHolder[]) {
     if (unknownBarcode === undefined) return
-    await attachBarcode(db, item, unknownBarcode)
+    await attachBarcode(db, item, unknownBarcode, holders)
     setUnknownBarcode(undefined)
     showSnackbar({ text: `Added barcode to ${item.name}` })
     navigateToItems([item.id])
@@ -188,7 +197,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   }
 
   // The Item may have changed elsewhere since the dialog opened; the dialog and its save work from the current record.
-  const pendingBarcode = dialog?.kind === 'add' ? dialog.barcode : undefined
+  const pendingBarcode = dialog?.kind === 'add' ? dialog.barcode?.value : undefined
   const editedItem =
     dialog !== null && dialog.kind !== 'add'
       ? (items?.find((item) => item.id === dialog.item.id) ?? dialog.item)
@@ -278,13 +287,14 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
       {uncategorisedItems.length > 0 && (
         <ItemGroup heading="Uncategorised" {...groupToggle(UNCATEGORISED)} items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
       )}
-      <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={handleDeclineRestore} />
+      <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={() => void handleDeclineRestore()} />
       <UnknownBarcodeChooser
         barcode={unknownBarcode}
         items={items ?? []}
-        onAttach={(item) => void handleAttach(item)}
-        onNewItem={() => {
-          setDialog({ kind: 'add', barcode: unknownBarcode })
+        holders={barcodeHolders}
+        onAttach={(item, from) => void handleAttach(item, from)}
+        onNewItem={(from) => {
+          setDialog({ kind: 'add', barcode: unknownBarcode === undefined ? undefined : { value: unknownBarcode, movedOff: from } })
           setUnknownBarcode(undefined)
         }}
         onClose={() => setUnknownBarcode(undefined)}
@@ -305,7 +315,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             return
           }
           if (input.state !== undefined) {
-            const id = await createItem(db, { ...input, barcode: pendingBarcode })
+            const id = await createItem(db, { ...input, barcode: dialog?.kind === 'add' ? dialog.barcode : undefined })
             if (pendingBarcode !== undefined) filterOnClose.current = id
             return
           }

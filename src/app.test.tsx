@@ -37,6 +37,7 @@ vi.mock('./catalogue/items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalogue/items.ts')>()),
   watchItems: (db: unknown, cb: (items: ItemRecord[]) => void) => watchItems(db, cb),
   findDeletedItemByBarcode: async () => undefined,
+  findBarcodeHolders: async () => [],
 }))
 
 vi.mock('./members/members.ts', async (importOriginal) => ({

@@ -24,6 +24,7 @@ const restoreItem = vi.fn()
 const restoreItemWithEdit = vi.fn()
 const attachBarcode = vi.fn()
 const findDeletedItemByBarcode = vi.fn()
+const findBarcodeHolders = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
@@ -34,7 +35,8 @@ vi.mock('./items.ts', async (importOriginal) => ({
   softDeleteItem: (db: unknown, item: unknown) => softDeleteItem(db, item),
   restoreItem: (db: unknown, item: unknown, categories: unknown, shops: unknown) => restoreItem(db, item, categories, shops),
   restoreItemWithEdit: (db: unknown, item: unknown, edit: unknown) => restoreItemWithEdit(db, item, edit),
-  attachBarcode: (db: unknown, item: unknown, barcode: unknown) => attachBarcode(db, item, barcode),
+  attachBarcode: (db: unknown, item: unknown, barcode: unknown, from: unknown) => attachBarcode(db, item, barcode, from),
+  findBarcodeHolders: (db: unknown, items: unknown, barcode: unknown) => findBarcodeHolders(db, items, barcode),
   findDeletedItemByBarcode: (db: unknown, barcode: unknown) => findDeletedItemByBarcode(db, barcode),
 }))
 
@@ -71,6 +73,7 @@ beforeEach(() => {
   restoreItemWithEdit.mockReset().mockResolvedValue(undefined)
   attachBarcode.mockReset().mockResolvedValue(undefined)
   findDeletedItemByBarcode.mockReset().mockResolvedValue(undefined)
+  findBarcodeHolders.mockReset().mockResolvedValue([])
   watchCategories.mockReset()
   createCategory.mockReset()
   watchShops.mockReset()
@@ -1429,8 +1432,72 @@ describe('a scanned barcode', () => {
     fireEvent.click(within(chooser).getByRole('button', { name: 'Tape' }))
 
     await waitFor(() => expect(window.location.hash).toBe('#/items?item=tape'))
-    expect(attachBarcode).toHaveBeenCalledWith(fakeDb, tape, '4006381333931')
+    expect(attachBarcode).toHaveBeenCalledWith(fakeDb, tape, '4006381333931', [])
     await waitFor(() => expect(chooser).not.toHaveAttribute('open'))
+  })
+
+  describe('a barcode still on another Item', () => {
+    const oldTape = { id: core.itemId('old-tape'), name: 'Old tape' }
+
+    async function pickTape() {
+      const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+      findBarcodeHolders.mockResolvedValue([oldTape])
+      renderWith([bandages, tape], [medicine], [pharmacy])
+      scan()
+      const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+      fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+      fireEvent.click(within(chooser).getByRole('button', { name: 'Tape' }))
+      return { chooser, tape }
+    }
+
+    it('names the Item it is on and asks before moving it', async () => {
+      const { chooser } = await pickTape()
+
+      expect(chooser).toHaveTextContent('4006381333931 is on Old tape. Move it to Tape?')
+      expect(attachBarcode).not.toHaveBeenCalled()
+    })
+
+    it('moves it off that Item when confirmed', async () => {
+      const { chooser, tape } = await pickTape()
+
+      fireEvent.click(within(chooser).getByRole('button', { name: 'Move' }))
+
+      await waitFor(() => expect(attachBarcode).toHaveBeenCalledWith(fakeDb, tape, '4006381333931', [oldTape]))
+    })
+
+    it('asks before moving it to a new Item, then creates that Item moving it off', async () => {
+      findBarcodeHolders.mockResolvedValue([oldTape])
+      renderWith([bandages], [medicine], [pharmacy])
+      scan()
+      const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+      fireEvent.click(within(chooser).getByRole('button', { name: 'New Item' }))
+      expect(chooser).toHaveTextContent('4006381333931 is on Old tape. Move it to a new Item?')
+      expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument()
+      fireEvent.click(within(chooser).getByRole('button', { name: 'Move' }))
+
+      const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+      fireEvent.input(within(dialog).getByLabelText('Name'), { target: { value: 'Dish soap' } })
+      choose(within(dialog).getByLabelText('Category'), medicine.id)
+      choose(within(dialog).getByLabelText('Necessity'), 'essential')
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+      await waitFor(() =>
+        expect(createItem).toHaveBeenCalledWith(
+          fakeDb,
+          expect.objectContaining({ barcode: { value: '4006381333931', movedOff: [oldTape] } }),
+        ),
+      )
+    })
+
+    it('changes nothing when cancelled, leaving the Item list to pick again', async () => {
+      const { chooser } = await pickTape()
+
+      fireEvent.click(within(chooser).getByRole('button', { name: 'Cancel' }))
+
+      expect(attachBarcode).not.toHaveBeenCalled()
+      expect(within(chooser).getByRole('button', { name: 'Tape' })).toBeInTheDocument()
+    })
   })
 
   it('shows the pending barcode read-only in the Item dialog opened from "New Item"', async () => {
@@ -1524,7 +1591,7 @@ describe('a scanned barcode', () => {
     await waitFor(() =>
       expect(createItem).toHaveBeenCalledWith(
         fakeDb,
-        expect.objectContaining({ name: 'Dish soap', barcode: '4006381333931' }),
+        expect.objectContaining({ name: 'Dish soap', barcode: { value: '4006381333931', movedOff: [] } }),
       ),
     )
     expect(attachBarcode).not.toHaveBeenCalled()
@@ -1546,7 +1613,7 @@ describe('a scanned barcode', () => {
     await waitFor(() =>
       expect(createItem).toHaveBeenCalledWith(
         fakeDb,
-        expect.objectContaining({ name: 'Dish soap', barcode: '4006381333931', state: 'out' }),
+        expect.objectContaining({ name: 'Dish soap', barcode: { value: '4006381333931', movedOff: [] }, state: 'out' }),
       ),
     )
   })
