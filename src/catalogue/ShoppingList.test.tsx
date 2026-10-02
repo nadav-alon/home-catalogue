@@ -12,10 +12,14 @@ import { cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const watchItems = vi.fn()
 const setItemState = vi.fn()
+const findBarcodeHolders = vi.fn()
+const attachBarcode = vi.fn()
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (db: unknown, cb: unknown) => watchItems(db, cb),
   setItemState: (db: unknown, item: unknown, state: unknown) => setItemState(db, item, state),
+  findBarcodeHolders: (...args: unknown[]) => findBarcodeHolders(...args),
+  attachBarcode: (...args: unknown[]) => attachBarcode(...args),
 }))
 
 const watchCategories = vi.fn()
@@ -34,6 +38,8 @@ const fakeDb = { name: 'fake-db' } as unknown as Firestore
 beforeEach(() => {
   watchItems.mockReset()
   setItemState.mockReset().mockResolvedValue(undefined)
+  findBarcodeHolders.mockReset().mockResolvedValue([])
+  attachBarcode.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
   resetSnackbar()
@@ -457,5 +463,28 @@ describe('a scanned barcode', () => {
 
     await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, stocked, 'enough'))
     expect(await screen.findByRole('button', { name: 'Undo' })).toBeInTheDocument()
+  })
+
+  it('opens the Unknown barcode chooser for a barcode no Item carries', async () => {
+    renderWith([{ ...bandages, barcodes: undefined }], [medicine], [pharmacy])
+
+    scan()
+
+    expect(await screen.findByRole('dialog', { name: 'Unknown barcode' })).toHaveTextContent(scanned)
+    expect(setItemState).not.toHaveBeenCalled()
+  })
+
+  it('attaches the barcode to the Item the Member picks in the chooser', async () => {
+    render(<SnackbarHost />)
+    const unscanned: ItemRecord = { ...bandages, barcodes: undefined }
+    renderWith([unscanned], [medicine], [pharmacy])
+    scan()
+    const chooser = await screen.findByRole('dialog', { name: 'Unknown barcode' })
+
+    fireEvent.click(within(chooser).getByRole('button', { name: 'Add to existing Item' }))
+    fireEvent.click(within(chooser).getByText('Bandages'))
+
+    await waitFor(() => expect(attachBarcode).toHaveBeenCalledWith(fakeDb, unscanned, scanned, []))
+    expect(await screen.findByText('Added barcode to Bandages')).toBeInTheDocument()
   })
 })

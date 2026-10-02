@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import type { core } from 'data-platform'
-import { itemsWithBarcode, setItemState, watchItems, type ItemRecord } from './items.ts'
-import { watchCategories, type CategoryRecord } from './categories.ts'
+import { attachBarcode, createItem, findBarcodeHolders, itemsWithBarcode, setItemState, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
+import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 import { AlertBanner } from './AlertBanner.tsx'
+import { ItemDialog } from './ItemDialog.tsx'
+import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { CalendarExport } from '../export/CalendarExport.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
@@ -31,6 +33,11 @@ export function ShoppingList({ db }: ShoppingListProps) {
   useEffect(() => watchCategories(db, setCategories), [db])
   useEffect(() => watchShops(db, setShops), [db])
 
+  /** The scanned Barcode no live Item carries, and the Items it still sits on, while the Member chooses what to do with it. */
+  const [unknown, setUnknown] = useState<{ barcode: core.Barcode; holders: BarcodeHolder[] }>()
+  /** The Barcode a new Item carries from the start, while the Item dialog is open. */
+  const [newItem, setNewItem] = useState<CarriedBarcode>()
+
   async function handleSetState(item: ItemRecord, state: core.State) {
     try {
       await setItemState(db, item, state)
@@ -51,7 +58,18 @@ export function ShoppingList({ db }: ShoppingListProps) {
   /** A scanned Barcode sits on at most one Item; it is bought whether or not it was on today's list. */
   function handleScan(barcode: core.Barcode) {
     const [item] = itemsWithBarcode(items ?? [], barcode)
-    if (item !== undefined) handleTick(item)
+    if (item !== undefined) return handleTick(item)
+    void findBarcodeHolders(db, items ?? [], barcode).then(
+      (holders) => setUnknown({ barcode, holders }),
+      (err: unknown) => setError(err instanceof Error ? err.message : 'Could not look up the barcode'),
+    )
+  }
+
+  async function handleAttach(item: ItemRecord, holders: readonly BarcodeHolder[]) {
+    if (unknown === undefined) return
+    await attachBarcode(db, item, unknown.barcode, holders)
+    setUnknown(undefined)
+    showSnackbar({ text: `Added barcode to ${item.name}` })
   }
 
   const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops)
@@ -81,6 +99,28 @@ export function ShoppingList({ db }: ShoppingListProps) {
           </ul>
         </div>
       ))}
+      <UnknownBarcodeChooser
+        barcode={unknown?.barcode}
+        items={items ?? []}
+        holders={unknown?.holders ?? []}
+        onAttach={(item, from) => void handleAttach(item, from)}
+        onNewItem={(from) => {
+          if (unknown !== undefined) setNewItem({ value: unknown.barcode, movedOff: from })
+          setUnknown(undefined)
+        }}
+        onClose={() => setUnknown(undefined)}
+      />
+      <ItemDialog
+        open={newItem !== undefined}
+        barcode={newItem?.value}
+        categories={categories}
+        shops={shops}
+        onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
+        onSave={async (input) => {
+          if (input.state !== undefined) await createItem(db, { ...input, barcode: newItem })
+        }}
+        onClose={() => setNewItem(undefined)}
+      />
     </section>
   )
 }
