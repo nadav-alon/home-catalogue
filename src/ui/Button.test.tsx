@@ -1,7 +1,8 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { Button } from './Button.tsx'
-import { mediaBlock, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
+import { declaration, mediaBlock, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
 
 describe('Button', () => {
   it('renders a native button that does not submit by default', () => {
@@ -18,6 +19,27 @@ describe('Button', () => {
     expect(screen.getByRole('button')).toHaveClass('ui-button--tonal')
     rerender(<Button variant="text">Save</Button>)
     expect(screen.getByRole('button')).toHaveClass('ui-button--text')
+  })
+
+  it('colours a destructive text Button from the error token, including on hover', () => {
+    render(
+      <Button variant="text" destructive>
+        Delete
+      </Button>,
+    )
+    expect(screen.getByRole('button')).toHaveClass('ui-button--text', 'ui-button--destructive')
+    expect(declaration('src/ui/Button.css', '.ui-button--text.ui-button--destructive', 'color')).toBe('var(--md-sys-color-error)')
+    expect(mediaBlock('src/ui/Button.css', '(hover: hover)')).toMatch(
+      /\.ui-button--text\.ui-button--destructive:hover:not\(:disabled\)\s*{[^}]*var\(--md-sys-color-error\)/,
+    )
+  })
+
+  it('applies the destructive tone only to the text variant, never to filled or tonal', () => {
+    const css = readFileSync('src/ui/Button.css', 'utf8')
+    const selectors = [...css.matchAll(/([^{}]+){/g)].map((match) => match[1].trim())
+    const destructive = selectors.filter((selector) => selector.includes('.ui-button--destructive'))
+    expect(destructive.length).toBeGreaterThan(0)
+    for (const selector of destructive) expect(selector).toContain('.ui-button--text.ui-button--destructive')
   })
 
   it('keeps native click and disabled behaviour', () => {

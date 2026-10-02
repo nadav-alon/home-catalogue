@@ -99,6 +99,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
                     </Button>
                     <Button
                       variant="text"
+                      destructive
                       aria-label={`Revoke invite for ${email}`}
                       onClick={() => {
                         if (qrInviteEmail === email) setQrInviteEmail(null)
