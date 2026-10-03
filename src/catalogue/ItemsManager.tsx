@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
-import { core } from 'data-platform'
+import { catalogue, core } from 'data-platform'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesSearch, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { createTag, watchTags, type TagRecord } from './tags.ts'
@@ -73,6 +73,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   /** Set by a scan made before the Items arrived; shown only while they are still loading. */
   const [scanWaiting, setScanWaiting] = useState(false)
   const [search, setSearch] = useState('')
+  /** The Tags whose chips are pressed; an Item matches by carrying any of them. */
+  const [selectedTagIds, setSelectedTagIds] = useState<readonly catalogue.TagId[]>([])
   /** The groups collapsed on this device, remembered across reloads. */
   const [collapsedGroups, setCollapsedGroups] = useState(getCollapsedGroups)
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
@@ -228,14 +230,18 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const activeCategoryId = !listsLoaded.categories || isLiveReference(categories, categoryId) ? categoryId : undefined
   const activeShopId = !listsLoaded.shops || isLiveReference(shops, shopId) ? shopId : undefined
   const categoriesById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
-  const chipFiltered = activeCategoryId !== undefined || activeShopId !== undefined
+  // Only a Tag some live Item carries is offered, so a Tag nothing carries any more filters nothing.
+  const offeredTags = tags.filter((tag) => (items ?? []).some((item) => item.tagIds.includes(tag.id)))
+  const activeTagIds = selectedTagIds.filter((id) => offeredTags.some((tag) => tag.id === id))
+  const chipFiltered = activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0
   const visibleItems = (scanFiltered ? candidateItems : candidateItems.filter((item) => matchesSearch(item, search, tags))).filter(
     (item) =>
       (activeCategoryId === undefined || item.categoryId === activeCategoryId) &&
       // An Item's Shop may come from its Category, so the Shop filter waits for the Categories rather than hide those Items.
       (activeShopId === undefined ||
         !listsLoaded.categories ||
-        resolvedShopId(item, categoriesById.get(item.categoryId)) === activeShopId),
+        resolvedShopId(item, categoriesById.get(item.categoryId)) === activeShopId) &&
+      (activeTagIds.length === 0 || item.tagIds.some((id) => activeTagIds.includes(id))),
   )
   // A search, scan or chip filter shows its matches whatever was collapsed; the remembered state is left alone for when it clears.
   const filterActive = scanFiltered || search !== '' || chipFiltered
@@ -280,6 +286,18 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             label={shop.name}
             selected={shop.id === activeShopId}
             onToggle={() => onFilterChange?.({ categoryId: activeCategoryId, shopId: toggledSelection(activeShopId, shop.id) })}
+          />
+        ))}
+      </div>
+      <div role="group" aria-label="Filter by Tag" class="items-manager__chips">
+        {offeredTags.map((tag) => (
+          <FilterChip
+            key={tag.id}
+            label={tag.name}
+            selected={activeTagIds.includes(tag.id)}
+            onToggle={() =>
+              setSelectedTagIds(activeTagIds.includes(tag.id) ? activeTagIds.filter((id) => id !== tag.id) : [...activeTagIds, tag.id])
+            }
           />
         ))}
       </div>

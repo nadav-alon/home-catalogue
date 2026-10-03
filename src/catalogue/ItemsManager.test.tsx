@@ -2264,3 +2264,68 @@ describe('Tags in the Item dialog', () => {
     expect(await screen.findByText('Tag name must not be blank')).toBeInTheDocument()
   })
 })
+
+describe('ItemsManager Tag filter', () => {
+  const cooking: TagRecord = { id: catalogue.tagId('cooking'), name: 'cooking' }
+  const sweet: TagRecord = { id: catalogue.tagId('sweet'), name: 'sweet' }
+  const unused: TagRecord = { id: catalogue.tagId('unused'), name: 'unused' }
+  const flour: ItemRecord = { ...bandages, id: core.itemId('flour'), name: 'Flour', categoryId: cleaning.id, tagIds: [cooking.id] }
+  const honey: ItemRecord = { ...bandages, id: core.itemId('honey'), name: 'Honey', categoryId: cleaning.id, tagIds: [sweet.id] }
+  const gauze: ItemRecord = { ...bandages, id: core.itemId('gauze'), name: 'Gauze', tagIds: [cooking.id] }
+
+  function renderTagged(items: ItemRecord[], tags: TagRecord[] = [cooking, sweet, unused]) {
+    watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
+      cb(items)
+      return vi.fn()
+    })
+    watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
+      cb([medicine, cleaning])
+      return vi.fn()
+    })
+    watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
+      cb([pharmacy, grocery])
+      return vi.fn()
+    })
+    watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
+      cb(tags)
+      return vi.fn()
+    })
+    render(<ItemsManager db={fakeDb} />)
+  }
+
+  const tagChips = () => within(screen.getByRole('group', { name: 'Filter by Tag' }))
+
+  it('offers only the Tags a live Item carries', () => {
+    renderTagged([flour, honey], [cooking, sweet, unused])
+
+    expect(tagChips().getByRole('button', { name: 'cooking', pressed: false })).toBeInTheDocument()
+    expect(tagChips().getByRole('button', { name: 'sweet', pressed: false })).toBeInTheDocument()
+    expect(tagChips().queryByRole('button', { name: 'unused' })).not.toBeInTheDocument()
+  })
+
+  it('does not offer a deleted Tag still carried by an Item', () => {
+    renderTagged([flour], [sweet])
+
+    expect(screen.queryByRole('button', { name: 'cooking' })).not.toBeInTheDocument()
+  })
+
+  it('shows only the Items tagged with the pressed Tag, across Categories', () => {
+    renderTagged([flour, honey, gauze, bandages])
+
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+
+    expect(screen.getByText('Flour')).toBeInTheDocument()
+    expect(screen.getByText('Gauze')).toBeInTheDocument()
+    expect(screen.queryByText('Honey')).not.toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('shows every Item again when the pressed Tag is pressed again', () => {
+    renderTagged([flour, honey])
+
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking', pressed: true }))
+
+    expect(screen.getByText('Honey')).toBeInTheDocument()
+  })
+})
