@@ -13,8 +13,10 @@ const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constra
 const orderBy = vi.fn((field: string) => ({ kind: 'orderBy', field }))
 const onSnapshot = vi.fn()
 const batchSet = vi.fn()
+const batchUpdate = vi.fn()
+const batchDelete = vi.fn()
 const batchCommit = vi.fn()
-const writeBatch = vi.fn((_db: unknown) => ({ set: batchSet, commit: batchCommit }))
+const writeBatch = vi.fn((_db: unknown) => ({ set: batchSet, update: batchUpdate, delete: batchDelete, commit: batchCommit }))
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
@@ -22,6 +24,8 @@ vi.mock('firebase/firestore', () => ({
   query: (ref: unknown, ...constraints: unknown[]) => query(ref, ...constraints),
   orderBy: (field: string) => orderBy(field),
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
+  serverTimestamp: () => 'SERVER_TS',
+  deleteField: () => 'DELETE_FIELD',
   writeBatch: (db: unknown) => writeBatch(db),
 }))
 
@@ -33,6 +37,8 @@ beforeEach(() => {
   doc.mockClear()
   onSnapshot.mockReset()
   batchSet.mockReset()
+  batchUpdate.mockReset()
+  batchDelete.mockReset()
   batchCommit.mockReset()
   writeBatch.mockClear()
 })
@@ -113,5 +119,90 @@ describe('createTag', () => {
     await Promise.resolve()
 
     expect(latest.join()).toContain('new Tag sweet')
+  })
+})
+
+describe('renameTag', () => {
+  const sweet = { id: catalogue.tagId('sweet-id'), name: 'sweet' }
+  const savoury = { id: catalogue.tagId('savoury-id'), name: 'savoury' }
+
+  it('writes the trimmed name and moves the name reservation in one batch', async () => {
+    const { renameTag } = await import('./tags.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await renameTag(fakeDb, sweet, '  Sugary ', [sweet, savoury])
+
+    expect(batchUpdate).toHaveBeenCalledWith({ path: catalogue.TAGS_COLLECTION, id: 'sweet-id' }, { name: 'Sugary' })
+    expect(batchDelete).toHaveBeenCalledWith({ path: catalogue.TAG_NAMES_COLLECTION, id: 'sweet' })
+    expect(batchSet).toHaveBeenCalledWith({ path: catalogue.TAG_NAMES_COLLECTION, id: 'sugary' }, { tagId: 'sweet-id' })
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the reservation when only the case or spacing changes', async () => {
+    const { renameTag } = await import('./tags.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await renameTag(fakeDb, sweet, ' Sweet', [sweet, savoury])
+
+    expect(batchUpdate).toHaveBeenCalledWith({ path: catalogue.TAGS_COLLECTION, id: 'sweet-id' }, { name: 'Sweet' })
+    expect(batchDelete).not.toHaveBeenCalled()
+    expect(batchSet).not.toHaveBeenCalled()
+  })
+
+  it("refuses another live Tag's name, ignoring case and surrounding spaces, without writing", async () => {
+    const { renameTag, TagNameTakenError } = await import('./tags.ts')
+
+    await expect(renameTag(fakeDb, sweet, ' SAVOURY ', [sweet, savoury])).rejects.toThrow(TagNameTakenError)
+    expect(batchCommit).not.toHaveBeenCalled()
+  })
+
+  it('rejects a blank name without writing', async () => {
+    const { renameTag } = await import('./tags.ts')
+
+    await expect(renameTag(fakeDb, sweet, '  ', [sweet])).rejects.toThrow()
+    expect(batchCommit).not.toHaveBeenCalled()
+  })
+})
+
+describe('deleteTag and restoreTag', () => {
+  const sweet = { id: catalogue.tagId('sweet-id'), name: 'Sweet' }
+  const tagRef = { path: catalogue.TAGS_COLLECTION, id: 'sweet-id' }
+  const reservationRef = { path: catalogue.TAG_NAMES_COLLECTION, id: 'sweet' }
+
+  it('soft-deletes the Tag and releases its name reservation in one batch', async () => {
+    const { deleteTag } = await import('./tags.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await deleteTag(fakeDb, sweet)
+
+    expect(batchUpdate).toHaveBeenCalledWith(tagRef, { deletedAt: 'SERVER_TS' })
+    expect(batchDelete).toHaveBeenCalledWith(reservationRef)
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores the Tag and takes its name reservation again in one batch', async () => {
+    const { restoreTag } = await import('./tags.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await restoreTag(fakeDb, sweet, [])
+
+    expect(batchUpdate).toHaveBeenCalledWith(tagRef, { deletedAt: 'DELETE_FIELD' })
+    expect(batchSet).toHaveBeenCalledWith(reservationRef, { tagId: 'sweet-id' })
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses to restore onto a name a live Tag has taken, and reports it', async () => {
+    const { restoreTag } = await import('./tags.ts')
+    const { resetWriteRejections, watchWriteRejections } = await import('./writeRejections.ts')
+    resetWriteRejections()
+    let latest: string[] = []
+    watchWriteRejections((list) => {
+      latest = list.map((rejection) => rejection.message)
+    })
+
+    await restoreTag(fakeDb, sweet, [{ id: catalogue.tagId('other-id'), name: 'sweet' }])
+
+    expect(batchCommit).not.toHaveBeenCalled()
+    expect(latest.join()).toContain('Could not restore Sweet')
   })
 })
