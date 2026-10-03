@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import type { JSX } from 'preact'
-import { renameTag, watchTags, type TagRecord } from './tags.ts'
+import { deleteTag, renameTag, restoreTag, watchTags, type TagRecord } from './tags.ts'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
@@ -10,6 +10,7 @@ import { IconButton } from '../ui/IconButton.tsx'
 import { ListRow } from '../ui/ListRow.tsx'
 import { route } from '../ui/route.ts'
 import { TextField } from '../ui/TextField.tsx'
+import { showSnackbar } from '../ui/Snackbar.tsx'
 import { navigate } from '../ui/useRoute.ts'
 import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 
@@ -22,6 +23,9 @@ export interface TagsManagerProps {
 /** The Tags sub-page of Settings: every live Tag, used by an Item or not. */
 export function TagsManager({ db }: TagsManagerProps) {
   const [tags, setTags] = useState<TagRecord[]>([])
+  // Undo outlives the render that deleted the Tag, so it reads the Tags as they are when it is pressed.
+  const tagsRef = useRef(tags)
+  tagsRef.current = tags
   const [editing, setEditing] = useState<TagRecord | null>(null)
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +53,16 @@ export function TagsManager({ db }: TagsManagerProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save Tag')
     }
+  }
+
+  /** deleteTag resolves once queued, so the dialog closes at once even offline; Undo restores the Tag on every Item that carried it. */
+  async function handleDelete(tag: TagRecord) {
+    await deleteTag(db, tag)
+    closeDialog()
+    showSnackbar({
+      text: `Deleted ${tag.name}`,
+      action: { label: 'Undo', onAction: () => void restoreTag(db, tag, tagsRef.current) },
+    })
   }
 
   return (
@@ -81,7 +95,13 @@ export function TagsManager({ db }: TagsManagerProps) {
                 setError(null)
               }}
             />
-            <DialogActions>
+            <DialogActions
+              destructive={
+                <Button variant="text" onClick={() => void handleDelete(editing)}>
+                  Delete
+                </Button>
+              }
+            >
               <Button variant="text" onClick={closeDialog}>
                 Cancel
               </Button>
