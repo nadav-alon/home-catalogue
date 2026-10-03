@@ -14,6 +14,7 @@ describe('pendingItemsByShop', () => {
       state: 'running low',
       categoryId: cleaning.id,
       necessity: 'important',
+      tagIds: [],
     }
 
     const { groups, unresolvedCount } = pendingItemsByShop([outBandages, soap], [medicine, cleaning], [pharmacy, grocery])
@@ -48,6 +49,7 @@ describe('pendingItemsByShop', () => {
       state: 'out',
       categoryId: catalogue.categoryId('deleted-category'),
       necessity: 'important',
+      tagIds: [],
     }
 
     const { groups, unresolvedCount } = pendingItemsByShop([orphan], [medicine], [pharmacy])
@@ -69,6 +71,7 @@ describe('pendingItemsByShop', () => {
       state: 'out',
       categoryId: garden.id,
       necessity: 'important',
+      tagIds: [],
     }
 
     const { groups, unresolvedCount } = pendingItemsByShop([seeds], [garden], [pharmacy])

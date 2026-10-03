@@ -29,6 +29,7 @@ export const bandages: ItemRecord = {
   state: 'enough',
   categoryId: medicine.id,
   necessity: 'essential',
+  tagIds: [],
 }
 
 /** {@link bandages} carrying two Barcodes, for tests of the Item dialog's Barcodes list. */

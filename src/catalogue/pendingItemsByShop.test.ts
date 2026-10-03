@@ -27,6 +27,7 @@ function item(id: string, overrides: Partial<ItemRecord> = {}): ItemRecord {
     state: 'out',
     categoryId: medicine.id,
     necessity: 'essential',
+    tagIds: [],
     ...overrides,
   }
 }

@@ -32,6 +32,7 @@ const soap: ItemRecord = {
   state: 'running low',
   categoryId: cleaning.id,
   necessity: 'important',
+  tagIds: [],
 }
 
 const groups: ShopGroup[] = [
