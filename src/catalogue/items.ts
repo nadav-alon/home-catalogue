@@ -23,6 +23,7 @@ import {
 import { catalogue, core } from 'data-platform'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import type { TagRecord } from './tags.ts'
 import { reportFailure, reportWriteRejection } from './writeRejections.ts'
 
 export interface ItemRecord extends core.Item, catalogue.CatalogueItem {
@@ -38,9 +39,20 @@ export interface CarriedBarcode {
 /** An Item that carries a Barcode, live or soft-deleted: all a move needs to name it and to take the Barcode off it. */
 export type BarcodeHolder = Pick<ItemRecord, 'id' | 'name'>
 
+/** Whether `text` contains `search`, ignoring case and surrounding whitespace; every text contains an empty search. */
+function containsSearch(text: string, search: string): boolean {
+  return text.toLowerCase().includes(search.trim().toLowerCase())
+}
+
 /** Whether `item`'s name contains `search`, ignoring case and surrounding whitespace; every Item matches an empty search. */
 export function matchesName(item: ItemRecord, search: string): boolean {
-  return item.name.toLowerCase().includes(search.trim().toLowerCase())
+  return containsSearch(item.name, search)
+}
+
+/** Whether `item`'s name matches `search`, or the name of one of its Tags among the live `tags` does; a Tag absent from `tags` never matches. */
+export function matchesSearch(item: ItemRecord, search: string, tags: readonly Pick<TagRecord, 'id' | 'name'>[]): boolean {
+  if (matchesName(item, search)) return true
+  return tags.some((tag) => item.tagIds.includes(tag.id) && containsSearch(tag.name, search))
 }
 
 export interface ItemInput {

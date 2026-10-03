@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesSearch, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { createTag, watchTags, type TagRecord } from './tags.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
@@ -229,7 +229,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const activeShopId = !listsLoaded.shops || isLiveReference(shops, shopId) ? shopId : undefined
   const categoriesById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
   const chipFiltered = activeCategoryId !== undefined || activeShopId !== undefined
-  const visibleItems = (scanFiltered ? candidateItems : candidateItems.filter((item) => matchesName(item, search))).filter(
+  const visibleItems = (scanFiltered ? candidateItems : candidateItems.filter((item) => matchesSearch(item, search, tags))).filter(
     (item) =>
       (activeCategoryId === undefined || item.categoryId === activeCategoryId) &&
       // An Item's Shop may come from its Category, so the Shop filter waits for the Categories rather than hide those Items.
