@@ -1,6 +1,6 @@
-import { collection, doc, onSnapshot, orderBy, query, writeBatch, type Firestore } from 'firebase/firestore'
+import { collection, deleteField, doc, onSnapshot, orderBy, query, serverTimestamp, writeBatch, type Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
-import { reportWriteRejection } from './writeRejections.ts'
+import { reportFailure, reportWriteRejection } from './writeRejections.ts'
 
 export interface TagRecord extends catalogue.Tag {
   id: catalogue.TagId
@@ -83,5 +83,37 @@ export async function renameTag(db: Firestore, tag: TagRecord, name: string, tag
   }
   void batch.commit().catch((err: unknown) => {
     reportWriteRejection(`rename of Tag ${tag.name} to ${data.name}`, err)
+  })
+}
+
+/**
+ * Soft-deletes `tag`: sets `deletedAt` and releases its `tagNames` reservation in one batch. Items
+ * carrying it keep its id, so {@link restoreTag} brings it back on all of them. Resolves once queued,
+ * see {@link createTag}.
+ */
+export async function deleteTag(db: Firestore, tag: TagRecord): Promise<void> {
+  const batch = writeBatch(db)
+  batch.update(doc(db, catalogue.TAGS_COLLECTION, tag.id), { deletedAt: serverTimestamp() })
+  batch.delete(doc(db, catalogue.TAG_NAMES_COLLECTION, catalogue.tagNameKey(tag.name)))
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`deleted Tag ${tag.name}`, err)
+  })
+}
+
+/**
+ * Undoes {@link deleteTag}: clears `deletedAt` and takes the name reservation again in one batch.
+ * Refused, writing nothing, when a live Tag among `tags` has taken the name meanwhile; the refusal is
+ * reported through {@link reportFailure}. Resolves once queued, see {@link createTag}.
+ */
+export async function restoreTag(db: Firestore, tag: TagRecord, tags: readonly TagRecord[]): Promise<void> {
+  if (findTagByName(tags, tag.name) !== undefined) {
+    reportFailure(`Could not restore ${tag.name}`, new Error(TAG_NAME_TAKEN_MESSAGE))
+    return
+  }
+  const batch = writeBatch(db)
+  batch.update(doc(db, catalogue.TAGS_COLLECTION, tag.id), { deletedAt: deleteField() })
+  batch.set(doc(db, catalogue.TAG_NAMES_COLLECTION, catalogue.tagNameKey(tag.name)), { tagId: tag.id })
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`restored Tag ${tag.name}`, err)
   })
 }

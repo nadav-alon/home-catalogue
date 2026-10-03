@@ -24,6 +24,8 @@ vi.mock('firebase/firestore', () => ({
   query: (ref: unknown, ...constraints: unknown[]) => query(ref, ...constraints),
   orderBy: (field: string) => orderBy(field),
   onSnapshot: (q: unknown, cb: unknown) => onSnapshot(q, cb),
+  serverTimestamp: () => 'SERVER_TS',
+  deleteField: () => 'DELETE_FIELD',
   writeBatch: (db: unknown) => writeBatch(db),
 }))
 
@@ -159,5 +161,48 @@ describe('renameTag', () => {
 
     await expect(renameTag(fakeDb, sweet, '  ', [sweet])).rejects.toThrow()
     expect(batchCommit).not.toHaveBeenCalled()
+  })
+})
+
+describe('deleteTag and restoreTag', () => {
+  const sweet = { id: catalogue.tagId('sweet-id'), name: 'Sweet' }
+  const tagRef = { path: catalogue.TAGS_COLLECTION, id: 'sweet-id' }
+  const reservationRef = { path: catalogue.TAG_NAMES_COLLECTION, id: 'sweet' }
+
+  it('soft-deletes the Tag and releases its name reservation in one batch', async () => {
+    const { deleteTag } = await import('./tags.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await deleteTag(fakeDb, sweet)
+
+    expect(batchUpdate).toHaveBeenCalledWith(tagRef, { deletedAt: 'SERVER_TS' })
+    expect(batchDelete).toHaveBeenCalledWith(reservationRef)
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores the Tag and takes its name reservation again in one batch', async () => {
+    const { restoreTag } = await import('./tags.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await restoreTag(fakeDb, sweet, [])
+
+    expect(batchUpdate).toHaveBeenCalledWith(tagRef, { deletedAt: 'DELETE_FIELD' })
+    expect(batchSet).toHaveBeenCalledWith(reservationRef, { tagId: 'sweet-id' })
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses to restore onto a name a live Tag has taken, and reports it', async () => {
+    const { restoreTag } = await import('./tags.ts')
+    const { resetWriteRejections, watchWriteRejections } = await import('./writeRejections.ts')
+    resetWriteRejections()
+    let latest: string[] = []
+    watchWriteRejections((list) => {
+      latest = list.map((rejection) => rejection.message)
+    })
+
+    await restoreTag(fakeDb, sweet, [{ id: catalogue.tagId('other-id'), name: 'sweet' }])
+
+    expect(batchCommit).not.toHaveBeenCalled()
+    expect(latest.join()).toContain('Could not restore Sweet')
   })
 })
