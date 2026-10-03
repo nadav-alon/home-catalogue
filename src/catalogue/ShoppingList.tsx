@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase/firestore'
 import type { core } from 'data-platform'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, isLiveReference, itemsWithBarcode, restoreItem, restoreItemWithEdit, setItemState, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
+import { createTag, watchTags, type TagRecord } from './tags.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 import { AlertBanner } from './AlertBanner.tsx'
 import { ItemDialog } from './ItemDialog.tsx'
@@ -28,9 +29,11 @@ export function ShoppingList({ db }: ShoppingListProps) {
   const [items, setItems] = useState<ItemRecord[] | null>(null)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
+  const [tags, setTags] = useState<TagRecord[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchItems(db, setItems), [db])
+  useEffect(() => watchTags(db, setTags), [db])
   /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
   const [listsLoaded, setListsLoaded] = useState({ categories: false, shops: false })
   useEffect(
@@ -191,7 +194,9 @@ export function ShoppingList({ db }: ShoppingListProps) {
         barcode={newItemBarcode?.value}
         categories={categories}
         shops={shops}
+        tags={tags}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
+        onCreateTag={(name) => createTag(db, name)}
         onSave={async (input) => {
           if (input.state !== undefined) await createItem(db, { ...input, barcode: newItemBarcode })
         }}
@@ -203,7 +208,9 @@ export function ShoppingList({ db }: ShoppingListProps) {
         restoring
         categories={categories}
         shops={shops}
+        tags={tags}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
+        onCreateTag={(name) => createTag(db, name)}
         onSave={async (input) => {
           if (itemToRestore !== undefined) await restoreItemWithEdit(db, itemToRestore, input)
         }}

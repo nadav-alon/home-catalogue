@@ -9,6 +9,7 @@ import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import type { TagRecord } from './tags.ts'
 import { cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const watchItems = vi.fn()
@@ -42,6 +43,14 @@ vi.mock('./shops.ts', async (importOriginal) => ({
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
 }))
 
+const watchTags = vi.fn()
+const createTag = vi.fn()
+vi.mock('./tags.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./tags.ts')>()),
+  watchTags: (db: unknown, cb: unknown) => watchTags(db, cb),
+  createTag: (db: unknown, name: unknown) => createTag(db, name),
+}))
+
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
 beforeEach(() => {
@@ -55,6 +64,11 @@ beforeEach(() => {
   restoreItemWithEdit.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
+  watchTags.mockReset().mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
+    cb([])
+    return vi.fn()
+  })
+  createTag.mockReset()
   resetSnackbar()
 })
 
