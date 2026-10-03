@@ -62,6 +62,9 @@ export async function createTag(db: Firestore, name: string): Promise<catalogue.
 /** The refusal shown under the name field when another live Tag already has the name. */
 export const TAG_NAME_TAKEN_MESSAGE = 'A Tag with this name already exists.'
 
+/** Thrown by {@link renameTag} for the {@link TAG_NAME_TAKEN_MESSAGE} refusal, so a caller can tell it from any other throw. */
+export class TagNameTakenError extends Error {}
+
 /**
  * Renames `tag` to `name`, validated against {@link catalogue.tagSchema} and stored trimmed. Refused
  * with {@link TAG_NAME_TAKEN_MESSAGE}, writing nothing, when another Tag among the live `tags` has the
@@ -72,7 +75,7 @@ export const TAG_NAME_TAKEN_MESSAGE = 'A Tag with this name already exists.'
 export async function renameTag(db: Firestore, tag: TagRecord, name: string, tags: readonly TagRecord[]): Promise<void> {
   const data = catalogue.tagSchema.pick({ name: true }).parse({ name: name.trim() })
   const taken = findTagByName(tags, data.name)
-  if (taken !== undefined && taken.id !== tag.id) throw new Error(TAG_NAME_TAKEN_MESSAGE)
+  if (taken !== undefined && taken.id !== tag.id) throw new TagNameTakenError(TAG_NAME_TAKEN_MESSAGE)
   const batch = writeBatch(db)
   batch.update(doc(db, catalogue.TAGS_COLLECTION, tag.id), { name: data.name })
   const oldKey = catalogue.tagNameKey(tag.name)

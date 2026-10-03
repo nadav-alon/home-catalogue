@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import type { JSX } from 'preact'
-import { deleteTag, renameTag, restoreTag, watchTags, type TagRecord } from './tags.ts'
+import { deleteTag, renameTag, restoreTag, TagNameTakenError, watchTags, type TagRecord } from './tags.ts'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
@@ -54,7 +54,7 @@ export function TagsManager({ db }: TagsManagerProps) {
       await renameTag(db, tag, name, tags)
       closeDialog()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save Tag')
+      setError(err instanceof TagNameTakenError ? err.message : 'Could not save Tag')
     }
   }
 

@@ -150,9 +150,9 @@ describe('renameTag', () => {
   })
 
   it("refuses another live Tag's name, ignoring case and surrounding spaces, without writing", async () => {
-    const { renameTag, TAG_NAME_TAKEN_MESSAGE } = await import('./tags.ts')
+    const { renameTag, TagNameTakenError } = await import('./tags.ts')
 
-    await expect(renameTag(fakeDb, sweet, ' SAVOURY ', [sweet, savoury])).rejects.toThrow(TAG_NAME_TAKEN_MESSAGE)
+    await expect(renameTag(fakeDb, sweet, ' SAVOURY ', [sweet, savoury])).rejects.toThrow(TagNameTakenError)
     expect(batchCommit).not.toHaveBeenCalled()
   })
 

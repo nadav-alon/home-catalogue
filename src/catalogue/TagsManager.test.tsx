@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { BLANK_TAG_NAME_MESSAGE, TagsManager } from './TagsManager.tsx'
-import { TAG_NAME_TAKEN_MESSAGE, type TagRecord } from './tags.ts'
+import { TAG_NAME_TAKEN_MESSAGE, TagNameTakenError, type TagRecord } from './tags.ts'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { resetHash } from '../testing/hash.ts'
@@ -101,7 +101,7 @@ describe('TagsManager', () => {
   })
 
   it('shows a refused rename as an error on the name field and keeps the dialog open', async () => {
-    renameTag.mockRejectedValue(new Error(TAG_NAME_TAKEN_MESSAGE))
+    renameTag.mockRejectedValue(new TagNameTakenError(TAG_NAME_TAKEN_MESSAGE))
     renderWith([sweet, savoury])
     fireEvent.click(screen.getByRole('button', { name: 'Edit Sweet' }))
     fireEvent.input(screen.getByLabelText('Tag name'), { target: { value: ' savoury ' } })
