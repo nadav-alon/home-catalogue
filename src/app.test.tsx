@@ -249,6 +249,9 @@ describe('App', () => {
     await goTo('#/settings/categories')
     expect(screen.getByRole('heading', { level: 1, name: 'Categories' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Add Shop' })).toBeNull()
+
+    await goTo('#/settings/tags')
+    expect(screen.getByRole('heading', { level: 1, name: 'Tags' })).toBeInTheDocument()
   })
 
   it('titles the Members screen with the top app bar heading alone', async () => {

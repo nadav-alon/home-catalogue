@@ -27,6 +27,7 @@ describe('SettingsScreen', () => {
   it.each([
     ['Shops', '#/settings/shops'],
     ['Categories', '#/settings/categories'],
+    ['Tags', '#/settings/tags'],
     ['Members', '#/settings/members'],
   ])('navigates to %s', (name, hash) => {
     render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)

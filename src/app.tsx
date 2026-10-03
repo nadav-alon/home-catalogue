@@ -2,6 +2,7 @@ import type { core } from 'data-platform'
 import type { Firestore } from 'firebase/firestore'
 import { WriteRejectionBanner } from './catalogue/WriteRejectionBanner.tsx'
 import { CategoriesManager } from './catalogue/CategoriesManager.tsx'
+import { TagsManager } from './catalogue/TagsManager.tsx'
 import { ShopsManager } from './catalogue/ShopsManager.tsx'
 import { ItemsManager } from './catalogue/ItemsManager.tsx'
 import { ShoppingList } from './catalogue/ShoppingList.tsx'
@@ -67,6 +68,8 @@ function Screen({
       return <ShopsManager db={db} />
     case '/settings/categories':
       return <CategoriesManager db={db} />
+    case '/settings/tags':
+      return <TagsManager db={db} />
     case '/settings/members':
       return <MembersScreen db={db} config={config} />
   }

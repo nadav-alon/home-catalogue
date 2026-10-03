@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { categoryIdOf, DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, itemsHashOf, route, routeOf, shopIdOf, withCategoryAndShop } from './route.ts'
 
-const ROUTE_HASHES = ['#/list', '#/items', '#/settings', '#/settings/shops', '#/settings/categories'] as const
+const ROUTE_HASHES = ['#/list', '#/items', '#/settings', '#/settings/shops', '#/settings/categories', '#/settings/tags'] as const
 
 describe('route', () => {
   it.each(ROUTE_HASHES)('maps %s to a route and back', (hash) => {

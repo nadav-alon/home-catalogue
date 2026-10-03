@@ -1,6 +1,6 @@
 import { catalogue, core } from 'data-platform'
 
-const ROUTES = ['/list', '/items', '/settings', '/settings/shops', '/settings/categories', '/settings/members'] as const
+const ROUTES = ['/list', '/items', '/settings', '/settings/shops', '/settings/categories', '/settings/tags', '/settings/members'] as const
 
 /** A place the app can show: the path after `#` in the URL hash. A closed set, so it can be switched over exhaustively. */
 export type Route = (typeof ROUTES)[number]
