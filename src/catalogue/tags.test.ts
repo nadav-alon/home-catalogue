@@ -13,8 +13,10 @@ const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constra
 const orderBy = vi.fn((field: string) => ({ kind: 'orderBy', field }))
 const onSnapshot = vi.fn()
 const batchSet = vi.fn()
+const batchUpdate = vi.fn()
+const batchDelete = vi.fn()
 const batchCommit = vi.fn()
-const writeBatch = vi.fn((_db: unknown) => ({ set: batchSet, commit: batchCommit }))
+const writeBatch = vi.fn((_db: unknown) => ({ set: batchSet, update: batchUpdate, delete: batchDelete, commit: batchCommit }))
 
 vi.mock('firebase/firestore', () => ({
   collection: (db: unknown, path: string) => collection(db, path),
@@ -33,6 +35,8 @@ beforeEach(() => {
   doc.mockClear()
   onSnapshot.mockReset()
   batchSet.mockReset()
+  batchUpdate.mockReset()
+  batchDelete.mockReset()
   batchCommit.mockReset()
   writeBatch.mockClear()
 })
@@ -113,5 +117,47 @@ describe('createTag', () => {
     await Promise.resolve()
 
     expect(latest.join()).toContain('new Tag sweet')
+  })
+})
+
+describe('renameTag', () => {
+  const sweet = { id: catalogue.tagId('sweet-id'), name: 'sweet' }
+  const savoury = { id: catalogue.tagId('savoury-id'), name: 'savoury' }
+
+  it('writes the trimmed name and moves the name reservation in one batch', async () => {
+    const { renameTag } = await import('./tags.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await renameTag(fakeDb, sweet, '  Sugary ', [sweet, savoury])
+
+    expect(batchUpdate).toHaveBeenCalledWith({ path: catalogue.TAGS_COLLECTION, id: 'sweet-id' }, { name: 'Sugary' })
+    expect(batchDelete).toHaveBeenCalledWith({ path: catalogue.TAG_NAMES_COLLECTION, id: 'sweet' })
+    expect(batchSet).toHaveBeenCalledWith({ path: catalogue.TAG_NAMES_COLLECTION, id: 'sugary' }, { tagId: 'sweet-id' })
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the reservation when only the case or spacing changes', async () => {
+    const { renameTag } = await import('./tags.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await renameTag(fakeDb, sweet, ' Sweet', [sweet, savoury])
+
+    expect(batchUpdate).toHaveBeenCalledWith({ path: catalogue.TAGS_COLLECTION, id: 'sweet-id' }, { name: 'Sweet' })
+    expect(batchDelete).not.toHaveBeenCalled()
+    expect(batchSet).not.toHaveBeenCalled()
+  })
+
+  it("refuses another live Tag's name, ignoring case and surrounding spaces, without writing", async () => {
+    const { renameTag, TAG_NAME_TAKEN_MESSAGE } = await import('./tags.ts')
+
+    await expect(renameTag(fakeDb, sweet, ' SAVOURY ', [sweet, savoury])).rejects.toThrow(TAG_NAME_TAKEN_MESSAGE)
+    expect(batchCommit).not.toHaveBeenCalled()
+  })
+
+  it('rejects a blank name without writing', async () => {
+    const { renameTag } = await import('./tags.ts')
+
+    await expect(renameTag(fakeDb, sweet, '  ', [sweet])).rejects.toThrow()
+    expect(batchCommit).not.toHaveBeenCalled()
   })
 })

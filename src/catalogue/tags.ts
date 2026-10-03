@@ -58,3 +58,30 @@ export async function createTag(db: Firestore, name: string): Promise<catalogue.
   })
   return catalogue.tagId(tagRef.id)
 }
+
+/** The refusal shown under the name field when another live Tag already has the name. */
+export const TAG_NAME_TAKEN_MESSAGE = 'A Tag with this name already exists.'
+
+/**
+ * Renames `tag` to `name`, validated against {@link catalogue.tagSchema} and stored trimmed. Refused
+ * with {@link TAG_NAME_TAKEN_MESSAGE}, writing nothing, when another Tag among the live `tags` has the
+ * name, ignoring case and surrounding spaces. A name with a new key moves the `tagNames` reservation
+ * in the same batch, as the platform's rules require; one that differs only in case keeps it.
+ * Resolves once queued, see {@link createTag}.
+ */
+export async function renameTag(db: Firestore, tag: TagRecord, name: string, tags: readonly TagRecord[]): Promise<void> {
+  const data = catalogue.tagSchema.pick({ name: true }).parse({ name: name.trim() })
+  const taken = findTagByName(tags, data.name)
+  if (taken !== undefined && taken.id !== tag.id) throw new Error(TAG_NAME_TAKEN_MESSAGE)
+  const batch = writeBatch(db)
+  batch.update(doc(db, catalogue.TAGS_COLLECTION, tag.id), { name: data.name })
+  const oldKey = catalogue.tagNameKey(tag.name)
+  const newKey = catalogue.tagNameKey(data.name)
+  if (oldKey !== newKey) {
+    batch.delete(doc(db, catalogue.TAG_NAMES_COLLECTION, oldKey))
+    batch.set(doc(db, catalogue.TAG_NAMES_COLLECTION, newKey), { tagId: tag.id })
+  }
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(`rename of Tag ${tag.name} to ${data.name}`, err)
+  })
+}
