@@ -238,7 +238,11 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   // Only a Tag some live Item carries is offered, so a Tag nothing carries any more filters nothing.
   const offeredTags = tags.filter((tag) => (items ?? []).some((item) => carriesAnyTag(item, [tag.id])))
   const activeTagIds = selectedTagIds.filter((id) => offeredTags.some((tag) => tag.id === id))
-  const chipFiltered = activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0
+  // A Tag that stops being offered is dropped from the selection for good, so it is not pressed again if it comes back.
+  useEffect(() => {
+    if (activeTagIds.length !== selectedTagIds.length) setSelectedTagIds(activeTagIds)
+  }, [activeTagIds.length, selectedTagIds.length])
+  const chipFiltered =activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0
   const visibleItems = (scanFiltered ? candidateItems : candidateItems.filter((item) => matchesSearch(item, search, tags))).filter(
     (item) =>
       (activeCategoryId === undefined || item.categoryId === activeCategoryId) &&
