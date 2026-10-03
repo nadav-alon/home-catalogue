@@ -242,6 +242,8 @@ function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateC
     onClose()
   }
 
+  const attachedTags = tags.filter((tag) => tagIds.includes(tag.id))
+
   return (
     <form class="item-form" onSubmit={handleSubmit}>
       {saveError !== null && <p role="alert">{saveError}</p>}
@@ -338,18 +340,16 @@ function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateC
       <Button variant="text" onClick={handleAddTag}>
         Add Tag
       </Button>
-      {tagIds.some((id) => tags.some((tag) => tag.id === id)) && (
+      {attachedTags.length > 0 && (
         <div class="item-form__chips">
-          {tags
-            .filter((tag) => tagIds.includes(tag.id))
-            .map((tag) => (
-              <Chip
-                key={tag.id}
-                label={tag.name}
-                dismissLabel={`Remove Tag ${tag.name}`}
-                onDismiss={() => setTagIds((current) => current.filter((id) => id !== tag.id))}
-              />
-            ))}
+          {attachedTags.map((tag) => (
+            <Chip
+              key={tag.id}
+              label={tag.name}
+              dismissLabel={`Remove Tag ${tag.name}`}
+              onDismiss={() => setTagIds((current) => current.filter((id) => id !== tag.id))}
+            />
+          ))}
         </div>
       )}
       {!item && barcode !== undefined && <TextField label="Barcode" readOnly value={barcode} />}
