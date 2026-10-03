@@ -113,7 +113,14 @@ function renderWith(
   shops: ShopRecord[],
   itemIds?: readonly core.ItemId[],
   onClearFilter?: (filter: CategoryAndShop) => void,
+  { tags, filter }: { tags?: TagRecord[]; filter?: CategoryAndShop } = {},
 ) {
+  if (tags !== undefined) {
+    watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
+      cb(tags)
+      return vi.fn()
+    })
+  }
   let publishCategories: (categories: CategoryRecord[]) => void = () => {}
   let publishItems: (items: ItemRecord[]) => void = () => {}
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
@@ -135,7 +142,7 @@ function renderWith(
   return {
     ...render(
       <TopAppBar title="Items">
-        <ItemsManager db={fakeDb} itemIds={itemIds} onClearFilter={onClearFilter} />
+        <ItemsManager db={fakeDb} itemIds={itemIds} onClearFilter={onClearFilter} filter={filter} />
       </TopAppBar>,
     ),
     publishCategories,
@@ -2272,25 +2279,10 @@ describe('ItemsManager Tag filter', () => {
   const flour: ItemRecord = { ...bandages, id: core.itemId('flour'), name: 'Flour', categoryId: cleaning.id, tagIds: [cooking.id] }
   const honey: ItemRecord = { ...bandages, id: core.itemId('honey'), name: 'Honey', categoryId: cleaning.id, tagIds: [sweet.id] }
   const gauze: ItemRecord = { ...bandages, id: core.itemId('gauze'), name: 'Gauze', tagIds: [cooking.id] }
+  const salt: ItemRecord = { ...flour, id: core.itemId('salt'), name: 'Salt', shopId: pharmacy.id }
 
   function renderTagged(items: ItemRecord[], tags: TagRecord[] = [cooking, sweet, unused], filter?: CategoryAndShop) {
-    watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
-      cb(items)
-      return vi.fn()
-    })
-    watchCategories.mockImplementation((_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
-      cb([medicine, cleaning])
-      return vi.fn()
-    })
-    watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
-      cb([pharmacy, grocery])
-      return vi.fn()
-    })
-    watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
-      cb(tags)
-      return vi.fn()
-    })
-    render(<ItemsManager db={fakeDb} filter={filter} />)
+    return renderWith(items, [medicine, cleaning], [pharmacy, grocery], undefined, undefined, { tags, filter })
   }
 
   const tagChips = () => within(screen.getByRole('group', { name: 'Filter by Tag' }))
@@ -2348,5 +2340,27 @@ describe('ItemsManager Tag filter', () => {
     expect(screen.getByText('Gauze')).toBeInTheDocument()
     expect(screen.queryByText('Flour')).not.toBeInTheDocument()
     expect(screen.queryByText('Honey')).not.toBeInTheDocument()
+  })
+
+  it('narrows a pressed Tag by the Shop filter, an Item taking its Shop from its Category or its own', () => {
+    renderTagged([flour, honey, gauze, salt], undefined, { categoryId: undefined, shopId: grocery.id })
+
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+
+    expect(screen.getByText('Flour')).toBeInTheDocument()
+    expect(screen.queryByText('Honey')).not.toBeInTheDocument()
+    expect(screen.queryByText('Gauze')).not.toBeInTheDocument()
+    expect(screen.queryByText('Salt')).not.toBeInTheDocument()
+  })
+
+  it('does not press a Tag again when it is offered again after no live Item carried it', () => {
+    const { publishItems } = renderTagged([flour, honey])
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+
+    act(() => publishItems([honey]))
+    act(() => publishItems([flour, honey]))
+
+    expect(tagChips().getByRole('button', { name: 'cooking', pressed: false })).toBeInTheDocument()
+    expect(screen.getByText('Honey')).toBeInTheDocument()
   })
 })
