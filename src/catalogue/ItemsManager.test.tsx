@@ -113,7 +113,14 @@ function renderWith(
   shops: ShopRecord[],
   itemIds?: readonly core.ItemId[],
   onClearFilter?: (filter: CategoryAndShop) => void,
+  { tags, filter }: { tags?: TagRecord[]; filter?: CategoryAndShop } = {},
 ) {
+  if (tags !== undefined) {
+    watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
+      cb(tags)
+      return vi.fn()
+    })
+  }
   let publishCategories: (categories: CategoryRecord[]) => void = () => {}
   let publishItems: (items: ItemRecord[]) => void = () => {}
   watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
@@ -135,7 +142,7 @@ function renderWith(
   return {
     ...render(
       <TopAppBar title="Items">
-        <ItemsManager db={fakeDb} itemIds={itemIds} onClearFilter={onClearFilter} />
+        <ItemsManager db={fakeDb} itemIds={itemIds} onClearFilter={onClearFilter} filter={filter} />
       </TopAppBar>,
     ),
     publishCategories,
@@ -2262,5 +2269,98 @@ describe('Tags in the Item dialog', () => {
     addTag('x')
 
     expect(await screen.findByText('Tag name must not be blank')).toBeInTheDocument()
+  })
+})
+
+describe('ItemsManager Tag filter', () => {
+  const cooking: TagRecord = { id: catalogue.tagId('cooking'), name: 'cooking' }
+  const sweet: TagRecord = { id: catalogue.tagId('sweet'), name: 'sweet' }
+  const unused: TagRecord = { id: catalogue.tagId('unused'), name: 'unused' }
+  const flour: ItemRecord = { ...bandages, id: core.itemId('flour'), name: 'Flour', categoryId: cleaning.id, tagIds: [cooking.id] }
+  const honey: ItemRecord = { ...bandages, id: core.itemId('honey'), name: 'Honey', categoryId: cleaning.id, tagIds: [sweet.id] }
+  const gauze: ItemRecord = { ...bandages, id: core.itemId('gauze'), name: 'Gauze', tagIds: [cooking.id] }
+  const salt: ItemRecord = { ...flour, id: core.itemId('salt'), name: 'Salt', shopId: pharmacy.id }
+
+  function renderTagged(items: ItemRecord[], tags: TagRecord[] = [cooking, sweet, unused], filter?: CategoryAndShop) {
+    return renderWith(items, [medicine, cleaning], [pharmacy, grocery], undefined, undefined, { tags, filter })
+  }
+
+  const tagChips = () => within(screen.getByRole('group', { name: 'Filter by Tag' }))
+
+  it('offers only the Tags a live Item carries', () => {
+    renderTagged([flour, honey], [cooking, sweet, unused])
+
+    expect(tagChips().getByRole('button', { name: 'cooking', pressed: false })).toBeInTheDocument()
+    expect(tagChips().getByRole('button', { name: 'sweet', pressed: false })).toBeInTheDocument()
+    expect(tagChips().queryByRole('button', { name: 'unused' })).not.toBeInTheDocument()
+  })
+
+  it('does not offer a deleted Tag still carried by an Item', () => {
+    renderTagged([flour], [sweet])
+
+    expect(screen.queryByRole('button', { name: 'cooking' })).not.toBeInTheDocument()
+  })
+
+  it('shows only the Items tagged with the pressed Tag, across Categories', () => {
+    renderTagged([flour, honey, gauze, bandages])
+
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+
+    expect(screen.getByText('Flour')).toBeInTheDocument()
+    expect(screen.getByText('Gauze')).toBeInTheDocument()
+    expect(screen.queryByText('Honey')).not.toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('shows every Item again when the pressed Tag is pressed again', () => {
+    renderTagged([flour, honey])
+
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking', pressed: true }))
+
+    expect(screen.getByText('Honey')).toBeInTheDocument()
+  })
+
+  it('shows the Items carrying any of the several pressed Tags', () => {
+    renderTagged([flour, honey, bandages])
+
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+    fireEvent.click(tagChips().getByRole('button', { name: 'sweet' }))
+
+    expect(screen.getByText('Flour')).toBeInTheDocument()
+    expect(screen.getByText('Honey')).toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('narrows a pressed Tag by the Category filter', () => {
+    renderTagged([flour, honey, gauze], undefined, { categoryId: medicine.id, shopId: undefined })
+
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+
+    expect(screen.getByText('Gauze')).toBeInTheDocument()
+    expect(screen.queryByText('Flour')).not.toBeInTheDocument()
+    expect(screen.queryByText('Honey')).not.toBeInTheDocument()
+  })
+
+  it('narrows a pressed Tag by the Shop filter, an Item taking its Shop from its Category or its own', () => {
+    renderTagged([flour, honey, gauze, salt], undefined, { categoryId: undefined, shopId: grocery.id })
+
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+
+    expect(screen.getByText('Flour')).toBeInTheDocument()
+    expect(screen.queryByText('Honey')).not.toBeInTheDocument()
+    expect(screen.queryByText('Gauze')).not.toBeInTheDocument()
+    expect(screen.queryByText('Salt')).not.toBeInTheDocument()
+  })
+
+  it('does not press a Tag again when it is offered again after no live Item carried it', () => {
+    const { publishItems } = renderTagged([flour, honey])
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+
+    act(() => publishItems([honey]))
+    act(() => publishItems([flour, honey]))
+
+    expect(tagChips().getByRole('button', { name: 'cooking', pressed: false })).toBeInTheDocument()
+    expect(screen.getByText('Honey')).toBeInTheDocument()
   })
 })
