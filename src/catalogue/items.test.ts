@@ -354,7 +354,7 @@ describe('createItem', () => {
     )
     expect(batchSet).toHaveBeenCalledWith(
       { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'generated-id' },
-      { categoryId: 'cleaning', necessity: 'essential', shopId: 'grocery', tagIds: [] },
+      { categoryId: 'cleaning', necessity: 'essential', tagIds: [], shopId: 'grocery' },
     )
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' },
