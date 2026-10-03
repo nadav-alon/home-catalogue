@@ -58,7 +58,7 @@ export function TagsManager({ db }: TagsManagerProps) {
     }
   }
 
-  /** deleteTag resolves once queued, so the dialog closes at once even offline; Undo restores the Tag on every Item that carried it. */
+  /** deleteTag resolves once queued, so the dialog closes at once even offline; Undo restores the Tag, and the Items that carried it show it again because they kept its id. */
   async function handleDelete(tag: TagRecord) {
     await deleteTag(db, tag)
     closeDialog()
