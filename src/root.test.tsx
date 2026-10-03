@@ -38,6 +38,9 @@ vi.mock('./auth/household.ts', () => ({
 vi.mock('./catalogue/shops.ts', () => ({
   watchShops: () => vi.fn(),
 }))
+vi.mock('./catalogue/tags.ts', () => ({
+  watchTags: () => vi.fn(),
+}))
 vi.mock('./catalogue/categories.ts', () => ({
   watchCategories: () => vi.fn(),
 }))

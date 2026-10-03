@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesName, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
+import { createTag, watchTags, type TagRecord } from './tags.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
@@ -48,6 +49,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
+  const [tags, setTags] = useState<TagRecord[]>([])
   // Undo outlives the render that deleted the Item, so it reads the Categories and Shops as they are when it is pressed.
   const categoriesRef = useRef(categories)
   categoriesRef.current = categories
@@ -111,6 +113,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
       }),
     [db],
   )
+
+  useEffect(() => watchTags(db, setTags), [db])
 
   async function handleScan(barcode: core.Barcode) {
     if (items === undefined) {
@@ -316,7 +320,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         barcode={pendingBarcode}
         categories={categories}
         shops={shops}
+        tags={tags}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
+        onCreateTag={(name) => createTag(db, name)}
         onSave={async (input) => {
           if (dialog?.kind === 'restore' && editedItem) {
             await restoreItemWithEdit(db, editedItem, input)

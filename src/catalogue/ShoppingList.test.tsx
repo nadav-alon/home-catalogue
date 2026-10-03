@@ -9,6 +9,7 @@ import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import type { TagRecord } from './tags.ts'
 import { cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const watchItems = vi.fn()
@@ -42,6 +43,14 @@ vi.mock('./shops.ts', async (importOriginal) => ({
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
 }))
 
+const watchTags = vi.fn()
+const createTag = vi.fn()
+vi.mock('./tags.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./tags.ts')>()),
+  watchTags: (db: unknown, cb: unknown) => watchTags(db, cb),
+  createTag: (db: unknown, name: unknown) => createTag(db, name),
+}))
+
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
 beforeEach(() => {
@@ -55,6 +64,11 @@ beforeEach(() => {
   restoreItemWithEdit.mockReset().mockResolvedValue(undefined)
   watchCategories.mockReset()
   watchShops.mockReset()
+  watchTags.mockReset().mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
+    cb([])
+    return vi.fn()
+  })
+  createTag.mockReset()
   resetSnackbar()
 })
 
@@ -671,6 +685,34 @@ describe('a scanned barcode', () => {
       expect(restoreItemWithEdit).toHaveBeenCalledWith(fakeDb, bandages, expect.objectContaining({ categoryId: cleaning.id })),
     )
     expect(restoreItem).not.toHaveBeenCalled()
+  })
+
+  it('restores with the Tags the Item kept plus one newly attached in the dialog', async () => {
+    const sweet: TagRecord = { id: catalogue.tagId('sweet'), name: 'sweet' }
+    const cooking: TagRecord = { id: catalogue.tagId('cooking'), name: 'cooking' }
+    watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
+      cb([sweet, cooking])
+      return vi.fn()
+    })
+    findDeletedItemByBarcode.mockResolvedValue({ ...bandages, tagIds: [sweet.id] })
+    renderWith([], [cleaning], [grocery])
+    scan()
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Deleted Item' })).getByRole('button', { name: 'Yes' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Restore Item' })
+    choose(within(dialog).getByLabelText('Category'), cleaning.id)
+    expect(within(dialog).getByRole('button', { name: 'Remove Tag sweet' })).toBeInTheDocument()
+
+    fireEvent.input(within(dialog).getByLabelText('Tags'), { target: { value: 'cooking' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add Tag' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(restoreItemWithEdit).toHaveBeenCalledWith(
+        fakeDb,
+        expect.objectContaining({ id: bandages.id }),
+        expect.objectContaining({ tagIds: [sweet.id, cooking.id] }),
+      ),
+    )
   })
 
   it('leaves the Item deleted when the restoring dialog is cancelled', async () => {

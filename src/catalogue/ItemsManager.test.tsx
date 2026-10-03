@@ -7,6 +7,7 @@ import { ItemsManager } from './ItemsManager.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import type { TagRecord } from './tags.ts'
 import type { CategoryAndShop } from '../ui/route.ts'
 import { resetHash } from '../testing/hash.ts'
 import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
@@ -54,6 +55,14 @@ vi.mock('./shops.ts', async (importOriginal) => ({
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
 }))
 
+const watchTags = vi.fn()
+const createTag = vi.fn()
+vi.mock('./tags.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./tags.ts')>()),
+  watchTags: (db: unknown, cb: unknown) => watchTags(db, cb),
+  createTag: (db: unknown, name: unknown) => createTag(db, name),
+}))
+
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
 beforeEach(() => {
@@ -77,6 +86,11 @@ beforeEach(() => {
   watchCategories.mockReset()
   createCategory.mockReset()
   watchShops.mockReset()
+  watchTags.mockReset().mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
+    cb([])
+    return vi.fn()
+  })
+  createTag.mockReset()
   localStorage.clear()
 })
 
@@ -332,6 +346,7 @@ describe('adding an Item', () => {
       categoryId: medicine.id,
       necessity: 'essential',
       shopId: undefined,
+      tagIds: [],
     })
   })
 
@@ -403,6 +418,7 @@ describe('adding an Item', () => {
       categoryId: medicine.id,
       necessity: 'essential',
       shopId: grocery.id,
+      tagIds: [],
     })
   })
 
@@ -546,6 +562,7 @@ describe('editing an Item', () => {
       categoryId: medicine.id,
       necessity: 'essential',
       shopId: undefined,
+      tagIds: [],
     }, expect.anything())
     expect(createItem).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -2092,5 +2109,130 @@ describe('ItemsManager Category and Shop filter', () => {
 
     expect(screen.getByText('Bandages')).toBeInTheDocument()
     expect(screen.getByText('Dish soap')).toBeInTheDocument()
+  })
+})
+
+describe('Tags in the Item dialog', () => {
+  const sweet: TagRecord = { id: catalogue.tagId('sweet'), name: 'sweet' }
+  const cooking: TagRecord = { id: catalogue.tagId('cooking'), name: 'cooking' }
+
+  function renderWithTags(tags: TagRecord[], items: ItemRecord[] = [bandages]) {
+    let publishTags: (tags: TagRecord[]) => void = () => {}
+    watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
+      publishTags = cb
+      cb(tags)
+      return vi.fn()
+    })
+    renderWith(items, [medicine], [pharmacy])
+    return { publishTags }
+  }
+
+  function openEdit() {
+    fireEvent.click(screen.getByText('Bandages'))
+  }
+
+  function addTag(name: string) {
+    fireEvent.input(screen.getByLabelText('Tags'), { target: { value: name } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add Tag' }))
+  }
+
+  function save() {
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  }
+
+  it('creates a Tag for a new name and attaches it', async () => {
+    const { publishTags } = renderWithTags([])
+    createTag.mockImplementation(() => {
+      publishTags([sweet])
+      return Promise.resolve(sweet.id)
+    })
+    openEdit()
+
+    addTag('  sweet ')
+
+    expect(await screen.findByRole('button', { name: 'Remove Tag sweet' })).toBeInTheDocument()
+    expect(createTag).toHaveBeenCalledWith(fakeDb, 'sweet')
+    expect(screen.getByLabelText('Tags')).toHaveValue('')
+    save()
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, bandages, expect.objectContaining({ tagIds: [sweet.id] }), expect.anything())
+  })
+
+  it('attaches the existing Tag when the name differs only by case, creating none', async () => {
+    renderWithTags([sweet])
+    openEdit()
+
+    addTag('Sweet')
+
+    expect(await screen.findByRole('button', { name: 'Remove Tag sweet' })).toBeInTheDocument()
+    expect(createTag).not.toHaveBeenCalled()
+    save()
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, bandages, expect.objectContaining({ tagIds: [sweet.id] }), expect.anything())
+  })
+
+  it('confirms a name with Enter without saving the Item', async () => {
+    renderWithTags([sweet])
+    openEdit()
+
+    fireEvent.input(screen.getByLabelText('Tags'), { target: { value: 'sweet' } })
+    fireEvent.keyDown(screen.getByLabelText('Tags'), { key: 'Enter' })
+
+    expect(await screen.findByRole('button', { name: 'Remove Tag sweet' })).toBeInTheDocument()
+    expect(updateItem).not.toHaveBeenCalled()
+  })
+
+  it('carries several Tags, and removing a chip detaches only that Tag', async () => {
+    renderWithTags([sweet, cooking], [{ ...bandages, tagIds: [sweet.id, cooking.id] }])
+    openEdit()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Tag sweet' }))
+
+    expect(screen.queryByRole('button', { name: 'Remove Tag sweet' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove Tag cooking' })).toBeInTheDocument()
+    save()
+    expect(updateItem).toHaveBeenCalledWith(
+      fakeDb,
+      expect.anything(),
+      expect.objectContaining({ tagIds: [cooking.id] }),
+      expect.anything(),
+    )
+  })
+
+  it('shows no chip for a deleted Tag, and keeps its id on the Item', () => {
+    renderWithTags([cooking], [{ ...bandages, tagIds: [sweet.id, cooking.id] }])
+    openEdit()
+
+    expect(screen.queryByText('sweet')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove Tag cooking' })).toBeInTheDocument()
+    save()
+    expect(updateItem).toHaveBeenCalledWith(
+      fakeDb,
+      expect.anything(),
+      expect.objectContaining({ tagIds: [sweet.id, cooking.id] }),
+      expect.anything(),
+    )
+  })
+
+  it('adds the Tags to a new Item', async () => {
+    renderWithTags([sweet])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Honey' } })
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
+
+    addTag('sweet')
+    await screen.findByRole('button', { name: 'Remove Tag sweet' })
+    save()
+
+    expect(createItem).toHaveBeenCalledWith(fakeDb, expect.objectContaining({ tagIds: [sweet.id] }))
+  })
+
+  it('shows why a Tag could not be created', async () => {
+    renderWithTags([])
+    createTag.mockRejectedValue(new Error('Tag name must not be blank'))
+    openEdit()
+
+    addTag('x')
+
+    expect(await screen.findByText('Tag name must not be blank')).toBeInTheDocument()
   })
 })

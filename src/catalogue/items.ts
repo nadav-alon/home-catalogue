@@ -49,6 +49,8 @@ export interface ItemInput {
   categoryId: catalogue.CategoryId
   necessity: catalogue.Necessity
   shopId?: catalogue.ShopId
+  /** The Tags the Item carries, soft-deleted ones included; omitted, a new Item carries none and an edited one keeps the Tags it has. */
+  tagIds?: catalogue.TagId[]
 }
 
 /** What adding an Item carries: its fields, the State it starts at, plus a Barcode it carries from the start, and the Items it is moved off. */
@@ -177,6 +179,7 @@ export async function createItem(db: Firestore, input: NewItemInput): Promise<co
     categoryId: input.categoryId,
     necessity: input.necessity,
     ...(input.shopId !== undefined ? { shopId: input.shopId } : {}),
+    ...(input.tagIds !== undefined ? { tagIds: input.tagIds } : {}),
   })
 
   const itemRef = doc(collection(db, core.ITEMS_COLLECTION))
@@ -206,6 +209,7 @@ interface ValidItemEdit {
   categoryId: catalogue.CategoryId
   necessity: catalogue.Necessity
   shopId: catalogue.ShopId | undefined
+  tagIds: catalogue.TagId[] | undefined
   removedBarcodes: core.Barcode[] | undefined
 }
 
@@ -215,14 +219,18 @@ function parseItemEdit(edit: ItemEdit): ValidItemEdit {
     name: edit.name,
     ...(edit.brandNote !== undefined ? { brandNote: edit.brandNote } : {}),
   })
-  const { categoryId, necessity, shopId } = catalogue.catalogueItemSchema
-    .pick({ categoryId: true, necessity: true, shopId: true })
+  const parsed = catalogue.catalogueItemSchema
+    .pick({ categoryId: true, necessity: true, shopId: true, tagIds: true })
     .parse({
       categoryId: edit.categoryId,
       necessity: edit.necessity,
       ...(edit.shopId !== undefined ? { shopId: edit.shopId } : {}),
+      ...(edit.tagIds !== undefined ? { tagIds: edit.tagIds } : {}),
     })
-  return { name, brandNote, categoryId, necessity, shopId, removedBarcodes: edit.removedBarcodes }
+  const { categoryId, necessity, shopId } = parsed
+  // The schema defaults an omitted tagIds to [], which would clear the Item's Tags on edit.
+  const tagIds = edit.tagIds === undefined ? undefined : parsed.tagIds
+  return { name, brandNote, categoryId, necessity, shopId, tagIds, removedBarcodes: edit.removedBarcodes }
 }
 
 /**
@@ -236,7 +244,7 @@ function stageItemEdit(
   edit: ValidItemEdit,
   extraFields: Record<string, FieldValue>,
 ): void {
-  const { name, brandNote, categoryId, necessity, shopId, removedBarcodes } = edit
+  const { name, brandNote, categoryId, necessity, shopId, tagIds, removedBarcodes } = edit
   batch.update(doc(db, core.ITEMS_COLLECTION, id), {
     ...extraFields,
     name,
@@ -248,6 +256,7 @@ function stageItemEdit(
     categoryId,
     necessity,
     shopId: shopId ?? deleteField(),
+    ...(tagIds !== undefined ? { tagIds } : {}),
   })
 }
 

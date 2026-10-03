@@ -2,10 +2,12 @@ import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { catalogue, core } from 'data-platform'
 import { isLiveReference, type ItemEdit, type ItemInput, type ItemRecord } from './items.ts'
+import { findTagByName, type TagRecord } from './tags.ts'
 import { validateCategoryDraft, type CategoryDraft, type CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import { Button } from '../ui/Button.tsx'
 import { IconButton } from '../ui/IconButton.tsx'
+import { Chip } from '../ui/Chip.tsx'
 import { Dialog } from '../ui/Dialog.tsx'
 import { DialogActions } from '../ui/DialogActions.tsx'
 import { Select } from '../ui/Select.tsx'
@@ -26,8 +28,12 @@ export interface ItemDialogProps {
   barcode?: core.Barcode
   categories: CategoryRecord[]
   shops: ShopRecord[]
+  /** The live Tags; an id on the Item that names none of them is a deleted Tag and shows no chip. */
+  tags: TagRecord[]
   /** Creates a Category and resolves with its id; a rejection is shown in the dialog's Category prompt. */
   onCreateCategory: (name: string, defaultShopId: catalogue.ShopId) => Promise<catalogue.CategoryId>
+  /** Creates a Tag named `name` and resolves with its id; a rejection is shown under the Tags field. */
+  onCreateTag: (name: string) => Promise<catalogue.TagId>
   /**
    * Called with the validated fields, and the Item's Barcodes the Member removed, when they save; a rejection
    * is shown in the dialog and keeps it open. Only an added Item carries the `state` it starts at.
@@ -83,8 +89,8 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
   }
 }
 
-/** The form for an Item's name, brand note, Category, Necessity and Shop override, plus its State when adding, plus its Barcodes when editing or, when adding from a scan, the pending `barcode` shown read-only, in a dialog that starts from `item`, or empty, on each open. */
-export function ItemDialog({ open, item, restoring, barcode, categories, shops, onCreateCategory, onSave, onDelete, onClose }: ItemDialogProps) {
+/** The form for an Item's name, brand note, Category, Necessity, Shop override and Tags, plus its State when adding, plus its Barcodes when editing or, when adding from a scan, the pending `barcode` shown read-only, in a dialog that starts from `item`, or empty, on each open. */
+export function ItemDialog({ open, item, restoring, barcode, categories, shops, tags, onCreateCategory, onCreateTag, onSave, onDelete, onClose }: ItemDialogProps) {
   return (
     <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose} closable>
       {open && (
@@ -94,7 +100,9 @@ export function ItemDialog({ open, item, restoring, barcode, categories, shops, 
           barcode={barcode}
           categories={categories}
           shops={shops}
+          tags={tags}
           onCreateCategory={onCreateCategory}
+          onCreateTag={onCreateTag}
           onSave={onSave}
           onDelete={onDelete}
           onClose={onClose}
@@ -104,7 +112,7 @@ export function ItemDialog({ open, item, restoring, barcode, categories, shops, 
   )
 }
 
-function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategory, onSave, onDelete, onClose }: Omit<ItemDialogProps, 'open'>) {
+function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateCategory, onCreateTag, onSave, onDelete, onClose }: Omit<ItemDialogProps, 'open'>) {
   const [values, setValues] = useState<ItemFormValues>({
     name: item?.name ?? '',
     brandNote: item?.brandNote ?? '',
@@ -114,6 +122,10 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
     shopId: restoring && !isLiveReference(shops, item?.shopId) ? NO_SHOP_OVERRIDE : (item?.shopId ?? NO_SHOP_OVERRIDE),
   })
   const [errors, setErrors] = useState<ItemFormErrors>({})
+  /** Every Tag id the Item carries, including those of deleted Tags, which have no chip but come back with their Tag. */
+  const [tagIds, setTagIds] = useState<catalogue.TagId[]>(item?.tagIds ?? [])
+  const [tagName, setTagName] = useState('')
+  const [tagError, setTagError] = useState<string | null>(null)
   const [removedBarcodes, setRemovedBarcodes] = useState<core.Barcode[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
   /** Why the prompt's last submit failed, and the prompt field it belongs to; `create` is a rejection from `onCreateCategory`. */
@@ -184,6 +196,27 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
     }
   }
 
+  /** Attaches the live Tag named `tagName`, ignoring case and surrounding spaces, creating it when there is none. */
+  async function handleAddTag() {
+    const name = tagName.trim()
+    if (name === '') return
+    setTagError(null)
+    try {
+      const id = findTagByName(tags, name)?.id ?? (await onCreateTag(name))
+      setTagIds((current) => (current.includes(id) ? current : [...current, id]))
+      setTagName('')
+    } catch (err) {
+      setTagError(err instanceof Error ? err.message : 'Could not add Tag')
+    }
+  }
+
+  /** Enter in the Tags field attaches the Tag instead of submitting the Item form around it. */
+  function handleTagKeyDown(event: JSX.TargetedKeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    void handleAddTag()
+  }
+
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
     const result = parseItemFormValues(values)
@@ -194,7 +227,8 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
     setErrors({})
     setSaveError(null)
     try {
-      const input = removedBarcodes.length > 0 ? { ...result.input, removedBarcodes } : result.input
+      const withTags = { ...result.input, tagIds }
+      const input = removedBarcodes.length > 0 ? { ...withTags, removedBarcodes } : withTags
       await onSave(item ? input : { ...input, state: values.state })
       onClose()
     } catch (err) {
@@ -207,6 +241,8 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
     onDelete(item)
     onClose()
   }
+
+  const attachedTags = tags.filter((tag) => tagIds.includes(tag.id))
 
   return (
     <form class="item-form" onSubmit={handleSubmit}>
@@ -291,6 +327,31 @@ function ItemForm({ item, restoring, barcode, categories, shops, onCreateCategor
           </option>
         ))}
       </Select>
+      <TextField
+        label="Tags"
+        error={tagError ?? undefined}
+        value={tagName}
+        onInput={(event) => {
+          setTagName(event.currentTarget.value)
+          setTagError(null)
+        }}
+        onKeyDown={handleTagKeyDown}
+      />
+      <Button variant="text" onClick={handleAddTag}>
+        Add Tag
+      </Button>
+      {attachedTags.length > 0 && (
+        <div class="item-form__chips">
+          {attachedTags.map((tag) => (
+            <Chip
+              key={tag.id}
+              label={tag.name}
+              dismissLabel={`Remove Tag ${tag.name}`}
+              onDismiss={() => setTagIds((current) => current.filter((id) => id !== tag.id))}
+            />
+          ))}
+        </div>
+      )}
       {!item && barcode !== undefined && <TextField label="Barcode" readOnly value={barcode} />}
       {keptBarcodes.length > 0 && (
         <section aria-labelledby="item-barcodes-heading">

@@ -33,7 +33,10 @@ An Item carries any number of them; a Barcode sits on at most one Item, and atta
 
 **Category**:
 User-defined, flat grouping of Items. Carries a default Shop.
-_Avoid_: aisle, tag
+_Avoid_: aisle
+
+**Tag**:
+Household-defined label for finding Items across Categories. An Item carries any number; a Tag has no Shop.
 
 **Shop**:
 A kind of place (pharmacy, grocery), not a specific store. One per Item in the POC.
@@ -70,13 +73,13 @@ One tap creating one Google Calendar event per Shop with pending Items, list in 
 on a picked date. A read-only copy of the Shopping list.
 
 **Soft delete**:
-Deleting an Item, Category or Shop by setting its `deletedAt` rather than removing the record. The
+Deleting an Item, Category, Shop or Tag by setting its `deletedAt` rather than removing the record. The
 record is hidden from every list and releases the referenceCounts it held on its Category and Shop.
 _Avoid_: remove, undelete
 
 **Deleted record**:
 A record that has been soft-deleted. An Item comes back through Undo, or by scanning one of its
-barcodes; a Category or Shop comes back only through Undo.
+barcodes; a Category or Shop comes back only through Undo. A deleted Tag is hidden from every list, and its id stays on the Items that carried it.
 
 **Undo**:
 The snackbar action that restores a record just deleted, or reverts a Shopping list tick to the
