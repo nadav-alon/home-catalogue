@@ -55,6 +55,11 @@ export function matchesSearch(item: ItemRecord, search: string, tags: readonly P
   return tags.some((tag) => item.tagIds.includes(tag.id) && containsSearch(tag.name, search))
 }
 
+/** Whether `item` carries at least one of `tagIds`. */
+export function carriesAnyTag(item: ItemRecord, tagIds: readonly catalogue.TagId[]): boolean {
+  return item.tagIds.some((id) => tagIds.includes(id))
+}
+
 export interface ItemInput {
   name: string
   brandNote?: string

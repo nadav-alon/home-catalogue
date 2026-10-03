@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
-import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, matchesSearch, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
+import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, carriesAnyTag, matchesSearch, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { createTag, watchTags, type TagRecord } from './tags.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
@@ -42,6 +42,11 @@ export interface ItemsManagerProps {
 /** `current` cleared when it is `id`, else `id`: what pressing a chip of a one-at-a-time group selects. */
 function toggledSelection<Id extends string>(current: Id | undefined, id: Id): Id | undefined {
   return current === id ? undefined : id
+}
+
+/** `ids` without `id` when it holds it, else with `id` added: what pressing a chip of a many-at-once group selects. */
+function toggledMember<Id extends string>(ids: readonly Id[], id: Id): readonly Id[] {
+  return ids.includes(id) ? ids.filter((member) => member !== id) : [...ids, id]
 }
 
 export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilterChange }: ItemsManagerProps) {
@@ -231,7 +236,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const activeShopId = !listsLoaded.shops || isLiveReference(shops, shopId) ? shopId : undefined
   const categoriesById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
   // Only a Tag some live Item carries is offered, so a Tag nothing carries any more filters nothing.
-  const offeredTags = tags.filter((tag) => (items ?? []).some((item) => item.tagIds.includes(tag.id)))
+  const offeredTags = tags.filter((tag) => (items ?? []).some((item) => carriesAnyTag(item, [tag.id])))
   const activeTagIds = selectedTagIds.filter((id) => offeredTags.some((tag) => tag.id === id))
   const chipFiltered = activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0
   const visibleItems = (scanFiltered ? candidateItems : candidateItems.filter((item) => matchesSearch(item, search, tags))).filter(
@@ -241,7 +246,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
       (activeShopId === undefined ||
         !listsLoaded.categories ||
         resolvedShopId(item, categoriesById.get(item.categoryId)) === activeShopId) &&
-      (activeTagIds.length === 0 || item.tagIds.some((id) => activeTagIds.includes(id))),
+      (activeTagIds.length === 0 || carriesAnyTag(item, activeTagIds)),
   )
   // A search, scan or chip filter shows its matches whatever was collapsed; the remembered state is left alone for when it clears.
   const filterActive = scanFiltered || search !== '' || chipFiltered
@@ -295,9 +300,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             key={tag.id}
             label={tag.name}
             selected={activeTagIds.includes(tag.id)}
-            onToggle={() =>
-              setSelectedTagIds(activeTagIds.includes(tag.id) ? activeTagIds.filter((id) => id !== tag.id) : [...activeTagIds, tag.id])
-            }
+            onToggle={() => setSelectedTagIds(toggledMember(activeTagIds, tag.id))}
           />
         ))}
       </div>
