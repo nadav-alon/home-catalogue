@@ -1,16 +1,18 @@
-import { fireEvent, render, screen, within } from '@testing-library/preact'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { TagsManager } from './TagsManager.tsx'
-import type { TagRecord } from './tags.ts'
+import { TAG_NAME_TAKEN_MESSAGE, type TagRecord } from './tags.ts'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { resetHash } from '../testing/hash.ts'
 
 const watchTags = vi.fn()
+const renameTag = vi.fn()
 
 vi.mock('./tags.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./tags.ts')>()),
+  renameTag: (db: unknown, tag: unknown, name: string, tags: unknown) => renameTag(db, tag, name, tags),
   watchTags: (db: unknown, cb: unknown) => watchTags(db, cb),
 }))
 
@@ -23,6 +25,15 @@ const savoury: TagRecord = { id: catalogue.tagId('savoury-id'), name: 'Savoury' 
 afterEach(resetHash)
 
 beforeEach(() => {
+  // jsdom has no modal dialog; stand in for the browser's open/close bookkeeping.
+  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+    this.setAttribute('open', '')
+  })
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute('open')
+    this.dispatchEvent(new Event('close'))
+  })
+  renameTag.mockReset().mockResolvedValue(undefined)
   watchTags.mockReset()
   tagsUnsubscribe.mockClear()
 })
@@ -63,5 +74,28 @@ describe('TagsManager', () => {
     unmount()
 
     expect(tagsUnsubscribe).toHaveBeenCalled()
+  })
+
+  it('renames a Tag from its Edit dialog against the live Tags and closes the dialog', async () => {
+    renderWith([sweet, savoury])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Sweet' }))
+    expect(screen.getByLabelText('Tag name')).toHaveValue('Sweet')
+    fireEvent.input(screen.getByLabelText('Tag name'), { target: { value: 'Sugary' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(renameTag).toHaveBeenCalledWith(fakeDb, sweet, 'Sugary', [sweet, savoury])
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('shows a refused rename as an error on the name field and keeps the dialog open', async () => {
+    renameTag.mockRejectedValue(new Error(TAG_NAME_TAKEN_MESSAGE))
+    renderWith([sweet, savoury])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Sweet' }))
+    fireEvent.input(screen.getByLabelText('Tag name'), { target: { value: ' savoury ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(TAG_NAME_TAKEN_MESSAGE)
+    expect(screen.getByLabelText('Tag name')).toBeInvalid()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })
