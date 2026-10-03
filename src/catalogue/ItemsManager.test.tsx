@@ -144,6 +144,19 @@ function renderWith(
   }
 }
 
+const sweet: TagRecord = { id: catalogue.tagId('sweet'), name: 'sweet' }
+
+function renderWithTags(tags: TagRecord[], items: ItemRecord[] = [bandages]) {
+  let publishTags: (tags: TagRecord[]) => void = () => {}
+  watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
+    publishTags = cb
+    cb(tags)
+    return vi.fn()
+  })
+  renderWith(items, [medicine], [pharmacy])
+  return { publishTags }
+}
+
 /** The expand/collapse button in a Category's group heading, which the Category's filter chip shares its name with. */
 function headingToggle(category: string) {
   return within(screen.getByRole('heading', { name: new RegExp(`^${category}`) })).getByRole('button')
@@ -915,14 +928,9 @@ describe('searching Items', () => {
   })
 
   it('shows Items carrying a Tag whose name matches, plus Items whose names match', () => {
-    const sweet: TagRecord = { id: catalogue.tagId('sweet'), name: 'sweet' }
     const sweetener: ItemRecord = { ...soap, id: core.itemId('sweetener'), name: 'Sweetener' }
     const jam: ItemRecord = { ...soap, id: core.itemId('jam'), name: 'Jam', tagIds: [sweet.id] }
-    watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
-      cb([sweet])
-      return vi.fn()
-    })
-    renderWith([bandages, soap, jam, sweetener], [medicine, cleaning], [pharmacy, grocery])
+    renderWithTags([sweet], [bandages, soap, jam, sweetener])
 
     fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: ' SWEET ' } })
 
@@ -932,11 +940,16 @@ describe('searching Items', () => {
     expect(screen.queryByText('Dish soap')).not.toBeInTheDocument()
   })
 
-  it('does not match the name of a Tag that is no longer live', () => {
-    const jam: ItemRecord = { ...soap, id: core.itemId('jam'), name: 'Jam', tagIds: [catalogue.tagId('sweet')] }
-    renderWith([bandages, jam], [medicine, cleaning], [pharmacy, grocery])
+  it('stops matching the name of a Tag once it is no longer live', () => {
+    const jam: ItemRecord = { ...soap, id: core.itemId('jam'), name: 'Jam', tagIds: [sweet.id] }
+    const { publishTags } = renderWithTags([sweet], [bandages, jam])
 
     fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'sweet' } })
+    expect(screen.getByText('Jam')).toBeInTheDocument()
+
+    act(() => {
+      publishTags([])
+    })
 
     expect(screen.queryByText('Jam')).not.toBeInTheDocument()
   })
@@ -2140,19 +2153,7 @@ describe('ItemsManager Category and Shop filter', () => {
 })
 
 describe('Tags in the Item dialog', () => {
-  const sweet: TagRecord = { id: catalogue.tagId('sweet'), name: 'sweet' }
   const cooking: TagRecord = { id: catalogue.tagId('cooking'), name: 'cooking' }
-
-  function renderWithTags(tags: TagRecord[], items: ItemRecord[] = [bandages]) {
-    let publishTags: (tags: TagRecord[]) => void = () => {}
-    watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
-      publishTags = cb
-      cb(tags)
-      return vi.fn()
-    })
-    renderWith(items, [medicine], [pharmacy])
-    return { publishTags }
-  }
 
   function openEdit() {
     fireEvent.click(screen.getByText('Bandages'))
