@@ -22,6 +22,7 @@ const orphan: ItemRecord = {
   state: 'out',
   categoryId: catalogue.categoryId('deleted-category'),
   necessity: 'important',
+  tagIds: [],
 }
 
 /** jsdom has no modal dialog; stand in for the browser's open/close bookkeeping. */

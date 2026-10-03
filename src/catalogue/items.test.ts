@@ -121,7 +121,7 @@ describe('watchItems', () => {
     })
 
     expect(callback).toHaveBeenCalledWith([
-      { id: 'dish-soap', name: 'Dish soap', state: 'enough', categoryId: 'cleaning', necessity: 'essential' },
+      { id: 'dish-soap', name: 'Dish soap', state: 'enough', categoryId: 'cleaning', necessity: 'essential', tagIds: [] },
     ])
 
     unsubscribe()
@@ -157,7 +157,7 @@ describe('watchItems', () => {
     })
 
     expect(callback).toHaveBeenCalledWith([
-      { id: 'dish-soap', name: 'Dish soap', state: 'enough', categoryId: 'cleaning', necessity: 'essential' },
+      { id: 'dish-soap', name: 'Dish soap', state: 'enough', categoryId: 'cleaning', necessity: 'essential', tagIds: [] },
     ])
   })
 
@@ -189,7 +189,7 @@ describe('watchItems', () => {
     })
 
     expect(callback).toHaveBeenCalledWith([
-      { id: 'dish-soap', name: 'Dish soap', state: 'enough', categoryId: 'cleaning', necessity: 'essential' },
+      { id: 'dish-soap', name: 'Dish soap', state: 'enough', categoryId: 'cleaning', necessity: 'essential', tagIds: [] },
     ])
   })
 })
@@ -322,7 +322,7 @@ describe('createItem', () => {
     )
     expect(batchSet).toHaveBeenCalledWith(
       { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'generated-id' },
-      { categoryId: 'cleaning', necessity: 'essential' },
+      { categoryId: 'cleaning', necessity: 'essential', tagIds: [] },
     )
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' },
@@ -354,7 +354,7 @@ describe('createItem', () => {
     )
     expect(batchSet).toHaveBeenCalledWith(
       { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'generated-id' },
-      { categoryId: 'cleaning', necessity: 'essential', shopId: 'grocery' },
+      { categoryId: 'cleaning', necessity: 'essential', tagIds: [], shopId: 'grocery' },
     )
     expect(batchUpdate).toHaveBeenCalledWith(
       { path: catalogue.CATEGORIES_COLLECTION, id: 'cleaning' },
@@ -418,6 +418,7 @@ describe('updateItem', () => {
     state: 'enough',
     categoryId: catalogue.categoryId('cleaning'),
     necessity: 'essential',
+    tagIds: [],
     shopId: catalogue.shopId('grocery'),
   }
 
@@ -798,6 +799,7 @@ describe('a queued Item write the server rejects', () => {
     state: 'enough',
     categoryId: catalogue.categoryId('cleaning'),
     necessity: 'essential',
+    tagIds: [],
   }
 
   beforeEach(async () => {
@@ -914,6 +916,7 @@ describe('findDeletedItemByBarcode', () => {
       deletedAt,
       categoryId: 'cleaning',
       necessity: 'essential',
+      tagIds: [],
     })
   })
 
@@ -1125,6 +1128,7 @@ describe('softDeleteItem and restoreItem', () => {
     state: 'enough',
     categoryId: catalogue.categoryId('cleaning'),
     necessity: 'essential',
+    tagIds: [],
     shopId: catalogue.shopId('grocery'),
   }
 

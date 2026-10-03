@@ -278,6 +278,7 @@ describe('App', () => {
         state: 'out',
         categoryId: catalogue.categoryId('medicine'),
         necessity: catalogue.necessitySchema.parse('essential'),
+        tagIds: [],
       },
     ]
     act(() => watchItemsCallbacks.forEach((cb) => cb(items)))
@@ -300,6 +301,7 @@ describe('App', () => {
         state: 'out',
         categoryId: catalogue.categoryId('medicine'),
         necessity: catalogue.necessitySchema.parse('essential'),
+        tagIds: [],
       },
     ]
     act(() => watchItemsCallbacks.forEach((cb) => cb(items)))

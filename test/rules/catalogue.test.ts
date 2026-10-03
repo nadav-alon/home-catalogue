@@ -359,6 +359,7 @@ describe('Item soft-delete and restore against the real rules', () => {
     state: 'enough',
     categoryId: catalogue.categoryId('medicine'),
     necessity: 'essential',
+    tagIds: [],
     shopId: pharmacy,
   }
   const cleaning = catalogue.categoryId('cleaning')

@@ -86,6 +86,7 @@ describe('ShoppingList', () => {
       state: 'out',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     const soap: ItemRecord = {
       id: core.itemId('soap'),
@@ -93,6 +94,7 @@ describe('ShoppingList', () => {
       state: 'running low',
       categoryId: cleaning.id,
       necessity: 'important',
+      tagIds: [],
     }
     renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
 
@@ -113,6 +115,7 @@ describe('ShoppingList', () => {
       state: 'out',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     renderWith([bandages], [medicine], [pharmacy])
 
@@ -126,6 +129,7 @@ describe('ShoppingList', () => {
       state: 'out',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
       shopId: grocery.id,
     }
     renderWith([bandages], [medicine], [pharmacy, grocery])
@@ -144,6 +148,7 @@ describe('ShoppingList', () => {
       state: 'enough',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     renderWith([bandages], [medicine], [pharmacy])
 
@@ -157,6 +162,7 @@ describe('ShoppingList', () => {
       state: 'enough',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     renderWith([bandages], [medicine], [pharmacy])
 
@@ -170,6 +176,7 @@ describe('ShoppingList', () => {
       state: 'out',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     renderWith([bandages], [medicine], [pharmacy])
 
@@ -193,6 +200,7 @@ describe('ShoppingList', () => {
       state: 'out',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     renderWith([bandages], [medicine], [pharmacy])
 
@@ -213,6 +221,7 @@ describe('ShoppingList', () => {
       state: 'running low',
       categoryId: cleaning.id,
       necessity: 'important',
+      tagIds: [],
     }
     renderWith([soap], [cleaning], [grocery])
 
@@ -228,6 +237,7 @@ describe('ShoppingList', () => {
       state: 'running low',
       categoryId: cleaning.id,
       necessity: 'optional',
+      tagIds: [],
     }
     renderWith([candles], [cleaning], [grocery])
 
@@ -243,6 +253,7 @@ describe('ShoppingList', () => {
       state: 'running low',
       categoryId: cleaning.id,
       necessity: 'important',
+      tagIds: [],
     }
     const bandages: ItemRecord = {
       id: core.itemId('bandages'),
@@ -250,6 +261,7 @@ describe('ShoppingList', () => {
       state: 'out',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     renderWith([soap, bandages], [cleaning, medicine], [grocery, pharmacy])
 
@@ -264,6 +276,7 @@ describe('ShoppingList', () => {
       state: 'out',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     renderWith([bandages], [medicine], [pharmacy])
 
@@ -277,6 +290,7 @@ describe('ShoppingList', () => {
       state: 'out',
       categoryId: catalogue.categoryId('deleted-category'),
       necessity: 'important',
+      tagIds: [],
     }
     renderWith([orphan], [medicine], [pharmacy])
 
@@ -291,6 +305,7 @@ describe('ShoppingList', () => {
       state: 'out',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     let itemsCallback: ((items: ItemRecord[]) => void) | undefined
     watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
@@ -324,6 +339,7 @@ describe('ticking an Item', () => {
       state: 'out',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     renderWith([bandages], [medicine], [pharmacy])
 
@@ -339,6 +355,7 @@ describe('ticking an Item', () => {
       state: 'out',
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     setItemState.mockRejectedValueOnce(new Error('Could not update State'))
     renderWith([bandages], [medicine], [pharmacy])
@@ -357,6 +374,7 @@ describe('ticking an Item', () => {
       state,
       categoryId: medicine.id,
       necessity: 'essential',
+      tagIds: [],
     }
     renderWith([bandages], [medicine], [pharmacy])
     render(<SnackbarHost />)
@@ -381,6 +399,7 @@ describe('ticking an Item', () => {
         state,
         categoryId: medicine.id,
         necessity: 'essential',
+        tagIds: [],
       }
       let itemsCallback: ((items: ItemRecord[]) => void) | undefined
       watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
@@ -422,6 +441,7 @@ describe('a scanned barcode', () => {
     state: 'out',
     categoryId: medicine.id,
     necessity: 'essential',
+    tagIds: [],
     barcodes: [scanned],
   }
 

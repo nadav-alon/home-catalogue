@@ -218,6 +218,7 @@ describe('ItemsManager', () => {
       state: 'enough',
       categoryId: cleaning.id,
       necessity: 'important',
+      tagIds: [],
     }
     renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
 
@@ -261,6 +262,7 @@ describe('ItemsManager', () => {
       state: 'enough',
       categoryId: catalogue.categoryId('deleted-category'),
       necessity: 'important',
+      tagIds: [],
     }
     renderWith([orphan, bandages], [medicine], [pharmacy])
 
@@ -276,6 +278,7 @@ describe('an Item whose Category is not in the local list', () => {
     state: 'enough',
     categoryId: catalogue.categoryId('deleted-category'),
     necessity: 'important',
+    tagIds: [],
   }
 
   it('is grouped under "Uncategorised" instead of disappearing', () => {
@@ -882,6 +885,7 @@ describe('searching Items', () => {
     state: 'enough',
     categoryId: cleaning.id,
     necessity: 'important',
+    tagIds: [],
   }
 
   it('filters rows by name, ignoring case', () => {
@@ -909,6 +913,7 @@ describe('searching Items', () => {
       state: 'enough',
       categoryId: catalogue.categoryId('deleted-category'),
       necessity: 'important',
+      tagIds: [],
     }
     renderWith([bandages, orphan], [medicine], [pharmacy])
 
