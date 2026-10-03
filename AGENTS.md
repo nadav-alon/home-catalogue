@@ -6,7 +6,7 @@ Instructions for agents working in this repo. The files below are the convention
 
 ## Coding standards
 
-Branded primitives over bare ones, and comments that outlive the review (`TODO[#n]`, never ticket narration). See `docs/agents/coding-standards.md`.
+The rules every project shares, among them comments that outlive the review (`TODO[#n]`, never ticket narration): see `docs/agents/coding-standards.md`. This project's own, among them branded primitives over bare ones: see `docs/project-standards.md`.
 
 ## Issue tracker
 
