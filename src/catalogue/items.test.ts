@@ -1200,6 +1200,16 @@ describe('softDeleteItem and restoreItem', () => {
     expect(batchUpdate).toHaveBeenCalledTimes(3)
   })
 
+  it('restores an Item carrying a deleted Tag without touching its tagIds', async () => {
+    const { restoreItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await restoreItem(fakeDb, { ...dishSoap, tagIds: [catalogue.tagId('deleted-tag')] }, [{ id: catalogue.categoryId('cleaning') }], [{ id: catalogue.shopId('grocery') }])
+
+    expect(batchCommit).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(batchUpdate.mock.calls)).not.toContain('tagIds')
+  })
+
   it('restores with an edit in one batch, raising the counts of the Category and Shop it names', async () => {
     const { restoreItemWithEdit } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
