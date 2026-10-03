@@ -2328,4 +2328,15 @@ describe('ItemsManager Tag filter', () => {
 
     expect(screen.getByText('Honey')).toBeInTheDocument()
   })
+
+  it('shows the Items carrying any of the several pressed Tags', () => {
+    renderTagged([flour, honey, bandages])
+
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+    fireEvent.click(tagChips().getByRole('button', { name: 'sweet' }))
+
+    expect(screen.getByText('Flour')).toBeInTheDocument()
+    expect(screen.getByText('Honey')).toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
 })
