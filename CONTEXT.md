@@ -33,7 +33,10 @@ An Item carries any number of them; a Barcode sits on at most one Item, and atta
 
 **Category**:
 User-defined, flat grouping of Items. Carries a default Shop.
-_Avoid_: aisle, tag
+_Avoid_: aisle
+
+**Tag**:
+Household-defined label for finding Items across Categories. An Item carries any number; a Tag has no Shop.
 
 **Shop**:
 A kind of place (pharmacy, grocery), not a specific store. One per Item in the POC.
