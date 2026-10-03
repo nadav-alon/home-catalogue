@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/pre
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
-import { TagsManager } from './TagsManager.tsx'
+import { BLANK_TAG_NAME_MESSAGE, TagsManager } from './TagsManager.tsx'
 import { TAG_NAME_TAKEN_MESSAGE, type TagRecord } from './tags.ts'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
@@ -109,6 +109,17 @@ describe('TagsManager', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(TAG_NAME_TAKEN_MESSAGE)
     expect(screen.getByLabelText('Tag name')).toBeInvalid()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('shows a plain sentence, and writes nothing, when the name is cleared', async () => {
+    renderWith([sweet, savoury])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Sweet' }))
+    fireEvent.input(screen.getByLabelText('Tag name'), { target: { value: '  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(BLANK_TAG_NAME_MESSAGE)
+    expect(renameTag).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 

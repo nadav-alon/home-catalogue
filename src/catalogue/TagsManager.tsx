@@ -16,6 +16,8 @@ import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 
 const SETTINGS = route('/settings')
 
+export const BLANK_TAG_NAME_MESSAGE = 'A Tag needs a name.'
+
 export interface TagsManagerProps {
   db: Firestore
 }
@@ -47,6 +49,7 @@ export function TagsManager({ db }: TagsManagerProps) {
   /** renameTag resolves once queued, so the dialog closes at once even offline. */
   async function handleSave(event: JSX.TargetedEvent<HTMLFormElement>, tag: TagRecord) {
     event.preventDefault()
+    if (name.trim().length === 0) return setError(BLANK_TAG_NAME_MESSAGE)
     try {
       await renameTag(db, tag, name, tags)
       closeDialog()
