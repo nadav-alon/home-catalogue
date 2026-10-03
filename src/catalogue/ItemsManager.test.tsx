@@ -2273,7 +2273,7 @@ describe('ItemsManager Tag filter', () => {
   const honey: ItemRecord = { ...bandages, id: core.itemId('honey'), name: 'Honey', categoryId: cleaning.id, tagIds: [sweet.id] }
   const gauze: ItemRecord = { ...bandages, id: core.itemId('gauze'), name: 'Gauze', tagIds: [cooking.id] }
 
-  function renderTagged(items: ItemRecord[], tags: TagRecord[] = [cooking, sweet, unused]) {
+  function renderTagged(items: ItemRecord[], tags: TagRecord[] = [cooking, sweet, unused], filter?: CategoryAndShop) {
     watchItems.mockImplementation((_db: unknown, cb: (items: ItemRecord[]) => void) => {
       cb(items)
       return vi.fn()
@@ -2290,7 +2290,7 @@ describe('ItemsManager Tag filter', () => {
       cb(tags)
       return vi.fn()
     })
-    render(<ItemsManager db={fakeDb} />)
+    render(<ItemsManager db={fakeDb} filter={filter} />)
   }
 
   const tagChips = () => within(screen.getByRole('group', { name: 'Filter by Tag' }))
@@ -2338,5 +2338,15 @@ describe('ItemsManager Tag filter', () => {
     expect(screen.getByText('Flour')).toBeInTheDocument()
     expect(screen.getByText('Honey')).toBeInTheDocument()
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('narrows a pressed Tag by the Category filter', () => {
+    renderTagged([flour, honey, gauze], undefined, { categoryId: medicine.id, shopId: undefined })
+
+    fireEvent.click(tagChips().getByRole('button', { name: 'cooking' }))
+
+    expect(screen.getByText('Gauze')).toBeInTheDocument()
+    expect(screen.queryByText('Flour')).not.toBeInTheDocument()
+    expect(screen.queryByText('Honey')).not.toBeInTheDocument()
   })
 })
