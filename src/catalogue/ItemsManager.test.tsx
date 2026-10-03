@@ -914,6 +914,33 @@ describe('searching Items', () => {
     expect(screen.queryByText('Dish soap')).not.toBeInTheDocument()
   })
 
+  it('shows Items carrying a Tag whose name matches, plus Items whose names match', () => {
+    const sweet: TagRecord = { id: catalogue.tagId('sweet'), name: 'sweet' }
+    const sweetener: ItemRecord = { ...soap, id: core.itemId('sweetener'), name: 'Sweetener' }
+    const jam: ItemRecord = { ...soap, id: core.itemId('jam'), name: 'Jam', tagIds: [sweet.id] }
+    watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
+      cb([sweet])
+      return vi.fn()
+    })
+    renderWith([bandages, soap, jam, sweetener], [medicine, cleaning], [pharmacy, grocery])
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: ' SWEET ' } })
+
+    expect(screen.getByText('Jam')).toBeInTheDocument()
+    expect(screen.getByText('Sweetener')).toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+    expect(screen.queryByText('Dish soap')).not.toBeInTheDocument()
+  })
+
+  it('does not match the name of a Tag that is no longer live', () => {
+    const jam: ItemRecord = { ...soap, id: core.itemId('jam'), name: 'Jam', tagIds: [catalogue.tagId('sweet')] }
+    renderWith([bandages, jam], [medicine, cleaning], [pharmacy, grocery])
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'sweet' } })
+
+    expect(screen.queryByText('Jam')).not.toBeInTheDocument()
+  })
+
   it('hides a group left with no matching rows', () => {
     renderWith([bandages, soap], [medicine, cleaning], [pharmacy, grocery])
 
