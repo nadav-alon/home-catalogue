@@ -335,6 +335,24 @@ describe('createItem', () => {
     expect(batchCommit).toHaveBeenCalled()
   })
 
+  it('writes the Tags the new Item carries', async () => {
+    const { createItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await createItem(fakeDb, {
+      name: 'Dish soap',
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+      state: core.stateSchema.parse('enough'),
+      tagIds: [catalogue.tagId('sweet'), catalogue.tagId('cooking')],
+    })
+
+    expect(batchSet).toHaveBeenCalledWith(
+      { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'generated-id' },
+      { categoryId: 'cleaning', necessity: 'essential', tagIds: ['sweet', 'cooking'] },
+    )
+  })
+
   it('includes an optional brand note and Shop override when given, bumping the Shop too', async () => {
     const { createItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
@@ -443,6 +461,30 @@ describe('updateItem', () => {
       { categoryId: 'cleaning', necessity: 'essential', shopId: 'grocery' },
     )
     expect(batchCommit).toHaveBeenCalled()
+  })
+
+  it('replaces the Item\'s Tags when given, and leaves them alone when omitted', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockResolvedValue(undefined)
+    const edit = {
+      name: 'Dish soap',
+      categoryId: dishSoap.categoryId,
+      necessity: catalogue.necessitySchema.parse('essential'),
+      shopId: dishSoap.shopId,
+    }
+
+    await updateItem(fakeDb, dishSoap, { ...edit, tagIds: [catalogue.tagId('sweet')] }, [])
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' },
+      expect.objectContaining({ tagIds: ['sweet'] }),
+    )
+
+    batchUpdate.mockClear()
+    await updateItem(fakeDb, dishSoap, edit, [])
+    expect(batchUpdate).toHaveBeenCalledWith(
+      { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' },
+      expect.not.objectContaining({ tagIds: expect.anything() }),
+    )
   })
 
   it('removes the removed barcodes from the core Item in the same batch, leaving its other barcodes', async () => {
