@@ -1,4 +1,4 @@
-import { collection, deleteField, doc, onSnapshot, orderBy, query, serverTimestamp, writeBatch, type Firestore } from 'firebase/firestore'
+import { collection, deleteField, doc, onSnapshot, orderBy, query, serverTimestamp, writeBatch, type Firestore, type WriteBatch } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { reportFailure, reportWriteRejection } from './writeRejections.ts'
 
@@ -38,6 +38,13 @@ export function findTagByName<Tag extends Pick<TagRecord, 'name'>>(tags: readonl
   return tags.find((tag) => catalogue.tagNameKey(tag.name) === key)
 }
 
+/** Commits `batch` without awaiting it; a rejection is reported through {@link reportWriteRejection} as `what`. */
+function commitQueued(batch: WriteBatch, what: string): void {
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(what, err)
+  })
+}
+
 /**
  * Validates `name` against {@link catalogue.tagSchema} before writing a new Tag together with the
  * `tagNames` reservation of its name in one batch, as the platform's rules require. The name is
@@ -53,9 +60,7 @@ export async function createTag(db: Firestore, name: string): Promise<catalogue.
   const batch = writeBatch(db)
   batch.set(tagRef, data)
   batch.set(doc(db, catalogue.TAG_NAMES_COLLECTION, key), { tagId: tagRef.id })
-  void batch.commit().catch((err: unknown) => {
-    reportWriteRejection(`new Tag ${data.name}`, err)
-  })
+  commitQueued(batch, `new Tag ${data.name}`)
   return catalogue.tagId(tagRef.id)
 }
 
@@ -84,9 +89,7 @@ export async function renameTag(db: Firestore, tag: TagRecord, name: string, tag
     batch.delete(doc(db, catalogue.TAG_NAMES_COLLECTION, oldKey))
     batch.set(doc(db, catalogue.TAG_NAMES_COLLECTION, newKey), { tagId: tag.id })
   }
-  void batch.commit().catch((err: unknown) => {
-    reportWriteRejection(`rename of Tag ${tag.name} to ${data.name}`, err)
-  })
+  commitQueued(batch, `rename of Tag ${tag.name} to ${data.name}`)
 }
 
 /**
@@ -98,9 +101,7 @@ export async function deleteTag(db: Firestore, tag: TagRecord): Promise<void> {
   const batch = writeBatch(db)
   batch.update(doc(db, catalogue.TAGS_COLLECTION, tag.id), { deletedAt: serverTimestamp() })
   batch.delete(doc(db, catalogue.TAG_NAMES_COLLECTION, catalogue.tagNameKey(tag.name)))
-  void batch.commit().catch((err: unknown) => {
-    reportWriteRejection(`deleted Tag ${tag.name}`, err)
-  })
+  commitQueued(batch, `deleted Tag ${tag.name}`)
 }
 
 /**
@@ -116,7 +117,5 @@ export async function restoreTag(db: Firestore, tag: TagRecord, tags: readonly T
   const batch = writeBatch(db)
   batch.update(doc(db, catalogue.TAGS_COLLECTION, tag.id), { deletedAt: deleteField() })
   batch.set(doc(db, catalogue.TAG_NAMES_COLLECTION, catalogue.tagNameKey(tag.name)), { tagId: tag.id })
-  void batch.commit().catch((err: unknown) => {
-    reportWriteRejection(`restored Tag ${tag.name}`, err)
-  })
+  commitQueued(batch, `restored Tag ${tag.name}`)
 }
