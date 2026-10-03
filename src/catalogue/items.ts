@@ -219,14 +219,17 @@ function parseItemEdit(edit: ItemEdit): ValidItemEdit {
     name: edit.name,
     ...(edit.brandNote !== undefined ? { brandNote: edit.brandNote } : {}),
   })
-  const { categoryId, necessity, shopId } = catalogue.catalogueItemSchema
-    .pick({ categoryId: true, necessity: true, shopId: true })
+  const parsed = catalogue.catalogueItemSchema
+    .pick({ categoryId: true, necessity: true, shopId: true, tagIds: true })
     .parse({
       categoryId: edit.categoryId,
       necessity: edit.necessity,
       ...(edit.shopId !== undefined ? { shopId: edit.shopId } : {}),
+      ...(edit.tagIds !== undefined ? { tagIds: edit.tagIds } : {}),
     })
-  const tagIds = edit.tagIds && catalogue.catalogueItemSchema.shape.tagIds.parse(edit.tagIds)
+  const { categoryId, necessity, shopId } = parsed
+  // The schema defaults an omitted tagIds to [], which would clear the Item's Tags on edit.
+  const tagIds = edit.tagIds === undefined ? undefined : parsed.tagIds
   return { name, brandNote, categoryId, necessity, shopId, tagIds, removedBarcodes: edit.removedBarcodes }
 }
 
