@@ -70,10 +70,10 @@ export function ShoppingList({ db }: ShoppingListProps) {
     }
   }
 
-  function handleTick(item: ItemRecord) {
+  function handleTick(item: ItemRecord, text = `Marked ${item.name} enough`) {
     void handleSetState(item, 'enough')
     showSnackbar({
-      text: `Marked ${item.name} enough`,
+      text,
       action: { label: 'Undo', onAction: () => void handleSetState(item, item.state) },
     })
   }
@@ -132,13 +132,15 @@ export function ShoppingList({ db }: ShoppingListProps) {
     await openChooser(items ?? [], barcode)
   }
 
+  /** Attaching sets the picked Item `enough` with Undo, unless it already is; Undo reverts the State, not the attach. */
   async function handleAttach(item: ItemRecord, holders: readonly BarcodeHolder[]) {
     if (unknownBarcode === undefined) return
     try {
       await attachBarcode(db, item, unknownBarcode.barcode, holders)
       setUnknownBarcode(undefined)
       setError(null)
-      showSnackbar({ text: `Added barcode to ${item.name}` })
+      if (item.state === 'enough') showSnackbar({ text: `Added barcode to ${item.name}` })
+      else handleTick(item, `Added barcode to ${item.name} and marked it enough`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add the barcode')
     }
