@@ -14,6 +14,8 @@ export interface DialogProps {
   onClose: () => void
   /** Extra class for the `<dialog>`, for a dialog that departs from the shared layout. */
   class?: string
+  /** Content holds edits that closing would lose: Escape, a backdrop tap and the Close button first ask to confirm discarding them, and only call `onClose` when confirmed. */
+  hasUnsavedEdits?: boolean
   /** Puts a Close icon button in the title row that asks to close like Escape does. */
   closable?: boolean
   children: ComponentChildren
@@ -34,7 +36,7 @@ function isBackdropPoint(event: MouseEvent & { currentTarget: HTMLDialogElement 
  * Each dialog tags its entry with its own id and only pops an entry it still owns, and a dialog
  * opening while another's pop is in flight waits for that pop to land before pushing its own entry.
  */
-export function Dialog({ open, title, onClose, class: className, closable, children }: DialogProps) {
+export function Dialog({ open, title, onClose, class: className, closable, hasUnsavedEdits, children }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useUniqueId()
   const entryId = useUniqueId()
@@ -42,7 +44,15 @@ export function Dialog({ open, title, onClose, class: className, closable, child
   onCloseRef.current = onClose
   const openRef = useRef(open)
   openRef.current = open
+  const unsavedRef = useRef(hasUnsavedEdits)
+  unsavedRef.current = hasUnsavedEdits
   const pressedBackdropRef = useRef(false)
+
+  /** Asks to close, first confirming the discard when the content holds unsaved edits. */
+  const requestClose = () => {
+    if (unsavedRef.current && !confirm('Discard your unsaved changes?')) return
+    onCloseRef.current()
+  }
 
   // A layout effect, so closing issues the pop in the same commit as the render that closed it, not after paint: a navigation
   // that follows the close at once (a resolved lookup) must already find the pop pending.
@@ -80,7 +90,7 @@ export function Dialog({ open, title, onClose, class: className, closable, child
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault()
-        onClose()
+        requestClose()
       }}
       onMouseDown={(event) => {
         pressedBackdropRef.current = isBackdropPoint(event)
@@ -90,7 +100,7 @@ export function Dialog({ open, title, onClose, class: className, closable, child
         // when the press and the release both landed on the backdrop.
         const pressedBackdrop = pressedBackdropRef.current
         pressedBackdropRef.current = false
-        if (pressedBackdrop && isBackdropPoint(event)) onClose()
+        if (pressedBackdrop && isBackdropPoint(event)) requestClose()
       }}
       onClose={() => {
         if (openRef.current) onClose()
@@ -100,7 +110,7 @@ export function Dialog({ open, title, onClose, class: className, closable, child
         <h2 class="ui-dialog__title" id={titleId}>
           {title}
         </h2>
-        {closable && <IconButton symbol={CloseIcon} label="Close" onClick={onClose} />}
+        {closable && <IconButton symbol={CloseIcon} label="Close" onClick={requestClose} />}
       </div>
       {children}
     </dialog>

@@ -291,4 +291,59 @@ describe('Dialog', () => {
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })
+
+  describe('holding unsaved edits', () => {
+    const renderDirty = (onClose: () => void) =>
+      render(
+        <Dialog open closable hasUnsavedEdits title="New item" onClose={onClose}>
+          <input defaultValue="typed" aria-label="Name" />
+        </Dialog>,
+      )
+    const closers: Record<string, () => void> = {
+      Escape: () => fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true })),
+      'a backdrop tap': () => {
+        const dialog = screen.getByRole('dialog')
+        stubBox(dialog, box)
+        fireEvent.mouseDown(dialog, { clientX: 50, clientY: 200 })
+        fireEvent.click(dialog, { clientX: 50, clientY: 200 })
+      },
+      'the Close button': () => fireEvent.click(screen.getByRole('button', { name: 'Close' })),
+    }
+
+    for (const [name, close] of Object.entries(closers)) {
+      it(`asks to confirm before ${name} closes it, and stays open untouched when declined`, () => {
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+        const onClose = vi.fn()
+        renderDirty(onClose)
+        close()
+        expect(confirmSpy).toHaveBeenCalledOnce()
+        expect(onClose).not.toHaveBeenCalled()
+        expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('typed')
+        confirmSpy.mockRestore()
+      })
+
+      it(`closes on ${name} once the discard is confirmed`, () => {
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+        const onClose = vi.fn()
+        renderDirty(onClose)
+        close()
+        expect(onClose).toHaveBeenCalledOnce()
+        confirmSpy.mockRestore()
+      })
+
+      it(`closes at once on ${name} when not holding unsaved edits`, () => {
+        const confirmSpy = vi.spyOn(window, 'confirm')
+        const onClose = vi.fn()
+        render(
+          <Dialog open closable title="New item" onClose={onClose}>
+            x
+          </Dialog>,
+        )
+        close()
+        expect(confirmSpy).not.toHaveBeenCalled()
+        expect(onClose).toHaveBeenCalledOnce()
+        confirmSpy.mockRestore()
+      })
+    }
+  })
 })
