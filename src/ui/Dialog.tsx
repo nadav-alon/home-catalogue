@@ -14,7 +14,7 @@ export interface DialogProps {
   onClose: () => void
   /** Extra class for the `<dialog>`, for a dialog that departs from the shared layout. */
   class?: string
-  /** Content holds edits that closing would lose: Escape, a backdrop tap and the Close button first ask to confirm discarding them, and only call `onClose` when confirmed. */
+  /** Content holds edits that closing would lose: Escape, a backdrop tap, browser back and the Close button first ask to confirm discarding them, and only call `onClose` when confirmed. */
   hasUnsavedEdits?: boolean
   /** Puts a Close icon button in the title row that asks to close like Escape does. */
   closable?: boolean
@@ -22,6 +22,7 @@ export interface DialogProps {
 }
 
 const historyMarker = 'ui-dialog'
+const discardPrompt = 'Discard your unsaved changes?'
 
 /** The backdrop belongs to the dialog element, so a pointer event on it targets the dialog itself, as does one on its padding: only a point outside the box is the backdrop. */
 function isBackdropPoint(event: MouseEvent & { currentTarget: HTMLDialogElement }) {
@@ -50,7 +51,7 @@ export function Dialog({ open, title, onClose, class: className, closable, hasUn
 
   /** Asks to close, first confirming the discard when the content holds unsaved edits. */
   const requestClose = () => {
-    if (unsavedRef.current && !confirm('Discard your unsaved changes?')) return
+    if (unsavedRef.current && !confirm(discardPrompt)) return
     onCloseRef.current()
   }
 
@@ -64,13 +65,20 @@ export function Dialog({ open, title, onClose, class: className, closable, hasUn
     let pushed = false
     let poppedByBack = false
     const ownsEntry = () => history.state?.[historyMarker] === entryId
+    const pushEntry = () => history.pushState({ [historyMarker]: entryId }, '')
     const onPopState = () => {
-      if (!ownsEntry()) poppedByBack = true
+      const droppedEntry = !ownsEntry()
+      if (unsavedRef.current && !confirm(discardPrompt)) {
+        // Back already left the entry; put it back so the next back reaches the dialog again, not the screen behind it.
+        if (droppedEntry) pushEntry()
+        return
+      }
+      if (droppedEntry) poppedByBack = true
       onCloseRef.current()
     }
     const push = () => {
       if (cancelled) return
-      history.pushState({ [historyMarker]: entryId }, '')
+      pushEntry()
       pushed = true
       window.addEventListener('popstate', onPopState)
     }

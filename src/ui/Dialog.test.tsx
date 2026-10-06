@@ -345,5 +345,27 @@ describe('Dialog', () => {
         confirmSpy.mockRestore()
       })
     }
+
+    const back = () =>
+      new Promise<void>((resolve) => {
+        window.addEventListener('popstate', () => resolve(), { once: true })
+        history.back()
+      })
+
+    it('asks to confirm on browser back, and a declined back leaves the dialog open with its entry restored', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const onClose = vi.fn()
+      renderDirty(onClose)
+      await back()
+      expect(confirmSpy).toHaveBeenCalledOnce()
+      expect(onClose).not.toHaveBeenCalled()
+      expect(history.state).toMatchObject({ 'ui-dialog': expect.any(String) })
+      expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('typed')
+      confirmSpy.mockReturnValue(true)
+      await back()
+      expect(confirmSpy).toHaveBeenCalledTimes(2)
+      expect(onClose).toHaveBeenCalledOnce()
+      confirmSpy.mockRestore()
+    })
   })
 })
