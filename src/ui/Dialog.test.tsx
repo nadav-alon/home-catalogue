@@ -293,6 +293,9 @@ describe('Dialog', () => {
   })
 
   describe('holding unsaved edits', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
     const renderDirty = (onClose: () => void) =>
       render(
         <Dialog open closable hasUnsavedEdits title="New item" onClose={onClose}>
@@ -319,16 +322,14 @@ describe('Dialog', () => {
         expect(confirmSpy).toHaveBeenCalledOnce()
         expect(onClose).not.toHaveBeenCalled()
         expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('typed')
-        confirmSpy.mockRestore()
       })
 
       it(`closes on ${name} once the discard is confirmed`, () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+        vi.spyOn(window, 'confirm').mockReturnValue(true)
         const onClose = vi.fn()
         renderDirty(onClose)
         close()
         expect(onClose).toHaveBeenCalledOnce()
-        confirmSpy.mockRestore()
       })
 
       it(`closes at once on ${name} when not holding unsaved edits`, () => {
@@ -342,9 +343,29 @@ describe('Dialog', () => {
         close()
         expect(confirmSpy).not.toHaveBeenCalled()
         expect(onClose).toHaveBeenCalledOnce()
-        confirmSpy.mockRestore()
       })
     }
+
+    it('asks to confirm when the browser closes it uncancelably, and reopens it when declined', () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const onClose = vi.fn()
+      renderDirty(onClose)
+      const dialog = screen.getByRole('dialog') as HTMLDialogElement
+      fireEvent(dialog, new Event('cancel', { cancelable: false }))
+      dialog.close()
+      expect(confirmSpy).toHaveBeenCalledOnce()
+      expect(onClose).not.toHaveBeenCalled()
+      expect(dialog.open).toBe(true)
+      expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('typed')
+    })
+
+    it('closes when the browser closes it uncancelably and the discard is confirmed', () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true)
+      const onClose = vi.fn()
+      renderDirty(onClose)
+      screen.getByRole<HTMLDialogElement>('dialog').close()
+      expect(onClose).toHaveBeenCalledOnce()
+    })
 
     const back = () =>
       new Promise<void>((resolve) => {
@@ -365,7 +386,6 @@ describe('Dialog', () => {
       await back()
       expect(confirmSpy).toHaveBeenCalledTimes(2)
       expect(onClose).toHaveBeenCalledOnce()
-      confirmSpy.mockRestore()
     })
   })
 })

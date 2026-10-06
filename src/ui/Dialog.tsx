@@ -99,6 +99,8 @@ export function Dialog({ open, title, onClose, class: className, closable, hasUn
       class={className ? `ui-dialog ${className}` : 'ui-dialog'}
       aria-labelledby={titleId}
       onCancel={(event) => {
+        // Uncancelable, the browser closes the dialog regardless and the close handler asks.
+        if (!event.cancelable) return
         event.preventDefault()
         requestClose()
       }}
@@ -112,8 +114,11 @@ export function Dialog({ open, title, onClose, class: className, closable, hasUn
         pressedBackdropRef.current = false
         if (pressedBackdrop && isBackdropPoint(event)) requestClose()
       }}
-      onClose={() => {
-        if (openRef.current) onClose()
+      onClose={(event) => {
+        if (!openRef.current) return
+        // The browser has already closed it (a second Escape or the Android back gesture cannot be cancelled), so declining reopens it.
+        if (confirmsDiscard()) onCloseRef.current()
+        else if (!event.currentTarget.open) event.currentTarget.showModal()
       }}
     >
       <div class="ui-dialog__header">
