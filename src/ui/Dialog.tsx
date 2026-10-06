@@ -49,10 +49,12 @@ export function Dialog({ open, title, onClose, class: className, closable, hasUn
   unsavedRef.current = hasUnsavedEdits
   const pressedBackdropRef = useRef(false)
 
+  /** Whether closing may go ahead: always without unsaved edits, otherwise once the user confirms discarding them. */
+  const confirmsDiscard = () => !unsavedRef.current || confirm(discardPrompt)
+
   /** Asks to close, first confirming the discard when the content holds unsaved edits. */
   const requestClose = () => {
-    if (unsavedRef.current && !confirm(discardPrompt)) return
-    onCloseRef.current()
+    if (confirmsDiscard()) onCloseRef.current()
   }
 
   // A layout effect, so closing issues the pop in the same commit as the render that closed it, not after paint: a navigation
@@ -68,7 +70,7 @@ export function Dialog({ open, title, onClose, class: className, closable, hasUn
     const pushEntry = () => history.pushState({ [historyMarker]: entryId }, '')
     const onPopState = () => {
       const droppedEntry = !ownsEntry()
-      if (unsavedRef.current && !confirm(discardPrompt)) {
+      if (!confirmsDiscard()) {
         // Back already left the entry; put it back so the next back reaches the dialog again, not the screen behind it.
         if (droppedEntry) pushEntry()
         return
