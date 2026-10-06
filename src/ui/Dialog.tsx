@@ -10,11 +10,11 @@ export interface DialogProps {
   open: boolean
   /** Accessible name and visible heading. */
   title: string
-  /** Called on Escape, on a tap of the backdrop, on browser back, and if the browser closes the dialog itself; the caller decides by setting `open`. */
+  /** Called on Escape, on a tap of the backdrop, on the Close button, on browser back, and if the browser closes the dialog itself; the caller decides by setting `open`. With `hasUnsavedEdits` set, it is only called once the user confirms discarding them. */
   onClose: () => void
   /** Extra class for the `<dialog>`, for a dialog that departs from the shared layout. */
   class?: string
-  /** Content holds edits that closing would lose: Escape, a backdrop tap, browser back and the Close button first ask to confirm discarding them, and only call `onClose` when confirmed. */
+  /** Content holds edits that closing would lose: every way of closing first asks to confirm discarding them, and only calls `onClose` when confirmed. */
   hasUnsavedEdits?: boolean
   /** Puts a Close icon button in the title row that asks to close like Escape does. */
   closable?: boolean
