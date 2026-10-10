@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
@@ -27,7 +27,16 @@ vi.mock('./shops.ts', async (importOriginal) => ({
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const unsubscribe = vi.fn()
 
+// Unmounting a dialog with an unsaved edit closes it natively and asks, so every test answers the prompt.
+let confirmSpy: MockInstance<typeof window.confirm>
+
+afterEach(() => {
+  cleanup()
+  confirmSpy.mockRestore()
+})
+
 beforeEach(() => {
+  confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
   // jsdom has no modal dialog; stand in for the browser's open/close bookkeeping.
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
     this.setAttribute('open', '')
@@ -416,5 +425,57 @@ describe('ShopsManager', () => {
     unmount()
 
     expect(unsubscribe).toHaveBeenCalled()
+  })
+})
+
+describe('closing a Shop dialog over unsaved edits', () => {
+  it('asks before the Close button discards a typed new Shop name, and stays open when declined', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWithShops([])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+    fireEvent.input(screen.getByLabelText('New Shop name'), { target: { value: 'Hardware' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('New Shop name')).toHaveValue('Hardware')
+  })
+
+  it('closes the Add dialog without asking while the name is empty', () => {
+    renderWithShops([])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Shop' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('asks before the Close button discards a changed Shop name, and stays open when declined', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWithShops([grocery])
+    fireEvent.click(screen.getByRole('button', { name: `Edit ${grocery.name}` }))
+    fireEvent.input(screen.getByLabelText('Shop name'), { target: { value: 'Market' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Shop name')).toHaveValue('Market')
+  })
+
+  it('closes the Edit dialog without asking while the name is as it opened', () => {
+    renderWithShops([grocery])
+    fireEvent.click(screen.getByRole('button', { name: `Edit ${grocery.name}` }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('discards an edited name at once from Cancel', () => {
+    renderWithShops([grocery])
+    fireEvent.click(screen.getByRole('button', { name: `Edit ${grocery.name}` }))
+    fireEvent.input(screen.getByLabelText('Shop name'), { target: { value: 'Market' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
