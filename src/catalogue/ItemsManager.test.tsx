@@ -15,6 +15,7 @@ import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { choose } from '../testing/select.ts'
 import { resetPendingPop } from '../ui/pendingPop.ts'
 import { tokenUsage } from '../testing/css.ts'
+import { stubModalDialog } from '../testing/dialog.ts'
 
 const watchItems = vi.fn()
 const createItem = vi.fn()
@@ -65,18 +66,12 @@ vi.mock('./tags.ts', async (importOriginal) => ({
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
-// Unmounting a dialog with an unsaved edit closes it natively and asks, so every test answers the prompt.
+// Closing over unsaved edits asks; tests agree to discard unless they refuse.
 let confirmSpy: MockInstance<typeof window.confirm>
 
 beforeEach(() => {
   confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
-    this.setAttribute('open', '')
-  })
-  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
-    this.removeAttribute('open')
-    this.dispatchEvent(new Event('close'))
-  })
+  stubModalDialog()
   watchItems.mockReset()
   createItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)

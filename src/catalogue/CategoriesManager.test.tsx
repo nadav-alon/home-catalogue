@@ -10,6 +10,7 @@ import { resetHash } from '../testing/hash.ts'
 import { choose } from '../testing/select.ts'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { grocery, medicine, pharmacy } from './testFixtures.ts'
+import { stubModalDialog } from '../testing/dialog.ts'
 
 const createCategory = vi.fn()
 const renameCategory = vi.fn()
@@ -40,7 +41,7 @@ const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const categoriesUnsubscribe = vi.fn()
 const shopsUnsubscribe = vi.fn()
 
-// Unmounting a dialog with an unsaved edit closes it natively and asks, so every test answers the prompt.
+// Closing over unsaved edits asks; tests agree to discard unless they refuse.
 let confirmSpy: MockInstance<typeof window.confirm>
 
 afterEach(() => {
@@ -51,14 +52,7 @@ afterEach(() => {
 
 beforeEach(() => {
   confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-  // jsdom has no modal dialog; stand in for the browser's open/close bookkeeping.
-  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
-    this.setAttribute('open', '')
-  })
-  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
-    this.removeAttribute('open')
-    this.dispatchEvent(new Event('close'))
-  })
+  stubModalDialog()
   createCategory.mockReset().mockResolvedValue(undefined)
   renameCategory.mockReset().mockResolvedValue(undefined)
   deleteCategory.mockReset().mockResolvedValue(undefined)

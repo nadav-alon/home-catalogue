@@ -7,6 +7,7 @@ import { TAG_NAME_TAKEN_MESSAGE, TagNameTakenError, type TagRecord } from './tag
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { resetHash } from '../testing/hash.ts'
+import { stubModalDialog } from '../testing/dialog.ts'
 
 const watchTags = vi.fn()
 const renameTag = vi.fn()
@@ -29,7 +30,7 @@ const savoury: TagRecord = { id: catalogue.tagId('savoury-id'), name: 'Savoury' 
 
 afterEach(resetHash)
 
-// Unmounting a dialog with an unsaved edit closes it natively and asks, so every test answers the prompt.
+// Closing over unsaved edits asks; tests agree to discard unless they refuse.
 let confirmSpy: MockInstance<typeof window.confirm>
 
 afterEach(() => {
@@ -39,14 +40,7 @@ afterEach(() => {
 
 beforeEach(() => {
   confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-  // jsdom has no modal dialog; stand in for the browser's open/close bookkeeping.
-  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
-    this.setAttribute('open', '')
-  })
-  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
-    this.removeAttribute('open')
-    this.dispatchEvent(new Event('close'))
-  })
+  stubModalDialog()
   renameTag.mockReset().mockResolvedValue(undefined)
   deleteTag.mockReset().mockResolvedValue(undefined)
   restoreTag.mockReset().mockResolvedValue(undefined)
