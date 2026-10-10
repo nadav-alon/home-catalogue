@@ -291,4 +291,101 @@ describe('Dialog', () => {
     expect(used.length).toBeGreaterThan(0)
     expect(undefinedTokens).toEqual([])
   })
+
+  describe('holding unsaved edits', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+    const renderDirty = (onClose: () => void) =>
+      render(
+        <Dialog open closable hasUnsavedEdits title="New item" onClose={onClose}>
+          <input defaultValue="typed" aria-label="Name" />
+        </Dialog>,
+      )
+    const closers: Record<string, () => void> = {
+      Escape: () => fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true })),
+      'a backdrop tap': () => {
+        const dialog = screen.getByRole('dialog')
+        stubBox(dialog, box)
+        fireEvent.mouseDown(dialog, { clientX: 50, clientY: 200 })
+        fireEvent.click(dialog, { clientX: 50, clientY: 200 })
+      },
+      'the Close button': () => fireEvent.click(screen.getByRole('button', { name: 'Close' })),
+    }
+
+    for (const [name, close] of Object.entries(closers)) {
+      it(`asks to confirm before ${name} closes it, and stays open untouched when declined`, () => {
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+        const onClose = vi.fn()
+        renderDirty(onClose)
+        close()
+        expect(confirmSpy).toHaveBeenCalledOnce()
+        expect(onClose).not.toHaveBeenCalled()
+        expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('typed')
+      })
+
+      it(`closes on ${name} once the discard is confirmed`, () => {
+        vi.spyOn(window, 'confirm').mockReturnValue(true)
+        const onClose = vi.fn()
+        renderDirty(onClose)
+        close()
+        expect(onClose).toHaveBeenCalledOnce()
+      })
+
+      it(`closes at once on ${name} when not holding unsaved edits`, () => {
+        const confirmSpy = vi.spyOn(window, 'confirm')
+        const onClose = vi.fn()
+        render(
+          <Dialog open closable title="New item" onClose={onClose}>
+            x
+          </Dialog>,
+        )
+        close()
+        expect(confirmSpy).not.toHaveBeenCalled()
+        expect(onClose).toHaveBeenCalledOnce()
+      })
+    }
+
+    it('asks to confirm when the browser closes it uncancelably, and reopens it when declined', () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const onClose = vi.fn()
+      renderDirty(onClose)
+      const dialog = screen.getByRole('dialog') as HTMLDialogElement
+      fireEvent(dialog, new Event('cancel', { cancelable: false }))
+      dialog.close()
+      expect(confirmSpy).toHaveBeenCalledOnce()
+      expect(onClose).not.toHaveBeenCalled()
+      expect(dialog.open).toBe(true)
+      expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('typed')
+    })
+
+    it('closes when the browser closes it uncancelably and the discard is confirmed', () => {
+      vi.spyOn(window, 'confirm').mockReturnValue(true)
+      const onClose = vi.fn()
+      renderDirty(onClose)
+      screen.getByRole<HTMLDialogElement>('dialog').close()
+      expect(onClose).toHaveBeenCalledOnce()
+    })
+
+    const back = () =>
+      new Promise<void>((resolve) => {
+        window.addEventListener('popstate', () => resolve(), { once: true })
+        history.back()
+      })
+
+    it('asks to confirm on browser back, and a declined back leaves the dialog open with its entry restored', async () => {
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      const onClose = vi.fn()
+      renderDirty(onClose)
+      await back()
+      expect(confirmSpy).toHaveBeenCalledOnce()
+      expect(onClose).not.toHaveBeenCalled()
+      expect(history.state).toMatchObject({ 'ui-dialog': expect.any(String) })
+      expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('typed')
+      confirmSpy.mockReturnValue(true)
+      await back()
+      expect(confirmSpy).toHaveBeenCalledTimes(2)
+      expect(onClose).toHaveBeenCalledOnce()
+    })
+  })
 })
