@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { catalogue, core } from 'data-platform'
 import { isLiveReference, type ItemEdit, type ItemInput, type ItemRecord } from './items.ts'
@@ -91,8 +91,9 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 
 /** The form for an Item's name, brand note, Category, Necessity, Shop override and Tags, plus its State when adding, plus its Barcodes when editing or, when adding from a scan, the pending `barcode` shown read-only, in a dialog that starts from `item`, or empty, on each open. */
 export function ItemDialog({ open, item, restoring, barcode, categories, shops, tags, onCreateCategory, onCreateTag, onSave, onDelete, onClose }: ItemDialogProps) {
+  const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false)
   return (
-    <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose} closable>
+    <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose} hasUnsavedEdits={hasUnsavedEdits} closable>
       {open && (
         <ItemForm
           item={item}
@@ -106,21 +107,36 @@ export function ItemDialog({ open, item, restoring, barcode, categories, shops, 
           onSave={onSave}
           onDelete={onDelete}
           onClose={onClose}
+          onUnsavedEditsChange={setHasUnsavedEdits}
         />
       )}
     </Dialog>
   )
 }
 
-function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateCategory, onCreateTag, onSave, onDelete, onClose }: Omit<ItemDialogProps, 'open'>) {
-  const [values, setValues] = useState<ItemFormValues>({
+function openingValues({ item, restoring, categories, shops }: Pick<ItemDialogProps, 'item' | 'restoring' | 'categories' | 'shops'>): ItemFormValues {
+  return {
     name: item?.name ?? '',
     brandNote: item?.brandNote ?? '',
     categoryId: item === undefined || (restoring && !isLiveReference(categories, item.categoryId)) ? '' : item.categoryId,
     necessity: item?.necessity ?? '',
     state: 'enough',
     shopId: restoring && !isLiveReference(shops, item?.shopId) ? NO_SHOP_OVERRIDE : (item?.shopId ?? NO_SHOP_OVERRIDE),
-  })
+  }
+}
+
+function sameTagIds(a: catalogue.TagId[], b: catalogue.TagId[]) {
+  return a.length === b.length && a.every((id) => b.includes(id))
+}
+
+interface ItemFormProps extends Omit<ItemDialogProps, 'open'> {
+  /** Called with whether the form differs from how it opened; false again once it unmounts. */
+  onUnsavedEditsChange: (hasUnsavedEdits: boolean) => void
+}
+
+function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateCategory, onCreateTag, onSave, onDelete, onClose, onUnsavedEditsChange }: ItemFormProps) {
+  const [opening] = useState(() => openingValues({ item, restoring, categories, shops }))
+  const [values, setValues] = useState<ItemFormValues>(opening)
   const [errors, setErrors] = useState<ItemFormErrors>({})
   /** Every Tag id the Item carries, including those of deleted Tags, which have no chip but come back with their Tag. */
   const [tagIds, setTagIds] = useState<catalogue.TagId[]>(item?.tagIds ?? [])
@@ -241,6 +257,17 @@ function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateC
     onDelete(item)
     onClose()
   }
+
+  const hasUnsavedEdits =
+    (Object.keys(opening) as (keyof ItemFormValues)[]).some((field) => values[field] !== opening[field]) ||
+    !sameTagIds(tagIds, item?.tagIds ?? []) ||
+    tagName !== '' ||
+    removedBarcodes.length > 0 ||
+    categoryDraft !== null
+  useEffect(() => {
+    onUnsavedEditsChange(hasUnsavedEdits)
+    return () => onUnsavedEditsChange(false)
+  }, [hasUnsavedEdits, onUnsavedEditsChange])
 
   const attachedTags = tags.filter((tag) => tagIds.includes(tag.id))
 

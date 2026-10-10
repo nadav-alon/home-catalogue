@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
@@ -65,7 +65,11 @@ vi.mock('./tags.ts', async (importOriginal) => ({
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
+// Unmounting a dialog with an unsaved edit closes it natively and asks, so every test answers the prompt.
+let confirmSpy: MockInstance<typeof window.confirm>
+
 beforeEach(() => {
+  confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
     this.setAttribute('open', '')
   })
@@ -170,6 +174,7 @@ function headingToggle(category: string) {
 }
 
 afterEach(() => {
+  cleanup()
   vi.restoreAllMocks()
   resetPendingPop()
   resetHash()
@@ -770,7 +775,7 @@ describe('editing an Item', () => {
   })
 })
 
-describe('leaving the Item dialog without saving', () => {
+describe('leaving the Item dialog with unsaved edits', () => {
   async function fillAndLeave(leave: () => void) {
     renderWith([bandages], [medicine], [pharmacy])
     fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
@@ -781,9 +786,10 @@ describe('leaving the Item dialog without saving', () => {
 
   afterEach(() => history.replaceState(null, ''))
 
-  it('discards the edit on Cancel', async () => {
+  it('discards the edit on Cancel without asking', async () => {
     await fillAndLeave(() => fireEvent.click(screen.getByRole('button', { name: 'Cancel' })))
 
+    expect(confirmSpy).not.toHaveBeenCalled()
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(updateItem).not.toHaveBeenCalled()
     expect(createItem).not.toHaveBeenCalled()
@@ -826,7 +832,7 @@ describe('leaving the Item dialog without saving', () => {
     )
   })
 
-  it('discards the edit on the header Close icon', async () => {
+  it('discards the edit on the header Close icon once confirmed', async () => {
     await fillAndLeave(() => fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' })))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -848,7 +854,7 @@ describe('leaving the Item dialog without saving', () => {
     await waitFor(() => expect(window.location.hash).toBe('#/start'))
   })
 
-  it('discards the edit on back', async () => {
+  it('discards the edit on back once confirmed', async () => {
     await fillAndLeave(() => window.dispatchEvent(new PopStateEvent('popstate')))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -856,12 +862,115 @@ describe('leaving the Item dialog without saving', () => {
     expect(createItem).not.toHaveBeenCalled()
   })
 
-  it('discards the edit on Escape', async () => {
+  it('discards the edit on Escape once confirmed', async () => {
     await fillAndLeave(() => fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true })))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(updateItem).not.toHaveBeenCalled()
     expect(createItem).not.toHaveBeenCalled()
+  })
+
+  const leavers: Record<string, () => void> = {
+    'the header Close icon': () => fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' })),
+    back: () => window.dispatchEvent(new PopStateEvent('popstate')),
+    Escape: () => fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true })),
+  }
+
+  for (const [name, leave] of Object.entries(leavers)) {
+    it(`asks on ${name} and keeps the edit when declined`, async () => {
+      confirmSpy.mockReturnValue(false)
+      await fillAndLeave(leave)
+
+      expect(confirmSpy).toHaveBeenCalledOnce()
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByLabelText('Name')).toHaveValue('Plasters')
+    })
+  }
+
+  it('asks on a backdrop tap and keeps the edit when declined', async () => {
+    confirmSpy.mockReturnValue(false)
+    await fillAndLeave(() => {
+      const dialog = screen.getByRole('dialog')
+      dialog.getBoundingClientRect = () => ({ left: 100, top: 100, right: 300, bottom: 300, x: 100, y: 100, width: 200, height: 200, toJSON: () => ({}) })
+      fireEvent.mouseDown(dialog, { clientX: 50, clientY: 200 })
+      fireEvent.click(dialog, { clientX: 50, clientY: 200 })
+    })
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Name')).toHaveValue('Plasters')
+  })
+
+  it('closes at once from the Close icon when no field differs from how it opened', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('closes at once when an edit is typed back to how the field opened', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: bandages.name } })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+  })
+
+  it('asks when an Add Item dialog has anything typed', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Soap' } })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+  })
+
+  it('counts text typed into the Tags field as an unsaved edit', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+    fireEvent.input(screen.getByLabelText('Tags'), { target: { value: 'sti' } })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+  })
+
+  it('counts an open "+ New Category" prompt as an unsaved edit', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+    choose(screen.getByLabelText('Category'), '+new')
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+  })
+
+  it('counts a removed barcode as an unsaved edit', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWith([bandagesWithBarcodes], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove barcode 12345678' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+  })
+
+  it('saves and deletes without asking', async () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Plasters' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(confirmSpy).not.toHaveBeenCalled()
   })
 
   it('keeps a removed barcode on Cancel', async () => {
