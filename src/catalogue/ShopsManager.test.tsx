@@ -472,4 +472,35 @@ describe('closing a Shop dialog over unsaved edits', () => {
     expect(confirmSpy).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).toBeNull()
   })
+
+  it('asks on Escape over an edit, and stays open when declined', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWithShops([pharmacy])
+    openEditor('Pharmacy')
+    fireEvent.input(screen.getByLabelText('Shop name'), { target: { value: 'Market' } })
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('saves an edit without asking', async () => {
+    renderWithShops([pharmacy])
+    openEditor('Pharmacy')
+    fireEvent.input(screen.getByLabelText('Shop name'), { target: { value: 'Market' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(confirmSpy).not.toHaveBeenCalled()
+  })
+
+  it('deletes over an edit without asking', async () => {
+    renderWithShops([pharmacy])
+    openEditor('Pharmacy')
+    fireEvent.input(screen.getByLabelText('Shop name'), { target: { value: 'Market' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(confirmSpy).not.toHaveBeenCalled()
+  })
 })

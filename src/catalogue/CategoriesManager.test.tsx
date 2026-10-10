@@ -527,4 +527,35 @@ describe('closing a Category dialog over unsaved edits', () => {
     expect(confirmSpy).not.toHaveBeenCalled()
     expect(screen.queryByRole('dialog')).toBeNull()
   })
+
+  it('asks on Escape over an edit, and stays open when declined', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Meds' } })
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('saves an edit without asking', async () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Meds' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(confirmSpy).not.toHaveBeenCalled()
+  })
+
+  it('deletes over an edit without asking', async () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Meds' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(confirmSpy).not.toHaveBeenCalled()
+  })
 })

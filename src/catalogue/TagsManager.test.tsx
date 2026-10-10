@@ -157,6 +157,37 @@ describe('TagsManager', () => {
       expect(confirmSpy).not.toHaveBeenCalled()
       expect(screen.queryByRole('dialog')).toBeNull()
     })
+
+    it('asks on Escape over an edit, and stays open when declined', () => {
+      confirmSpy.mockReturnValue(false)
+      renderWith([sweet])
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Sweet' }))
+      fireEvent.input(screen.getByLabelText('Tag name'), { target: { value: 'Sugary' } })
+      fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
+
+      expect(confirmSpy).toHaveBeenCalledOnce()
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+    })
+
+    it('saves an edit without asking', async () => {
+      renderWith([sweet])
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Sweet' }))
+      fireEvent.input(screen.getByLabelText('Tag name'), { target: { value: 'Sugary' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      expect(confirmSpy).not.toHaveBeenCalled()
+    })
+
+    it('deletes over an edit without asking', async () => {
+      renderWith([sweet])
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Sweet' }))
+      fireEvent.input(screen.getByLabelText('Tag name'), { target: { value: 'Sugary' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      expect(confirmSpy).not.toHaveBeenCalled()
+    })
   })
 
   it('deletes a Tag even while Items carry it, offering Undo that restores it against the live Tags', async () => {
