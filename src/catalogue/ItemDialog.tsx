@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useLayoutEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { catalogue, core } from 'data-platform'
 import { isLiveReference, type ItemEdit, type ItemInput, type ItemRecord } from './items.ts'
@@ -57,7 +57,7 @@ interface ItemFormValues {
   categoryId: string
   necessity: string
   shopId: string
-  /** The State an added Item starts at; unused when editing. */
+  /** The State an added Item starts at, always seeded `enough`; unused when editing. */
   state: core.State
 }
 
@@ -264,7 +264,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateC
     tagName !== '' ||
     removedBarcodes.length > 0 ||
     categoryDraft !== null
-  useEffect(() => {
+  useLayoutEffect(() => {
     onUnsavedEditsChange(hasUnsavedEdits)
     return () => onUnsavedEditsChange(false)
   }, [hasUnsavedEdits, onUnsavedEditsChange])
