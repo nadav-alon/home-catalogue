@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { BLANK_TAG_NAME_MESSAGE, TagsManager } from './TagsManager.tsx'
@@ -29,7 +29,16 @@ const savoury: TagRecord = { id: catalogue.tagId('savoury-id'), name: 'Savoury' 
 
 afterEach(resetHash)
 
+// Unmounting a dialog with an unsaved edit closes it natively and asks, so every test answers the prompt.
+let confirmSpy: MockInstance<typeof window.confirm>
+
+afterEach(() => {
+  cleanup()
+  confirmSpy.mockRestore()
+})
+
 beforeEach(() => {
+  confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
   // jsdom has no modal dialog; stand in for the browser's open/close bookkeeping.
   HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
     this.setAttribute('open', '')
@@ -121,6 +130,39 @@ describe('TagsManager', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(BLANK_TAG_NAME_MESSAGE)
     expect(renameTag).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  describe('closing the Edit dialog', () => {
+    it('asks before the Close button discards an edited name, and stays open when declined', () => {
+      confirmSpy.mockReturnValue(false)
+      renderWith([sweet])
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Sweet' }))
+      fireEvent.input(screen.getByLabelText('Tag name'), { target: { value: 'Sugary' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+      expect(confirmSpy).toHaveBeenCalledOnce()
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+      expect(screen.getByLabelText('Tag name')).toHaveValue('Sugary')
+    })
+
+    it('closes without asking when the name is unchanged', () => {
+      renderWith([sweet])
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Sweet' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+      expect(confirmSpy).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('discards an edited name at once from Cancel', () => {
+      renderWith([sweet])
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Sweet' }))
+      fireEvent.input(screen.getByLabelText('Tag name'), { target: { value: 'Sugary' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(confirmSpy).not.toHaveBeenCalled()
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
   })
 
   it('deletes a Tag even while Items carry it, offering Undo that restores it against the live Tags', async () => {

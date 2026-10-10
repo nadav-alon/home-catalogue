@@ -86,7 +86,7 @@ export function TagsManager({ db }: TagsManagerProps) {
           />
         ))}
       </ul>
-      <Dialog open={editing !== null} title="Edit Tag" onClose={closeDialog} closable>
+      <Dialog open={editing !== null} title="Edit Tag" onClose={closeDialog} hasUnsavedEdits={editing !== null && name !== editing.name} closable>
         {editing !== null && (
           <form class={DIALOG_FORM_CLASS} onSubmit={(event) => void handleSave(event, editing)}>
             <TextField
