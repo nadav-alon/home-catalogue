@@ -47,6 +47,8 @@ export function Dialog({ open, title, onClose, class: className, closable, hasUn
   openRef.current = open
   const unsavedRef = useRef(hasUnsavedEdits)
   unsavedRef.current = hasUnsavedEdits
+  /** Whether the effect below is showing the dialog: the close it issues itself on cleanup is the caller's doing, not the browser's. */
+  const shownRef = useRef(false)
   const pressedBackdropRef = useRef(false)
 
   /** Whether closing may go ahead: always without unsaved edits, otherwise once the user confirms discarding them. */
@@ -63,6 +65,7 @@ export function Dialog({ open, title, onClose, class: className, closable, hasUn
     const dialog = ref.current
     if (!open || !dialog) return
     dialog.showModal()
+    shownRef.current = true
     let cancelled = false
     let pushed = false
     let poppedByBack = false
@@ -87,6 +90,7 @@ export function Dialog({ open, title, onClose, class: className, closable, hasUn
     afterPendingPop(push)
     return () => {
       cancelled = true
+      shownRef.current = false
       window.removeEventListener('popstate', onPopState)
       if (dialog.open) dialog.close()
       if (pushed && !poppedByBack && ownsEntry()) popEntry()
@@ -115,7 +119,7 @@ export function Dialog({ open, title, onClose, class: className, closable, hasUn
         if (pressedBackdrop && isBackdropPoint(event)) requestClose()
       }}
       onClose={(event) => {
-        if (!openRef.current) return
+        if (!openRef.current || !shownRef.current) return
         // The browser has already closed it (a second Escape or the Android back gesture cannot be cancelled), so declining reopens it.
         if (confirmsDiscard()) onCloseRef.current()
         else if (!event.currentTarget.open) event.currentTarget.showModal()

@@ -48,25 +48,26 @@ interface CategoryFieldsProps {
   draft: CategoryDraft
   shops: ShopRecord[]
   onChange: (update: (draft: CategoryDraft) => CategoryDraft) => void
+  /** The "+ New Shop" prompt's name: `null` while it is closed. Owned by the caller, so it can count an open prompt as an unsaved edit. */
+  newShopName: string | null
+  onNewShopNameChange: (name: string | null) => void
   onCreateShop: (name: string) => Promise<catalogue.ShopId>
 }
 
 /** The name and default Shop fields; the Shop picker's "+ New Shop" asks for a name, creates the Shop and selects it, leaving the rest of the draft as it was. */
-function CategoryFields({ nameLabel, draft, shops, onChange, onCreateShop }: CategoryFieldsProps) {
+function CategoryFields({ nameLabel, draft, shops, onChange, newShopName, onNewShopNameChange, onCreateShop }: CategoryFieldsProps) {
   const shopId = shops.some((shop) => shop.id === draft.shopId) ? draft.shopId : ''
-  /** The "+ New Shop" prompt's name: `null` while it is closed. */
-  const [newShopName, setNewShopName] = useState<string | null>(null)
   const [shopError, setShopError] = useState<string | null>(null)
 
   function closeShopPrompt() {
-    setNewShopName(null)
+    onNewShopNameChange(null)
     setShopError(null)
   }
 
   function handleShopChange(event: JSX.TargetedEvent<HTMLSelectElement>) {
     const { value } = event.currentTarget
     if (value === NEW_SHOP) {
-      setNewShopName((current) => current ?? '')
+      onNewShopNameChange(newShopName ?? '')
     } else {
       onChange((current) => ({ ...current, shopId: value }))
       closeShopPrompt()
@@ -118,7 +119,7 @@ function CategoryFields({ nameLabel, draft, shops, onChange, onCreateShop }: Cat
       {newShopName !== null && (
         <div class={DIALOG_FORM_CLASS} onKeyDown={handleShopPromptKeyDown}>
           {shopError !== null && <p role="alert">{shopError}</p>}
-          <TextField label="New Shop name" value={newShopName} onInput={(event) => setNewShopName(event.currentTarget.value)} />
+          <TextField label="New Shop name" value={newShopName} onInput={(event) => onNewShopNameChange(event.currentTarget.value)} />
           <DialogActions>
             <Button variant="text" onClick={closeShopPrompt}>
               Cancel new Shop
@@ -140,6 +141,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<CategoryRecord | null>(null)
   const [draft, setDraft] = useState<CategoryDraft>(EMPTY_DRAFT)
+  const [newShopName, setNewShopName] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const inUseNoteId = useUniqueId()
 
@@ -148,12 +150,14 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
 
   function openAdd() {
     setDraft(EMPTY_DRAFT)
+    setNewShopName(null)
     setError(null)
     setAdding(true)
   }
 
   function openEdit(category: CategoryRecord) {
     setDraft({ name: category.name, shopId: category.defaultShopId })
+    setNewShopName(null)
     setError(null)
     setEditing(category)
   }
@@ -162,6 +166,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     setAdding(false)
     setEditing(null)
     setDraft(EMPTY_DRAFT)
+    setNewShopName(null)
     setError(null)
   }
 
@@ -207,6 +212,9 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
     })
   }
 
+  const promptOpen = newShopName !== null
+  const addHasUnsavedEdits = promptOpen || draft.name !== EMPTY_DRAFT.name || draft.shopId !== EMPTY_DRAFT.shopId
+  const editHasUnsavedEdits = editing !== null && (promptOpen || draft.name !== editing.name || draft.shopId !== editing.defaultShopId)
   const editingInUse = editing !== null && isCategoryInUse(editing)
 
   return (
@@ -229,11 +237,11 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
         ))}
       </ul>
       <Fab symbol={AddIcon} label="Add Category" onClick={openAdd} />
-      <Dialog open={adding} title="Add Category" onClose={closeDialogs} closable>
+      <Dialog open={adding} title="Add Category" onClose={closeDialogs} hasUnsavedEdits={addHasUnsavedEdits} closable>
         {adding && (
           <form class={DIALOG_FORM_CLASS} onSubmit={handleCreate}>
             {error !== null && <p role="alert">{error}</p>}
-            <CategoryFields nameLabel="New Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
+            <CategoryFields nameLabel="New Category name" draft={draft} shops={shops} onChange={setDraft} newShopName={newShopName} onNewShopNameChange={setNewShopName} onCreateShop={handleCreateShop} />
             <DialogActions>
               <Button variant="text" onClick={closeDialogs}>
                 Cancel
@@ -243,7 +251,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
           </form>
         )}
       </Dialog>
-      <Dialog open={editing !== null} title="Edit Category" onClose={closeDialogs} closable>
+      <Dialog open={editing !== null} title="Edit Category" onClose={closeDialogs} hasUnsavedEdits={editHasUnsavedEdits} closable>
         {editing !== null && (
           <form
             class={DIALOG_FORM_CLASS}
@@ -253,7 +261,7 @@ export function CategoriesManager({ db }: CategoriesManagerProps) {
             }}
           >
             {error !== null && <p role="alert">{error}</p>}
-            <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} onCreateShop={handleCreateShop} />
+            <CategoryFields nameLabel="Category name" draft={draft} shops={shops} onChange={setDraft} newShopName={newShopName} onNewShopNameChange={setNewShopName} onCreateShop={handleCreateShop} />
             {editingInUse && <p id={inUseNoteId}>{CATEGORY_IN_USE_MESSAGE}</p>}
             <DialogActions
               destructive={

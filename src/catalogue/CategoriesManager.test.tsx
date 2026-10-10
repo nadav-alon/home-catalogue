@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { CategoriesManager } from './CategoriesManager.tsx'
 import { CATEGORY_IN_USE_MESSAGE, type CategoryRecord } from './categories.ts'
@@ -10,6 +10,7 @@ import { resetHash } from '../testing/hash.ts'
 import { choose } from '../testing/select.ts'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { grocery, medicine, pharmacy } from './testFixtures.ts'
+import { stubModalDialog } from '../testing/dialog.ts'
 
 const createCategory = vi.fn()
 const renameCategory = vi.fn()
@@ -40,17 +41,18 @@ const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const categoriesUnsubscribe = vi.fn()
 const shopsUnsubscribe = vi.fn()
 
-afterEach(resetHash)
+// Closing over unsaved edits asks; tests agree to discard unless they refuse.
+let confirmSpy: MockInstance<typeof window.confirm>
+
+afterEach(() => {
+  cleanup()
+  confirmSpy.mockRestore()
+  resetHash()
+})
 
 beforeEach(() => {
-  // jsdom has no modal dialog; stand in for the browser's open/close bookkeeping.
-  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
-    this.setAttribute('open', '')
-  })
-  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
-    this.removeAttribute('open')
-    this.dispatchEvent(new Event('close'))
-  })
+  confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+  stubModalDialog()
   createCategory.mockReset().mockResolvedValue(undefined)
   renameCategory.mockReset().mockResolvedValue(undefined)
   deleteCategory.mockReset().mockResolvedValue(undefined)
@@ -449,5 +451,111 @@ describe('CategoriesManager', () => {
 
     expect(categoriesUnsubscribe).toHaveBeenCalled()
     expect(shopsUnsubscribe).toHaveBeenCalled()
+  })
+})
+
+describe('closing a Category dialog over unsaved edits', () => {
+  it('asks before the Close button discards a typed new Category name, and stays open when declined', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    fireEvent.input(screen.getByLabelText('New Category name'), { target: { value: 'Snacks' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('New Category name')).toHaveValue('Snacks')
+  })
+
+  it('asks when only the default Shop of a new Category was chosen', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    choose(screen.getByLabelText('Default Shop'), pharmacy.id)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+  })
+
+  it('closes the Add dialog without asking while it is as it opened', () => {
+    renderWith([], [pharmacy])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Category' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('asks before the Close button discards a changed name or default Shop of an edited Category', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWith([medicine], [pharmacy, grocery])
+    openEditor('Medicine')
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Meds' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(confirmSpy).toHaveBeenCalledTimes(1)
+
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Medicine' } })
+    choose(screen.getByLabelText('Default Shop'), grocery.id)
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(confirmSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('asks while the "+ New Shop" prompt is open', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    choose(screen.getByLabelText('Default Shop'), '+new')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+  })
+
+  it('closes the Edit dialog without asking while it is as it opened', () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('discards edits at once from Cancel', () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Meds' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('asks on Escape over an edit, and stays open when declined', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Meds' } })
+    fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('saves an edit without asking', async () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Meds' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(confirmSpy).not.toHaveBeenCalled()
+  })
+
+  it('deletes over an edit without asking', async () => {
+    renderWith([medicine], [pharmacy])
+    openEditor('Medicine')
+    fireEvent.input(screen.getByLabelText('Category name'), { target: { value: 'Meds' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(confirmSpy).not.toHaveBeenCalled()
   })
 })

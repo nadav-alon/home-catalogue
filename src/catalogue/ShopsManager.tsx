@@ -61,7 +61,7 @@ function AddShopDialog({ db, onClose }: AddShopDialogProps) {
   }
 
   return (
-    <Dialog open title="Add Shop" onClose={onClose} closable>
+    <Dialog open title="Add Shop" onClose={onClose} hasUnsavedEdits={name !== ''} closable>
       <form class={DIALOG_FORM_CLASS} onSubmit={handleSubmit}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="New Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
@@ -135,7 +135,7 @@ function EditShopDialog({ db, opened, live, onClose }: EditShopDialogProps) {
   }
 
   return (
-    <Dialog open title="Edit Shop" onClose={onClose} closable>
+    <Dialog open title="Edit Shop" onClose={onClose} hasUnsavedEdits={name !== opened.name} closable>
       <form class={DIALOG_FORM_CLASS} onSubmit={handleRename}>
         {error !== null && <p role="alert">{error}</p>}
         <TextField label="Shop name" value={name} onInput={(event) => setName(event.currentTarget.value)} />
