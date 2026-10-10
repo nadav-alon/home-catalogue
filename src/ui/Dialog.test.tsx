@@ -346,6 +346,15 @@ describe('Dialog', () => {
       })
     }
 
+    it('does not ask when the caller unmounts it over unsaved edits', () => {
+      const confirmSpy = vi.spyOn(window, 'confirm')
+      const onClose = vi.fn()
+      const { unmount } = renderDirty(onClose)
+      unmount()
+      expect(confirmSpy).not.toHaveBeenCalled()
+      expect(onClose).not.toHaveBeenCalled()
+    })
+
     it('asks to confirm when the browser closes it uncancelably, and reopens it when declined', () => {
       const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
       const onClose = vi.fn()
