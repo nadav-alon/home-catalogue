@@ -7,6 +7,7 @@ import { TopAppBar } from '../shell/TopAppBar.tsx'
 import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
+import type { SortingStores } from '../catalogue/aisleSort.ts'
 import type { StoreRecord } from '../catalogue/stores.ts'
 import { bandages, cleaning, grocery, medicine, pharmacy } from '../catalogue/testFixtures.ts'
 import type { ExportResult } from './exportShoppingList.ts'
@@ -48,19 +49,19 @@ function renderExport(
   items: ItemRecord[],
   categories: CategoryRecord[] = [medicine],
   shops: ShopRecord[] = [pharmacy],
-  chosenStores?: ReadonlyMap<catalogue.ShopId, StoreRecord>,
+  sortingStores?: SortingStores,
 ) {
   const bar = (current: ItemRecord[]) => (
     <TopAppBar title="Shopping list">
-      <CalendarExport items={current} categories={categories} shops={shops} chosenStores={chosenStores} />
+      <CalendarExport items={current} categories={categories} shops={shops} sortingStores={sortingStores} />
     </TopAppBar>
   )
   const view = render(bar(items))
   return { rerender: (current: ItemRecord[]) => view.rerender(bar(current)) }
 }
 
-function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[], chosenStores?: ReadonlyMap<catalogue.ShopId, StoreRecord>) {
-  const view = renderExport(items, categories, shops, chosenStores)
+function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[], sortingStores?: SortingStores) {
+  const view = renderExport(items, categories, shops, sortingStores)
   fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
   return view
 }

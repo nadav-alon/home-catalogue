@@ -1,7 +1,11 @@
 import { catalogue } from 'data-platform'
 import type { AisleRecord } from './aisles.ts'
+import type { ItemRecord } from './items.ts'
 import type { ShopRecord } from './shops.ts'
 import { arrangeAisles, type StoreRecord } from './stores.ts'
+
+/** The Store each Shop's group is sorted by; a Shop absent from it is not sorted by aisle. */
+export type SortingStores = ReadonlyMap<catalogue.ShopId, StoreRecord>
 
 const TOGGLE_KEY = 'home-catalogue:sort-by-aisle'
 const CHOSEN_STORES_KEY = 'home-catalogue:chosen-stores'
@@ -67,7 +71,7 @@ export function storesToSortBy(
   stores: readonly StoreRecord[],
   aisles: readonly AisleRecord[],
   chosen: ReadonlyMap<catalogue.ShopId, catalogue.StoreId>,
-): ReadonlyMap<catalogue.ShopId, StoreRecord> {
+): SortingStores {
   if (!sortByAisle) return new Map()
   return new Map(
     shops.flatMap((shop) => {
@@ -78,4 +82,17 @@ export function storesToSortBy(
       return [[shop.id, { ...store, aisleOrder }] as const]
     }),
   )
+}
+
+/**
+ * Puts `items` in the walking order of `store`'s Aisles, Items sharing an Aisle keeping their order in
+ * `items`, which is the name order the Shopping list already uses. An Item with
+ * no Aisle, or one the Store has not placed, goes at the bottom, in that order too.
+ */
+export function sortByAisleOrder(items: ItemRecord[], store: StoreRecord): ItemRecord[] {
+  const rank = (item: ItemRecord) => {
+    const place = item.aisleId === undefined ? -1 : store.aisleOrder.indexOf(item.aisleId)
+    return place === -1 ? store.aisleOrder.length : place
+  }
+  return [...items].sort((a, b) => rank(a) - rank(b))
 }

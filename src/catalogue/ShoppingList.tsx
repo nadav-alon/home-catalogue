@@ -192,7 +192,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
       </label>
       <ScanEntry onScan={handleScan} />
       <AlertBanner items={items ?? []} />
-      <CalendarExport items={items ?? []} categories={categories} shops={shops} chosenStores={sortingStores} />
+      <CalendarExport items={items ?? []} categories={categories} shops={shops} sortingStores={sortingStores} />
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
       {items !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}

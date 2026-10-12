@@ -2,7 +2,7 @@ import type { catalogue } from 'data-platform'
 import type { CategoryRecord } from './categories.ts'
 import { isPending, resolvedShopId, type ItemRecord } from './items.ts'
 import type { ShopRecord } from './shops.ts'
-import type { StoreRecord } from './stores.ts'
+import { sortByAisleOrder, type SortingStores } from './aisleSort.ts'
 
 export interface PendingShopGroup {
   shop: ShopRecord
@@ -17,29 +17,16 @@ export interface PendingItemsByShop {
 }
 
 /**
- * Puts `items` in the walking order of `store`'s Aisles, Items sharing an Aisle keeping their order in
- * `items`, which is the name order the Shopping list already uses. An Item with
- * no Aisle, or one the Store has not placed, goes at the bottom, in that order too.
- */
-function sortByAisleOrder(items: ItemRecord[], store: StoreRecord): ItemRecord[] {
-  const rank = (item: ItemRecord) => {
-    const place = item.aisleId === undefined ? -1 : store.aisleOrder.indexOf(item.aisleId)
-    return place === -1 ? store.aisleOrder.length : place
-  }
-  return [...items].sort((a, b) => rank(a) - rank(b))
-}
-
-/**
  * Groups pending Items by resolved Shop. An Item whose Shop cannot be resolved to a record in
  * `shops` is not dropped: it is returned in `unresolved`, so each caller decides how to treat it.
- * A Shop with a Store in `chosenStores` has its group sorted by that Store's aisle order; any other
+ * A Shop with a Store in `sortingStores` has its group sorted by that Store's aisle order; any other
  * group, and `unresolved`, keeps the order of `items`.
  */
 export function groupPendingItemsByShop(
   items: ItemRecord[],
   categories: CategoryRecord[],
   shops: ShopRecord[],
-  chosenStores: ReadonlyMap<catalogue.ShopId, StoreRecord> = new Map(),
+  sortingStores: SortingStores = new Map(),
 ): PendingItemsByShop {
   const categoriesById = new Map(categories.map((category) => [category.id, category]))
   const knownShopIds = new Set(shops.map((shop) => shop.id))
@@ -61,7 +48,7 @@ export function groupPendingItemsByShop(
   const groups = shops.flatMap((shop) => {
     const shopItems = itemsByShopId.get(shop.id)
     if (shopItems === undefined) return []
-    const store = chosenStores.get(shop.id)
+    const store = sortingStores.get(shop.id)
     return [{ shop, items: store === undefined ? shopItems : sortByAisleOrder(shopItems, store) }]
   })
 
