@@ -31,6 +31,10 @@ vi.mock('./catalogue/tags.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalogue/tags.ts')>()),
   watchTags: () => vi.fn(),
 }))
+vi.mock('./catalogue/aisles.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./catalogue/aisles.ts')>()),
+  watchAisles: () => vi.fn(),
+}))
 vi.mock('./catalogue/categories.ts', () => ({
   watchCategories: (_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
     watchCategoriesCallbacks.push(cb)
@@ -252,6 +256,9 @@ describe('App', () => {
 
     await goTo('#/settings/tags')
     expect(screen.getByRole('heading', { level: 1, name: 'Tags' })).toBeInTheDocument()
+
+    await goTo('#/settings/aisles')
+    expect(screen.getByRole('heading', { level: 1, name: 'Aisles' })).toBeInTheDocument()
   })
 
   it('titles the Members screen with the top app bar heading alone', async () => {

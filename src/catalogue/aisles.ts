@@ -43,7 +43,7 @@ export function findAisleByName<Aisle extends Pick<AisleRecord, 'name'>>(aisles:
  * `aisleNames` reservation of its name in one batch, as the platform's rules require. The name is
  * stored trimmed. Resolves with the new Aisle's id once the batch is queued, not once Firestore
  * acknowledges it, so a caller offline is not left waiting; a batch the server later rejects,
- * such as one whose name a Aisle created elsewhere has since taken, is reported through
+ * such as one whose name an Aisle created elsewhere has since taken, is reported through
  * {@link reportWriteRejection}.
  */
 export async function createAisle(db: Firestore, name: string): Promise<catalogue.AisleId> {
@@ -58,7 +58,7 @@ export async function createAisle(db: Firestore, name: string): Promise<catalogu
 }
 
 /** The refusal shown under the name field when another live Aisle already has the name. */
-export const AISLE_NAME_TAKEN_MESSAGE = 'A Aisle with this name already exists.'
+export const AISLE_NAME_TAKEN_MESSAGE = 'An Aisle with this name already exists.'
 
 /** Thrown by {@link renameAisle} for the {@link AISLE_NAME_TAKEN_MESSAGE} refusal, so a caller can tell it from any other throw. */
 export class AisleNameTakenError extends Error {}

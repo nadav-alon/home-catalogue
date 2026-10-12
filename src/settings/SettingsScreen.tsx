@@ -12,6 +12,7 @@ import ChevronRightIcon from '~icons/material-symbols/chevron-right'
 const SHOPS = route('/settings/shops')
 const CATEGORIES = route('/settings/categories')
 const TAGS = route('/settings/tags')
+const AISLES = route('/settings/aisles')
 const MEMBERS = route('/settings/members')
 
 export interface SettingsScreenProps {
@@ -28,6 +29,7 @@ export function SettingsScreen({ config, onResetConfig, onSignOut }: SettingsScr
       <NavigationRow to={SHOPS} />
       <NavigationRow to={CATEGORIES} />
       <NavigationRow to={TAGS} />
+      <NavigationRow to={AISLES} />
       <NavigationRow to={MEMBERS} />
       <li>
         <AddDeviceQrCode config={config} />
