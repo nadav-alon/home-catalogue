@@ -18,7 +18,7 @@ import ArrowBackIcon from '~icons/material-symbols/arrow-back'
 
 const SETTINGS = route('/settings')
 
-export const BLANK_AISLE_NAME_MESSAGE = 'A Aisle needs a name.'
+export const BLANK_AISLE_NAME_MESSAGE = 'An Aisle needs a name.'
 
 interface AddAisleDialogProps {
   db: Firestore
