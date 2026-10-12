@@ -38,12 +38,15 @@ _Avoid_: aisle
 **Aisle**:
 Household-wide label for where in a store an Item sits. Managed like a Tag, but an Item carries at most one. Not tied to any Shop or Store, and not a Category.
 
+**Store**:
+A named store under one Shop ("Osher Ad" under "grocery"). Carries its aisle order: the Aisles in the order one walks them; an Aisle the order has not reached is unplaced. An Item never points at a Store. Branches are not modelled: a second differing branch is another Store with a longer name.
+
 **Tag**:
 Household-defined label for finding Items across Categories. An Item carries any number; a Tag has no Shop.
 
 **Shop**:
-A kind of place (pharmacy, grocery), not a specific store. One per Item in the POC.
-_Avoid_: store, supermarket
+A kind of place (pharmacy, grocery), not a specific shop. One per Item in the POC. Has any number of Stores.
+_Avoid_: supermarket
 
 **State**:
 `enough` / `running low` / `out`. Set manually only.
@@ -76,13 +79,13 @@ One tap creating one Google Calendar event per Shop with pending Items, list in 
 on a picked date. A read-only copy of the Shopping list.
 
 **Soft delete**:
-Deleting an Item, Category, Shop, Tag or Aisle by setting its `deletedAt` rather than removing the record. The
+Deleting an Item, Category, Shop, Store, Tag or Aisle by setting its `deletedAt` rather than removing the record. The
 record is hidden from every list and releases the referenceCounts it held on its Category and Shop.
 _Avoid_: remove, undelete
 
 **Deleted record**:
 A record that has been soft-deleted. An Item comes back through Undo, or by scanning one of its
-barcodes; a Category or Shop comes back only through Undo. A deleted Tag or Aisle is hidden from every list, and its id stays on the Items that carried it.
+barcodes; a Category or Shop comes back only through Undo. A deleted Store is hidden, and so are the Stores of a deleted Shop, which stay. A deleted Tag or Aisle is hidden from every list, and its id stays on the Items that carried it.
 
 **Undo**:
 The snackbar action that restores a record just deleted, or reverts a Shopping list tick to the
