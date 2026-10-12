@@ -35,6 +35,10 @@ vi.mock('./catalogue/aisles.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalogue/aisles.ts')>()),
   watchAisles: () => vi.fn(),
 }))
+vi.mock('./catalogue/stores.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./catalogue/stores.ts')>()),
+  watchStores: () => vi.fn(),
+}))
 vi.mock('./catalogue/categories.ts', () => ({
   watchCategories: (_db: unknown, cb: (categories: CategoryRecord[]) => void) => {
     watchCategoriesCallbacks.push(cb)

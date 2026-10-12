@@ -2,6 +2,7 @@ import type { catalogue } from 'data-platform'
 import type { CategoryRecord } from './categories.ts'
 import { isPending, resolvedShopId, type ItemRecord } from './items.ts'
 import type { ShopRecord } from './shops.ts'
+import { sortByAisleOrder, type SortingStores } from './aisleSort.ts'
 
 export interface PendingShopGroup {
   shop: ShopRecord
@@ -18,11 +19,14 @@ export interface PendingItemsByShop {
 /**
  * Groups pending Items by resolved Shop. An Item whose Shop cannot be resolved to a record in
  * `shops` is not dropped: it is returned in `unresolved`, so each caller decides how to treat it.
+ * A Shop with a Store in `sortingStores` has its group sorted by that Store's aisle order; any other
+ * group, and `unresolved`, keeps the order of `items`.
  */
 export function groupPendingItemsByShop(
   items: ItemRecord[],
   categories: CategoryRecord[],
   shops: ShopRecord[],
+  sortingStores: SortingStores = new Map(),
 ): PendingItemsByShop {
   const categoriesById = new Map(categories.map((category) => [category.id, category]))
   const knownShopIds = new Set(shops.map((shop) => shop.id))
@@ -43,7 +47,9 @@ export function groupPendingItemsByShop(
 
   const groups = shops.flatMap((shop) => {
     const shopItems = itemsByShopId.get(shop.id)
-    return shopItems !== undefined ? [{ shop, items: shopItems }] : []
+    if (shopItems === undefined) return []
+    const store = sortingStores.get(shop.id)
+    return [{ shop, items: store === undefined ? shopItems : sortByAisleOrder(shopItems, store) }]
   })
 
   return { groups, unresolved }

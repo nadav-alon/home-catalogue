@@ -10,8 +10,9 @@ import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import type { AisleRecord } from './aisles.ts'
+import type { StoreRecord } from './stores.ts'
 import type { TagRecord } from './tags.ts'
-import { cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
+import { bandages, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const watchItems = vi.fn()
 const setItemState = vi.fn()
@@ -52,6 +53,12 @@ vi.mock('./aisles.ts', async (importOriginal) => ({
   createAisle: (db: unknown, name: unknown) => createAisle(db, name),
 }))
 
+const watchStores = vi.fn()
+vi.mock('./stores.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./stores.ts')>()),
+  watchStores: (db: unknown, cb: unknown) => watchStores(db, cb),
+}))
+
 const watchTags = vi.fn()
 const createTag = vi.fn()
 vi.mock('./tags.ts', async (importOriginal) => ({
@@ -83,6 +90,11 @@ beforeEach(() => {
     return vi.fn()
   })
   createAisle.mockReset()
+  watchStores.mockReset().mockImplementation((_db: unknown, cb: (stores: StoreRecord[]) => void) => {
+    cb([])
+    return vi.fn()
+  })
+  localStorage.clear()
   resetSnackbar()
 })
 
@@ -848,5 +860,71 @@ describe('a scanned barcode', () => {
 
     expect(attachBarcode).not.toHaveBeenCalled()
     expect(setItemState).not.toHaveBeenCalled()
+  })
+})
+
+describe('ShoppingList sorted by aisle', () => {
+  const aisleA = catalogue.aisleId('a')
+  const aisleB = catalogue.aisleId('b')
+  const osher: StoreRecord = { id: catalogue.storeId('osher'), name: 'Osher Ad', shopId: grocery.id, aisleOrder: [aisleB, aisleA] }
+  const shufersal: StoreRecord = { id: catalogue.storeId('shufersal'), name: 'Shufersal', shopId: grocery.id, aisleOrder: [aisleA, aisleB] }
+  const rice: ItemRecord = { ...bandages, id: core.itemId('rice'), name: 'Rice', state: 'out', categoryId: cleaning.id, aisleId: aisleA }
+  const milk: ItemRecord = { ...bandages, id: core.itemId('milk'), name: 'Milk', state: 'out', categoryId: cleaning.id, aisleId: aisleB }
+  const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Soap', state: 'out', categoryId: cleaning.id }
+
+  function withStores(stores: StoreRecord[]) {
+    watchAisles.mockImplementation((_db: unknown, cb: (aisles: AisleRecord[]) => void) => {
+      cb([aisleA, aisleB].map((id) => ({ id, name: id }) as AisleRecord))
+      return vi.fn()
+    })
+    watchStores.mockImplementation((_db: unknown, cb: (stores: StoreRecord[]) => void) => {
+      cb(stores)
+      return vi.fn()
+    })
+  }
+
+  function rowNames() {
+    return screen.getAllByRole('checkbox').slice(1).map((box) => box.closest('li')?.textContent)
+  }
+
+  it('keeps name order with no Store dropdown while the toggle is off', () => {
+    withStores([osher, shufersal])
+    renderWith([milk, rice, soap], [cleaning], [grocery])
+
+    expect(rowNames()).toEqual(['Milk', 'Rice', 'Soap'])
+    expect(screen.queryByLabelText('Store')).toBeNull()
+  })
+
+  it("follows a Shop's only Store silently, unassigned Items last", () => {
+    withStores([osher])
+    renderWith([milk, rice, soap], [cleaning], [grocery])
+
+    fireEvent.click(screen.getByLabelText('Sort by aisle'))
+
+    expect(rowNames()).toEqual(['Milk', 'Rice', 'Soap'])
+    expect(screen.queryByLabelText('Store')).toBeNull()
+  })
+
+  it('offers a Store dropdown for a Shop with two, re-sorts on switching, and remembers the choice', () => {
+    withStores([osher, shufersal])
+    const view = renderWith([milk, rice, soap], [cleaning], [grocery])
+    fireEvent.click(screen.getByLabelText('Sort by aisle'))
+    expect(rowNames()).toEqual(['Milk', 'Rice', 'Soap'])
+
+    choose(screen.getByLabelText('Store'), shufersal.id)
+    expect(rowNames()).toEqual(['Rice', 'Milk', 'Soap'])
+
+    view.unmount()
+    renderWith([milk, rice, soap], [cleaning], [grocery])
+    expect(screen.getByLabelText('Sort by aisle')).toBeChecked()
+    expect(rowNames()).toEqual(['Rice', 'Milk', 'Soap'])
+  })
+
+  it('keeps name order for a Shop with no Store', () => {
+    renderWith([soap, rice, milk], [cleaning], [grocery])
+
+    fireEvent.click(screen.getByLabelText('Sort by aisle'))
+
+    expect(rowNames()).toEqual(['Soap', 'Rice', 'Milk'])
   })
 })

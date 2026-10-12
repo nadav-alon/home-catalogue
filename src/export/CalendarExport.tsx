@@ -3,6 +3,7 @@ import type { JSX } from "preact";
 import type { CategoryRecord } from "../catalogue/categories.ts";
 import type { ItemRecord } from "../catalogue/items.ts";
 import type { ShopRecord } from "../catalogue/shops.ts";
+import type { SortingStores } from "../catalogue/aisleSort.ts";
 import { Button } from "../ui/Button.tsx";
 import { Dialog } from "../ui/Dialog.tsx";
 import { DIALOG_FORM_CLASS, DialogActions } from "../ui/DialogActions.tsx";
@@ -19,6 +20,8 @@ export interface CalendarExportProps {
   items: ItemRecord[];
   categories: CategoryRecord[];
   shops: ShopRecord[];
+  /** The Store the Shopping list sorts each Shop's Items by; the event lists them in that order. None for a Shop not sorted by aisle. */
+  sortingStores?: SortingStores;
 }
 
 type ExportStatus =
@@ -48,6 +51,7 @@ export function CalendarExport({
   items,
   categories,
   shops,
+  sortingStores,
 }: CalendarExportProps) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
@@ -62,6 +66,7 @@ export function CalendarExport({
     items,
     categories,
     shops,
+    sortingStores,
   );
 
   // With nothing left to export, a pressed Export would replace the result's fallback links with an error.

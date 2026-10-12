@@ -3,6 +3,7 @@ import { catalogue, core } from 'data-platform'
 import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import { bandages, cleaning, grocery, medicine, pharmacy } from '../catalogue/testFixtures.ts'
+import type { StoreRecord } from '../catalogue/stores.ts'
 import { pendingItemsByShop } from './shopGroups.ts'
 
 describe('pendingItemsByShop', () => {
@@ -78,5 +79,19 @@ describe('pendingItemsByShop', () => {
 
     expect(groups).toEqual([])
     expect(unresolvedCount).toBe(1)
+  })
+})
+
+describe('pendingItemsByShop with a chosen Store', () => {
+  it("lists a Shop's Items in the Store's aisle order, as the Shopping list shows them", () => {
+    const aisleA = catalogue.aisleId('a')
+    const aisleB = catalogue.aisleId('b')
+    const rice: ItemRecord = { ...bandages, id: core.itemId('rice'), name: 'Rice', state: 'out', categoryId: cleaning.id, aisleId: aisleA }
+    const milk: ItemRecord = { ...bandages, id: core.itemId('milk'), name: 'Milk', state: 'out', categoryId: cleaning.id, aisleId: aisleB }
+    const store: StoreRecord = { id: catalogue.storeId('osher'), name: 'Osher Ad', shopId: grocery.id, aisleOrder: [aisleA, aisleB] }
+
+    const { groups } = pendingItemsByShop([milk, rice], [cleaning], [grocery], new Map([[grocery.id, store]]))
+
+    expect(groups).toEqual([{ shop: grocery, items: [rice, milk] }])
   })
 })
