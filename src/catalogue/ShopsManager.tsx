@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import type { JSX } from 'preact'
+import { Fragment, type JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
 import { Button } from '../ui/Button.tsx'
@@ -15,6 +15,8 @@ import { navigate } from '../ui/useRoute.ts'
 import { useUniqueId } from '../ui/useUniqueId.ts'
 import AddIcon from '~icons/material-symbols/add'
 import ArrowBackIcon from '~icons/material-symbols/arrow-back'
+import { ShopStores } from './StoresManager.tsx'
+import { watchStores, type StoreRecord } from './stores.ts'
 import {
   createShop,
   deleteShop,
@@ -164,10 +166,12 @@ function EditShopDialog({ db, opened, live, onClose }: EditShopDialogProps) {
 
 export function ShopsManager({ db }: ShopsManagerProps) {
   const [shops, setShops] = useState<ShopRecord[]>([])
+  const [stores, setStores] = useState<StoreRecord[]>([])
   const [adding, setAdding] = useState(false)
   const [opened, setOpened] = useState<ShopRecord | null>(null)
 
   useEffect(() => watchShops(db, setShops), [db])
+  useEffect(() => watchStores(db, setStores), [db])
 
   const live = opened === null ? undefined : shops.find((shop) => shop.id === opened.id)
 
@@ -178,15 +182,17 @@ export function ShopsManager({ db }: ShopsManagerProps) {
       </TopAppBarNavigation>
       <ul>
         {shops.map((shop) => (
-          <ListRow
-            key={shop.id}
-            headline={shop.name}
-            control={
-              <Button variant="text" aria-label={`Edit ${shop.name}`} onClick={() => setOpened(shop)}>
-                Edit
-              </Button>
-            }
-          />
+          <Fragment key={shop.id}>
+            <ListRow
+              headline={shop.name}
+              control={
+                <Button variant="text" aria-label={`Edit ${shop.name}`} onClick={() => setOpened(shop)}>
+                  Edit
+                </Button>
+              }
+            />
+            <ShopStores db={db} shop={shop} stores={stores.filter((store) => store.shopId === shop.id)} />
+          </Fragment>
         ))}
       </ul>
       <Fab symbol={AddIcon} label="Add Shop" onClick={() => setAdding(true)} />

@@ -7,6 +7,7 @@ import { actionLabels } from '../testing/dialog.ts'
 import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
 import { ShopsManager, SHOP_DELETED_MESSAGE } from './ShopsManager.tsx'
 import { SHOP_IN_USE_MESSAGE, type ShopRecord } from './shops.ts'
+import type { StoreRecord } from './stores.ts'
 import { grocery, pharmacy } from './testFixtures.ts'
 import { stubModalDialog } from '../testing/dialog.ts'
 
@@ -24,6 +25,23 @@ vi.mock('./shops.ts', async (importOriginal) => ({
   restoreShop: (db: unknown, shop: unknown) => restoreShop(db, shop),
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
 }))
+
+const createStore = vi.fn()
+const renameStore = vi.fn()
+const softDeleteStore = vi.fn()
+const restoreStore = vi.fn()
+const watchStores = vi.fn()
+
+vi.mock('./stores.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./stores.ts')>()),
+  createStore: (db: unknown, shopId: unknown, name: string) => createStore(db, shopId, name),
+  renameStore: (db: unknown, store: unknown, name: string) => renameStore(db, store, name),
+  softDeleteStore: (db: unknown, store: unknown) => softDeleteStore(db, store),
+  restoreStore: (db: unknown, store: unknown) => restoreStore(db, store),
+  watchStores: (db: unknown, cb: unknown) => watchStores(db, cb),
+}))
+
+const osherAd: StoreRecord = { id: catalogue.storeId('osher-ad'), name: 'Osher Ad', shopId: grocery.id, aisleOrder: [] }
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 const unsubscribe = vi.fn()
@@ -45,10 +63,19 @@ beforeEach(() => {
   restoreShop.mockReset().mockResolvedValue(undefined)
   resetSnackbar()
   watchShops.mockReset()
+  createStore.mockReset().mockResolvedValue(catalogue.storeId('new-store'))
+  renameStore.mockReset().mockResolvedValue(undefined)
+  softDeleteStore.mockReset().mockResolvedValue(undefined)
+  restoreStore.mockReset().mockResolvedValue(undefined)
+  watchStores.mockReset().mockImplementation(() => unsubscribe)
   unsubscribe.mockClear()
 })
 
-function renderWithShops(shops: ShopRecord[], { withSnackbar = false } = {}) {
+function renderWithShops(shops: ShopRecord[], { withSnackbar = false, stores = [] as StoreRecord[] } = {}) {
+  watchStores.mockImplementation((_db: unknown, cb: (stores: StoreRecord[]) => void) => {
+    cb(stores)
+    return unsubscribe
+  })
   watchShops.mockImplementation((_db: unknown, cb: (shops: ShopRecord[]) => void) => {
     cb(shops)
     return unsubscribe
@@ -502,5 +529,65 @@ describe('closing a Shop dialog over unsaved edits', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(confirmSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('ShopsManager Stores', () => {
+  it('lists each Shop’s Stores under it and no one else’s', () => {
+    renderWithShops([pharmacy, grocery], { stores: [osherAd] })
+
+    const groceryStores = screen.getByRole('list', { name: 'Stores of Grocery' })
+    expect(within(groceryStores).getByText('Osher Ad')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Stores of Pharmacy' })).queryByText('Osher Ad')).toBeNull()
+  })
+
+  it('adds a Store under its Shop', async () => {
+    renderWithShops([pharmacy, grocery])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Store to Grocery' }))
+
+    fireEvent.input(screen.getByLabelText('Store name'), { target: { value: 'Osher Ad' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(createStore).toHaveBeenCalledWith(fakeDb, grocery.id, 'Osher Ad')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('refuses a blank Store name', () => {
+    renderWithShops([grocery])
+    fireEvent.click(screen.getByRole('button', { name: 'Add Store to Grocery' }))
+
+    fireEvent.input(screen.getByLabelText('Store name'), { target: { value: '  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('A Store needs a name.')
+    expect(createStore).not.toHaveBeenCalled()
+  })
+
+  it('renames a Store', async () => {
+    renderWithShops([grocery], { stores: [osherAd] })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Osher Ad' }))
+
+    fireEvent.input(screen.getByLabelText('Store name'), { target: { value: 'Osher Ad Dizengoff' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Rename' }))
+
+    expect(renameStore).toHaveBeenCalledWith(fakeDb, osherAd, 'Osher Ad Dizengoff')
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('soft-deletes a Store and restores it from the Undo', async () => {
+    renderWithShops([grocery], { stores: [osherAd], withSnackbar: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Osher Ad' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(softDeleteStore).toHaveBeenCalledWith(fakeDb, osherAd)
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+
+    expect(restoreStore).toHaveBeenCalledWith(fakeDb, osherAd)
+  })
+
+  it('shows no Stores for a Shop that has left the live list', () => {
+    renderWithShops([pharmacy], { stores: [osherAd] })
+
+    expect(screen.queryByText('Osher Ad')).toBeNull()
   })
 })
