@@ -45,7 +45,7 @@ A named store under one Shop ("Osher Ad" under "grocery"). Carries its aisle ord
 Household-defined label for finding Items across Categories. An Item carries any number; a Tag has no Shop.
 
 **Shop**:
-A kind of place (pharmacy, grocery), not a specific shop. One per Item in the POC. Has any number of Stores.
+A kind of place (pharmacy, grocery), not a specific Store. One per Item in the POC. Has any number of Stores.
 _Avoid_: supermarket
 
 **State**:
