@@ -3,6 +3,7 @@ import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, carriesAnyTag, matchesSearch, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
+import { createAisle, watchAisles, type AisleRecord } from './aisles.ts'
 import { createTag, watchTags, type TagRecord } from './tags.ts'
 import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
@@ -55,6 +56,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [tags, setTags] = useState<TagRecord[]>([])
+  const [aisles, setAisles] = useState<AisleRecord[]>([])
   // Undo outlives the render that deleted the Item, so it reads the Categories and Shops as they are when it is pressed.
   const categoriesRef = useRef(categories)
   categoriesRef.current = categories
@@ -122,6 +124,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   )
 
   useEffect(() => watchTags(db, setTags), [db])
+  useEffect(() => watchAisles(db, setAisles), [db])
 
   async function handleScan(barcode: core.Barcode) {
     if (items === undefined) {
@@ -346,8 +349,10 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         categories={categories}
         shops={shops}
         tags={tags}
+        aisles={aisles}
         onCreateCategory={(name, defaultShopId) => createCategory(db, name, defaultShopId)}
         onCreateTag={(name) => createTag(db, name)}
+        onCreateAisle={(name) => createAisle(db, name)}
         onSave={async (input) => {
           if (dialog?.kind === 'restore' && editedItem) {
             await restoreItemWithEdit(db, editedItem, input)

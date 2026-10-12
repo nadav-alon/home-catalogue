@@ -9,6 +9,7 @@ import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import type { AisleRecord } from './aisles.ts'
 import type { TagRecord } from './tags.ts'
 import { cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 
@@ -43,6 +44,14 @@ vi.mock('./shops.ts', async (importOriginal) => ({
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
 }))
 
+const watchAisles = vi.fn()
+const createAisle = vi.fn()
+vi.mock('./aisles.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./aisles.ts')>()),
+  watchAisles: (db: unknown, cb: unknown) => watchAisles(db, cb),
+  createAisle: (db: unknown, name: unknown) => createAisle(db, name),
+}))
+
 const watchTags = vi.fn()
 const createTag = vi.fn()
 vi.mock('./tags.ts', async (importOriginal) => ({
@@ -69,6 +78,11 @@ beforeEach(() => {
     return vi.fn()
   })
   createTag.mockReset()
+  watchAisles.mockReset().mockImplementation((_db: unknown, cb: (aisles: AisleRecord[]) => void) => {
+    cb([])
+    return vi.fn()
+  })
+  createAisle.mockReset()
   resetSnackbar()
 })
 

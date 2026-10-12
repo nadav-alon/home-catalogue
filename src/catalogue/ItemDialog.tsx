@@ -2,6 +2,7 @@ import { useLayoutEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { catalogue, core } from 'data-platform'
 import { isLiveReference, type ItemEdit, type ItemInput, type ItemRecord } from './items.ts'
+import { findAisleByName, type AisleRecord } from './aisles.ts'
 import { findTagByName, type TagRecord } from './tags.ts'
 import { validateCategoryDraft, type CategoryDraft, type CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
@@ -30,10 +31,14 @@ export interface ItemDialogProps {
   shops: ShopRecord[]
   /** The live Tags; an id on the Item that names none of them is a deleted Tag and shows no chip. */
   tags: TagRecord[]
+  /** The live Aisles; an id on the Item that names none of them is a deleted Aisle and shows no chip. */
+  aisles: AisleRecord[]
   /** Creates a Category and resolves with its id; a rejection is shown in the dialog's Category prompt. */
   onCreateCategory: (name: string, defaultShopId: catalogue.ShopId) => Promise<catalogue.CategoryId>
   /** Creates a Tag named `name` and resolves with its id; a rejection is shown under the Tags field. */
   onCreateTag: (name: string) => Promise<catalogue.TagId>
+  /** Creates an Aisle named `name` and resolves with its id; a rejection is shown under the Aisle field. */
+  onCreateAisle: (name: string) => Promise<catalogue.AisleId>
   /**
    * Called with the validated fields, and the Item's Barcodes the Member removed, when they save; a rejection
    * is shown in the dialog and keeps it open. Only an added Item carries the `state` it starts at.
@@ -90,7 +95,7 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 }
 
 /** The form for an Item's name, brand note, Category, Necessity, Shop override and Tags, plus its State when adding, plus its Barcodes when editing or, when adding from a scan, the pending `barcode` shown read-only, in a dialog that starts from `item`, or empty, on each open. */
-export function ItemDialog({ open, item, restoring, barcode, categories, shops, tags, onCreateCategory, onCreateTag, onSave, onDelete, onClose }: ItemDialogProps) {
+export function ItemDialog({ open, item, restoring, barcode, categories, shops, tags, aisles, onCreateCategory, onCreateTag, onCreateAisle, onSave, onDelete, onClose }: ItemDialogProps) {
   const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false)
   return (
     <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose} hasUnsavedEdits={hasUnsavedEdits} closable>
@@ -102,8 +107,10 @@ export function ItemDialog({ open, item, restoring, barcode, categories, shops, 
           categories={categories}
           shops={shops}
           tags={tags}
+          aisles={aisles}
           onCreateCategory={onCreateCategory}
           onCreateTag={onCreateTag}
+          onCreateAisle={onCreateAisle}
           onSave={onSave}
           onDelete={onDelete}
           onClose={onClose}
@@ -134,7 +141,7 @@ interface ItemFormProps extends Omit<ItemDialogProps, 'open'> {
   onUnsavedEditsChange: (hasUnsavedEdits: boolean) => void
 }
 
-function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateCategory, onCreateTag, onSave, onDelete, onClose, onUnsavedEditsChange }: ItemFormProps) {
+function ItemForm({ item, restoring, barcode, categories, shops, tags, aisles, onCreateCategory, onCreateTag, onCreateAisle, onSave, onDelete, onClose, onUnsavedEditsChange }: ItemFormProps) {
   const [opening] = useState(() => openingValues({ item, restoring, categories, shops }))
   const [values, setValues] = useState<ItemFormValues>(opening)
   const [errors, setErrors] = useState<ItemFormErrors>({})
@@ -142,6 +149,10 @@ function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateC
   const [tagIds, setTagIds] = useState<catalogue.TagId[]>(item?.tagIds ?? [])
   const [tagName, setTagName] = useState('')
   const [tagError, setTagError] = useState<string | null>(null)
+  /** The one Aisle the Item sits in, a deleted one included: it has no chip but comes back with its Aisle. */
+  const [aisleId, setAisleId] = useState<catalogue.AisleId | null>(item?.aisleId ?? null)
+  const [aisleName, setAisleName] = useState('')
+  const [aisleError, setAisleError] = useState<string | null>(null)
   const [removedBarcodes, setRemovedBarcodes] = useState<core.Barcode[]>([])
   const [saveError, setSaveError] = useState<string | null>(null)
   /** Why the prompt's last submit failed, and the prompt field it belongs to; `create` is a rejection from `onCreateCategory`. */
@@ -233,6 +244,26 @@ function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateC
     void handleAddTag()
   }
 
+  /** Sets the Item's Aisle to the live Aisle named `aisleName`, ignoring case and surrounding spaces, creating it when there is none; it replaces any Aisle the Item had. */
+  async function handleSetAisle() {
+    const name = aisleName.trim()
+    if (name === '') return
+    setAisleError(null)
+    try {
+      setAisleId(findAisleByName(aisles, name)?.id ?? (await onCreateAisle(name)))
+      setAisleName('')
+    } catch (err) {
+      setAisleError(err instanceof Error ? err.message : 'Could not set Aisle')
+    }
+  }
+
+  /** Enter in the Aisle field sets the Aisle instead of submitting the Item form around it. */
+  function handleAisleKeyDown(event: JSX.TargetedKeyboardEvent<HTMLInputElement>) {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    void handleSetAisle()
+  }
+
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
     const result = parseItemFormValues(values)
@@ -243,7 +274,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateC
     setErrors({})
     setSaveError(null)
     try {
-      const withTags = { ...result.input, tagIds }
+      const withTags = { ...result.input, tagIds, ...(aisleId !== (item?.aisleId ?? null) ? { aisleId } : {}) }
       const input = removedBarcodes.length > 0 ? { ...withTags, removedBarcodes } : withTags
       await onSave(item ? input : { ...input, state: values.state })
       onClose()
@@ -262,6 +293,8 @@ function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateC
     (Object.keys(opening) as (keyof ItemFormValues)[]).some((field) => values[field] !== opening[field]) ||
     !sameTagIds(tagIds, item?.tagIds ?? []) ||
     tagName !== '' ||
+    aisleId !== (item?.aisleId ?? null) ||
+    aisleName !== '' ||
     removedBarcodes.length > 0 ||
     categoryDraft !== null
   useLayoutEffect(() => {
@@ -270,6 +303,7 @@ function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateC
   }, [hasUnsavedEdits, onUnsavedEditsChange])
 
   const attachedTags = tags.filter((tag) => tagIds.includes(tag.id))
+  const currentAisle = aisles.find((aisle) => aisle.id === aisleId)
 
   return (
     <form class="item-form" onSubmit={handleSubmit}>
@@ -377,6 +411,24 @@ function ItemForm({ item, restoring, barcode, categories, shops, tags, onCreateC
               onDismiss={() => setTagIds((current) => current.filter((id) => id !== tag.id))}
             />
           ))}
+        </div>
+      )}
+      <TextField
+        label="Aisle"
+        error={aisleError ?? undefined}
+        value={aisleName}
+        onInput={(event) => {
+          setAisleName(event.currentTarget.value)
+          setAisleError(null)
+        }}
+        onKeyDown={handleAisleKeyDown}
+      />
+      <Button variant="text" onClick={handleSetAisle}>
+        Set Aisle
+      </Button>
+      {currentAisle !== undefined && (
+        <div class="item-form__chips">
+          <Chip label={currentAisle.name} dismissLabel={`Clear Aisle ${currentAisle.name}`} onDismiss={() => setAisleId(null)} />
         </div>
       )}
       {!item && barcode !== undefined && <TextField label="Barcode" readOnly value={barcode} />}
