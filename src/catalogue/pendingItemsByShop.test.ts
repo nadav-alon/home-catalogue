@@ -95,25 +95,33 @@ describe('groupPendingItemsByShop with a chosen Store', () => {
     return item(id, { categoryId: cleaning.id, ...overrides })
   }
 
-  it("orders a group by the Store's aisle order, Items sharing an Aisle by name", () => {
-    const items = [inGrocery('rice', { aisleId: aisleA }), inGrocery('milk', { aisleId: aisleB }), inGrocery('eggs', { aisleId: aisleB })]
+  it("orders a group by the Store's aisle order, Items sharing an Aisle in their given order", () => {
+    const items = [inGrocery('eggs', { aisleId: aisleB }), inGrocery('milk', { aisleId: aisleB }), inGrocery('rice', { aisleId: aisleA })]
 
     const { groups } = groupPendingItemsByShop(items, [cleaning], [grocery], chosen)
 
     expect(groups[0]?.items.map((i) => i.name)).toEqual(['eggs', 'milk', 'rice'])
   })
 
-  it('puts Items with no Aisle, or an unplaced one, at the bottom by name', () => {
+  it('puts Items with no Aisle, or an unplaced one, at the bottom in their given order', () => {
     const items = [
-      inGrocery('zucchini'),
-      inGrocery('yeast', { aisleId: aisleC }),
-      inGrocery('rice', { aisleId: aisleA }),
       inGrocery('apples'),
+      inGrocery('rice', { aisleId: aisleA }),
+      inGrocery('yeast', { aisleId: aisleC }),
+      inGrocery('zucchini'),
     ]
 
     const { groups } = groupPendingItemsByShop(items, [cleaning], [grocery], chosen)
 
     expect(groups[0]?.items.map((i) => i.name)).toEqual(['rice', 'apples', 'yeast', 'zucchini'])
+  })
+
+  it('keeps the given name order within an Aisle, whatever the case', () => {
+    const items = [inGrocery('Banana', { aisleId: aisleA }), inGrocery('apple', { aisleId: aisleA })]
+
+    const { groups } = groupPendingItemsByShop(items, [cleaning], [grocery], chosen)
+
+    expect(groups[0]?.items.map((i) => i.name)).toEqual(['Banana', 'apple'])
   })
 
   it('leaves the order alone for a Shop with no chosen Store', () => {

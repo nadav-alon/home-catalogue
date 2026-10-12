@@ -17,15 +17,16 @@ export interface PendingItemsByShop {
 }
 
 /**
- * Puts `items` in the walking order of `store`'s Aisles, Items sharing an Aisle by name. An Item with
- * no Aisle, or one the Store has not placed, goes at the bottom, by name.
+ * Puts `items` in the walking order of `store`'s Aisles, Items sharing an Aisle keeping their order in
+ * `items`, which is the name order the Shopping list already uses. An Item with
+ * no Aisle, or one the Store has not placed, goes at the bottom, in that order too.
  */
 function sortByAisleOrder(items: ItemRecord[], store: StoreRecord): ItemRecord[] {
   const rank = (item: ItemRecord) => {
     const place = item.aisleId === undefined ? -1 : store.aisleOrder.indexOf(item.aisleId)
     return place === -1 ? store.aisleOrder.length : place
   }
-  return [...items].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
+  return [...items].sort((a, b) => rank(a) - rank(b))
 }
 
 /**
