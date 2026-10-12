@@ -188,7 +188,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
     <section>
       <ScanEntry onScan={handleScan} />
       <AlertBanner items={items ?? []} />
-      <CalendarExport items={items ?? []} categories={categories} shops={shops} />
+      <CalendarExport items={items ?? []} categories={categories} shops={shops} chosenStores={sortingStores} />
       <label>
         <input type="checkbox" checked={sortByAisle} onChange={(event) => handleToggleSortByAisle(event.currentTarget.checked)} />
         Sort by aisle

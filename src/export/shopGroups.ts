@@ -2,6 +2,8 @@ import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ItemRecord } from '../catalogue/items.ts'
 import { groupPendingItemsByShop, type PendingShopGroup } from '../catalogue/pendingItemsByShop.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
+import type { StoreRecord } from '../catalogue/stores.ts'
+import type { catalogue } from 'data-platform'
 
 export type ShopGroup = PendingShopGroup
 
@@ -22,12 +24,15 @@ export interface PendingItemGroups {
  * no Shop of its own to name a Calendar event after, so it is left out of `groups` (unlike the
  * Shopping list's own "Unknown Shop" bucket, which is a display-only affordance) and counted in
  * `unresolvedCount` instead. So is an Item whose resolved Shop has no record in `shops`.
+ * Each group's Items are in the order the Shopping list shows them: pass the Stores the list sorts
+ * by as `chosenStores`, none when it is not sorted by aisle.
  */
 export function pendingItemsByShop(
   items: ItemRecord[],
   categories: CategoryRecord[],
   shops: ShopRecord[],
+  chosenStores: ReadonlyMap<catalogue.ShopId, StoreRecord> = new Map(),
 ): PendingItemGroups {
-  const { groups, unresolved } = groupPendingItemsByShop(items, categories, shops)
+  const { groups, unresolved } = groupPendingItemsByShop(items, categories, shops, chosenStores)
   return { groups, unresolvedCount: unresolved.length, nothingToBuy: groups.length === 0 && unresolved.length === 0 }
 }

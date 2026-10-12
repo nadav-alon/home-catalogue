@@ -7,7 +7,8 @@ import { TopAppBar } from '../shell/TopAppBar.tsx'
 import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
-import { bandages, medicine, pharmacy } from '../catalogue/testFixtures.ts'
+import type { StoreRecord } from '../catalogue/stores.ts'
+import { bandages, cleaning, grocery, medicine, pharmacy } from '../catalogue/testFixtures.ts'
 import type { ExportResult } from './exportShoppingList.ts'
 
 const exportShoppingList = vi.fn()
@@ -43,18 +44,23 @@ afterEach(() => {
 })
 
 /** Renders the export action; `rerender` swaps in new Items, keeping the Categories and Shops. */
-function renderExport(items: ItemRecord[], categories: CategoryRecord[] = [medicine], shops: ShopRecord[] = [pharmacy]) {
+function renderExport(
+  items: ItemRecord[],
+  categories: CategoryRecord[] = [medicine],
+  shops: ShopRecord[] = [pharmacy],
+  chosenStores?: ReadonlyMap<catalogue.ShopId, StoreRecord>,
+) {
   const bar = (current: ItemRecord[]) => (
     <TopAppBar title="Shopping list">
-      <CalendarExport items={current} categories={categories} shops={shops} />
+      <CalendarExport items={current} categories={categories} shops={shops} chosenStores={chosenStores} />
     </TopAppBar>
   )
   const view = render(bar(items))
   return { rerender: (current: ItemRecord[]) => view.rerender(bar(current)) }
 }
 
-function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[]) {
-  const view = renderExport(items, categories, shops)
+function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[], chosenStores?: ReadonlyMap<catalogue.ShopId, StoreRecord>) {
+  const view = renderExport(items, categories, shops, chosenStores)
   fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
   return view
 }
@@ -77,6 +83,20 @@ async function startExportThenClose() {
 }
 
 describe('CalendarExport', () => {
+  it("exports a Shop's Items in the aisle order of the Store the list is sorted by", async () => {
+    const aisleA = catalogue.aisleId('a')
+    const aisleB = catalogue.aisleId('b')
+    const store: StoreRecord = { id: catalogue.storeId('osher'), name: 'Osher Ad', shopId: grocery.id, aisleOrder: [aisleB, aisleA] }
+    const rice: ItemRecord = { ...outBandages, id: core.itemId('rice'), name: 'Rice', categoryId: cleaning.id, aisleId: aisleA }
+    const milk: ItemRecord = { ...outBandages, id: core.itemId('milk'), name: 'Milk', categoryId: cleaning.id, aisleId: aisleB }
+    exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
+    renderWith([milk, rice].reverse(), [cleaning], [grocery], new Map([[grocery.id, store]]))
+
+    await submit('2026-03-05')
+
+    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: grocery, items: [milk, rice] }], '2026-03-05')
+  })
+
   it('lays out the dialog actions in the shared action row', () => {
     renderWith([outBandages], [medicine], [pharmacy])
 
