@@ -487,6 +487,44 @@ describe('updateItem', () => {
     )
   })
 
+  it('sets the Item\'s Aisle when given, clears it on null, and leaves it alone when omitted', async () => {
+    const { updateItem } = await import('./items.ts')
+    batchCommit.mockResolvedValue(undefined)
+    const edit = {
+      name: 'Dish soap',
+      categoryId: dishSoap.categoryId,
+      necessity: catalogue.necessitySchema.parse('essential'),
+      shopId: dishSoap.shopId,
+    }
+    const catalogueItemRef = { path: catalogue.CATALOGUE_ITEMS_COLLECTION, id: 'dish-soap' }
+
+    await updateItem(fakeDb, dishSoap, { ...edit, aisleId: catalogue.aisleId('frozen') }, [])
+    expect(batchUpdate).toHaveBeenCalledWith(catalogueItemRef, expect.objectContaining({ aisleId: 'frozen' }))
+
+    batchUpdate.mockClear()
+    await updateItem(fakeDb, dishSoap, { ...edit, aisleId: null }, [])
+    expect(batchUpdate).toHaveBeenCalledWith(catalogueItemRef, expect.objectContaining({ aisleId: { kind: 'deleteField' } }))
+
+    batchUpdate.mockClear()
+    await updateItem(fakeDb, dishSoap, edit, [])
+    expect(batchUpdate).toHaveBeenCalledWith(catalogueItemRef, expect.not.objectContaining({ aisleId: expect.anything() }))
+  })
+
+  it('writes the Aisle the new Item sits in', async () => {
+    const { createItem } = await import('./items.ts')
+    batchCommit.mockResolvedValueOnce(undefined)
+
+    await createItem(fakeDb, {
+      name: 'Peas',
+      categoryId: catalogue.categoryId('cleaning'),
+      necessity: catalogue.necessitySchema.parse('essential'),
+      state: core.stateSchema.parse('enough'),
+      aisleId: catalogue.aisleId('frozen'),
+    })
+
+    expect(batchSet).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ aisleId: 'frozen' }))
+  })
+
   it('removes the removed barcodes from the core Item in the same batch, leaving its other barcodes', async () => {
     const { updateItem } = await import('./items.ts')
     batchCommit.mockResolvedValueOnce(undefined)
