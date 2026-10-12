@@ -186,13 +186,13 @@ export function ShoppingList({ db }: ShoppingListProps) {
 
   return (
     <section>
-      <ScanEntry onScan={handleScan} />
-      <AlertBanner items={items ?? []} />
-      <CalendarExport items={items ?? []} categories={categories} shops={shops} chosenStores={sortingStores} />
       <label>
         <input type="checkbox" checked={sortByAisle} onChange={(event) => handleToggleSortByAisle(event.currentTarget.checked)} />
         Sort by aisle
       </label>
+      <ScanEntry onScan={handleScan} />
+      <AlertBanner items={items ?? []} />
+      <CalendarExport items={items ?? []} categories={categories} shops={shops} chosenStores={sortingStores} />
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
       {items !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
@@ -224,7 +224,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
               ))}
             </ul>
           </div>
-          )
+        )
       })}
       <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={() => void handleDeclineRestore()} />
       <UnknownBarcodeChooser
