@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
 import { pharmacy } from './testFixtures.ts'
+import type { AisleRecord } from './aisles.ts'
 import type { StoreRecord } from './stores.ts'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
@@ -130,5 +131,29 @@ describe('setAisleOrder', () => {
     await setAisleOrder(fakeDb, osherAd, [bakery, dairy])
 
     expect(updateDoc).toHaveBeenCalledWith({ path: catalogue.STORES_COLLECTION, id: 'osher-ad' }, { aisleOrder: [bakery, dairy] })
+  })
+})
+
+describe('arrangeAisles and moveAisle', () => {
+  const aisle = (id: string): AisleRecord => ({ id: catalogue.aisleId(id), name: id })
+  const [a, b, c, d] = ['a', 'b', 'c', 'd'].map(aisle)
+
+  it('puts the ordered Aisles first and the rest, by name, as unplaced, ignoring ids with no live Aisle', async () => {
+    const { arrangeAisles } = await import('./stores.ts')
+
+    expect(arrangeAisles([a, b, c, d], [c.id, catalogue.aisleId('gone'), a.id])).toEqual({ placed: [c, a], unplaced: [b, d] })
+  })
+
+  it('reorders the placed Aisles', async () => {
+    const { moveAisle } = await import('./stores.ts')
+
+    expect(moveAisle({ placed: [a, b, c], unplaced: [d] }, 2, 0)).toEqual([c.id, a.id, b.id])
+  })
+
+  it('places an unplaced Aisle once it is moved, and leaves the others unplaced', async () => {
+    const { moveAisle } = await import('./stores.ts')
+
+    expect(moveAisle({ placed: [a], unplaced: [b, c, d] }, 3, 0)).toEqual([d.id, a.id])
+    expect(moveAisle({ placed: [a], unplaced: [b, c, d] }, 2, 1)).toEqual([a.id, c.id])
   })
 })

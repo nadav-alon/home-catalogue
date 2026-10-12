@@ -12,6 +12,7 @@ import {
   type Firestore,
 } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
+import type { AisleRecord } from './aisles.ts'
 import { reportWriteRejection } from './writeRejections.ts'
 
 export interface StoreRecord extends catalogue.Store {
@@ -87,4 +88,29 @@ function commitStoreUpdate(db: Firestore, store: StoreRecord, fields: Record<str
   void updateDoc(doc(db, catalogue.STORES_COLLECTION, store.id), fields).catch((err: unknown) => {
     reportWriteRejection(what, err)
   })
+}
+
+/** The live Aisles split by a Store's order: `placed` in the order one walks them, then `unplaced`, which the order has not reached, by name. */
+export interface ArrangedAisles {
+  placed: AisleRecord[]
+  unplaced: AisleRecord[]
+}
+
+/** Splits `aisles` by `aisleOrder`. An id in the order that no live Aisle has (deleted since) is left out. */
+export function arrangeAisles(aisles: readonly AisleRecord[], aisleOrder: readonly catalogue.AisleId[]): ArrangedAisles {
+  const placed = aisleOrder.flatMap((id) => aisles.find((aisle) => aisle.id === id) ?? [])
+  return { placed, unplaced: aisles.filter((aisle) => !placed.includes(aisle)) }
+}
+
+/**
+ * The aisle order to save after the row at `from` is dragged or nudged to `to` in the list
+ * `[...placed, ...unplaced]`. Everything up to the moved row, and up to the last row that was already
+ * placed, becomes placed; the Aisles after that stay unplaced and are left out of the order.
+ */
+export function moveAisle({ placed, unplaced }: ArrangedAisles, from: number, to: number): catalogue.AisleId[] {
+  const rows = [...placed, ...unplaced]
+  const [moved] = rows.splice(from, 1)
+  rows.splice(to, 0, moved)
+  const placedAfter = Math.max(placed.length + (from >= placed.length ? 1 : 0), to + 1)
+  return rows.slice(0, placedAfter).map((aisle) => aisle.id)
 }
