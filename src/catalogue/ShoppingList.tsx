@@ -4,6 +4,9 @@ import type { core } from 'data-platform'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, isLiveReference, itemsWithBarcode, restoreItem, restoreItemWithEdit, setItemState, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { createAisle, watchAisles, type AisleRecord } from './aisles.ts'
+import { getChosenStoreIds, getSortByAisle, saveChosenStoreIds, saveSortByAisle, storesOfShop, storesToSortBy } from './aisleSort.ts'
+import { watchStores, type StoreRecord } from './stores.ts'
+import { Select } from '../ui/Select.tsx'
 import { createTag, watchTags, type TagRecord } from './tags.ts'
 import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
 import { AlertBanner } from './AlertBanner.tsx'
@@ -22,6 +25,8 @@ export interface ShoppingListProps {
 
 interface ShopGroup {
   key: string
+  /** Set for a resolved Shop, whose group can be sorted by one of its Stores. */
+  shop?: ShopRecord
   name: string
   items: ItemRecord[]
 }
@@ -32,11 +37,15 @@ export function ShoppingList({ db }: ShoppingListProps) {
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [tags, setTags] = useState<TagRecord[]>([])
   const [aisles, setAisles] = useState<AisleRecord[]>([])
+  const [stores, setStores] = useState<StoreRecord[]>([])
+  const [sortByAisle, setSortByAisle] = useState(getSortByAisle)
+  const [chosenStoreIds, setChosenStoreIds] = useState(getChosenStoreIds)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(() => watchTags(db, setTags), [db])
   useEffect(() => watchAisles(db, setAisles), [db])
+  useEffect(() => watchStores(db, setStores), [db])
   /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
   const [listsLoaded, setListsLoaded] = useState({ categories: false, shops: false })
   useEffect(
@@ -152,9 +161,22 @@ export function ShoppingList({ db }: ShoppingListProps) {
     }
   }
 
-  const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops)
+  function handleToggleSortByAisle(on: boolean) {
+    setSortByAisle(on)
+    saveSortByAisle(on)
+  }
+
+  function handleChooseStore(shop: ShopRecord, store: StoreRecord) {
+    const next = new Map(chosenStoreIds).set(shop.id, store.id)
+    setChosenStoreIds(next)
+    saveChosenStoreIds(next)
+  }
+
+  const sortingStores = storesToSortBy(sortByAisle, shops, stores, chosenStoreIds)
+  const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops, sortingStores)
   const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
     key: shop.id,
+    shop,
     name: shop.name,
     items: shopItems,
   }))
@@ -167,19 +189,43 @@ export function ShoppingList({ db }: ShoppingListProps) {
       <ScanEntry onScan={handleScan} />
       <AlertBanner items={items ?? []} />
       <CalendarExport items={items ?? []} categories={categories} shops={shops} />
+      <label>
+        <input type="checkbox" checked={sortByAisle} onChange={(event) => handleToggleSortByAisle(event.currentTarget.checked)} />
+        Sort by aisle
+      </label>
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
       {items !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
-      {groups.map(({ key, name, items: groupItems }) => (
-        <div key={key}>
-          <h2>{name}</h2>
-          <ul>
-            {groupItems.map((item) => (
-              <ShoppingListRow key={item.id} item={item} onTick={() => handleTick(item)} />
-            ))}
-          </ul>
-        </div>
-      ))}
+      {groups.map(({ key, name, shop, items: groupItems }) => {
+        const options = sortByAisle && shop !== undefined ? storesOfShop(stores, shop) : []
+        const sortingStore = shop === undefined ? undefined : sortingStores.get(shop.id)
+        return (
+          <div key={key}>
+            <h2>{name}</h2>
+            {shop !== undefined && sortingStore !== undefined && options.length > 1 && (
+              <Select
+                label="Store"
+                value={sortingStore.id}
+                onChange={(event) => {
+                  const picked = options.find((option) => option.id === event.currentTarget.value)
+                  if (picked !== undefined) handleChooseStore(shop, picked)
+                }}
+              >
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+            <ul>
+              {groupItems.map((item) => (
+                <ShoppingListRow key={item.id} item={item} onTick={() => handleTick(item)} />
+              ))}
+            </ul>
+          </div>
+          )
+      })}
       <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={() => void handleDeclineRestore()} />
       <UnknownBarcodeChooser
         barcode={unknownBarcode?.barcode}
