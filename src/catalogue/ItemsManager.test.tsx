@@ -7,6 +7,7 @@ import { ItemsManager } from './ItemsManager.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
+import type { AisleRecord } from './aisles.ts'
 import type { TagRecord } from './tags.ts'
 import type { CategoryAndShop } from '../ui/route.ts'
 import { resetHash } from '../testing/hash.ts'
@@ -56,6 +57,14 @@ vi.mock('./shops.ts', async (importOriginal) => ({
   watchShops: (db: unknown, cb: unknown) => watchShops(db, cb),
 }))
 
+const watchAisles = vi.fn()
+const createAisle = vi.fn()
+vi.mock('./aisles.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./aisles.ts')>()),
+  watchAisles: (db: unknown, cb: unknown) => watchAisles(db, cb),
+  createAisle: (db: unknown, name: unknown) => createAisle(db, name),
+}))
+
 const watchTags = vi.fn()
 const createTag = vi.fn()
 vi.mock('./tags.ts', async (importOriginal) => ({
@@ -90,6 +99,11 @@ beforeEach(() => {
     return vi.fn()
   })
   createTag.mockReset()
+  watchAisles.mockReset().mockImplementation((_db: unknown, cb: (aisles: AisleRecord[]) => void) => {
+    cb([])
+    return vi.fn()
+  })
+  createAisle.mockReset()
   localStorage.clear()
 })
 
@@ -2466,5 +2480,114 @@ describe('ItemsManager Tag filter', () => {
 
     expect(tagChips().getByRole('button', { name: 'cooking', pressed: false })).toBeInTheDocument()
     expect(screen.getByText('Honey')).toBeInTheDocument()
+  })
+})
+
+describe('Aisle in the Item dialog', () => {
+  const frozen: AisleRecord = { id: catalogue.aisleId('frozen'), name: 'Frozen' }
+  const dairy: AisleRecord = { id: catalogue.aisleId('dairy'), name: 'Dairy' }
+
+  function renderWithAisles(aisles: AisleRecord[], items: ItemRecord[] = [bandages]) {
+    let publishAisles: (aisles: AisleRecord[]) => void = () => {}
+    watchAisles.mockImplementation((_db: unknown, cb: (aisles: AisleRecord[]) => void) => {
+      publishAisles = cb
+      cb(aisles)
+      return vi.fn()
+    })
+    renderWith(items, [medicine], [pharmacy])
+    return { publishAisles }
+  }
+
+  function openEdit() {
+    fireEvent.click(screen.getByText('Bandages'))
+  }
+
+  function setAisle(name: string) {
+    fireEvent.input(screen.getByLabelText('Aisle'), { target: { value: name } })
+    fireEvent.click(screen.getByRole('button', { name: 'Set Aisle' }))
+  }
+
+  function save() {
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+  }
+
+  it('shows an Item\'s live Aisle beside its Necessity, and none once the Aisle is deleted', () => {
+    const { publishAisles } = renderWithAisles([frozen], [{ ...bandages, aisleId: frozen.id }])
+
+    expect(screen.getByText(/essential · Frozen/)).toBeInTheDocument()
+
+    act(() => publishAisles([]))
+
+    expect(screen.queryByText(/Frozen/)).not.toBeInTheDocument()
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+
+  it('creates an Aisle for a name matching none and sets it', async () => {
+    const { publishAisles } = renderWithAisles([])
+    createAisle.mockImplementation(() => {
+      publishAisles([frozen])
+      return Promise.resolve(frozen.id)
+    })
+    openEdit()
+
+    setAisle('  Frozen ')
+
+    expect(await screen.findByRole('button', { name: 'Clear Aisle Frozen' })).toBeInTheDocument()
+    expect(createAisle).toHaveBeenCalledWith(fakeDb, 'Frozen')
+    save()
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, bandages, expect.objectContaining({ aisleId: frozen.id }), expect.anything())
+  })
+
+  it('sets the existing Aisle whose name differs only by case, creating none', async () => {
+    renderWithAisles([frozen])
+    openEdit()
+
+    setAisle('frozen')
+
+    expect(await screen.findByRole('button', { name: 'Clear Aisle Frozen' })).toBeInTheDocument()
+    expect(createAisle).not.toHaveBeenCalled()
+  })
+
+  it('swaps the Aisle for another, an Item carrying exactly one', async () => {
+    renderWithAisles([frozen, dairy], [{ ...bandages, aisleId: frozen.id }])
+    openEdit()
+
+    setAisle('Dairy')
+
+    expect(await screen.findByRole('button', { name: 'Clear Aisle Dairy' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Clear Aisle Frozen' })).not.toBeInTheDocument()
+    save()
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, expect.anything(), expect.objectContaining({ aisleId: dairy.id }), expect.anything())
+  })
+
+  it('clears the Aisle and saves null', () => {
+    renderWithAisles([frozen], [{ ...bandages, aisleId: frozen.id }])
+    openEdit()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear Aisle Frozen' }))
+    save()
+
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, expect.anything(), expect.objectContaining({ aisleId: null }), expect.anything())
+  })
+
+  it('leaves the Aisle out of a save that did not touch it, so a deleted Aisle keeps its id', () => {
+    renderWithAisles([], [{ ...bandages, aisleId: frozen.id }])
+    openEdit()
+
+    expect(screen.queryByRole('button', { name: /Clear Aisle/ })).not.toBeInTheDocument()
+    save()
+
+    expect(updateItem).toHaveBeenCalledWith(fakeDb, expect.anything(), expect.not.objectContaining({ aisleId: expect.anything() }), expect.anything())
+  })
+
+  it('counts text typed into the Aisle field as an unsaved edit', () => {
+    confirmSpy.mockReturnValue(false)
+    renderWithAisles([])
+    openEdit()
+
+    fireEvent.input(screen.getByLabelText('Aisle'), { target: { value: 'fro' } })
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
+
+    expect(confirmSpy).toHaveBeenCalledOnce()
   })
 })

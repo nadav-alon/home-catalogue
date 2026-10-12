@@ -7,6 +7,7 @@ const TITLES: Record<Route, string> = {
   '/settings/shops': 'Shops',
   '/settings/categories': 'Categories',
   '/settings/tags': 'Tags',
+  '/settings/aisles': 'Aisles',
   '/settings/members': 'Members',
 }
 
