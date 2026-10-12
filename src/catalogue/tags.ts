@@ -1,6 +1,6 @@
-import { collection, deleteField, doc, onSnapshot, orderBy, query, serverTimestamp, writeBatch, type Firestore, type WriteBatch } from 'firebase/firestore'
+import { collection, deleteField, doc, onSnapshot, orderBy, query, serverTimestamp, writeBatch, type Firestore } from 'firebase/firestore'
 import { catalogue } from 'data-platform'
-import { reportFailure, reportWriteRejection } from './writeRejections.ts'
+import { commitQueued, reportFailure } from './writeRejections.ts'
 
 export interface TagRecord extends catalogue.Tag {
   id: catalogue.TagId
@@ -36,13 +36,6 @@ export function watchTags(db: Firestore, callback: (tags: TagRecord[]) => void):
 export function findTagByName<Tag extends Pick<TagRecord, 'name'>>(tags: readonly Tag[], name: string): Tag | undefined {
   const key = catalogue.tagNameKey(name)
   return tags.find((tag) => catalogue.tagNameKey(tag.name) === key)
-}
-
-/** Commits `batch` without awaiting it; a rejection is reported through {@link reportWriteRejection} as `what`. */
-function commitQueued(batch: WriteBatch, what: string): void {
-  void batch.commit().catch((err: unknown) => {
-    reportWriteRejection(what, err)
-  })
 }
 
 /**

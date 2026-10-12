@@ -1,4 +1,6 @@
 
+import type { WriteBatch } from 'firebase/firestore'
+
 export interface WriteRejection {
   id: string
   message: string
@@ -30,6 +32,13 @@ export function reportWriteRejection(what: string, err: unknown): void {
  */
 export function reportFailure(message: string, err: unknown): void {
   show(err instanceof Error && err.message.length > 0 ? `${message}: ${err.message}` : message, err)
+}
+
+/** Commits `batch` without awaiting it; a rejection is reported through {@link reportWriteRejection} as `what`. */
+export function commitQueued(batch: WriteBatch, what: string): void {
+  void batch.commit().catch((err: unknown) => {
+    reportWriteRejection(what, err)
+  })
 }
 
 function show(message: string, err: unknown): void {
