@@ -3,6 +3,7 @@ import { catalogue, core } from 'data-platform'
 import type { CategoryRecord } from './categories.ts'
 import type { ItemRecord } from './items.ts'
 import type { ShopRecord } from './shops.ts'
+import type { StoreRecord } from './stores.ts'
 import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
 
 const pharmacy: ShopRecord = { id: catalogue.shopId('pharmacy'), name: 'Pharmacy', referenceCount: 1 }
@@ -80,5 +81,46 @@ describe('groupPendingItemsByShop', () => {
       groups: [],
       unresolved: [bandages],
     })
+  })
+})
+
+describe('groupPendingItemsByShop with a chosen Store', () => {
+  const aisleA = catalogue.aisleId('a')
+  const aisleB = catalogue.aisleId('b')
+  const aisleC = catalogue.aisleId('c')
+  const store: StoreRecord = { id: catalogue.storeId('osher'), name: 'Osher Ad', shopId: grocery.id, aisleOrder: [aisleB, aisleA] }
+  const chosen = new Map([[grocery.id, store]])
+
+  function inGrocery(id: string, overrides: Partial<ItemRecord> = {}) {
+    return item(id, { categoryId: cleaning.id, ...overrides })
+  }
+
+  it("orders a group by the Store's aisle order, Items sharing an Aisle by name", () => {
+    const items = [inGrocery('rice', { aisleId: aisleA }), inGrocery('milk', { aisleId: aisleB }), inGrocery('eggs', { aisleId: aisleB })]
+
+    const { groups } = groupPendingItemsByShop(items, [cleaning], [grocery], chosen)
+
+    expect(groups[0]?.items.map((i) => i.name)).toEqual(['eggs', 'milk', 'rice'])
+  })
+
+  it('puts Items with no Aisle, or an unplaced one, at the bottom by name', () => {
+    const items = [
+      inGrocery('zucchini'),
+      inGrocery('yeast', { aisleId: aisleC }),
+      inGrocery('rice', { aisleId: aisleA }),
+      inGrocery('apples'),
+    ]
+
+    const { groups } = groupPendingItemsByShop(items, [cleaning], [grocery], chosen)
+
+    expect(groups[0]?.items.map((i) => i.name)).toEqual(['rice', 'apples', 'yeast', 'zucchini'])
+  })
+
+  it('leaves the order alone for a Shop with no chosen Store', () => {
+    const items = [inGrocery('zucchini'), inGrocery('rice', { aisleId: aisleA })]
+
+    const { groups } = groupPendingItemsByShop(items, [cleaning], [grocery], new Map())
+
+    expect(groups[0]?.items).toEqual(items)
   })
 })
