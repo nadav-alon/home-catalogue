@@ -12,7 +12,7 @@ import { TextField } from '../ui/TextField.tsx'
 import ArrowDownwardIcon from '~icons/material-symbols/arrow-downward'
 import ArrowUpwardIcon from '~icons/material-symbols/arrow-upward'
 import { watchAisles, type AisleRecord } from './aisles.ts'
-import { arrangeAisles, createStore, moveAisle, renameStore, restoreStore, setAisleOrder, softDeleteStore, type StoreRecord } from './stores.ts'
+import { aisleRows, arrangeAisles, createStore, moveAisle, placeAisle, renameStore, restoreStore, setAisleOrder, softDeleteStore, type StoreRecord } from './stores.ts'
 import type { ShopRecord } from './shops.ts'
 
 export const BLANK_STORE_NAME_MESSAGE = 'A Store needs a name.'
@@ -99,11 +99,15 @@ function AisleOrderDialog({ db, store, onClose }: AisleOrderDialogProps) {
   useEffect(() => watchAisles(db, setAisles), [db])
 
   const arranged = arrangeAisles(aisles, store.aisleOrder)
-  const rows = [...arranged.placed, ...arranged.unplaced]
+  const rows = aisleRows(arranged)
 
-  function move(from: number, to: number) {
-    if (from === to || to < 0 || to >= rows.length) return
-    void setAisleOrder(db, store, moveAisle(arranged, from, to))
+  function save(order: catalogue.AisleId[] | null) {
+    if (order !== null) void setAisleOrder(db, store, order)
+  }
+
+  /** Moving the first unplaced row up places it at the end of the placed ones, instead of before the last of them. */
+  function moveUp(from: number) {
+    save(from === arranged.placed.length ? placeAisle(arranged, from) : moveAisle(arranged, from, from - 1))
   }
 
   return (
@@ -113,7 +117,18 @@ function AisleOrderDialog({ db, store, onClose }: AisleOrderDialogProps) {
           const unplaced = index >= arranged.placed.length
           return (
             <Fragment key={aisle.id}>
-              {index === arranged.placed.length && <li>Not yet placed</li>}
+              {index === arranged.placed.length && (
+                <li
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    if (dragFrom !== null) save(placeAisle(arranged, dragFrom))
+                    setDragFrom(null)
+                  }}
+                >
+                  Not yet placed
+                </li>
+              )}
               <li
                 draggable
                 aria-label={unplaced ? `${aisle.name}, not yet placed` : aisle.name}
@@ -121,13 +136,13 @@ function AisleOrderDialog({ db, store, onClose }: AisleOrderDialogProps) {
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={(event) => {
                   event.preventDefault()
-                  if (dragFrom !== null) move(dragFrom, index)
+                  if (dragFrom !== null) save(moveAisle(arranged, dragFrom, index))
                   setDragFrom(null)
                 }}
               >
                 <span>{aisle.name}</span>
-                <IconButton symbol={ArrowUpwardIcon} label={`Move ${aisle.name} up`} disabled={index === 0} onClick={() => move(index, index - 1)} />
-                <IconButton symbol={ArrowDownwardIcon} label={`Move ${aisle.name} down`} disabled={index === rows.length - 1} onClick={() => move(index, index + 1)} />
+                <IconButton symbol={ArrowUpwardIcon} label={`Move ${aisle.name} up`} disabled={index === 0 && !unplaced} onClick={() => moveUp(index)} />
+                <IconButton symbol={ArrowDownwardIcon} label={`Move ${aisle.name} down`} disabled={index === rows.length - 1} onClick={() => save(moveAisle(arranged, index, index + 1))} />
               </li>
             </Fragment>
           )

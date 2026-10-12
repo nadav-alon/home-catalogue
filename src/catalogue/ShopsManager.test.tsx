@@ -651,7 +651,24 @@ describe('ShopsManager aisle order', () => {
 
     fireEvent.click(dialog.getByRole('button', { name: 'Move Bakery up' }))
 
-    expect(setAisleOrder).toHaveBeenLastCalledWith(fakeDb, expect.anything(), [bakery.id, dairy.id])
+    expect(setAisleOrder).toHaveBeenLastCalledWith(fakeDb, expect.anything(), [dairy.id, bakery.id])
+  })
+
+  it('places the first Aisle of an empty order on its own with its move up button', () => {
+    const dialog = openOrder({ ...osherAd, aisleOrder: [] }, [bakery, dairy])
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Move Bakery up' }))
+
+    expect(setAisleOrder).toHaveBeenLastCalledWith(fakeDb, expect.anything(), [bakery.id])
+  })
+
+  it('places an Aisle at the end of the order when it is dropped on the divider', () => {
+    const dialog = openOrder({ ...osherAd, aisleOrder: [dairy.id] }, [bakery, dairy, produce])
+
+    fireEvent.dragStart(dialog.getByRole('listitem', { name: 'Bakery, not yet placed' }))
+    fireEvent.drop(dialog.getByText('Not yet placed'))
+
+    expect(setAisleOrder).toHaveBeenLastCalledWith(fakeDb, expect.anything(), [dairy.id, bakery.id])
   })
 
   it('disables moving the first row up and the last row down', () => {

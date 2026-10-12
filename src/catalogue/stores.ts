@@ -72,19 +72,18 @@ export async function setAisleOrder(db: Firestore, store: StoreRecord, aisleOrde
 
 /** Soft-deletes the Store by setting `deletedAt` to the server's commit time. Resolves once queued, see {@link createStore}. */
 export async function softDeleteStore(db: Firestore, store: StoreRecord): Promise<void> {
-  commitStoreDeletion(db, store, serverTimestamp(), 'deleted')
+  commitStoreUpdate(db, store, { deletedAt: serverTimestamp() }, `deleted Store ${store.name}`)
 }
 
 /** Brings a soft-deleted Store back by clearing `deletedAt`. Resolves once queued, see {@link createStore}. */
 export async function restoreStore(db: Firestore, store: StoreRecord): Promise<void> {
-  commitStoreDeletion(db, store, deleteField(), 'restored')
+  commitStoreUpdate(db, store, { deletedAt: deleteField() }, `restored Store ${store.name}`)
 }
 
-function commitStoreDeletion(db: Firestore, store: StoreRecord, deletedAt: FieldValue, label: 'deleted' | 'restored'): void {
-  commitStoreUpdate(db, store, { deletedAt }, `${label} Store ${store.name}`)
-}
+/** The fields of a Store document an update may write, each checked against {@link catalogue.Store}. */
+type StoreFields = Partial<Pick<catalogue.Store, 'name' | 'aisleOrder'>> | { deletedAt: FieldValue }
 
-function commitStoreUpdate(db: Firestore, store: StoreRecord, fields: Record<string, unknown>, what: string): void {
+function commitStoreUpdate(db: Firestore, store: StoreRecord, fields: StoreFields, what: string): void {
   void updateDoc(doc(db, catalogue.STORES_COLLECTION, store.id), fields).catch((err: unknown) => {
     reportWriteRejection(what, err)
   })
@@ -102,15 +101,33 @@ export function arrangeAisles(aisles: readonly AisleRecord[], aisleOrder: readon
   return { placed, unplaced: aisles.filter((aisle) => !placed.includes(aisle)) }
 }
 
+/** The rows of the aisle order list: the placed Aisles, then the unplaced ones. */
+export function aisleRows({ placed, unplaced }: ArrangedAisles): AisleRecord[] {
+  return [...placed, ...unplaced]
+}
+
 /**
- * The aisle order to save after the row at `from` is dragged or nudged to `to` in the list
- * `[...placed, ...unplaced]`. Everything up to the moved row, and up to the last row that was already
- * placed, becomes placed; the Aisles after that stay unplaced and are left out of the order.
+ * The aisle order to save after the row at `from` is dragged or nudged to `to` in {@link aisleRows},
+ * or null when the move changes nothing (`from` equals `to`, or either is outside the rows).
+ * Everything up to the moved row, and up to the last row that was already placed, becomes placed; the
+ * Aisles after that stay unplaced and are left out of the order.
  */
-export function moveAisle({ placed, unplaced }: ArrangedAisles, from: number, to: number): catalogue.AisleId[] {
-  const rows = [...placed, ...unplaced]
+export function moveAisle(arranged: ArrangedAisles, from: number, to: number): catalogue.AisleId[] | null {
+  const rows = aisleRows(arranged)
+  if (from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return null
   const [moved] = rows.splice(from, 1)
   rows.splice(to, 0, moved)
-  const placedAfter = Math.max(placed.length + (from >= placed.length ? 1 : 0), to + 1)
-  return rows.slice(0, placedAfter).map((aisle) => aisle.id)
+  const placedCount = Math.max(arranged.placed.length + (from >= arranged.placed.length ? 1 : 0), to + 1)
+  return rows.slice(0, placedCount).map((aisle) => aisle.id)
+}
+
+/**
+ * The aisle order to save after the row at `from` in {@link aisleRows} is put at the end of the
+ * placed Aisles, directly above the unplaced ones; null when `from` is outside the rows. It is the
+ * only way to place the first unplaced Aisle on its own, which {@link moveAisle} cannot do.
+ */
+export function placeAisle({ placed, unplaced }: ArrangedAisles, from: number): catalogue.AisleId[] | null {
+  const moved = [...placed, ...unplaced][from]
+  if (moved === undefined) return null
+  return [...placed.filter((aisle) => aisle !== moved), moved].map((aisle) => aisle.id)
 }

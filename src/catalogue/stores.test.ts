@@ -156,4 +156,21 @@ describe('arrangeAisles and moveAisle', () => {
     expect(moveAisle({ placed: [a], unplaced: [b, c, d] }, 3, 0)).toEqual([d.id, a.id])
     expect(moveAisle({ placed: [a], unplaced: [b, c, d] }, 2, 1)).toEqual([a.id, c.id])
   })
+
+  it('saves nothing for a move that changes nothing or leaves the rows', async () => {
+    const { moveAisle } = await import('./stores.ts')
+
+    expect(moveAisle({ placed: [a], unplaced: [b] }, 1, 1)).toBeNull()
+    expect(moveAisle({ placed: [a], unplaced: [b] }, 1, 2)).toBeNull()
+    expect(moveAisle({ placed: [a], unplaced: [b] }, 0, -1)).toBeNull()
+  })
+
+  it('places the first unplaced Aisle alone at the end of the placed ones', async () => {
+    const { placeAisle } = await import('./stores.ts')
+
+    expect(placeAisle({ placed: [], unplaced: [a, b] }, 0)).toEqual([a.id])
+    expect(placeAisle({ placed: [c], unplaced: [a, b] }, 0 + 1)).toEqual([c.id, a.id])
+    expect(placeAisle({ placed: [a, b, c], unplaced: [d] }, 0)).toEqual([b.id, c.id, a.id])
+    expect(placeAisle({ placed: [a], unplaced: [] }, 5)).toBeNull()
+  })
 })
