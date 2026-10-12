@@ -8,6 +8,7 @@ import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
 import { ShopsManager, SHOP_DELETED_MESSAGE } from './ShopsManager.tsx'
 import { SHOP_IN_USE_MESSAGE, type ShopRecord } from './shops.ts'
 import type { StoreRecord } from './stores.ts'
+import type { AisleRecord } from './aisles.ts'
 import { grocery, pharmacy } from './testFixtures.ts'
 import { stubModalDialog } from '../testing/dialog.ts'
 
@@ -37,8 +38,17 @@ vi.mock('./stores.ts', async (importOriginal) => ({
   createStore: (db: unknown, shopId: unknown, name: string) => createStore(db, shopId, name),
   renameStore: (db: unknown, store: unknown, name: string) => renameStore(db, store, name),
   softDeleteStore: (db: unknown, store: unknown) => softDeleteStore(db, store),
+  setAisleOrder: (db: unknown, store: unknown, order: unknown) => setAisleOrder(db, store, order),
   restoreStore: (db: unknown, store: unknown) => restoreStore(db, store),
   watchStores: (db: unknown, cb: unknown) => watchStores(db, cb),
+}))
+
+const watchAisles = vi.fn()
+const setAisleOrder = vi.fn()
+
+vi.mock('./aisles.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./aisles.ts')>()),
+  watchAisles: (db: unknown, cb: unknown) => watchAisles(db, cb),
 }))
 
 const osherAd: StoreRecord = { id: catalogue.storeId('osher-ad'), name: 'Osher Ad', shopId: grocery.id, aisleOrder: [] }
@@ -63,6 +73,8 @@ beforeEach(() => {
   restoreShop.mockReset().mockResolvedValue(undefined)
   resetSnackbar()
   watchShops.mockReset()
+  setAisleOrder.mockReset().mockResolvedValue(undefined)
+  watchAisles.mockReset().mockImplementation(() => unsubscribe)
   createStore.mockReset().mockResolvedValue(catalogue.storeId('new-store'))
   renameStore.mockReset().mockResolvedValue(undefined)
   softDeleteStore.mockReset().mockResolvedValue(undefined)
@@ -589,5 +601,75 @@ describe('ShopsManager Stores', () => {
     renderWithShops([pharmacy], { stores: [osherAd] })
 
     expect(screen.queryByText('Osher Ad')).toBeNull()
+  })
+})
+
+describe('ShopsManager aisle order', () => {
+  const aisle = (id: string): AisleRecord => ({ id: catalogue.aisleId(id), name: id })
+  const [dairy, bakery, produce] = ['Dairy', 'Bakery', 'Produce'].map(aisle)
+
+  function openOrder(store: StoreRecord, aisles: AisleRecord[]) {
+    watchAisles.mockImplementation((_db: unknown, cb: (aisles: AisleRecord[]) => void) => {
+      cb(aisles)
+      return unsubscribe
+    })
+    renderWithShops([grocery], { stores: [store] })
+    fireEvent.click(screen.getByRole('button', { name: `Order aisles of ${store.name}` }))
+    return within(screen.getByRole('dialog'))
+  }
+
+  function rowNames(dialog: ReturnType<typeof within>) {
+    return dialog.getAllByRole('listitem').map((row: HTMLElement) => row.textContent?.replace(/Move .*/, '').trim())
+  }
+
+  it('lists the saved order, then the unplaced Aisles under a divider', () => {
+    const dialog = openOrder({ ...osherAd, aisleOrder: [produce.id, dairy.id] }, [bakery, dairy, produce])
+
+    expect(rowNames(dialog)).toEqual(['Produce', 'Dairy', 'Not yet placed', 'Bakery'])
+    expect(dialog.getByRole('listitem', { name: 'Bakery, not yet placed' })).toBeInTheDocument()
+  })
+
+  it('saves the whole order when a row is dragged onto another', () => {
+    const dialog = openOrder({ ...osherAd, aisleOrder: [dairy.id, bakery.id, produce.id] }, [bakery, dairy, produce])
+
+    fireEvent.dragStart(dialog.getByRole('listitem', { name: 'Produce' }))
+    fireEvent.drop(dialog.getByRole('listitem', { name: 'Dairy' }))
+
+    expect(setAisleOrder).toHaveBeenCalledWith(fakeDb, { ...osherAd, aisleOrder: [dairy.id, bakery.id, produce.id] }, [produce.id, dairy.id, bakery.id])
+  })
+
+  it('moves a row with its up and down buttons', () => {
+    const dialog = openOrder({ ...osherAd, aisleOrder: [dairy.id, bakery.id] }, [bakery, dairy, produce])
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Move Dairy down' }))
+
+    expect(setAisleOrder).toHaveBeenLastCalledWith(fakeDb, expect.anything(), [bakery.id, dairy.id])
+  })
+
+  it('places an unplaced Aisle when it is moved up', () => {
+    const dialog = openOrder({ ...osherAd, aisleOrder: [dairy.id] }, [bakery, dairy, produce])
+
+    fireEvent.click(dialog.getByRole('button', { name: 'Move Bakery up' }))
+
+    expect(setAisleOrder).toHaveBeenLastCalledWith(fakeDb, expect.anything(), [bakery.id, dairy.id])
+  })
+
+  it('disables moving the first row up and the last row down', () => {
+    const dialog = openOrder({ ...osherAd, aisleOrder: [dairy.id, bakery.id] }, [bakery, dairy])
+
+    expect(dialog.getByRole('button', { name: 'Move Dairy up' })).toBeDisabled()
+    expect(dialog.getByRole('button', { name: 'Move Bakery down' })).toBeDisabled()
+  })
+
+  it('keeps the orders of two Stores of one Shop apart', () => {
+    watchAisles.mockImplementation((_db: unknown, cb: (aisles: AisleRecord[]) => void) => {
+      cb([bakery, dairy])
+      return unsubscribe
+    })
+    const rami: StoreRecord = { ...osherAd, id: catalogue.storeId('rami'), name: 'Rami Levy', aisleOrder: [bakery.id, dairy.id] }
+    renderWithShops([grocery], { stores: [{ ...osherAd, aisleOrder: [dairy.id, bakery.id] }, rami] })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Order aisles of Rami Levy' }))
+    expect(rowNames(within(screen.getByRole('dialog')))).toEqual(['Bakery', 'Dairy'])
   })
 })
