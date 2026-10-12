@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { catalogue } from 'data-platform'
 import { getChosenStoreIds, getSortByAisle, saveChosenStoreIds, saveSortByAisle, storesToSortBy } from './aisleSort.ts'
+import type { AisleRecord } from './aisles.ts'
 import type { StoreRecord } from './stores.ts'
 import { grocery, pharmacy } from './testFixtures.ts'
 
@@ -47,21 +48,27 @@ describe('storesToSortBy', () => {
   const none = new Map<catalogue.ShopId, catalogue.StoreId>()
 
   it('is empty when the toggle is off', () => {
-    expect(storesToSortBy(false, [grocery], [osher], none).size).toBe(0)
+    expect(storesToSortBy(false, [grocery], [osher], [], none).size).toBe(0)
   })
 
   it('uses the only Store of a Shop', () => {
-    expect(storesToSortBy(true, [grocery], [osher], none).get(grocery.id)).toBe(osher)
+    expect(storesToSortBy(true, [grocery], [osher], [], none).get(grocery.id)?.id).toBe(osher.id)
   })
 
   it('leaves out a Shop with no Store', () => {
-    expect(storesToSortBy(true, [grocery, pharmacy], [osher], none).has(pharmacy.id)).toBe(false)
+    expect(storesToSortBy(true, [grocery, pharmacy], [osher], [], none).has(pharmacy.id)).toBe(false)
   })
 
   it('uses the chosen Store of a Shop with several, else the first', () => {
     const chosen = new Map([[grocery.id, shufersal.id]])
-    expect(storesToSortBy(true, [grocery], [osher, shufersal], chosen).get(grocery.id)).toBe(shufersal)
-    expect(storesToSortBy(true, [grocery], [osher, shufersal], none).get(grocery.id)).toBe(osher)
-    expect(storesToSortBy(true, [grocery], [osher], chosen).get(grocery.id)).toBe(osher)
+    expect(storesToSortBy(true, [grocery], [osher, shufersal], [], chosen).get(grocery.id)?.id).toBe(shufersal.id)
+    expect(storesToSortBy(true, [grocery], [osher, shufersal], [], none).get(grocery.id)?.id).toBe(osher.id)
+    expect(storesToSortBy(true, [grocery], [osher], [], chosen).get(grocery.id)?.id).toBe(osher.id)
+  })
+
+  it("narrows a Store's aisle order to the live Aisles", () => {
+    const live = { id: catalogue.aisleId('live'), name: 'Live' } as AisleRecord
+    const placing = { ...osher, aisleOrder: [catalogue.aisleId('deleted'), live.id] }
+    expect(storesToSortBy(true, [grocery], [placing], [live], none).get(grocery.id)?.aisleOrder).toEqual([live.id])
   })
 })

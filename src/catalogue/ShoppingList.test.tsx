@@ -873,6 +873,10 @@ describe('ShoppingList sorted by aisle', () => {
   const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Soap', state: 'out', categoryId: cleaning.id }
 
   function withStores(stores: StoreRecord[]) {
+    watchAisles.mockImplementation((_db: unknown, cb: (aisles: AisleRecord[]) => void) => {
+      cb([aisleA, aisleB].map((id) => ({ id, name: id }) as AisleRecord))
+      return vi.fn()
+    })
     watchStores.mockImplementation((_db: unknown, cb: (stores: StoreRecord[]) => void) => {
       cb(stores)
       return vi.fn()

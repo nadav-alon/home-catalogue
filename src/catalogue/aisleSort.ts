@@ -1,6 +1,7 @@
 import { catalogue } from 'data-platform'
+import type { AisleRecord } from './aisles.ts'
 import type { ShopRecord } from './shops.ts'
-import type { StoreRecord } from './stores.ts'
+import { arrangeAisles, type StoreRecord } from './stores.ts'
 
 const TOGGLE_KEY = 'home-catalogue:sort-by-aisle'
 const CHOSEN_STORES_KEY = 'home-catalogue:chosen-stores'
@@ -57,12 +58,14 @@ export function storesOfShop(stores: readonly StoreRecord[], shop: ShopRecord): 
 /**
  * The Store each Shop's group is sorted by. A Shop with one Store uses it; with several, the one in
  * `chosen` if it is still among them, else the first. A Shop with no Store is absent, so its group
- * keeps plain name order. Empty when `sortByAisle` is off.
+ * keeps plain name order. Empty when `sortByAisle` is off. Each Store's `aisleOrder` is narrowed to
+ * the live `aisles` it places, the same definition of placed as the Store screen.
  */
 export function storesToSortBy(
   sortByAisle: boolean,
   shops: readonly ShopRecord[],
   stores: readonly StoreRecord[],
+  aisles: readonly AisleRecord[],
   chosen: ReadonlyMap<catalogue.ShopId, catalogue.StoreId>,
 ): ReadonlyMap<catalogue.ShopId, StoreRecord> {
   if (!sortByAisle) return new Map()
@@ -70,7 +73,9 @@ export function storesToSortBy(
     shops.flatMap((shop) => {
       const options = storesOfShop(stores, shop)
       const store = options.find((option) => option.id === chosen.get(shop.id)) ?? options[0]
-      return store === undefined ? [] : [[shop.id, store] as const]
+      if (store === undefined) return []
+      const aisleOrder = arrangeAisles(aisles, store.aisleOrder).placed.map((aisle) => aisle.id)
+      return [[shop.id, { ...store, aisleOrder }] as const]
     }),
   )
 }

@@ -172,7 +172,7 @@ export function ShoppingList({ db }: ShoppingListProps) {
     saveChosenStoreIds(next)
   }
 
-  const sortingStores = storesToSortBy(sortByAisle, shops, stores, chosenStoreIds)
+  const sortingStores = storesToSortBy(sortByAisle, shops, stores, aisles, chosenStoreIds)
   const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops, sortingStores)
   const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
     key: shop.id,
