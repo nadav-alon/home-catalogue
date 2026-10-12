@@ -2511,6 +2511,17 @@ describe('Aisle in the Item dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   }
 
+  it('shows an Item\'s live Aisle beside its Necessity, and none once the Aisle is deleted', () => {
+    const { publishAisles } = renderWithAisles([frozen], [{ ...bandages, aisleId: frozen.id }])
+
+    expect(screen.getByText(/essential · Frozen/)).toBeInTheDocument()
+
+    act(() => publishAisles([]))
+
+    expect(screen.queryByText(/Frozen/)).not.toBeInTheDocument()
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+
   it('creates an Aisle for a name matching none and sets it', async () => {
     const { publishAisles } = renderWithAisles([])
     createAisle.mockImplementation(() => {

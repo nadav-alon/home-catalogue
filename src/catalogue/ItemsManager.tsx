@@ -323,10 +323,10 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         </p>
       )}
       {groups.map(({ category, items: categoryItems }) => (
-        <ItemGroup key={category.id} heading={category.name} {...groupToggle(category.id)} items={categoryItems} onSetState={handleSetState} onOpen={openDialog} />
+        <ItemGroup key={category.id} heading={category.name} {...groupToggle(category.id)} items={categoryItems} aisles={aisles} onSetState={handleSetState} onOpen={openDialog} />
       ))}
       {uncategorisedItems.length > 0 && (
-        <ItemGroup heading="Uncategorised" {...groupToggle(UNCATEGORISED)} items={uncategorisedItems} onSetState={handleSetState} onOpen={openDialog} />
+        <ItemGroup heading="Uncategorised" {...groupToggle(UNCATEGORISED)} items={uncategorisedItems} aisles={aisles} onSetState={handleSetState} onOpen={openDialog} />
       )}
       <RestoreDeletedItemOffer item={deletedMatch?.item} onRestore={(item) => void handleRestore(item)} onDecline={() => void handleDeclineRestore()} />
       <UnknownBarcodeChooser
@@ -382,6 +382,8 @@ interface ItemGroupProps {
   toggleDisabled: boolean
   onToggle: () => void
   items: ItemRecord[]
+  /** The live Aisles; an Item whose Aisle is not among them shows none. */
+  aisles: readonly AisleRecord[]
   onSetState: (item: ItemRecord, state: core.State) => Promise<void>
   onOpen: (item: ItemRecord) => void
 }
@@ -396,7 +398,7 @@ function collapsedHeading(heading: string, items: ItemRecord[]): string {
   return summary === '' ? heading : `${heading} · ${summary}`
 }
 
-function ItemGroup({ heading, collapsed, toggleDisabled, onToggle, items, onSetState, onOpen }: ItemGroupProps) {
+function ItemGroup({ heading, collapsed, toggleDisabled, onToggle, items, aisles, onSetState, onOpen }: ItemGroupProps) {
   return (
     <div>
       <h3 class="item-group__heading">
@@ -411,7 +413,7 @@ function ItemGroup({ heading, collapsed, toggleDisabled, onToggle, items, onSetS
             <ListRow
               key={item.id}
               headline={item.name}
-              supporting={[item.brandNote, item.necessity].filter((part) => part !== undefined).join(' · ')}
+              supporting={[item.brandNote, item.necessity, aisles.find((aisle) => aisle.id === item.aisleId)?.name].filter((part) => part !== undefined).join(' · ')}
               stackTrailing
               onActivate={() => onOpen(item)}
               trailing={
