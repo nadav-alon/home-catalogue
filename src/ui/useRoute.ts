@@ -90,7 +90,8 @@ export function clearAddItemHandoff(): void {
   window.history.replaceState(window.history.state, '', withoutAddItemHandoff(window.location.hash))
 }
 
-/** Leaves the app for `url`, with the new Item's id appended when there is one. */
+/** Leaves the app for `url`, with the new Item's id appended when there is one; the hand-off is dropped first so Back does not reopen it. */
 export function leaveTo(url: ReturnUrl, id?: core.ItemId): void {
+  clearAddItemHandoff()
   window.location.assign(id === undefined ? url : returnUrlWithItem(url, id))
 }

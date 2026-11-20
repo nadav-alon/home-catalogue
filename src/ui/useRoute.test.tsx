@@ -2,8 +2,8 @@ import { useState } from 'preact/hooks'
 import { act, render, renderHook } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
-import { DEFAULT_ROUTE, hashOf, route } from './route.ts'
-import { navigate, navigateToItems, setCategoryAndShop, useCategoryAndShop, useItemIds, useRoute } from './useRoute.ts'
+import { DEFAULT_ROUTE, hashOf, returnUrl, route } from './route.ts'
+import { clearAddItemHandoff, leaveTo, navigate, navigateToItems, useAddItemHandoff, setCategoryAndShop, useCategoryAndShop, useItemIds, useRoute } from './useRoute.ts'
 import { Dialog } from './Dialog.tsx'
 import { stubModalDialog } from '../testing/dialog.ts'
 import { resetHash } from '../testing/hash.ts'
@@ -235,5 +235,34 @@ describe('useCategoryAndShop and setCategoryAndShop', () => {
       await vi.waitFor(() => expect(window.location.hash).toBe('#/items?category=groceries'))
     })
     expect(result.current).toEqual({ categoryId: groceries, shopId: undefined })
+  })
+})
+
+describe('add-Item hand-off', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('reads the hand-off from the hash and clears it without a history entry', () => {
+    window.location.hash = '#/items?add=Flour'
+    const { result } = renderHook(() => useAddItemHandoff())
+    expect(result.current).toEqual({ name: 'Flour', returnUrl: undefined })
+    const length = window.history.length
+
+    act(() => clearAddItemHandoff())
+
+    expect(window.location.hash).toBe('#/items')
+    expect(window.history.length).toBe(length)
+  })
+
+  it('drops the hand-off from the hash before leaving, so Back does not reopen it', () => {
+    const back = returnUrl(`${window.location.origin}/recipes/`, window.location.origin)
+    window.location.hash = `#/items?add=Flour&return=${encodeURIComponent(back)}`
+    const hash = window.location.hash
+    const replaceState = vi.spyOn(window.history, 'replaceState')
+    const assign = vi.fn(() => expect(replaceState).toHaveBeenCalledWith(window.history.state, '', '#/items'))
+    vi.stubGlobal('location', { ...window.location, hash, assign })
+
+    leaveTo(back, core.itemId('i1'))
+
+    expect(assign).toHaveBeenCalledWith(`${window.location.origin}/recipes/?itemId=i1`)
   })
 })

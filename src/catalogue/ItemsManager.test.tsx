@@ -1435,6 +1435,10 @@ describe('an add-Item hand-off', () => {
   const back = returnUrl('https://example.test/recipes/', 'https://example.test')
   const newId = core.itemId('new-item')
 
+  function renderHandoff(handoff: AddItemHandoff = { name: 'Flour', returnUrl: back }) {
+    return renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff })
+  }
+
   async function saveHandedOff() {
     createItem.mockResolvedValue(newId)
     choose(screen.getByLabelText('Category'), medicine.id)
@@ -1444,7 +1448,7 @@ describe('an add-Item hand-off', () => {
   }
 
   it('opens the add dialog with the name prefilled and the State out', () => {
-    renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: back } })
+    renderHandoff()
 
     expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
     expect(screen.getByLabelText('Name')).toHaveValue('Flour')
@@ -1452,7 +1456,7 @@ describe('an add-Item hand-off', () => {
   })
 
   it('lets the user change the State', async () => {
-    renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: back } })
+    renderHandoff()
     choose(screen.getByLabelText('State'), 'enough')
     createItem.mockResolvedValue(newId)
     choose(screen.getByLabelText('Category'), medicine.id)
@@ -1463,14 +1467,14 @@ describe('an add-Item hand-off', () => {
   })
 
   it('goes to the return URL with the new Item id after saving', async () => {
-    renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: back } })
+    renderHandoff()
     await saveHandedOff()
 
     expect(leaveTo).toHaveBeenCalledWith(back, newId)
   })
 
   it('goes to the return URL without an id when cancelled', async () => {
-    renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: back } })
+    renderHandoff()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     await waitFor(() => expect(leaveTo).toHaveBeenCalledWith(back, undefined))
@@ -1478,7 +1482,7 @@ describe('an add-Item hand-off', () => {
 
   it('is an ordinary add without a return URL', async () => {
     window.location.hash = '#/items?add=Flour'
-    renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: undefined } })
+    renderHandoff({ name: 'Flour', returnUrl: undefined })
     createItem.mockResolvedValue(newId)
     choose(screen.getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
@@ -1489,8 +1493,35 @@ describe('an add-Item hand-off', () => {
     expect(window.location.hash).toBe('#/items')
   })
 
+  it('stays put when the save fails', async () => {
+    createItem.mockRejectedValue(new Error('offline'))
+    renderHandoff()
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(createItem).toHaveBeenCalled())
+    expect(leaveTo).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+  })
+
+  it('opens again for a later hand-off once the first is gone', async () => {
+    const { rerender } = renderHandoff({ name: 'Flour', returnUrl: undefined })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
+    const manager = (handoff: AddItemHandoff | undefined) => (
+      <TopAppBar title="Items">
+        <ItemsManager db={fakeDb} handoff={handoff} />
+      </TopAppBar>
+    )
+    rerender(manager(undefined))
+    rerender(manager({ name: 'Sugar', returnUrl: undefined }))
+
+    expect(await screen.findByLabelText('Name')).toHaveValue('Sugar')
+  })
+
   it('does not reopen the dialog once closed', async () => {
-    const { rerender } = renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: undefined } })
+    const { rerender } = renderHandoff({ name: 'Flour', returnUrl: undefined })
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
     rerender(

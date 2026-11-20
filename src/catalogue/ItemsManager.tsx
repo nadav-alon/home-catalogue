@@ -115,14 +115,20 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   /** The id of the Item the hand-off's dialog saved; undefined while it is unsaved or cancelled. */
   const handoffSavedId = useRef<core.ItemId | undefined>(undefined)
   useEffect(() => {
-    if (handoff === undefined || handoffOpened.current) return
+    if (handoff === undefined) {
+      handoffOpened.current = false
+      return
+    }
+    if (handoffOpened.current) return
     handoffOpened.current = true
     setDialog({ kind: 'add', handoff })
   }, [handoff])
 
+  const dialogHandoff = dialog?.kind === 'add' ? dialog.handoff : undefined
+
   /** Closes the dialog; one opened by a hand-off then sends the user to its return URL, or only forgets the hand-off without one. */
   function closeDialog() {
-    const closing = dialog?.kind === 'add' ? dialog.handoff : undefined
+    const closing = dialogHandoff
     setDialog(null)
     if (closing === undefined) return
     const id = handoffSavedId.current
@@ -371,8 +377,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         open={dialog !== null}
         item={editedItem}
         restoring={dialog?.kind === 'restore'}
-        initialName={dialog?.kind === 'add' ? dialog.handoff?.name : undefined}
-        initialState={dialog?.kind === 'add' && dialog.handoff !== undefined ? 'out' : undefined}
+        initialName={dialogHandoff?.name}
+        initialState={dialogHandoff === undefined ? undefined : 'out'}
         barcode={pendingBarcode}
         categories={categories}
         shops={shops}
@@ -390,7 +396,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
           if (input.state !== undefined) {
             const id = await createItem(db, { ...input, barcode: dialog?.kind === 'add' ? dialog.barcode : undefined })
             if (pendingBarcode !== undefined) filterOnClose.current = id
-            if (dialog?.kind === 'add' && dialog.handoff !== undefined) handoffSavedId.current = id
+            if (dialogHandoff !== undefined) handoffSavedId.current = id
             return
           }
           if (!editedItem) return

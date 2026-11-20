@@ -111,9 +111,17 @@ describe('add-Item hand-off', () => {
   })
 
   it('keeps the name and drops a return URL on another origin', () => {
-    for (const other of ['https://evil.test/x', 'javascript:alert(1)', '//evil.test', '/relative', 'not a url']) {
+    for (const other of ['https://evil.test/x', 'javascript:alert(1)', '//evil.test', 'https:///evil.test']) {
       expect(addItemHandoffOf(`#/items?add=Flour&return=${encodeURIComponent(other)}`, origin)).toEqual({ name: 'Flour', returnUrl: undefined })
     }
+  })
+
+  it('reads a relative return URL as on the catalogue origin', () => {
+    expect(addItemHandoffOf(`#/items?add=Flour&return=${encodeURIComponent('/recipes/')}`, origin)).toEqual({ name: 'Flour', returnUrl: 'https://example.test/recipes/' })
+  })
+
+  it('appends the new Item id after an existing query', () => {
+    expect(returnUrlWithItem(returnUrl('https://example.test/recipes/?a=1#/r/1', origin), core.itemId('i1'))).toBe('https://example.test/recipes/?a=1&itemId=i1#/r/1')
   })
 
   it('appends the new Item id to the return URL', () => {
