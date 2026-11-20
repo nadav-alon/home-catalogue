@@ -9,7 +9,7 @@ import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import type { AisleRecord } from './aisles.ts'
 import type { TagRecord } from './tags.ts'
-import type { CategoryAndShop } from '../ui/route.ts'
+import { returnUrl, type AddItemHandoff, type CategoryAndShop } from '../ui/route.ts'
 import { resetHash } from '../testing/hash.ts'
 import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
@@ -17,6 +17,12 @@ import { choose } from '../testing/select.ts'
 import { resetPendingPop } from '../ui/pendingPop.ts'
 import { tokenUsage } from '../testing/css.ts'
 import { stubModalDialog } from '../testing/dialog.ts'
+
+const leaveTo = vi.fn()
+vi.mock('../ui/useRoute.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../ui/useRoute.ts')>()),
+  leaveTo: (url: unknown, id: unknown) => leaveTo(url, id),
+}))
 
 const watchItems = vi.fn()
 const createItem = vi.fn()
@@ -82,6 +88,7 @@ beforeEach(() => {
   confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
   stubModalDialog()
   watchItems.mockReset()
+  leaveTo.mockReset()
   createItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
@@ -126,7 +133,7 @@ function renderWith(
   shops: ShopRecord[],
   itemIds?: readonly core.ItemId[],
   onClearFilter?: (filter: CategoryAndShop) => void,
-  { tags, filter }: { tags?: TagRecord[]; filter?: CategoryAndShop } = {},
+  { tags, filter, handoff }: { tags?: TagRecord[]; filter?: CategoryAndShop; handoff?: AddItemHandoff } = {},
 ) {
   if (tags !== undefined) {
     watchTags.mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
@@ -155,7 +162,7 @@ function renderWith(
   return {
     ...render(
       <TopAppBar title="Items">
-        <ItemsManager db={fakeDb} itemIds={itemIds} onClearFilter={onClearFilter} filter={filter} />
+        <ItemsManager db={fakeDb} itemIds={itemIds} onClearFilter={onClearFilter} filter={filter} handoff={handoff} />
       </TopAppBar>,
     ),
     publishCategories,
@@ -1421,6 +1428,78 @@ describe('adding a Category from the Item dialog', () => {
 
     expect(screen.getByText('Add a Shop in Settings before adding a Category.')).toBeInTheDocument()
     expect(screen.queryByLabelText('Default Shop')).not.toBeInTheDocument()
+  })
+})
+
+describe('an add-Item hand-off', () => {
+  const back = returnUrl('https://example.test/recipes/', 'https://example.test')
+  const newId = core.itemId('new-item')
+
+  async function saveHandedOff() {
+    createItem.mockResolvedValue(newId)
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(leaveTo).toHaveBeenCalled())
+  }
+
+  it('opens the add dialog with the name prefilled and the State out', () => {
+    renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: back } })
+
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Flour')
+    expect(screen.getByLabelText('State')).toHaveValue('out')
+  })
+
+  it('lets the user change the State', async () => {
+    renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: back } })
+    choose(screen.getByLabelText('State'), 'enough')
+    createItem.mockResolvedValue(newId)
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(createItem).toHaveBeenCalledWith(fakeDb, expect.objectContaining({ name: 'Flour', state: 'enough' })))
+  })
+
+  it('goes to the return URL with the new Item id after saving', async () => {
+    renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: back } })
+    await saveHandedOff()
+
+    expect(leaveTo).toHaveBeenCalledWith(back, newId)
+  })
+
+  it('goes to the return URL without an id when cancelled', async () => {
+    renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: back } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(leaveTo).toHaveBeenCalledWith(back, undefined))
+  })
+
+  it('is an ordinary add without a return URL', async () => {
+    window.location.hash = '#/items?add=Flour'
+    renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: undefined } })
+    createItem.mockResolvedValue(newId)
+    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(screen.getByLabelText('Necessity'), 'essential')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
+    expect(leaveTo).not.toHaveBeenCalled()
+    expect(window.location.hash).toBe('#/items')
+  })
+
+  it('does not reopen the dialog once closed', async () => {
+    const { rerender } = renderWith([], [medicine], [pharmacy], undefined, undefined, { handoff: { name: 'Flour', returnUrl: undefined } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
+    rerender(
+      <TopAppBar title="Items">
+        <ItemsManager db={fakeDb} handoff={{ name: 'Flour', returnUrl: undefined }} />
+      </TopAppBar>,
+    )
+
+    expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument()
   })
 })
 

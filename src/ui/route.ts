@@ -159,3 +159,12 @@ export function returnUrlWithItem(url: ReturnUrl, id: core.ItemId): string {
   target.searchParams.set('itemId', id)
   return target.toString()
 }
+
+/** `hash` without its add-Item hand-off queries; every other query is kept. */
+export function withoutAddItemHandoff(hash: string): string {
+  const [path, query] = hashParts(hash)
+  const params = new URLSearchParams(query)
+  params.delete(ADD_KEY)
+  params.delete(RETURN_KEY)
+  return hashWithQuery(path, params)
+}

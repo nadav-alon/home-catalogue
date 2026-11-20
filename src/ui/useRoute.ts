@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import type { core } from 'data-platform'
 import { afterPendingPop } from './pendingPop.ts'
-import { categoryIdOf, DEFAULT_ROUTE, hashOf, itemIdsOf, itemsHashOf, routeIn, routeOf, shopIdOf, withCategoryAndShop, type CategoryAndShop, type Route } from './route.ts'
+import { addItemHandoffOf, categoryIdOf, DEFAULT_ROUTE, hashOf, itemIdsOf, itemsHashOf, routeIn, routeOf, shopIdOf, withCategoryAndShop, returnUrlWithItem, withoutAddItemHandoff, type AddItemHandoff, type CategoryAndShop, type ReturnUrl, type Route } from './route.ts'
 
 /** Rewrites a hash that does not name a route to the default route's hash, replacing the history entry (and keeping its state) rather than pushing one. */
 function normaliseHash(): void {
@@ -76,4 +76,21 @@ export function navigateToItems(ids: readonly core.ItemId[]): void {
       })
     }),
   )
+}
+
+/** The add-Item hand-off the current URL hash asks for, re-read whenever the hash changes; undefined when there is none. */
+export function useAddItemHandoff(): AddItemHandoff | undefined {
+  const hash = useHash()
+  const { name, returnUrl } = addItemHandoffOf(hash, window.location.origin) ?? {}
+  return useMemo(() => (name === undefined ? undefined : { name, returnUrl }), [name, returnUrl])
+}
+
+/** Drops the add-Item hand-off from the current hash without a history entry, so a reload does not ask for it again. */
+export function clearAddItemHandoff(): void {
+  window.history.replaceState(window.history.state, '', withoutAddItemHandoff(window.location.hash))
+}
+
+/** Leaves the app for `url`, with the new Item's id appended when there is one. */
+export function leaveTo(url: ReturnUrl, id?: core.ItemId): void {
+  window.location.assign(id === undefined ? url : returnUrlWithItem(url, id))
 }

@@ -25,6 +25,10 @@ export interface ItemDialogProps {
   item?: ItemRecord
   /** The Item is deleted and saving restores it; its Category and Shop override that are gone then start unset for the Member to choose again. */
   restoring?: boolean
+  /** The name an added Item's form opens with; ignored when editing. */
+  initialName?: string
+  /** The State an added Item's form opens at, `enough` when omitted; ignored when editing. */
+  initialState?: core.State
   /** The scanned Barcode the new Item will carry, shown read-only; ignored when editing. */
   barcode?: core.Barcode
   categories: CategoryRecord[]
@@ -95,7 +99,7 @@ function parseItemFormValues(values: ItemFormValues): { input: ItemInput } | { e
 }
 
 /** The form for an Item's name, brand note, Category, Necessity, Shop override and Tags, plus its State when adding, plus its Barcodes when editing or, when adding from a scan, the pending `barcode` shown read-only, in a dialog that starts from `item`, or empty, on each open. */
-export function ItemDialog({ open, item, restoring, barcode, categories, shops, tags, aisles, onCreateCategory, onCreateTag, onCreateAisle, onSave, onDelete, onClose }: ItemDialogProps) {
+export function ItemDialog({ open, item, restoring, initialName, initialState, barcode, categories, shops, tags, aisles, onCreateCategory, onCreateTag, onCreateAisle, onSave, onDelete, onClose }: ItemDialogProps) {
   const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false)
   return (
     <Dialog open={open} title={restoring ? 'Restore Item' : item ? 'Edit Item' : 'Add Item'} onClose={onClose} hasUnsavedEdits={hasUnsavedEdits} closable>
@@ -103,6 +107,8 @@ export function ItemDialog({ open, item, restoring, barcode, categories, shops, 
         <ItemForm
           item={item}
           restoring={restoring}
+          initialName={initialName}
+          initialState={initialState}
           barcode={barcode}
           categories={categories}
           shops={shops}
@@ -121,13 +127,13 @@ export function ItemDialog({ open, item, restoring, barcode, categories, shops, 
   )
 }
 
-function openingValues({ item, restoring, categories, shops }: Pick<ItemDialogProps, 'item' | 'restoring' | 'categories' | 'shops'>): ItemFormValues {
+function openingValues({ item, restoring, categories, shops, initialName, initialState }: Pick<ItemDialogProps, 'item' | 'restoring' | 'categories' | 'shops' | 'initialName' | 'initialState'>): ItemFormValues {
   return {
-    name: item?.name ?? '',
+    name: item?.name ?? initialName ?? '',
     brandNote: item?.brandNote ?? '',
     categoryId: item === undefined || (restoring && !isLiveReference(categories, item.categoryId)) ? '' : item.categoryId,
     necessity: item?.necessity ?? '',
-    state: 'enough',
+    state: initialState ?? 'enough',
     shopId: restoring && !isLiveReference(shops, item?.shopId) ? NO_SHOP_OVERRIDE : (item?.shopId ?? NO_SHOP_OVERRIDE),
   }
 }
@@ -141,8 +147,8 @@ interface ItemFormProps extends Omit<ItemDialogProps, 'open'> {
   onUnsavedEditsChange: (hasUnsavedEdits: boolean) => void
 }
 
-function ItemForm({ item, restoring, barcode, categories, shops, tags, aisles, onCreateCategory, onCreateTag, onCreateAisle, onSave, onDelete, onClose, onUnsavedEditsChange }: ItemFormProps) {
-  const [opening] = useState(() => openingValues({ item, restoring, categories, shops }))
+function ItemForm({ item, restoring, initialName, initialState, barcode, categories, shops, tags, aisles, onCreateCategory, onCreateTag, onCreateAisle, onSave, onDelete, onClose, onUnsavedEditsChange }: ItemFormProps) {
+  const [opening] = useState(() => openingValues({ item, restoring, categories, shops, initialName, initialState }))
   const [values, setValues] = useState<ItemFormValues>(opening)
   const [errors, setErrors] = useState<ItemFormErrors>({})
   /** Every Tag id the Item carries, including those of deleted Tags, which have no chip but come back with their Tag. */

@@ -14,8 +14,8 @@ import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from './shell/TopAppBar.tsx'
 import { titleOf } from './shell/titles.ts'
 import { SnackbarHost } from './ui/Snackbar.tsx'
-import type { CategoryAndShop, Route } from './ui/route.ts'
-import { navigateToCategoryAndShop, setCategoryAndShop, useCategoryAndShop, useItemIds, useRoute } from './ui/useRoute.ts'
+import type { AddItemHandoff, CategoryAndShop, Route } from './ui/route.ts'
+import { navigateToCategoryAndShop, setCategoryAndShop, useAddItemHandoff, useCategoryAndShop, useItemIds, useRoute } from './ui/useRoute.ts'
 import './app.css'
 import type { FirebaseWebConfig } from './firebase/webConfig.ts'
 
@@ -30,6 +30,7 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
   const current = useRoute()
   const itemIds = useItemIds()
   const filter = useCategoryAndShop()
+  const handoff = useAddItemHandoff()
 
   return (
     <>
@@ -39,7 +40,7 @@ export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
           <main>
             <UpdateNotice />
             <WriteRejectionBanner />
-            <Screen route={current} itemIds={itemIds} filter={filter} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
+            <Screen route={current} itemIds={itemIds} filter={filter} handoff={handoff} db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
           </main>
         </TopAppBar>
       </div>
@@ -53,16 +54,17 @@ function Screen({
   route: current,
   itemIds,
   filter,
+  handoff,
   db,
   config,
   onResetConfig,
   onSignOut,
-}: { route: Route; itemIds: readonly core.ItemId[]; filter: CategoryAndShop } & AppProps) {
+}: { route: Route; itemIds: readonly core.ItemId[]; filter: CategoryAndShop; handoff: AddItemHandoff | undefined } & AppProps) {
   switch (current) {
     case '/list':
       return <ShoppingList db={db} />
     case '/items':
-      return <ItemsManager db={db} itemIds={itemIds} filter={filter} onFilterChange={setCategoryAndShop} onClearFilter={navigateToCategoryAndShop} />
+      return <ItemsManager db={db} itemIds={itemIds} filter={filter} onFilterChange={setCategoryAndShop} onClearFilter={navigateToCategoryAndShop} handoff={handoff} />
     case '/settings':
       return <SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
     case '/settings/shops':
