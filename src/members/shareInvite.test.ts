@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { deviceTransferUrl } from 'data-platform/client'
-import { firebaseWebConfig } from '../firebase/webConfig.ts'
+import { firebaseWebConfig } from 'data-platform/client'
 import { inviteShareMessage } from './shareInvite.ts'
 
 const config = firebaseWebConfig({

@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  firebaseWebConfig,
-  InvalidFirebaseWebConfigError,
-  isFirebaseWebConfig,
-  parseFirebaseWebConfigSnippet,
-  sameFirebaseWebConfig,
-} from './webConfig.ts'
+import { firebaseWebConfig, InvalidFirebaseWebConfigError, isFirebaseWebConfig } from 'data-platform/client'
+import { parseFirebaseWebConfigSnippet, sameFirebaseWebConfig } from './webConfig.ts'
 
 const validConfig = {
   apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',

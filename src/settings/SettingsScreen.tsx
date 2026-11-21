@@ -1,5 +1,5 @@
 import { AddDeviceQrCode } from '../setup/AddDeviceQrCode.tsx'
-import type { FirebaseWebConfig } from '../firebase/webConfig.ts'
+import type { FirebaseWebConfig } from 'data-platform/client'
 import { Button } from '../ui/Button.tsx'
 import { Icon } from '../ui/Icon.tsx'
 import { ListRow } from '../ui/ListRow.tsx'

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/preact'
 import { DeviceTransferQrCode } from './DeviceTransferQrCode.tsx'
 import { read, tokenUsage } from '../testing/css.ts'
-import { firebaseWebConfig } from './webConfig.ts'
+import { firebaseWebConfig } from 'data-platform/client'
 
 const config = firebaseWebConfig({
   apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',

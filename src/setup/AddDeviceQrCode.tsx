@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks'
 import { DeviceTransferQrCode } from '../firebase/DeviceTransferQrCode.tsx'
-import type { FirebaseWebConfig } from '../firebase/webConfig.ts'
+import type { FirebaseWebConfig } from 'data-platform/client'
 import { Button } from '../ui/Button.tsx'
 
 export interface AddDeviceQrCodeProps {

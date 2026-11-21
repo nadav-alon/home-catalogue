@@ -17,7 +17,7 @@ import { SnackbarHost } from './ui/Snackbar.tsx'
 import type { AddItemHandoff, CategoryAndShop, Route } from './ui/route.ts'
 import { navigateToCategoryAndShop, setCategoryAndShop, useAddItemHandoff, useCategoryAndShop, useItemIds, useRoute } from './ui/useRoute.ts'
 import './app.css'
-import type { FirebaseWebConfig } from './firebase/webConfig.ts'
+import type { FirebaseWebConfig } from 'data-platform/client'
 
 export interface AppProps {
   db: Firestore

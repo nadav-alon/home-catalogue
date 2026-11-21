@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import QRCode from 'qrcode'
 import { deviceTransferUrl } from 'data-platform/client'
-import type { FirebaseWebConfig } from './webConfig.ts'
+import type { FirebaseWebConfig } from 'data-platform/client'
 import './DeviceTransferQrCode.css'
 
 /** The blank border, in modules, a QR code needs around it to scan. */

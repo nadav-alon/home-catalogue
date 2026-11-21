@@ -4,7 +4,7 @@ import { Root } from './root.tsx'
 import { FIREBASE_CONFIG_STORAGE_KEY, getStoredFirebaseWebConfig, saveFirebaseWebConfig } from 'data-platform/client'
 import { deviceTransferUrl } from 'data-platform/client'
 import { uxWiring } from './firebase/uxMode.ts'
-import { firebaseWebConfig } from './firebase/webConfig.ts'
+import { firebaseWebConfig } from 'data-platform/client'
 import { resetHash } from './testing/hash.ts'
 import type { AuthUser } from 'data-platform/client'
 
