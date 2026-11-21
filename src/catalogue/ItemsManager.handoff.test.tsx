@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
@@ -72,6 +72,12 @@ const cancelledBack = `${window.location.origin}/#/list`
 
 function Screen() {
   return <ItemsManager db={fakeDb} handoff={useAddItemHandoff()} />
+}
+
+/** Mounts alongside the screen and records what `useAddItemHandoff` returns on each render. */
+function Probe({ into }: { into: { current: ReturnType<typeof useAddItemHandoff> } }) {
+  into.current = useAddItemHandoff()
+  return null
 }
 
 /** Follows a hand-off link: the catalogue is already open, then the link's hash is entered as a new history entry. */
@@ -152,5 +158,26 @@ describe('closing a dialog opened by an add-Item hand-off', () => {
     render(<Screen />)
     await letStrayNavigationsLand()
     expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument()
+  })
+
+  it.each(ways)('opens the dialog again when the same link is followed after a $how without a return URL', async ({ close }) => {
+    await followLink('#/items?add=Flour')
+    close()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
+    await letStrayNavigationsLand()
+
+    window.location.hash = '#/items?add=Flour'
+    const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
+    expect(within(dialog).getByDisplayValue('Flour')).toBeInTheDocument()
+  })
+
+  it.each(ways)('stops reporting the hand-off after a $how without a return URL', async ({ close }) => {
+    await followLink('#/items?add=Flour')
+    const probe = { current: undefined as ReturnType<typeof useAddItemHandoff> }
+    render(<Probe into={probe} />)
+    expect(probe.current).toBeDefined()
+    close()
+    await waitFor(() => expect(window.location.hash).toBe('#/items'))
+    expect(probe.current).toBeUndefined()
   })
 })
