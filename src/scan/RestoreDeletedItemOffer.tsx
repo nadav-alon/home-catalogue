@@ -1,6 +1,6 @@
 import type { ItemRecord } from '../catalogue/items.ts'
-import { Button } from '../ui/Button.tsx'
-import { Dialog } from '../ui/Dialog.tsx'
+import { Button } from 'household-ui/ui/Button.tsx'
+import { Dialog } from 'household-ui/ui/Dialog.tsx'
 
 export interface RestoreDeletedItemOfferProps {
   /** The soft-deleted Item the scanned Barcode belongs to; the offer is closed while there is none. */

@@ -4,10 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { DEFAULT_ROUTE, hashOf, returnUrl, route } from './route.ts'
 import { clearAddItemHandoff, leaveTo, navigate, navigateToItems, useAddItemHandoff, setCategoryAndShop, useCategoryAndShop, useItemIds, useRoute } from './useRoute.ts'
-import { Dialog } from './Dialog.tsx'
+import { Dialog } from 'household-ui/ui/Dialog.tsx'
 import { stubModalDialog } from '../testing/dialog.ts'
 import { resetHash } from '../testing/hash.ts'
-import { resetPendingPop } from './pendingPop.ts'
+import { resetPendingPop } from 'household-ui/ui/pendingPop.ts'
 
 beforeEach(stubModalDialog)
 

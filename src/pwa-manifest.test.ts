@@ -27,7 +27,7 @@ describe('manifest', () => {
 
   it("takes background_color from the light scheme's background role", () => {
     expect(manifest.background_color).toBe('#fff8f6')
-    expect(readFileSync(fromRepo('src/ui/theme.css'), 'utf8')).toContain(
+    expect(readFileSync(fromRepo('src/theme.css'), 'utf8')).toContain(
       `--md-sys-color-background: ${manifest.background_color};`,
     )
   })
@@ -80,7 +80,7 @@ describe('manifest', () => {
 
 describe('browser tab icon', () => {
   it('links the 192px app icon from public/ under the base', async () => {
-    const server = await createServer({ configFile: fromRepo('vite.config.ts'), server: { middlewareMode: true }, appType: 'custom' })
+    const server = await createServer({ configLoader: 'runner', configFile: fromRepo('vite.config.ts'), server: { middlewareMode: true }, appType: 'custom' })
     try {
       const html = await server.transformIndexHtml('/index.html', readFileSync(fromRepo('index.html'), 'utf8'))
       const href = new DOMParser().parseFromString(html, 'text/html').querySelector('link[rel="icon"]')?.getAttribute('href')

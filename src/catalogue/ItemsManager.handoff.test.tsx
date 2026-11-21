@@ -9,7 +9,7 @@ import { resetHash } from '../testing/hash.ts'
 import { nextTask } from '../testing/nextTask.ts'
 import { saveNewItem } from '../testing/saveItem.ts'
 import { stubModalDialog } from '../testing/dialog.ts'
-import { resetPendingPop } from '../ui/pendingPop.ts'
+import { resetPendingPop } from 'household-ui/ui/pendingPop.ts'
 import { medicine, pharmacy } from './testFixtures.ts'
 
 // Everything the hand-off touches is real here — Dialog, its history entry, the router — except the data layer.

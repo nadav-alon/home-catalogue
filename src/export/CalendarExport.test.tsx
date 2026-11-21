@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { act, fireEvent, render, screen, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core } from 'data-platform'
 import { CalendarExport } from './CalendarExport.tsx'
-import { TopAppBar } from '../shell/TopAppBar.tsx'
+import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
 import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
@@ -112,7 +113,7 @@ describe('CalendarExport', () => {
     renderWith([outBandages], [medicine], [pharmacy])
 
     expect(screen.getByLabelText('Date')).toHaveClass('ui-field__control')
-    expect(readFileSync('src/ui/Field.css', 'utf8')).toMatch(/\.ui-field__control\s*{[^}]*min-height: 3rem/)
+    expect(readFileSync(fileURLToPath(import.meta.resolve('household-ui/ui/Field.css')), 'utf8')).toMatch(/\.ui-field__control\s*{[^}]*min-height: 3rem/)
   })
 
   it('closes from the title-row Close icon', () => {

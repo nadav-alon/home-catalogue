@@ -1,10 +1,11 @@
 import type { ManifestOptions } from 'vite-plugin-pwa'
+import { appName } from './appName.ts'
 import { appIcons, iconSizes } from './ui/appIcons.ts'
 import { themeColor } from './theme.ts'
-import { colourRoleHex } from './ui/colourRoles.ts'
+import { colourRoleHex } from 'household-ui/ui/colourRoles.ts'
 
 export const manifest: Partial<ManifestOptions> = {
-  name: 'Home Catalogue',
+  name: appName,
   short_name: 'Catalogue',
   description: "Tracks what the household has, is running low on, or is out of",
   theme_color: themeColor,

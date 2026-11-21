@@ -1,4 +1,4 @@
-import { IconButton } from '../ui/IconButton.tsx'
+import { IconButton } from 'household-ui/ui/IconButton.tsx'
 import { nativeBarcodeDetector } from './barcodeDetector.ts'
 import ScanIcon from '~icons/material-symbols/barcode-scanner'
 

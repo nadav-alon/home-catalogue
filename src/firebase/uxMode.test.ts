@@ -24,7 +24,7 @@ describe('uxWiring', () => {
 })
 
 async function bundledCode(mode: string): Promise<string> {
-  const output = (await build({ mode, logLevel: 'silent', build: { write: false } })) as Rollup.RollupOutput
+  const output = (await build({ mode, configLoader: 'runner', logLevel: 'silent', build: { write: false } })) as Rollup.RollupOutput
   return output.output.map((chunk) => (chunk.type === 'chunk' ? chunk.code : '')).join('\n')
 }
 

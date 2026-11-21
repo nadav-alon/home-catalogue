@@ -1,4 +1,4 @@
-import { Icon, type IconSymbol } from '../ui/Icon.tsx'
+import { Icon, type IconSymbol } from 'household-ui/ui/Icon.tsx'
 import { hashOf, route, type Route } from '../ui/route.ts'
 import { titleOf } from './titles.ts'
 import { navigate, useRoute } from '../ui/useRoute.ts'

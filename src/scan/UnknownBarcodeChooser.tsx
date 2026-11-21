@@ -1,10 +1,10 @@
 import { useState } from 'preact/hooks'
 import type { core } from 'data-platform'
 import { matchesName, type BarcodeHolder, type ItemRecord } from '../catalogue/items.ts'
-import { Button } from '../ui/Button.tsx'
-import { Dialog } from '../ui/Dialog.tsx'
-import { ListRow } from '../ui/ListRow.tsx'
-import { TextField } from '../ui/TextField.tsx'
+import { Button } from 'household-ui/ui/Button.tsx'
+import { Dialog } from 'household-ui/ui/Dialog.tsx'
+import { ListRow } from 'household-ui/ui/ListRow.tsx'
+import { TextField } from 'household-ui/ui/TextField.tsx'
 import './UnknownBarcodeChooser.css'
 
 export interface UnknownBarcodeChooserProps {

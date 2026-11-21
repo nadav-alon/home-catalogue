@@ -1,3 +1,4 @@
+import { appName } from '../appName.ts'
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import {
@@ -10,9 +11,9 @@ import {
   type AuthUser,
   type FirebaseClient,
 } from 'data-platform/client'
-import { Button } from '../ui/Button.tsx'
+import { Button } from 'household-ui/ui/Button.tsx'
 import { ResetConfigButton, type ResetConfigButtonProps } from '../setup/ResetConfigButton.tsx'
-import { CentredCard } from '../ui/CentredCard.tsx'
+import { CentredCard } from 'household-ui/ui/CentredCard.tsx'
 import { GoogleMark } from './GoogleMark.tsx'
 
 export interface AuthGateProps {
@@ -82,7 +83,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
 
     case 'signed-out':
       return (
-        <CentredCard title="Sign in">
+        <CentredCard appName={appName} title="Sign in">
           <Button onClick={() => void authClient(client.app).signIn()}>
             <GoogleMark />
             Sign in with Google
@@ -93,7 +94,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
 
     case 'claim-available':
       return (
-        <CentredCard title="Claim this household">
+        <CentredCard appName={appName} title="Claim this household">
           <p>No one has claimed this household yet.</p>
           <Button
             onClick={async () => {
@@ -109,7 +110,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
 
     case 'non-member':
       return (
-        <CentredCard title="Not a member">
+        <CentredCard appName={appName} title="Not a member">
           <p>Signed in as {state.user.email}.</p>
           <p>You are not a member of this household.</p>
           <SignOutButton app={client.app} />
@@ -119,7 +120,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
 
     case 'unreachable':
       return (
-        <CentredCard title="Couldn't reach your Household">
+        <CentredCard appName={appName} title="Couldn't reach your Household">
           <p>Check your connection and try again.</p>
           <Button
             onClick={() => {

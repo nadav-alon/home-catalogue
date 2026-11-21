@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import type { core } from 'data-platform'
-import { afterPendingPop } from './pendingPop.ts'
+import { afterPendingPop } from 'household-ui/ui/pendingPop.ts'
 import { addItemHandoffOf, categoryIdOf, DEFAULT_ROUTE, hashOf, itemIdsOf, itemsHashOf, routeIn, routeOf, shopIdOf, withCategoryAndShop, returnUrlWithItem, withoutAddItemHandoff, type AddItemHandoff, type CategoryAndShop, type ReturnUrl, type Route } from './route.ts'
 
 /** Rewrites a hash that does not name a route to the default route's hash, replacing the history entry (and keeping its state) rather than pushing one. */

@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 /** Test-only: reads a file by its repo-relative path. Nothing in the app may import this module. */
 export const read = (path: string) => readFileSync(path, 'utf8')
 
 /** The custom properties `theme.css` and `tokens.css` define. */
 export const defined = new Set(
-  ['src/ui/theme.css', 'src/ui/tokens.css'].flatMap((path) => [...read(path).matchAll(/^\s*(--[\w-]+):/gm)].map((m) => m[1])),
+  ['src/theme.css', fileURLToPath(import.meta.resolve('household-ui/ui/tokens.css'))].flatMap((path) => [...read(path).matchAll(/^\s*(--[\w-]+):/gm)].map((m) => m[1])),
 )
 
 /** The custom properties a stylesheet, given by repo-relative path, reads, split by whether `defined` has them. */

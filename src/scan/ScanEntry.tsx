@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { core } from 'data-platform'
-import { TopAppBarActions } from '../shell/TopAppBar.tsx'
+import { TopAppBarActions } from 'household-ui/shell/TopAppBar.tsx'
 import { ScanButton } from './ScanButton.tsx'
 import { CAMERA_DENIED_MESSAGE, CAMERA_UNAVAILABLE_MESSAGE, ScannerDialog } from './ScannerDialog.tsx'
 

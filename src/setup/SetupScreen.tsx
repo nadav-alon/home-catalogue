@@ -1,11 +1,12 @@
+import { appName } from '../appName.ts'
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { FirebaseWebConfig } from 'data-platform/client'
 import { parseFirebaseWebConfigSnippet } from '../firebase/webConfig.ts'
 import { HOUSEHOLD_SETUP_DOC_URL } from '../links.ts'
-import { Button } from '../ui/Button.tsx'
-import { CentredCard } from '../ui/CentredCard.tsx'
-import { TextArea } from '../ui/TextArea.tsx'
+import { Button } from 'household-ui/ui/Button.tsx'
+import { CentredCard } from 'household-ui/ui/CentredCard.tsx'
+import { TextArea } from 'household-ui/ui/TextArea.tsx'
 import './SetupScreen.css'
 
 export interface SetupScreenProps {
@@ -29,7 +30,7 @@ export function SetupScreen({ onConfigured, initialError = null }: SetupScreenPr
   }
 
   return (
-    <CentredCard title="Set up">
+    <CentredCard appName={appName} title="Set up">
       <p>
         Paste your household's Firebase web config below. Not set up a Household yet? Follow the{' '}
         <a href={HOUSEHOLD_SETUP_DOC_URL}>household setup guide</a>.
