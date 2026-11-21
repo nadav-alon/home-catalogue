@@ -17,17 +17,17 @@ vi.mock('./firebase/terminateFirebase.ts', () => ({
 // These tests are about the Firebase config lifecycle, not auth, so the auth gate is
 // stubbed as an already-signed-in member throughout.
 const member: AuthUser = { uid: 'owner-uid', email: 'owner@example.com' } as unknown as AuthUser
-const watchAuthState = vi.fn()
-const signOutUser = vi.fn()
+const onAuthChange = vi.fn()
+const signOut = vi.fn()
 const householdExists = vi.fn()
 const isHouseholdMember = vi.fn()
 vi.mock('data-platform/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('data-platform/client')>()),
   initFirebase: (...args: unknown[]) => initFirebase(...args),
   authClient: (app: unknown) => ({
-    onAuthChange: (cb: (user: AuthUser | null) => void) => watchAuthState(app, cb),
+    onAuthChange: (cb: (user: AuthUser | null) => void) => onAuthChange(app, cb),
     signIn: vi.fn(),
-    signOut: () => signOutUser(app),
+    signOut: () => signOut(app),
   }),
   householdExists: (db: unknown) => householdExists(db),
   isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
@@ -35,6 +35,9 @@ vi.mock('data-platform/client', async (importOriginal) => ({
   joinFromInvite: vi.fn().mockResolvedValue(false),
 }))
 
+vi.mock('./catalogue/stores.ts', () => ({
+  watchStores: () => vi.fn(),
+}))
 vi.mock('./catalogue/shops.ts', () => ({
   watchShops: () => vi.fn(),
 }))
@@ -96,7 +99,7 @@ async function resetFromSettings() {
 }
 
 function startSignedOut() {
-  watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+  onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
     cb(null)
     return vi.fn()
   })
@@ -125,8 +128,8 @@ beforeEach(() => {
   initFirebase.mockReturnValue(fakeClient)
   terminateFirebase.mockClear()
   terminateFirebase.mockResolvedValue(undefined)
-  watchAuthState.mockReset()
-  watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+  onAuthChange.mockReset()
+  onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
     cb(member)
     return vi.fn()
   })
@@ -251,7 +254,7 @@ describe('Root', () => {
     render(<Root />)
     fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
 
-    expect(signOutUser).toHaveBeenCalledWith(fakeClient.app)
+    expect(signOut).toHaveBeenCalledWith(fakeClient.app)
   })
 
   it('checks the deployed platform version against the connected client', async () => {
@@ -265,7 +268,7 @@ describe('Root', () => {
   })
 
   it('does not read the platform version before sign-in', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
       return vi.fn()
     })
@@ -307,7 +310,7 @@ describe('Root', () => {
 
 describe('Root with a device transfer fragment in the URL', () => {
   it('saves a valid fragment, strips it from the URL, and proceeds to sign-in', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
       return vi.fn()
     })
