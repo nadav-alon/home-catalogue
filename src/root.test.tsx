@@ -12,9 +12,6 @@ import { householdTransferUrl } from './firebase/householdTransferUrl.ts'
 import { uxWiring } from './firebase/uxMode.ts'
 import { resetHash } from './testing/hash.ts'
 
-const initFirebase = vi.fn()
-const terminateFirebase = vi.fn()
-
 // These tests are about the Firebase config lifecycle, not auth, so the auth gate is
 // stubbed as an already-signed-in member throughout.
 const member: AuthUser = { uid: 'owner-uid', email: 'owner@example.com' } as unknown as AuthUser
@@ -22,6 +19,8 @@ const onAuthChange = vi.fn()
 const signOut = vi.fn()
 const householdExists = vi.fn()
 const isHouseholdMember = vi.fn()
+const initFirebase = vi.fn()
+const terminateFirebase = vi.fn()
 vi.mock('data-platform/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('data-platform/client')>()),
   initFirebase: (...args: unknown[]) => initFirebase(...args),
