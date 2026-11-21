@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { ItemsManager } from './ItemsManager.tsx'
+import type { AddItemHandoff } from '../ui/route.ts'
 import { useAddItemHandoff } from '../ui/useRoute.ts'
 import { resetHash } from '../testing/hash.ts'
 import { nextTask } from '../testing/nextTask.ts'
@@ -75,7 +76,7 @@ function Screen() {
 }
 
 /** Mounts alongside the screen and records what `useAddItemHandoff` returns on each render. */
-function Probe({ into }: { into: { current: ReturnType<typeof useAddItemHandoff> } }) {
+function Probe({ into }: { into: { current: AddItemHandoff | undefined } }) {
   into.current = useAddItemHandoff()
   return null
 }
@@ -115,6 +116,13 @@ const closeByCancelling = () => fireEvent.click(screen.getByRole('button', { nam
 
 const linkTo = (back: string) => `#/items?add=Flour&return=${encodeURIComponent(back)}`
 
+/** Closes a dialog that was opened by a link without a return URL, and lets the dialog go and stray navigations land. */
+async function closeHandoffWithoutReturn(close: () => void) {
+  close()
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
+  await letStrayNavigationsLand()
+}
+
 /** How a hand-off dialog is closed, the page its link was followed from, and where a link with a return URL leads. */
 const ways = [
   { how: 'save', close: closeBySaving, page: `?itemId=${newId}`, back: savedBack },
@@ -149,9 +157,7 @@ describe('closing a dialog opened by an add-Item hand-off', () => {
 
   it.each(ways)('drops the hand-off from the URL after a $how without a return URL, so a reload does not reopen it', async ({ close }) => {
     await followLink('#/items?add=Flour')
-    close()
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
-    await letStrayNavigationsLand()
+    await closeHandoffWithoutReturn(close)
 
     expect(window.location.hash).toBe('#/items')
     cleanup()
@@ -162,9 +168,7 @@ describe('closing a dialog opened by an add-Item hand-off', () => {
 
   it.each(ways)('opens the dialog again when the same link is followed after a $how without a return URL', async ({ close }) => {
     await followLink('#/items?add=Flour')
-    close()
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
-    await letStrayNavigationsLand()
+    await closeHandoffWithoutReturn(close)
 
     window.location.hash = '#/items?add=Flour'
     const dialog = await screen.findByRole('dialog', { name: 'Add Item' })
@@ -173,11 +177,10 @@ describe('closing a dialog opened by an add-Item hand-off', () => {
 
   it.each(ways)('stops reporting the hand-off after a $how without a return URL', async ({ close }) => {
     await followLink('#/items?add=Flour')
-    const probe = { current: undefined as ReturnType<typeof useAddItemHandoff> }
+    const probe = { current: undefined as AddItemHandoff | undefined }
     render(<Probe into={probe} />)
     expect(probe.current).toBeDefined()
     close()
-    await waitFor(() => expect(window.location.hash).toBe('#/items'))
-    expect(probe.current).toBeUndefined()
+    await waitFor(() => expect(probe.current).toBeUndefined())
   })
 })

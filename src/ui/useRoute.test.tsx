@@ -249,6 +249,7 @@ describe('add-Item hand-off', () => {
 
     act(() => clearAddItemHandoff())
 
+    expect(result.current).toBeUndefined()
     expect(window.location.hash).toBe('#/items')
     expect(window.history.length).toBe(length)
   })
