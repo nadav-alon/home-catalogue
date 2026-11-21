@@ -10,8 +10,8 @@ import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED, type GroupKey } from './collapsedCategories.ts'
 import { watchShops, type ShopRecord } from './shops.ts'
-import type { CategoryAndShop } from '../ui/route.ts'
-import { navigateToItems } from '../ui/useRoute.ts'
+import type { AddItemHandoff, CategoryAndShop } from '../ui/route.ts'
+import { clearAddItemHandoff, leaveTo, navigateToItems } from '../ui/useRoute.ts'
 import { ItemDialog } from './ItemDialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
 import { showSnackbar } from '../ui/Snackbar.tsx'
@@ -38,6 +38,11 @@ export interface ItemsManagerProps {
   filter?: CategoryAndShop
   /** Called with the Category and Shop filters a pressed chip asks for; undefined clears one. */
   onFilterChange?: (filter: CategoryAndShop) => void
+  /**
+   * Opens the add-Item dialog with the name prefilled and State `out`, once, when given. When it carries a return URL
+   * the app goes there as the dialog closes, with the new Item's id appended if it was saved.
+   */
+  handoff?: AddItemHandoff
 }
 
 /** `current` cleared when it is `id`, else `id`: what pressing a chip of a one-at-a-time group selects. */
@@ -50,7 +55,7 @@ function toggledMember<Id extends string>(ids: readonly Id[], id: Id): readonly 
   return ids.includes(id) ? ids.filter((member) => member !== id) : [...ids, id]
 }
 
-export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilterChange }: ItemsManagerProps) {
+export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilterChange, handoff }: ItemsManagerProps) {
   const { categoryId, shopId } = filter ?? { categoryId: undefined, shopId: undefined }
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
@@ -69,7 +74,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [dialog, setDialog] = useState<
     | { kind: 'edit'; item: ItemRecord }
     | { kind: 'restore'; item: ItemRecord }
-    | { kind: 'add'; barcode?: CarriedBarcode }
+    | { kind: 'add'; barcode?: CarriedBarcode; handoff?: AddItemHandoff }
     | null
   >(null)
   /** Whether `watchCategories` and `watchShops` have delivered, so a missing Category or Shop means deleted, not not-yet-loaded. */
@@ -104,6 +109,33 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     filterOnClose.current = undefined
     navigateToItems([id])
   }, [dialog])
+
+  /** Whether the hand-off has opened its dialog, so one link opens one dialog however often the screen re-renders. */
+  const handoffOpened = useRef(false)
+  /** The id of the Item the hand-off's dialog saved; undefined while it is unsaved or cancelled. */
+  const handoffSavedId = useRef<core.ItemId | undefined>(undefined)
+  useEffect(() => {
+    if (handoff === undefined) {
+      handoffOpened.current = false
+      return
+    }
+    if (handoffOpened.current) return
+    handoffOpened.current = true
+    setDialog({ kind: 'add', handoff })
+  }, [handoff])
+
+  const dialogHandoff = dialog?.kind === 'add' ? dialog.handoff : undefined
+
+  /** Closes the dialog; one opened by a hand-off then sends the user to its return URL, or only forgets the hand-off without one. */
+  function closeDialog() {
+    const closing = dialogHandoff
+    setDialog(null)
+    if (closing === undefined) return
+    const id = handoffSavedId.current
+    handoffSavedId.current = undefined
+    if (closing.returnUrl === undefined) clearAddItemHandoff()
+    else leaveTo(closing.returnUrl, id)
+  }
 
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(
@@ -345,6 +377,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         open={dialog !== null}
         item={editedItem}
         restoring={dialog?.kind === 'restore'}
+        initialName={dialogHandoff?.name}
+        initialState={dialogHandoff === undefined ? undefined : 'out'}
         barcode={pendingBarcode}
         categories={categories}
         shops={shops}
@@ -362,6 +396,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
           if (input.state !== undefined) {
             const id = await createItem(db, { ...input, barcode: dialog?.kind === 'add' ? dialog.barcode : undefined })
             if (pendingBarcode !== undefined) filterOnClose.current = id
+            if (dialogHandoff !== undefined) handoffSavedId.current = id
             return
           }
           if (!editedItem) return
@@ -369,7 +404,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
           await updateItem(db, editedItem, input, categories)
         }}
         onDelete={dialog?.kind === 'restore' ? undefined : handleDelete}
-        onClose={() => setDialog(null)}
+        onClose={closeDialog}
       />
     </section>
   )

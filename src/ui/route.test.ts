@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { catalogue, core } from 'data-platform'
-import { categoryIdOf, DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, itemsHashOf, route, routeOf, shopIdOf, withCategoryAndShop } from './route.ts'
+import { addItemHandoffOf, returnUrl, returnUrlWithItem, categoryIdOf, DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, itemsHashOf, route, routeOf, shopIdOf, withCategoryAndShop } from './route.ts'
 
 const ROUTE_HASHES = ['#/list', '#/items', '#/settings', '#/settings/shops', '#/settings/categories', '#/settings/tags'] as const
 
@@ -93,5 +93,42 @@ describe('Category and Shop filter in the hash', () => {
 
   it('names the bare Items screen once both are cleared', () => {
     expect(withCategoryAndShop('#/items?category=a&shop=b', { categoryId: undefined, shopId: undefined })).toBe('#/items')
+  })
+})
+
+describe('add-Item hand-off', () => {
+  const origin = 'https://example.test'
+  const back = 'https://example.test/recipes/#/r/1'
+
+  it('reads the name and a return URL on the catalogue origin', () => {
+    const hash = `#/items?add=Flour&return=${encodeURIComponent(back)}`
+    expect(addItemHandoffOf(hash, origin)).toEqual({ name: 'Flour', returnUrl: back })
+  })
+
+  it('has no hand-off without a name', () => {
+    expect(addItemHandoffOf('#/items', origin)).toBeUndefined()
+    expect(addItemHandoffOf('#/items?add=%20', origin)).toBeUndefined()
+  })
+
+  it('keeps the name and drops a return URL on another origin', () => {
+    for (const other of ['https://evil.test/x', 'javascript:alert(1)', '//evil.test', 'https:///evil.test']) {
+      expect(addItemHandoffOf(`#/items?add=Flour&return=${encodeURIComponent(other)}`, origin)).toEqual({ name: 'Flour', returnUrl: undefined })
+    }
+  })
+
+  it('reads a relative return URL as on the catalogue origin', () => {
+    expect(addItemHandoffOf(`#/items?add=Flour&return=${encodeURIComponent('/recipes/')}`, origin)).toEqual({ name: 'Flour', returnUrl: 'https://example.test/recipes/' })
+  })
+
+  it('appends the new Item id after an existing query', () => {
+    expect(returnUrlWithItem(returnUrl('https://example.test/recipes/?a=1#/r/1', origin), core.itemId('i1'))).toBe('https://example.test/recipes/?a=1&itemId=i1#/r/1')
+  })
+
+  it('appends the new Item id to the return URL', () => {
+    expect(returnUrlWithItem(returnUrl(back, origin), core.itemId('i1'))).toBe('https://example.test/recipes/?itemId=i1#/r/1')
+  })
+
+  it('refuses to construct a foreign return URL', () => {
+    expect(() => returnUrl('https://evil.test/', origin)).toThrow('Not a ReturnUrl')
   })
 })

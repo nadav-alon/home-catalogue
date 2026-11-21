@@ -111,3 +111,71 @@ export function withCategoryAndShop(hash: string, filter: CategoryAndShop): stri
   }
   return hashWithQuery(path, params)
 }
+
+const ADD_KEY = 'add'
+const RETURN_KEY = 'return'
+const ITEM_ID_KEY = 'itemId'
+
+declare const returnUrlBrand: unique symbol
+
+/** An absolute URL on the catalogue's own origin, which an add-Item hand-off may send the user back to. */
+export type ReturnUrl = string & { readonly [returnUrlBrand]: true }
+
+/** Whether `value` is an absolute URL whose origin is `origin`. */
+export function isReturnUrl(value: string, origin: string): value is ReturnUrl {
+  try {
+    return new URL(value).origin === origin
+  } catch {
+    return false
+  }
+}
+
+/** The constructor: narrows, or throws naming the offending value. */
+export function returnUrl(value: string, origin: string): ReturnUrl {
+  if (!isReturnUrl(value, origin)) throw new Error(`Not a ReturnUrl on ${origin}: ${JSON.stringify(value)}`)
+  return value
+}
+
+/** A request, carried by the URL hash, to add an Item named `name` and then hand the user back to `returnUrl`. */
+export interface AddItemHandoff {
+  name: string
+  /** Where to go once the dialog closes; undefined when the link carried none, or one off the catalogue's origin. */
+  returnUrl: ReturnUrl | undefined
+}
+
+/** `value` resolved against `origin` (so a relative one is read as on it), as a ReturnUrl; undefined when it lands elsewhere. */
+function resolveReturnUrl(value: string, origin: string): ReturnUrl | undefined {
+  try {
+    const resolved = new URL(value, origin).href
+    return isReturnUrl(resolved, origin) ? resolved : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The add-Item hand-off an `add=<name>[&return=<url>]` query on the hash asks for; undefined when there is no name.
+ * A `return` URL not on `origin` is dropped, so the link cannot be used as an open redirect.
+ */
+export function addItemHandoffOf(hash: string, origin: string): AddItemHandoff | undefined {
+  const name = queryValueOf(hash, ADD_KEY)?.trim()
+  if (!name) return undefined
+  const requested = queryValueOf(hash, RETURN_KEY)
+  return { name, returnUrl: requested === undefined ? undefined : resolveReturnUrl(requested, origin) }
+}
+
+/** `url` with the new Item's id appended as its `itemId` query. */
+export function returnUrlWithItem(url: ReturnUrl, id: core.ItemId): string {
+  const target = new URL(url)
+  target.searchParams.set(ITEM_ID_KEY, id)
+  return target.toString()
+}
+
+/** `hash` without its add-Item hand-off queries; every other query is kept. */
+export function withoutAddItemHandoff(hash: string): string {
+  const [path, query] = hashParts(hash)
+  const params = new URLSearchParams(query)
+  params.delete(ADD_KEY)
+  params.delete(RETURN_KEY)
+  return hashWithQuery(path, params)
+}
