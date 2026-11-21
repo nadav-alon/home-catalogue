@@ -1482,6 +1482,8 @@ describe('an add-Item hand-off', () => {
 
   it('is an ordinary add without a return URL', async () => {
     window.location.hash = '#/items?add=Flour'
+    // The link's own navigation event lands before the dialog opens, as it does in a browser.
+    await new Promise((resolve) => setTimeout(resolve))
     renderHandoff({ name: 'Flour', returnUrl: undefined })
     createItem.mockResolvedValue(newId)
     choose(screen.getByLabelText('Category'), medicine.id)
@@ -1490,7 +1492,7 @@ describe('an add-Item hand-off', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
     expect(leaveTo).not.toHaveBeenCalled()
-    expect(window.location.hash).toBe('#/items')
+    await waitFor(() => expect(window.location.hash).toBe('#/items'))
   })
 
   it('stays put when the save fails', async () => {
