@@ -1,12 +1,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Root } from './root.tsx'
-import { FIREBASE_CONFIG_STORAGE_KEY, getStoredFirebaseWebConfig, saveFirebaseWebConfig } from 'data-platform/client'
+import {
+  FIREBASE_CONFIG_STORAGE_KEY,
+  firebaseWebConfig,
+  getStoredFirebaseWebConfig,
+  saveFirebaseWebConfig,
+  type AuthUser,
+} from 'data-platform/client'
 import { householdTransferUrl } from './firebase/householdTransferUrl.ts'
 import { uxWiring } from './firebase/uxMode.ts'
-import { firebaseWebConfig } from 'data-platform/client'
 import { resetHash } from './testing/hash.ts'
-import type { AuthUser } from 'data-platform/client'
 
 const initFirebase = vi.fn()
 const terminateFirebase = vi.fn()
