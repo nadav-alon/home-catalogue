@@ -1,9 +1,12 @@
-# Gate for pull requests: the app must build, typecheck and pass its tests,
-# including the Firestore rules suite, before a change merges.
+# Gate for pull requests and for main: the app must build, typecheck and pass
+# its tests, including the Firestore rules suite, before a change merges, and a
+# break that lands on main shows as a red run there.
 name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
 
 jobs:
   build-test-typecheck:
