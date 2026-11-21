@@ -151,7 +151,7 @@ describe('Root', () => {
 
     render(<Root />)
 
-    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(initFirebase).toHaveBeenCalledWith(validConfig, { local: undefined })
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
   })
 
@@ -160,7 +160,7 @@ describe('Root', () => {
 
     render(<Root />)
 
-    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(initFirebase).toHaveBeenCalledWith(validConfig, { local: undefined })
     expect(getStoredFirebaseWebConfig()).toEqual(validConfig)
     expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
@@ -175,7 +175,7 @@ describe('Root', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
-    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(initFirebase).toHaveBeenCalledWith(validConfig, { local: undefined })
   })
 
   it('returns to the setup screen and clears storage when reset', async () => {
@@ -206,7 +206,7 @@ describe('Root', () => {
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
-    expect(initFirebase).toHaveBeenLastCalledWith(otherConfig)
+    expect(initFirebase).toHaveBeenLastCalledWith(otherConfig, { local: undefined })
   })
 
   it.each([
@@ -342,7 +342,7 @@ describe('Root with a device transfer fragment in the URL', () => {
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(confirmSpy).toHaveBeenCalled()
-    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(initFirebase).toHaveBeenCalledWith(validConfig, { local: undefined })
     expect(JSON.parse(localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY)!)).toEqual(validConfig)
     expect(location.hash).toBe('')
   })
@@ -356,7 +356,7 @@ describe('Root with a device transfer fragment in the URL', () => {
     render(<Root />)
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
-    expect(initFirebase).toHaveBeenCalledWith(otherConfig)
+    expect(initFirebase).toHaveBeenCalledWith(otherConfig, { local: undefined })
     expect(JSON.parse(localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY)!)).toEqual(otherConfig)
   })
 
@@ -370,7 +370,7 @@ describe('Root with a device transfer fragment in the URL', () => {
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(confirmSpy).not.toHaveBeenCalled()
-    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(initFirebase).toHaveBeenCalledWith(validConfig, { local: undefined })
     expect(setItemSpy).not.toHaveBeenCalled()
     expect(location.hash).toBe('')
   })

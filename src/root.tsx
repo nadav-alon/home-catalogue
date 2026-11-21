@@ -83,7 +83,7 @@ function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: ()
 
   useEffect(() => {
     const ux = uxWiring()
-    setClient(ux === null ? initFirebase(config) : initFirebase(config, { local: ux.local }))
+    setClient(initFirebase(config, { local: ux?.local }))
   }, [config])
 
   if (client === null) return null
