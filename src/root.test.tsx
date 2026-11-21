@@ -41,6 +41,9 @@ vi.mock('./catalogue/shops.ts', () => ({
 vi.mock('./catalogue/aisles.ts', () => ({
   watchAisles: () => vi.fn(),
 }))
+vi.mock('./catalogue/stores.ts', () => ({
+  watchStores: () => vi.fn(),
+}))
 vi.mock('./catalogue/tags.ts', () => ({
   watchTags: () => vi.fn(),
 }))
