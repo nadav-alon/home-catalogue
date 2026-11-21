@@ -1,5 +1,6 @@
 import { build, type Rollup } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { localKit } from 'data-platform/local'
 import { uxWiring } from './uxMode.ts'
 
 afterEach(() => vi.unstubAllEnvs())
@@ -15,10 +16,10 @@ describe('uxWiring', () => {
     expect(uxWiring()?.config.projectId).toBe('demo-data-platform-local')
   })
 
-  it('keeps the Firestore cache in memory, so no run inherits the last run', () => {
+  it('hands initFirebase the local kit, so Firestore and Auth run against the emulators', () => {
     vi.stubEnv('MODE', 'ux')
 
-    expect(uxWiring()?.localCache.kind).toBe('memory')
+    expect(uxWiring()?.local).toBe(localKit)
   })
 })
 

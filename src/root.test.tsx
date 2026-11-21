@@ -1,40 +1,43 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Root } from './root.tsx'
-import { saveFirebaseConfig } from './firebase/configStorage.ts'
+import { FIREBASE_CONFIG_STORAGE_KEY, getStoredFirebaseWebConfig, saveFirebaseWebConfig } from 'data-platform/client'
 import { deviceTransferUrl } from './firebase/deviceTransfer.ts'
 import { uxWiring } from './firebase/uxMode.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 import { resetHash } from './testing/hash.ts'
-import type { AuthUser } from './auth/authClient.ts'
+import type { AuthUser } from 'data-platform/client'
 
 const initFirebase = vi.fn()
 const terminateFirebase = vi.fn()
-vi.mock('./firebase/client.ts', () => ({
-  initFirebase: (config: unknown) => initFirebase(config),
+vi.mock('./firebase/terminateFirebase.ts', () => ({
   terminateFirebase: (client: unknown) => terminateFirebase(client),
 }))
 
 // These tests are about the Firebase config lifecycle, not auth, so the auth gate is
 // stubbed as an already-signed-in member throughout.
 const member: AuthUser = { uid: 'owner-uid', email: 'owner@example.com' } as unknown as AuthUser
-const watchAuthState = vi.fn()
-const signOutUser = vi.fn()
-vi.mock('./auth/authClient.ts', () => ({
-  watchAuthState: (app: unknown, cb: (user: AuthUser | null) => void) => watchAuthState(app, cb),
-  signInWithGoogle: vi.fn(),
-  signOutUser: (app: unknown) => signOutUser(app),
-}))
-
+const onAuthChange = vi.fn()
+const signOut = vi.fn()
 const householdExists = vi.fn()
 const isHouseholdMember = vi.fn()
-vi.mock('./auth/household.ts', () => ({
+vi.mock('data-platform/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('data-platform/client')>()),
+  initFirebase: (...args: unknown[]) => initFirebase(...args),
+  authClient: (app: unknown) => ({
+    onAuthChange: (cb: (user: AuthUser | null) => void) => onAuthChange(app, cb),
+    signIn: vi.fn(),
+    signOut: () => signOut(app),
+  }),
   householdExists: (db: unknown) => householdExists(db),
   isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
   claimHousehold: vi.fn(),
   joinFromInvite: vi.fn().mockResolvedValue(false),
 }))
 
+vi.mock('./catalogue/stores.ts', () => ({
+  watchStores: () => vi.fn(),
+}))
 vi.mock('./catalogue/shops.ts', () => ({
   watchShops: () => vi.fn(),
 }))
@@ -99,7 +102,7 @@ async function resetFromSettings() {
 }
 
 function startSignedOut() {
-  watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+  onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
     cb(null)
     return vi.fn()
   })
@@ -128,8 +131,8 @@ beforeEach(() => {
   initFirebase.mockReturnValue(fakeClient)
   terminateFirebase.mockClear()
   terminateFirebase.mockResolvedValue(undefined)
-  watchAuthState.mockReset()
-  watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+  onAuthChange.mockReset()
+  onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
     cb(member)
     return vi.fn()
   })
@@ -150,11 +153,22 @@ describe('Root', () => {
   })
 
   it('initialises Firebase and shows the app once config is stored', async () => {
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
 
     render(<Root />)
 
-    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(initFirebase).toHaveBeenCalledWith(validConfig, { local: undefined })
+    expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
+  })
+
+  it('moves a config stored under the old key to the platform-wide key on first load', async () => {
+    localStorage.setItem('home-catalogue:firebase-config', JSON.stringify(validConfig))
+
+    render(<Root />)
+
+    expect(initFirebase).toHaveBeenCalledWith(validConfig, { local: undefined })
+    expect(getStoredFirebaseWebConfig()).toEqual(validConfig)
+    expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
   })
 
@@ -167,23 +181,23 @@ describe('Root', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
-    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(initFirebase).toHaveBeenCalledWith(validConfig, { local: undefined })
   })
 
   it('returns to the setup screen and clears storage when reset', async () => {
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
     startOnSettings()
     render(<Root />)
 
     await resetFromSettings()
 
     expect(await screen.findByRole('heading', { name: 'Set up' })).toBeInTheDocument()
-    expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
+    expect(localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY)).toBeNull()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
   })
 
   it('tears down the previous client before initialising a new one after reset', async () => {
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
     startOnSettings()
     render(<Root />)
 
@@ -198,7 +212,7 @@ describe('Root', () => {
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
-    expect(initFirebase).toHaveBeenLastCalledWith(otherConfig)
+    expect(initFirebase).toHaveBeenLastCalledWith(otherConfig, { local: undefined })
   })
 
   it.each([
@@ -206,13 +220,13 @@ describe('Root', () => {
     ['non-member', 'Not a member', startAsNonMember],
   ])('resets from the %s card: back to Setup, config cleared, client terminated', async (_card, heading, start) => {
     start()
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
     render(<Root />)
 
     await clickResetOn(heading, true)
 
     expect(await screen.findByRole('heading', { name: 'Set up' })).toBeInTheDocument()
-    expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
+    expect(localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY)).toBeNull()
     expect(terminateFirebase).toHaveBeenCalledWith(fakeClient)
   })
 
@@ -221,18 +235,18 @@ describe('Root', () => {
     ['non-member', 'Not a member', startAsNonMember],
   ])('keeps the config and the %s card when the confirm is cancelled', async (_card, heading, start) => {
     start()
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
     render(<Root />)
 
     await clickResetOn(heading, false)
 
     expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument()
-    expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(validConfig)
+    expect(JSON.parse(localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY)!)).toEqual(validConfig)
     expect(terminateFirebase).not.toHaveBeenCalled()
   })
 
   it('offers Reset to a member only in Settings, and signs out the connected client from Settings, and nowhere else', async () => {
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
     const { unmount } = render(<Root />)
     await screen.findByRole('navigation', { name: 'Main' })
     expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
@@ -243,11 +257,11 @@ describe('Root', () => {
     render(<Root />)
     fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
 
-    expect(signOutUser).toHaveBeenCalledWith(fakeClient.app)
+    expect(signOut).toHaveBeenCalledWith(fakeClient.app)
   })
 
   it('checks the deployed platform version against the connected client', async () => {
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
 
     render(<Root />)
 
@@ -257,11 +271,11 @@ describe('Root', () => {
   })
 
   it('does not read the platform version before sign-in', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
       return vi.fn()
     })
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
 
     render(<Root />)
 
@@ -270,7 +284,7 @@ describe('Root', () => {
   })
 
   it('shows no banner once checkPlatform resolves ok', async () => {
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
 
     render(<Root />)
 
@@ -280,7 +294,7 @@ describe('Root', () => {
 
   it('shows a blocking banner once checkPlatform resolves outdated', async () => {
     checkPlatform.mockReturnValue('outdated')
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
 
     render(<Root />)
 
@@ -289,7 +303,7 @@ describe('Root', () => {
 
   it('shows a blocking banner once checkPlatform resolves missing', async () => {
     checkPlatform.mockReturnValue('missing')
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
 
     render(<Root />)
 
@@ -299,7 +313,7 @@ describe('Root', () => {
 
 describe('Root with a device transfer fragment in the URL', () => {
   it('saves a valid fragment, strips it from the URL, and proceeds to sign-in', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
       return vi.fn()
     })
@@ -308,7 +322,7 @@ describe('Root with a device transfer fragment in the URL', () => {
     render(<Root />)
 
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
-    expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(validConfig)
+    expect(JSON.parse(localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY)!)).toEqual(validConfig)
     expect(location.hash).toBe('')
   })
 
@@ -320,12 +334,12 @@ describe('Root with a device transfer fragment in the URL', () => {
 
     expect(screen.getByRole('heading', { name: 'Set up' })).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent(/truncated or corrupted/)
-    expect(localStorage.getItem('home-catalogue:firebase-config')).toBeNull()
+    expect(localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY)).toBeNull()
     expect(location.hash).toBe('')
   })
 
   it('asks before replacing a different stored config, and keeps the old one when declined', async () => {
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
     const otherConfig = firebaseWebConfig({ ...validConfig, projectId: 'other-household' })
     history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(otherConfig)))
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
@@ -334,13 +348,13 @@ describe('Root with a device transfer fragment in the URL', () => {
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(confirmSpy).toHaveBeenCalled()
-    expect(initFirebase).toHaveBeenCalledWith(validConfig)
-    expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(validConfig)
+    expect(initFirebase).toHaveBeenCalledWith(validConfig, { local: undefined })
+    expect(JSON.parse(localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY)!)).toEqual(validConfig)
     expect(location.hash).toBe('')
   })
 
   it('replaces the stored config when the user confirms', async () => {
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
     const otherConfig = firebaseWebConfig({ ...validConfig, projectId: 'other-household' })
     history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(otherConfig)))
     vi.spyOn(window, 'confirm').mockReturnValue(true)
@@ -348,12 +362,12 @@ describe('Root with a device transfer fragment in the URL', () => {
     render(<Root />)
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
-    expect(initFirebase).toHaveBeenCalledWith(otherConfig)
-    expect(JSON.parse(localStorage.getItem('home-catalogue:firebase-config')!)).toEqual(otherConfig)
+    expect(initFirebase).toHaveBeenCalledWith(otherConfig, { local: undefined })
+    expect(JSON.parse(localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY)!)).toEqual(otherConfig)
   })
 
   it('treats a fragment matching the already-stored config as a no-op, without asking', async () => {
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
     history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(validConfig)))
     const confirmSpy = vi.spyOn(window, 'confirm')
     const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
@@ -362,7 +376,7 @@ describe('Root with a device transfer fragment in the URL', () => {
 
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
     expect(confirmSpy).not.toHaveBeenCalled()
-    expect(initFirebase).toHaveBeenCalledWith(validConfig)
+    expect(initFirebase).toHaveBeenCalledWith(validConfig, { local: undefined })
     expect(setItemSpy).not.toHaveBeenCalled()
     expect(location.hash).toBe('')
   })
@@ -373,11 +387,11 @@ describe('Root in ux mode', () => {
 
   it('skips setup and initialises Firebase from the demo config, ignoring a stored one', async () => {
     vi.stubEnv('MODE', 'ux')
-    saveFirebaseConfig(validConfig)
+    saveFirebaseWebConfig(validConfig)
 
     render(<Root />)
 
-    expect(initFirebase).toHaveBeenCalledWith(uxWiring()!.config)
+    expect(initFirebase).toHaveBeenCalledWith(uxWiring()!.config, { local: uxWiring()!.local })
     expect(screen.queryByRole('heading', { name: 'Set up' })).not.toBeInTheDocument()
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
   })

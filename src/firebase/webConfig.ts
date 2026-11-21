@@ -1,20 +1,7 @@
-import type { FirebaseOptions } from 'firebase/app'
+import { firebaseWebConfig, InvalidFirebaseWebConfigError, type FirebaseWebConfig } from 'data-platform/client'
 
-declare const firebaseWebConfigBrand: unique symbol
-
-/** A parsed Firebase web config that has passed {@link isFirebaseWebConfig}. */
-export type FirebaseWebConfig = FirebaseOptions & { readonly [firebaseWebConfigBrand]: true }
-
-const REQUIRED_FIELDS = [
-  'apiKey',
-  'authDomain',
-  'projectId',
-  'storageBucket',
-  'messagingSenderId',
-  'appId',
-] as const satisfies readonly (keyof FirebaseOptions)[]
-
-export class InvalidFirebaseWebConfigError extends Error {}
+export { firebaseWebConfig, InvalidFirebaseWebConfigError, isFirebaseWebConfig } from 'data-platform/client'
+export type { FirebaseWebConfig } from 'data-platform/client'
 
 /** Thrown by {@link parseFirebaseWebConfigSnippet} when no `{...}` object literal is found at all. */
 const NO_OBJECT_LITERAL_MESSAGE =
@@ -28,26 +15,6 @@ const UNPARSEABLE_OBJECT_LITERAL_MESSAGE =
 export function sameFirebaseWebConfig(a: FirebaseWebConfig, b: FirebaseWebConfig): boolean {
   const normalize = (config: FirebaseWebConfig) => JSON.stringify(config, Object.keys(config).sort())
   return normalize(a) === normalize(b)
-}
-
-export function isFirebaseWebConfig(value: unknown): value is FirebaseWebConfig {
-  if (typeof value !== 'object' || value === null) return false
-  return missingFields(value).length === 0
-}
-
-function missingFields(value: unknown): readonly string[] {
-  const record = typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {}
-  return REQUIRED_FIELDS.filter((field) => typeof record[field] !== 'string' || record[field] === '')
-}
-
-/** Narrows or throws {@link InvalidFirebaseWebConfigError} naming the missing fields. */
-export function firebaseWebConfig(value: unknown): FirebaseWebConfig {
-  if (!isFirebaseWebConfig(value)) {
-    throw new InvalidFirebaseWebConfigError(
-      `Firebase config is missing or has empty fields: ${missingFields(value).join(', ')}`,
-    )
-  }
-  return value
 }
 
 /**

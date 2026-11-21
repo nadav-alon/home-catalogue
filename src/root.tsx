@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'preact/hooks'
 import { core } from 'data-platform'
 import { App } from './app.tsx'
-import { signOutUser } from './auth/authClient.ts'
 import { AuthGate } from './auth/AuthGate.tsx'
 import { SetupScreen } from './setup/SetupScreen.tsx'
-import { clearFirebaseConfig, getStoredFirebaseConfig, saveFirebaseConfig } from './firebase/configStorage.ts'
-import { initFirebase, terminateFirebase, type FirebaseClient } from './firebase/client.ts'
+import {
+  authClient,
+  clearFirebaseWebConfig,
+  getStoredFirebaseWebConfig,
+  initFirebase,
+  saveFirebaseWebConfig,
+  type FirebaseClient,
+} from 'data-platform/client'
+import { migrateLegacyFirebaseConfig } from './firebase/legacyConfig.ts'
+import { terminateFirebase } from './firebase/terminateFirebase.ts'
 import { parseConfigFragment } from './firebase/deviceTransfer.ts'
 import { InvalidFirebaseWebConfigError, sameFirebaseWebConfig, type FirebaseWebConfig } from './firebase/webConfig.ts'
 import { uxWiring } from './firebase/uxMode.ts'
@@ -27,7 +34,8 @@ function resolveInitialState(): RootState {
   const ux = uxWiring()
   if (ux !== null) return { config: ux.config, setupError: null }
 
-  const stored = getStoredFirebaseConfig()
+  migrateLegacyFirebaseConfig()
+  const stored = getStoredFirebaseWebConfig()
 
   let incoming: FirebaseWebConfig | null
   try {
@@ -48,7 +56,7 @@ function resolveInitialState(): RootState {
     }
   }
 
-  saveFirebaseConfig(incoming)
+  saveFirebaseWebConfig(incoming)
   return { config: incoming, setupError: null }
 }
 
@@ -60,7 +68,7 @@ export function Root() {
       <SetupScreen
         initialError={setupError}
         onConfigured={(newConfig) => {
-          saveFirebaseConfig(newConfig)
+          saveFirebaseWebConfig(newConfig)
           setState({ config: newConfig, setupError: null })
         }}
       />
@@ -74,14 +82,15 @@ function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: ()
   const [client, setClient] = useState<FirebaseClient | null>(null)
 
   useEffect(() => {
-    setClient(initFirebase(config))
+    const ux = uxWiring()
+    setClient(initFirebase(config, { local: ux?.local }))
   }, [config])
 
   if (client === null) return null
 
   const resetConfig = async () => {
     await terminateFirebase(client)
-    clearFirebaseConfig()
+    clearFirebaseWebConfig()
     onReset()
   }
 
@@ -92,7 +101,7 @@ function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: ()
         <App
           db={client.db}
           config={config}
-          onSignOut={() => signOutUser(client.app)}
+          onSignOut={() => authClient(client.app).signOut()}
           onResetConfig={resetConfig}
         />
       </AuthGate>

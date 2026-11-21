@@ -22,8 +22,9 @@ vi.mock('./members.ts', () => ({
   removeMember: (db: unknown, uid: unknown) => removeMember(db, uid),
 }))
 
-vi.mock('../auth/authClient.ts', () => ({
-  currentUserUid: (app: unknown) => currentUserUid(app),
+vi.mock('data-platform/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('data-platform/client')>()),
+  authClient: (app: unknown) => ({ currentUid: () => currentUserUid(app) }),
 }))
 
 vi.mock('../catalogue/writeRejections.ts', () => ({
