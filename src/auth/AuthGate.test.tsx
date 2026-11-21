@@ -31,7 +31,8 @@ const householdExists = vi.fn()
 const isHouseholdMember = vi.fn()
 const claimHousehold = vi.fn()
 const joinFromInvite = vi.fn()
-vi.mock('./household.ts', () => ({
+vi.mock('data-platform/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('data-platform/client')>()),
   householdExists: (db: unknown) => householdExists(db),
   isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
   claimHousehold: (db: unknown, uid: unknown, email: unknown) => claimHousehold(db, uid, email),

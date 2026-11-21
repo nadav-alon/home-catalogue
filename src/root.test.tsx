@@ -28,7 +28,8 @@ vi.mock('./auth/authClient.ts', () => ({
 
 const householdExists = vi.fn()
 const isHouseholdMember = vi.fn()
-vi.mock('./auth/household.ts', () => ({
+vi.mock('data-platform/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('data-platform/client')>()),
   householdExists: (db: unknown) => householdExists(db),
   isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
   claimHousehold: vi.fn(),

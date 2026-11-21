@@ -9,7 +9,7 @@ import {
 } from '@firebase/rules-unit-testing'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { core } from 'data-platform'
-import { claimHousehold, householdExists, isHouseholdMember, joinFromInvite } from '../../src/auth/household.ts'
+import { claimHousehold, householdExists, isHouseholdMember, joinFromInvite } from 'data-platform/client'
 
 const alice = core.uid('alice')
 const mallory = core.uid('mallory')
