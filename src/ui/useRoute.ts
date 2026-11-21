@@ -85,9 +85,14 @@ export function useAddItemHandoff(): AddItemHandoff | undefined {
   return useMemo(() => (name === undefined ? undefined : { name, returnUrl }), [name, returnUrl])
 }
 
-/** Drops the add-Item hand-off from the current hash without a history entry, so a reload does not ask for it again. */
+/**
+ * Drops the add-Item hand-off from the current hash without a history entry, so a reload does not ask for it again.
+ * `replaceState` fires no `hashchange`, so one is dispatched for the `useHash` subscribers to see the cleaned hash.
+ */
 export function clearAddItemHandoff(): void {
+  const oldURL = window.location.href
   window.history.replaceState(window.history.state, '', withoutAddItemHandoff(window.location.hash))
+  window.dispatchEvent(new HashChangeEvent('hashchange', { oldURL, newURL: window.location.href }))
 }
 
 /** Leaves the app for `url`, with the new Item's id appended when there is one; the hand-off is dropped first so Back does not reopen it. */
