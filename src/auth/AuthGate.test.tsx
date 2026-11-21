@@ -17,9 +17,9 @@ vi.mock('preact/hooks', async (importOriginal) => {
   }
 })
 
-const signInWithGoogle = vi.fn()
-const signOutUser = vi.fn()
-const watchAuthState = vi.fn()
+const signIn = vi.fn()
+const signOut = vi.fn()
+const onAuthChange = vi.fn()
 const householdExists = vi.fn()
 const isHouseholdMember = vi.fn()
 const claimHousehold = vi.fn()
@@ -27,9 +27,9 @@ const joinFromInvite = vi.fn()
 vi.mock('data-platform/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('data-platform/client')>()),
   authClient: (app: unknown) => ({
-    signIn: () => signInWithGoogle(app),
-    signOut: () => signOutUser(app),
-    onAuthChange: (cb: unknown) => watchAuthState(app, cb),
+    signIn: () => signIn(app),
+    signOut: () => signOut(app),
+    onAuthChange: (cb: unknown) => onAuthChange(app, cb),
   }),
   householdExists: (db: unknown) => householdExists(db),
   isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
@@ -44,9 +44,9 @@ const unsubscribe = vi.fn()
 const onResetConfig = vi.fn()
 
 beforeEach(() => {
-  signInWithGoogle.mockReset()
-  signOutUser.mockReset().mockResolvedValue(undefined)
-  watchAuthState.mockReset()
+  signIn.mockReset()
+  signOut.mockReset().mockResolvedValue(undefined)
+  onAuthChange.mockReset()
   householdExists.mockReset()
   isHouseholdMember.mockReset()
   claimHousehold.mockReset().mockResolvedValue(undefined)
@@ -83,10 +83,10 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
-/** Captures the callback `watchAuthState` is given, so a test can report auth changes after render. */
+/** Captures the callback `onAuthChange` is given, so a test can report auth changes after render. */
 function captureAuthCallback() {
   let report!: (user: AuthUser | null) => void
-  watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+  onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
     report = cb
     return unsubscribe
   })
@@ -103,7 +103,7 @@ async function settle(settleLookup: () => void) {
 
 describe('AuthGate', () => {
   it('shows a Google sign-in button when signed out', () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
       return unsubscribe
     })
@@ -115,11 +115,11 @@ describe('AuthGate', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with Google' }))
-    expect(signInWithGoogle).toHaveBeenCalledWith('fake-app')
+    expect(signIn).toHaveBeenCalledWith('fake-app')
   })
 
   it('shows a decorative inline Google mark before the Sign in with Google label', () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
       return unsubscribe
     })
@@ -140,7 +140,7 @@ describe('AuthGate', () => {
   })
 
   it('offers Reset Firebase configuration on the signed-out card, only after the user confirms', () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
       return unsubscribe
     })
@@ -156,7 +156,7 @@ describe('AuthGate', () => {
   })
 
   it('offers to claim the household when meta/household does not exist', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -173,7 +173,7 @@ describe('AuthGate', () => {
   })
 
   it('claims the household in one write and then shows the app', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -191,7 +191,7 @@ describe('AuthGate', () => {
   })
 
   it('joins an invited user as a member on sign-in and shows the app', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -210,7 +210,7 @@ describe('AuthGate', () => {
   })
 
   it('does not look for an invite when already a member', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -228,7 +228,7 @@ describe('AuthGate', () => {
   })
 
   it('shows a non-member screen with the signed-in email and a sign-out button', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -245,7 +245,7 @@ describe('AuthGate', () => {
     expect(screen.getByText('owner@example.com', { exact: false })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
-    expect(signOutUser).toHaveBeenCalledWith('fake-app')
+    expect(signOut).toHaveBeenCalledWith('fake-app')
   })
 
   it.each([
@@ -253,7 +253,7 @@ describe('AuthGate', () => {
     ['isHouseholdMember', () => isHouseholdMember.mockRejectedValue(new Error('unavailable'))],
     ['joinFromInvite', () => joinFromInvite.mockRejectedValue(new Error('unavailable'))],
   ])('shows an error card instead of a blank screen when %s rejects', async (_name, fail) => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -276,7 +276,7 @@ describe('AuthGate', () => {
     ['isHouseholdMember', () => isHouseholdMember.mockRejectedValue(new FirebaseError('permission-denied', 'refused'))],
     ['joinFromInvite', () => joinFromInvite.mockRejectedValue(new FirebaseError('permission-denied', 'refused'))],
   ])('shows the non-member card, not the error card, when %s is refused by the rules', async (_name, fail) => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -295,7 +295,7 @@ describe('AuthGate', () => {
   })
 
   it('brings the error card back when Retry rejects again', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -313,7 +313,7 @@ describe('AuthGate', () => {
   })
 
   it('runs the resolution again on Retry and lands a now-reachable member in the app', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -332,7 +332,7 @@ describe('AuthGate', () => {
   })
 
   it('offers Sign out and, after confirming, Reset Firebase configuration on the error card', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -344,13 +344,13 @@ describe('AuthGate', () => {
       </AuthGate>,
     )
     fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
-    expect(signOutUser).toHaveBeenCalledWith('fake-app')
+    expect(signOut).toHaveBeenCalledWith('fake-app')
 
     expectResetOnlyAfterConfirm(screen.getByRole('button', { name: 'Reset Firebase configuration' }))
   })
 
   it('offers Reset Firebase configuration on the non-member card, only after the user confirms', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -368,7 +368,7 @@ describe('AuthGate', () => {
   })
 
   it('shows the app for a member, without a sign-out button', async () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(user)
       return unsubscribe
     })
@@ -544,7 +544,7 @@ describe('AuthGate', () => {
   })
 
   it('unsubscribes from auth state on unmount', () => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(null)
       return unsubscribe
     })
@@ -566,7 +566,7 @@ describe('AuthGate styling', () => {
     ['claimable', user, false, 'Claim household'],
     ['not a member', user, true, 'Sign out'],
   ] as const)('shows the %s screen as a card under the app name with a primitive button', async (_name, who, exists, button) => {
-    watchAuthState.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
+    onAuthChange.mockImplementation((_app: unknown, cb: (user: AuthUser | null) => void) => {
       cb(who)
       return unsubscribe
     })
