@@ -1,3 +1,4 @@
+import { appName } from '../appName.ts'
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { FirebaseWebConfig } from 'data-platform/client'
@@ -29,7 +30,7 @@ export function SetupScreen({ onConfigured, initialError = null }: SetupScreenPr
   }
 
   return (
-    <CentredCard appName="Home Catalogue" title="Set up">
+    <CentredCard appName={appName} title="Set up">
       <p>
         Paste your household's Firebase web config below. Not set up a Household yet? Follow the{' '}
         <a href={HOUSEHOLD_SETUP_DOC_URL}>household setup guide</a>.

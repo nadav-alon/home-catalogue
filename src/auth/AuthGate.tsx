@@ -1,3 +1,4 @@
+import { appName } from '../appName.ts'
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import {
@@ -82,7 +83,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
 
     case 'signed-out':
       return (
-        <CentredCard appName="Home Catalogue" title="Sign in">
+        <CentredCard appName={appName} title="Sign in">
           <Button onClick={() => void authClient(client.app).signIn()}>
             <GoogleMark />
             Sign in with Google
@@ -93,7 +94,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
 
     case 'claim-available':
       return (
-        <CentredCard appName="Home Catalogue" title="Claim this household">
+        <CentredCard appName={appName} title="Claim this household">
           <p>No one has claimed this household yet.</p>
           <Button
             onClick={async () => {
@@ -109,7 +110,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
 
     case 'non-member':
       return (
-        <CentredCard appName="Home Catalogue" title="Not a member">
+        <CentredCard appName={appName} title="Not a member">
           <p>Signed in as {state.user.email}.</p>
           <p>You are not a member of this household.</p>
           <SignOutButton app={client.app} />
@@ -119,7 +120,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
 
     case 'unreachable':
       return (
-        <CentredCard appName="Home Catalogue" title="Couldn't reach your Household">
+        <CentredCard appName={appName} title="Couldn't reach your Household">
           <p>Check your connection and try again.</p>
           <Button
             onClick={() => {
