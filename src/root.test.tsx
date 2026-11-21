@@ -14,9 +14,6 @@ import { resetHash } from './testing/hash.ts'
 
 const initFirebase = vi.fn()
 const terminateFirebase = vi.fn()
-vi.mock('./firebase/terminateFirebase.ts', () => ({
-  terminateFirebase: (client: unknown) => terminateFirebase(client),
-}))
 
 // These tests are about the Firebase config lifecycle, not auth, so the auth gate is
 // stubbed as an already-signed-in member throughout.
@@ -28,6 +25,7 @@ const isHouseholdMember = vi.fn()
 vi.mock('data-platform/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('data-platform/client')>()),
   initFirebase: (...args: unknown[]) => initFirebase(...args),
+  terminateFirebase: (client: unknown) => terminateFirebase(client),
   authClient: (app: unknown) => ({
     onAuthChange: (cb: (user: AuthUser | null) => void) => onAuthChange(app, cb),
     signIn: vi.fn(),
