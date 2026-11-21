@@ -1,7 +1,7 @@
 import type { ManifestOptions } from 'vite-plugin-pwa'
 import { appIcons, iconSizes } from './ui/appIcons.ts'
 import { themeColor } from './theme.ts'
-import { colourRoleHex } from './ui/colourRoles.ts'
+import { colourRoleHex } from 'household-ui/ui/colourRoles.ts'
 
 export const manifest: Partial<ManifestOptions> = {
   name: 'Home Catalogue',

@@ -38,6 +38,7 @@ await new Promise<void>((resolve) => {
 try {
   const server = await createServer({
     mode: 'ux',
+    configLoader: 'runner',
     server: { host: UX_HOST, port: UX_PORT, strictPort: true },
   })
   await server.listen()

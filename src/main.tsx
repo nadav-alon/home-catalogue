@@ -1,4 +1,4 @@
-import './ui/theme.css'
+import './theme.css'
 import 'household-ui/ui/tokens.css'
 import 'household-ui/ui/base.css'
 import { render } from 'preact'
