@@ -4,11 +4,11 @@ import type { CategoryRecord } from "../catalogue/categories.ts";
 import type { ItemRecord } from "../catalogue/items.ts";
 import type { ShopRecord } from "../catalogue/shops.ts";
 import type { SortingStores } from "../catalogue/aisleSort.ts";
-import { Button } from "../ui/Button.tsx";
-import { Dialog } from "../ui/Dialog.tsx";
-import { DIALOG_FORM_CLASS, DialogActions } from "../ui/DialogActions.tsx";
-import { TextField } from "../ui/TextField.tsx";
-import { TopAppBarActions } from "../shell/TopAppBar.tsx";
+import { Button } from "household-ui/ui/Button.tsx";
+import { Dialog } from "household-ui/ui/Dialog.tsx";
+import { DIALOG_FORM_CLASS, DialogActions } from "household-ui/ui/DialogActions.tsx";
+import { TextField } from "household-ui/ui/TextField.tsx";
+import { TopAppBarActions } from "household-ui/shell/TopAppBar.tsx";
 import { isExportDate, todayExportDate } from "./exportDate.ts";
 import {
   exportShoppingList,

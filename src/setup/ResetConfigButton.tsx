@@ -1,4 +1,4 @@
-import { Button, type ButtonVariant } from '../ui/Button.tsx'
+import { Button, type ButtonVariant } from 'household-ui/ui/Button.tsx'
 
 export interface ResetConfigButtonProps {
   /** Forgets the stored Firebase configuration; called once the user has confirmed. */

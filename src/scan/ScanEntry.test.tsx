@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
-import { TopAppBar } from '../shell/TopAppBar.tsx'
+import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
 import { ScanEntry } from './ScanEntry.tsx'
 
 const track = { stop: vi.fn() }

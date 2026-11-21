@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import { Button } from '../ui/Button.tsx'
+import { Button } from 'household-ui/ui/Button.tsx'
 import { announcedUpdates, watchUpdates } from './updates.ts'
 import './UpdateNotice.css'
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks'
 import { core } from 'data-platform'
-import { Dialog } from '../ui/Dialog.tsx'
+import { Dialog } from 'household-ui/ui/Dialog.tsx'
 import { nativeBarcodeDetector, type BarcodeFormat } from './barcodeDetector.ts'
 import './ScannerDialog.css'
 

@@ -5,7 +5,7 @@ export const read = (path: string) => readFileSync(path, 'utf8')
 
 /** The custom properties `theme.css` and `tokens.css` define. */
 export const defined = new Set(
-  ['src/ui/theme.css', 'src/ui/tokens.css'].flatMap((path) => [...read(path).matchAll(/^\s*(--[\w-]+):/gm)].map((m) => m[1])),
+  ['src/ui/theme.css', 'node_modules/household-ui/src/ui/tokens.css'].flatMap((path) => [...read(path).matchAll(/^\s*(--[\w-]+):/gm)].map((m) => m[1])),
 )
 
 /** The custom properties a stylesheet, given by repo-relative path, reads, split by whether `defined` has them. */
