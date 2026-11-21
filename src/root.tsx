@@ -11,11 +11,11 @@ import {
   InvalidFirebaseWebConfigError,
   parseConfigFragment,
   saveFirebaseWebConfig,
+  terminateFirebase,
   type FirebaseClient,
   type FirebaseWebConfig,
 } from 'data-platform/client'
 import { migrateLegacyFirebaseConfig } from './firebase/legacyConfig.ts'
-import { terminateFirebase } from './firebase/terminateFirebase.ts'
 import { sameFirebaseWebConfig } from './firebase/webConfig.ts'
 import { uxWiring } from './firebase/uxMode.ts'
 import { readDeployedPlatformVersion } from './platform/readDeployedPlatformVersion.ts'
