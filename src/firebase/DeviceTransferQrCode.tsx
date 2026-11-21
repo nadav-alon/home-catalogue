@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import QRCode from 'qrcode'
-import { deviceTransferUrl } from 'data-platform/client'
+import { householdTransferUrl } from './householdTransferUrl.ts'
 import type { FirebaseWebConfig } from 'data-platform/client'
 import './DeviceTransferQrCode.css'
 
@@ -27,7 +27,7 @@ export function DeviceTransferQrCode({ config, label, onSettled }: DeviceTransfe
     let cancelled = false
     setSvg(null)
     setFailed(false)
-    QRCode.toString(deviceTransferUrl(location.href, config), { type: 'svg', margin: QUIET_ZONE_MODULES }).then(
+    QRCode.toString(householdTransferUrl(config), { type: 'svg', margin: QUIET_ZONE_MODULES }).then(
       (result) => !cancelled && setSvg(result),
       () => !cancelled && setFailed(true),
     )
