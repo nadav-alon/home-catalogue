@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FIREBASE_CONFIG_STORAGE_KEY, firebaseWebConfig, getStoredFirebaseWebConfig } from 'data-platform/client'
 import { migrateLegacyFirebaseConfig } from './legacyConfig.ts'
 
@@ -51,5 +51,19 @@ describe('migrateLegacyFirebaseConfig', () => {
     migrateLegacyFirebaseConfig()
 
     expect(localStorage.length).toBe(0)
+  })
+})
+
+describe('migrateLegacyFirebaseConfig when the save fails', () => {
+  it('keeps the old key, the only copy', () => {
+    localStorage.setItem(LEGACY_KEY, JSON.stringify(config))
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('full', 'QuotaExceededError')
+    })
+
+    expect(() => migrateLegacyFirebaseConfig()).not.toThrow()
+    setItem.mockRestore()
+
+    expect(localStorage.getItem(LEGACY_KEY)).toBe(JSON.stringify(config))
   })
 })

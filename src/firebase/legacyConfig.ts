@@ -1,5 +1,6 @@
 import {
   firebaseWebConfig,
+  type FirebaseWebConfig,
   getStoredFirebaseWebConfig,
   saveFirebaseWebConfig,
   type ConfigStorage,
@@ -15,11 +16,21 @@ const LEGACY_STORAGE_KEY = 'home-catalogue:firebase-config'
 export function migrateLegacyFirebaseConfig(storage: ConfigStorage = localStorage): void {
   const raw = storage.getItem(LEGACY_STORAGE_KEY)
   if (raw === null) return
-  storage.removeItem(LEGACY_STORAGE_KEY)
-  if (getStoredFirebaseWebConfig(storage) !== null) return
-  try {
-    saveFirebaseWebConfig(firebaseWebConfig(JSON.parse(raw)), storage)
-  } catch {
-    // An unreadable old value is dropped.
+  if (getStoredFirebaseWebConfig(storage) === null) {
+    let legacy: FirebaseWebConfig | null = null
+    try {
+      legacy = firebaseWebConfig(JSON.parse(raw))
+    } catch {
+      // An unreadable old value is dropped.
+    }
+    if (legacy !== null) {
+      try {
+        saveFirebaseWebConfig(legacy, storage)
+      } catch {
+        // The old key is the only copy; keep it so a later load can retry.
+        return
+      }
+    }
   }
+  storage.removeItem(LEGACY_STORAGE_KEY)
 }
