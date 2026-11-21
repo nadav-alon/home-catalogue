@@ -5,11 +5,11 @@ import {
   claimHousehold,
   householdExists,
   isHouseholdMember,
+  isRulesRefusal,
   joinFromInvite,
   type AuthUser,
   type FirebaseClient,
 } from 'data-platform/client'
-import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 import { Button } from '../ui/Button.tsx'
 import { ResetConfigButton, type ResetConfigButtonProps } from '../setup/ResetConfigButton.tsx'
 import { CentredCard } from '../ui/CentredCard.tsx'
