@@ -1,9 +1,13 @@
 # Gate for pull requests: the app must build, typecheck and pass its tests,
-# including the Firestore rules suite, before a change merges.
+# including the Firestore rules suite, before a change merges. On main it runs
+# after each push so a break that lands there shows as a red run; it does not
+# hold back the Pages deploy.
 name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
 
 jobs:
   build-test-typecheck:
