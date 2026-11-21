@@ -10,8 +10,7 @@ import type { AuthUser } from 'data-platform/client'
 
 const initFirebase = vi.fn()
 const terminateFirebase = vi.fn()
-vi.mock('./firebase/client.ts', () => ({
-  initFirebase: (config: unknown) => initFirebase(config),
+vi.mock('./firebase/terminateFirebase.ts', () => ({
   terminateFirebase: (client: unknown) => terminateFirebase(client),
 }))
 
@@ -24,6 +23,7 @@ const householdExists = vi.fn()
 const isHouseholdMember = vi.fn()
 vi.mock('data-platform/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('data-platform/client')>()),
+  initFirebase: (...args: unknown[]) => initFirebase(...args),
   authClient: (app: unknown) => ({
     onAuthChange: (cb: (user: AuthUser | null) => void) => watchAuthState(app, cb),
     signIn: vi.fn(),
@@ -385,7 +385,7 @@ describe('Root in ux mode', () => {
 
     render(<Root />)
 
-    expect(initFirebase).toHaveBeenCalledWith(uxWiring()!.config)
+    expect(initFirebase).toHaveBeenCalledWith(uxWiring()!.config, { local: uxWiring()!.local })
     expect(screen.queryByRole('heading', { name: 'Set up' })).not.toBeInTheDocument()
     expect(await screen.findByRole('navigation', { name: 'Main' })).toBeInTheDocument()
   })

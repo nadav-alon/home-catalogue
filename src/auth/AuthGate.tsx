@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
-import type { FirebaseClient } from '../firebase/client.ts'
 import {
   authClient,
   claimHousehold,
@@ -8,6 +7,7 @@ import {
   isHouseholdMember,
   joinFromInvite,
   type AuthUser,
+  type FirebaseClient,
 } from 'data-platform/client'
 import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 import { Button } from '../ui/Button.tsx'

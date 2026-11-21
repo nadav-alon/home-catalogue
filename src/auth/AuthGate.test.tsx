@@ -3,8 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FirebaseError } from 'firebase/app'
 import { core } from 'data-platform'
 import { AuthGate } from './AuthGate.tsx'
-import type { FirebaseClient } from '../firebase/client.ts'
-import type { AuthUser } from 'data-platform/client'
+import type { AuthUser, FirebaseClient } from 'data-platform/client'
 
 const setGateState = vi.fn()
 vi.mock('preact/hooks', async (importOriginal) => {

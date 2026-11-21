@@ -3,9 +3,16 @@ import { core } from 'data-platform'
 import { App } from './app.tsx'
 import { AuthGate } from './auth/AuthGate.tsx'
 import { SetupScreen } from './setup/SetupScreen.tsx'
-import { authClient, clearFirebaseWebConfig, getStoredFirebaseWebConfig, saveFirebaseWebConfig } from 'data-platform/client'
+import {
+  authClient,
+  clearFirebaseWebConfig,
+  getStoredFirebaseWebConfig,
+  initFirebase,
+  saveFirebaseWebConfig,
+  type FirebaseClient,
+} from 'data-platform/client'
 import { migrateLegacyFirebaseConfig } from './firebase/legacyConfig.ts'
-import { initFirebase, terminateFirebase, type FirebaseClient } from './firebase/client.ts'
+import { terminateFirebase } from './firebase/terminateFirebase.ts'
 import { parseConfigFragment } from './firebase/deviceTransfer.ts'
 import { InvalidFirebaseWebConfigError, sameFirebaseWebConfig, type FirebaseWebConfig } from './firebase/webConfig.ts'
 import { uxWiring } from './firebase/uxMode.ts'
@@ -75,7 +82,8 @@ function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: ()
   const [client, setClient] = useState<FirebaseClient | null>(null)
 
   useEffect(() => {
-    setClient(initFirebase(config))
+    const ux = uxWiring()
+    setClient(ux === null ? initFirebase(config) : initFirebase(config, { local: ux.local }))
   }, [config])
 
   if (client === null) return null
