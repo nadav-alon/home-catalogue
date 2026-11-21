@@ -4,7 +4,7 @@ import { FirebaseError } from 'firebase/app'
 import { core } from 'data-platform'
 import { AuthGate } from './AuthGate.tsx'
 import type { FirebaseClient } from '../firebase/client.ts'
-import type { AuthUser } from './authClient.ts'
+import type { AuthUser } from 'data-platform/client'
 
 const setGateState = vi.fn()
 vi.mock('preact/hooks', async (importOriginal) => {
@@ -21,18 +21,17 @@ vi.mock('preact/hooks', async (importOriginal) => {
 const signInWithGoogle = vi.fn()
 const signOutUser = vi.fn()
 const watchAuthState = vi.fn()
-vi.mock('./authClient.ts', () => ({
-  signInWithGoogle: (app: unknown) => signInWithGoogle(app),
-  signOutUser: (app: unknown) => signOutUser(app),
-  watchAuthState: (app: unknown, cb: unknown) => watchAuthState(app, cb),
-}))
-
 const householdExists = vi.fn()
 const isHouseholdMember = vi.fn()
 const claimHousehold = vi.fn()
 const joinFromInvite = vi.fn()
 vi.mock('data-platform/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('data-platform/client')>()),
+  authClient: (app: unknown) => ({
+    signIn: () => signInWithGoogle(app),
+    signOut: () => signOutUser(app),
+    onAuthChange: (cb: unknown) => watchAuthState(app, cb),
+  }),
   householdExists: (db: unknown) => householdExists(db),
   isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
   claimHousehold: (db: unknown, uid: unknown, email: unknown) => claimHousehold(db, uid, email),

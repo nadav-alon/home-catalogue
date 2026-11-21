@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
-import { currentUserUid } from '../auth/authClient.ts'
+import { authClient } from 'data-platform/client'
 import { reportFailure } from '../catalogue/writeRejections.ts'
 import type { FirebaseWebConfig } from '../firebase/webConfig.ts'
 import { TopAppBarNavigation } from '../shell/TopAppBar.tsx'
@@ -44,7 +44,7 @@ export function MembersScreen({ db, config }: MembersScreenProps) {
   }
 
   // Read once per render; safe because AuthGate only mounts this screen for a signed-in Member.
-  const viewerUid = currentUserUid(db.app)
+  const viewerUid = authClient(db.app).currentUid()
   // When `meta/household` fails its schema no Member is flagged Owner, so the real Owner sees none of the Owner's controls.
   const viewerIsOwner = members.some((member) => member.isOwner && member.uid === viewerUid)
 

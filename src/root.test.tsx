@@ -6,7 +6,7 @@ import { deviceTransferUrl } from './firebase/deviceTransfer.ts'
 import { uxWiring } from './firebase/uxMode.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 import { resetHash } from './testing/hash.ts'
-import type { AuthUser } from './auth/authClient.ts'
+import type { AuthUser } from 'data-platform/client'
 
 const initFirebase = vi.fn()
 const terminateFirebase = vi.fn()
@@ -20,16 +20,15 @@ vi.mock('./firebase/client.ts', () => ({
 const member: AuthUser = { uid: 'owner-uid', email: 'owner@example.com' } as unknown as AuthUser
 const watchAuthState = vi.fn()
 const signOutUser = vi.fn()
-vi.mock('./auth/authClient.ts', () => ({
-  watchAuthState: (app: unknown, cb: (user: AuthUser | null) => void) => watchAuthState(app, cb),
-  signInWithGoogle: vi.fn(),
-  signOutUser: (app: unknown) => signOutUser(app),
-}))
-
 const householdExists = vi.fn()
 const isHouseholdMember = vi.fn()
 vi.mock('data-platform/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('data-platform/client')>()),
+  authClient: (app: unknown) => ({
+    onAuthChange: (cb: (user: AuthUser | null) => void) => watchAuthState(app, cb),
+    signIn: vi.fn(),
+    signOut: () => signOutUser(app),
+  }),
   householdExists: (db: unknown) => householdExists(db),
   isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
   claimHousehold: vi.fn(),

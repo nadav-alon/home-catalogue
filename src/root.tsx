@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'preact/hooks'
 import { core } from 'data-platform'
 import { App } from './app.tsx'
-import { signOutUser } from './auth/authClient.ts'
 import { AuthGate } from './auth/AuthGate.tsx'
 import { SetupScreen } from './setup/SetupScreen.tsx'
-import { clearFirebaseWebConfig, getStoredFirebaseWebConfig, saveFirebaseWebConfig } from 'data-platform/client'
+import { authClient, clearFirebaseWebConfig, getStoredFirebaseWebConfig, saveFirebaseWebConfig } from 'data-platform/client'
 import { migrateLegacyFirebaseConfig } from './firebase/legacyConfig.ts'
 import { initFirebase, terminateFirebase, type FirebaseClient } from './firebase/client.ts'
 import { parseConfigFragment } from './firebase/deviceTransfer.ts'
@@ -94,7 +93,7 @@ function Connected({ config, onReset }: { config: FirebaseWebConfig; onReset: ()
         <App
           db={client.db}
           config={config}
-          onSignOut={() => signOutUser(client.app)}
+          onSignOut={() => authClient(client.app).signOut()}
           onResetConfig={resetConfig}
         />
       </AuthGate>

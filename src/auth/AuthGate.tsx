@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks'
 import type { ComponentChildren } from 'preact'
 import type { FirebaseClient } from '../firebase/client.ts'
-import { signInWithGoogle, signOutUser, watchAuthState, type AuthUser } from './authClient.ts'
-import { claimHousehold, householdExists, isHouseholdMember, joinFromInvite } from 'data-platform/client'
+import {
+  authClient,
+  claimHousehold,
+  householdExists,
+  isHouseholdMember,
+  joinFromInvite,
+  type AuthUser,
+} from 'data-platform/client'
 import { isRulesRefusal } from '../firebase/rulesRefusal.ts'
 import { Button } from '../ui/Button.tsx'
 import { ResetConfigButton, type ResetConfigButtonProps } from '../setup/ResetConfigButton.tsx'
@@ -56,7 +62,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
   )
 
   useEffect(() => {
-    const unwatch = watchAuthState(client.app, (user) => {
+    const unwatch = authClient(client.app).onAuthChange((user) => {
       if (user === null) {
         discardPendingWork()
         setState({ status: 'signed-out' })
@@ -77,7 +83,7 @@ export function AuthGate({ client, onResetConfig, children }: AuthGateProps) {
     case 'signed-out':
       return (
         <CentredCard title="Sign in">
-          <Button onClick={() => void signInWithGoogle(client.app)}>
+          <Button onClick={() => void authClient(client.app).signIn()}>
             <GoogleMark />
             Sign in with Google
           </Button>
@@ -146,7 +152,7 @@ async function lookUpMembership(
 
 function SignOutButton({ app }: { app: FirebaseClient['app'] }) {
   return (
-    <Button variant="tonal" onClick={() => void signOutUser(app)}>
+    <Button variant="tonal" onClick={() => void authClient(app).signOut()}>
       Sign out
     </Button>
   )
