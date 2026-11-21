@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Root } from './root.tsx'
 import { FIREBASE_CONFIG_STORAGE_KEY, getStoredFirebaseWebConfig, saveFirebaseWebConfig } from 'data-platform/client'
-import { deviceTransferUrl } from './firebase/deviceTransfer.ts'
+import { deviceTransferUrl } from 'data-platform/client'
 import { uxWiring } from './firebase/uxMode.ts'
 import { firebaseWebConfig } from './firebase/webConfig.ts'
 import { resetHash } from './testing/hash.ts'
@@ -317,7 +317,7 @@ describe('Root with a device transfer fragment in the URL', () => {
       cb(null)
       return vi.fn()
     })
-    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(validConfig)))
+    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(location.href, validConfig)))
 
     render(<Root />)
 
@@ -327,7 +327,7 @@ describe('Root with a device transfer fragment in the URL', () => {
   })
 
   it('ignores a truncated fragment, showing the error on the setup screen, without saving', () => {
-    const truncated = hashOf(deviceTransferUrl(validConfig)).slice(0, -10)
+    const truncated = hashOf(deviceTransferUrl(location.href, validConfig)).slice(0, -10)
     history.replaceState(null, '', '/' + truncated)
 
     render(<Root />)
@@ -341,7 +341,7 @@ describe('Root with a device transfer fragment in the URL', () => {
   it('asks before replacing a different stored config, and keeps the old one when declined', async () => {
     saveFirebaseWebConfig(validConfig)
     const otherConfig = firebaseWebConfig({ ...validConfig, projectId: 'other-household' })
-    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(otherConfig)))
+    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(location.href, otherConfig)))
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
 
     render(<Root />)
@@ -356,7 +356,7 @@ describe('Root with a device transfer fragment in the URL', () => {
   it('replaces the stored config when the user confirms', async () => {
     saveFirebaseWebConfig(validConfig)
     const otherConfig = firebaseWebConfig({ ...validConfig, projectId: 'other-household' })
-    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(otherConfig)))
+    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(location.href, otherConfig)))
     vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     render(<Root />)
@@ -368,7 +368,7 @@ describe('Root with a device transfer fragment in the URL', () => {
 
   it('treats a fragment matching the already-stored config as a no-op, without asking', async () => {
     saveFirebaseWebConfig(validConfig)
-    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(validConfig)))
+    history.replaceState(null, '', '/' + hashOf(deviceTransferUrl(location.href, validConfig)))
     const confirmSpy = vi.spyOn(window, 'confirm')
     const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
 

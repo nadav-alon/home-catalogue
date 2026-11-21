@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deviceTransferUrl } from '../firebase/deviceTransfer.ts'
+import { deviceTransferUrl } from 'data-platform/client'
 import { firebaseWebConfig } from '../firebase/webConfig.ts'
 import { inviteShareMessage } from './shareInvite.ts'
 
@@ -14,6 +14,6 @@ const config = firebaseWebConfig({
 
 describe('inviteShareMessage', () => {
   it('invites to Home Catalogue with the same #config link as the Add-device QR code', () => {
-    expect(inviteShareMessage(config)).toBe(`Join the household on Home Catalogue: ${deviceTransferUrl(config)}`)
+    expect(inviteShareMessage(config)).toBe(`Join the household on Home Catalogue: ${deviceTransferUrl(location.href, config)}`)
   })
 })

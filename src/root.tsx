@@ -13,7 +13,7 @@ import {
 } from 'data-platform/client'
 import { migrateLegacyFirebaseConfig } from './firebase/legacyConfig.ts'
 import { terminateFirebase } from './firebase/terminateFirebase.ts'
-import { parseConfigFragment } from './firebase/deviceTransfer.ts'
+import { parseConfigFragment } from 'data-platform/client'
 import { InvalidFirebaseWebConfigError, sameFirebaseWebConfig, type FirebaseWebConfig } from './firebase/webConfig.ts'
 import { uxWiring } from './firebase/uxMode.ts'
 import { readDeployedPlatformVersion } from './platform/readDeployedPlatformVersion.ts'

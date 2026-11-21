@@ -4,7 +4,7 @@ import type { Firestore } from 'firebase/firestore'
 import { core } from 'data-platform'
 import { TopAppBar } from '../shell/TopAppBar.tsx'
 import { firebaseWebConfig } from '../firebase/webConfig.ts'
-import { deviceTransferUrl } from '../firebase/deviceTransfer.ts'
+import { deviceTransferUrl } from 'data-platform/client'
 import { resetHash } from '../testing/hash.ts'
 import { createInvite, revokeInvite } from './invites.ts'
 import { resetSnackbar, SnackbarHost } from '../ui/Snackbar.tsx'
@@ -393,7 +393,7 @@ describe('MembersScreen', () => {
 
       await waitFor(() =>
         expect(share).toHaveBeenCalledWith({
-          text: `Join the household on Home Catalogue: ${deviceTransferUrl(config)}`,
+          text: `Join the household on Home Catalogue: ${deviceTransferUrl(location.href, config)}`,
         }),
       )
       expect(screen.queryByRole('img')).not.toBeInTheDocument()
