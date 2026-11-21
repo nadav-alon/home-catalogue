@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
-import { parseFirebaseWebConfigSnippet, type FirebaseWebConfig } from '../firebase/webConfig.ts'
+import type { FirebaseWebConfig } from 'data-platform/client'
+import { parseFirebaseWebConfigSnippet } from '../firebase/webConfig.ts'
 import { HOUSEHOLD_SETUP_DOC_URL } from '../links.ts'
 import { Button } from '../ui/Button.tsx'
 import { CentredCard } from '../ui/CentredCard.tsx'

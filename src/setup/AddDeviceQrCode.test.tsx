@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/preact'
 import { describe, expect, it } from 'vitest'
 import { AddDeviceQrCode } from './AddDeviceQrCode.tsx'
-import { firebaseWebConfig } from '../firebase/webConfig.ts'
+import { firebaseWebConfig } from 'data-platform/client'
 
 const config = firebaseWebConfig({
   apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',

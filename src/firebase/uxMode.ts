@@ -1,6 +1,6 @@
 import type { LocalKit } from 'data-platform/client'
 import { localKit, LOCAL_PROJECT_ID } from 'data-platform/local'
-import { firebaseWebConfig, type FirebaseWebConfig } from './webConfig.ts'
+import { firebaseWebConfig, type FirebaseWebConfig } from 'data-platform/client'
 
 export interface UxWiring {
   /** The config ux mode runs under, so setup is skipped. It names the kit's demo project and carries no real key. */

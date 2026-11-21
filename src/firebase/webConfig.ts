@@ -1,8 +1,5 @@
 import { firebaseWebConfig, InvalidFirebaseWebConfigError, type FirebaseWebConfig } from 'data-platform/client'
 
-export { firebaseWebConfig, InvalidFirebaseWebConfigError, isFirebaseWebConfig } from 'data-platform/client'
-export type { FirebaseWebConfig } from 'data-platform/client'
-
 /** Thrown by {@link parseFirebaseWebConfigSnippet} when no `{...}` object literal is found at all. */
 const NO_OBJECT_LITERAL_MESSAGE =
   "That doesn't look like a Firebase config. Paste the firebaseConfig block from the Firebase console."

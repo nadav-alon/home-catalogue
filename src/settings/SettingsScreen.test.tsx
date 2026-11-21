@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SettingsScreen } from './SettingsScreen.tsx'
 import { resetHash } from '../testing/hash.ts'
-import { firebaseWebConfig } from '../firebase/webConfig.ts'
+import { firebaseWebConfig } from 'data-platform/client'
 
 const config = firebaseWebConfig({
   apiKey: 'AIzaSyDOCAbC123dEf456GhI789jKl012-MnO',
