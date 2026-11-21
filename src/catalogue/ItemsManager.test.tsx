@@ -14,6 +14,8 @@ import { resetHash } from '../testing/hash.ts'
 import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 import { SnackbarHost, resetSnackbar } from '../ui/Snackbar.tsx'
 import { choose } from '../testing/select.ts'
+import { nextTask } from '../testing/nextTask.ts'
+import { saveNewItem } from '../testing/saveItem.ts'
 import { resetPendingPop } from '../ui/pendingPop.ts'
 import { tokenUsage } from '../testing/css.ts'
 import { stubModalDialog } from '../testing/dialog.ts'
@@ -1440,10 +1442,7 @@ describe('an add-Item hand-off', () => {
   }
 
   async function saveHandedOff() {
-    createItem.mockResolvedValue(newId)
-    choose(screen.getByLabelText('Category'), medicine.id)
-    choose(screen.getByLabelText('Necessity'), 'essential')
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    saveNewItem(createItem, newId, medicine.id)
     await waitFor(() => expect(leaveTo).toHaveBeenCalled())
   }
 
@@ -1482,15 +1481,14 @@ describe('an add-Item hand-off', () => {
 
   it('is an ordinary add without a return URL', async () => {
     window.location.hash = '#/items?add=Flour'
+    // The link's own navigation event lands before the dialog opens, as it does in a browser.
+    await nextTask()
     renderHandoff({ name: 'Flour', returnUrl: undefined })
-    createItem.mockResolvedValue(newId)
-    choose(screen.getByLabelText('Category'), medicine.id)
-    choose(screen.getByLabelText('Necessity'), 'essential')
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    saveNewItem(createItem, newId, medicine.id)
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
     expect(leaveTo).not.toHaveBeenCalled()
-    expect(window.location.hash).toBe('#/items')
+    await waitFor(() => expect(window.location.hash).toBe('#/items'))
   })
 
   it('stays put when the save fails', async () => {

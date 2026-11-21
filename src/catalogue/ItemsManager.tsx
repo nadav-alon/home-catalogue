@@ -12,6 +12,7 @@ import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED, type GroupKey }
 import { watchShops, type ShopRecord } from './shops.ts'
 import type { AddItemHandoff, CategoryAndShop } from '../ui/route.ts'
 import { clearAddItemHandoff, leaveTo, navigateToItems } from '../ui/useRoute.ts'
+import { afterPendingPop } from '../ui/pendingPop.ts'
 import { ItemDialog } from './ItemDialog.tsx'
 import { Fab } from '../ui/Fab.tsx'
 import { showSnackbar } from '../ui/Snackbar.tsx'
@@ -126,15 +127,27 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
 
   const dialogHandoff = dialog?.kind === 'add' ? dialog.handoff : undefined
 
-  /** Closes the dialog; one opened by a hand-off then sends the user to its return URL, or only forgets the hand-off without one. */
+  /** What a closed hand-off dialog still owes the hand-off: leave for its return URL, or only forget it without one. */
+  const handoffCompletion = useRef<(() => void) | undefined>(undefined)
+
+  // A layout effect, so it runs after the closed dialog's cleanup has issued its history pop in the same commit. The dialog's
+  // entry sits on top of the hand-off's: only once that pop has landed is the hand-off URL on the current entry, where it can
+  // be dropped, and where leaving is no longer cancelled by the pop.
+  useLayoutEffect(() => {
+    if (dialog !== null || handoffCompletion.current === undefined) return
+    const complete = handoffCompletion.current
+    handoffCompletion.current = undefined
+    afterPendingPop(complete)
+  }, [dialog])
+
+  /** Closes the dialog; one opened by a hand-off then completes the hand-off. */
   function closeDialog() {
     const closing = dialogHandoff
     setDialog(null)
     if (closing === undefined) return
     const id = handoffSavedId.current
     handoffSavedId.current = undefined
-    if (closing.returnUrl === undefined) clearAddItemHandoff()
-    else leaveTo(closing.returnUrl, id)
+    handoffCompletion.current = () => (closing.returnUrl === undefined ? clearAddItemHandoff() : leaveTo(closing.returnUrl, id))
   }
 
   useEffect(() => watchItems(db, setItems), [db])
