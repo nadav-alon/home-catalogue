@@ -5,13 +5,27 @@ import { core } from 'data-platform'
 import { ItemsManager } from './ItemsManager.tsx'
 import { useAddItemHandoff } from '../ui/useRoute.ts'
 import { resetHash } from '../testing/hash.ts'
+import { nextTask } from '../testing/nextTask.ts'
+import { saveNewItem } from '../testing/saveItem.ts'
 import { stubModalDialog } from '../testing/dialog.ts'
-import { choose } from '../testing/select.ts'
 import { resetPendingPop } from '../ui/pendingPop.ts'
 import { medicine, pharmacy } from './testFixtures.ts'
 
 // Everything the hand-off touches is real here — Dialog, its history entry, the router — except the data layer.
 const createItem = vi.fn()
+/** The order of the history pops and of leaving the app, to show a leave never precedes the pop that would cancel it. */
+const events: string[] = []
+const recordPop = () => events.push('popstate')
+vi.mock('../ui/useRoute.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../ui/useRoute.ts')>()
+  return {
+    ...actual,
+    leaveTo: (...args: Parameters<typeof actual.leaveTo>) => {
+      events.push('leave')
+      actual.leaveTo(...args)
+    },
+  }
+})
 vi.mock('./items.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./items.ts')>()),
   watchItems: (_db: unknown, cb: (items: unknown[]) => void) => {
@@ -63,78 +77,80 @@ function Screen() {
 /** Follows a hand-off link: the catalogue is already open, then the link's hash is entered as a new history entry. */
 async function followLink(hash: string, search = '') {
   history.replaceState(null, '', `/${search}#/items`)
-  await new Promise((resolve) => setTimeout(resolve))
+  await nextTask()
   render(<Screen />)
   window.location.hash = hash
   await screen.findByRole('dialog', { name: 'Add Item' })
   // Wait for the dialog's own history entry.
   await waitFor(() => expect(history.state).toMatchObject({ 'ui-dialog': expect.any(String) }))
+  events.length = 0
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20))
-
-async function save() {
-  createItem.mockResolvedValue(newId)
-  choose(screen.getByLabelText('Category'), medicine.id)
-  choose(screen.getByLabelText('Necessity'), 'essential')
-  fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-}
+/** Long enough for a navigation or history traversal the code under test wrongly issued later to have landed. */
+const letStrayNavigationsLand = () => nextTask(20)
 
 beforeEach(() => {
   stubModalDialog()
   createItem.mockReset()
+  events.length = 0
+  window.addEventListener('popstate', recordPop)
 })
 
 afterEach(async () => {
+  window.removeEventListener('popstate', recordPop)
   cleanup()
   vi.restoreAllMocks()
   resetPendingPop()
   await resetHash()
 })
 
+const closeBySaving = () => saveNewItem(createItem, newId, medicine.id)
+const closeByCancelling = () => fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+const linkTo = (back: string) => `#/items?add=Flour&return=${encodeURIComponent(back)}`
+
+/** How a hand-off dialog is closed, the page its link was followed from, and where a link with a return URL leads. */
+const ways = [
+  { how: 'save', close: closeBySaving, page: `?itemId=${newId}`, back: savedBack },
+  { how: 'cancel', close: closeByCancelling, page: '', back: cancelledBack },
+]
+
 describe('closing a dialog opened by an add-Item hand-off', () => {
-  const linkTo = (back: string) => `#/items?add=Flour&return=${encodeURIComponent(back)}`
-  const savedPage = `?itemId=${newId}`
-
-  it('ends at the return URL with the new Item id after a save', async () => {
-    await followLink(linkTo(savedBack), savedPage)
-    await save()
+  it.each(ways)('ends at the return URL after a $how, once the dialog has popped its own entry', async ({ close, page, back }) => {
+    await followLink(linkTo(back), page)
+    close()
 
     await waitFor(() => expect(window.location.hash).toBe('#/list'))
-    await settle()
+    await letStrayNavigationsLand()
     expect(window.location.hash).toBe('#/list')
+    // Leaving before the pop has landed would let the pop cancel the navigation, as it does in a browser.
+    expect(events.slice(0, 2)).toEqual(['popstate', 'leave'])
   })
 
-  it('ends at the return URL without an id after a cancel', async () => {
-    await followLink(linkTo(cancelledBack))
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-
-    await waitFor(() => expect(window.location.hash).toBe('#/list'))
-    await settle()
-    expect(window.location.hash).toBe('#/list')
-  })
-
-  it.each(['save', 'cancel'])('does not reopen when going back into the catalogue after a %s', async (how) => {
-    await followLink(linkTo(how === 'save' ? savedBack : cancelledBack), how === 'save' ? savedPage : '')
-    if (how === 'save') await save()
-    else fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  it.each(ways)('does not reopen when going back into the catalogue after a $how', async ({ close, page, back }) => {
+    await followLink(linkTo(back), page)
+    close()
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/list/))
-    await settle()
+    await letStrayNavigationsLand()
     window.history.back()
     await waitFor(() => expect(window.location.hash).toMatch(/^#\/items/))
-    await settle()
+    await letStrayNavigationsLand()
 
+    expect(events.slice(0, 2)).toEqual(['popstate', 'leave'])
     expect(window.location.hash).not.toContain('add=')
     expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument()
   })
 
-  it.each(['save', 'cancel'])('drops the hand-off from the URL after a %s without a return URL', async (how) => {
+  it.each(ways)('drops the hand-off from the URL after a $how without a return URL, so a reload does not reopen it', async ({ close }) => {
     await followLink('#/items?add=Flour')
-    if (how === 'save') await save()
-    else fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    close()
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument())
-    await settle()
+    await letStrayNavigationsLand()
 
     expect(window.location.hash).toBe('#/items')
+    cleanup()
+    render(<Screen />)
+    await letStrayNavigationsLand()
+    expect(screen.queryByRole('dialog', { name: 'Add Item' })).not.toBeInTheDocument()
   })
 })
