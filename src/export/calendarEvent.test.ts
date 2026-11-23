@@ -40,6 +40,12 @@ describe('buildShopEvent', () => {
     expect(event.reminders).toEqual({ useDefault: false, overrides: [{ method: 'popup', minutes: 0 }] })
   })
 
+  it('carries no reminder for an optional Item that is out', () => {
+    const group: ShopGroup = { shop: pharmacy, items: [item({ necessity: 'optional', state: 'out' })] }
+
+    expect(buildShopEvent(group, exportDate('2026-03-05')).reminders).toEqual({ useDefault: false, overrides: [] })
+  })
+
   it('carries no reminder when no Item is at alert now', () => {
     const group: ShopGroup = { shop: pharmacy, items: [item({ necessity: 'optional', state: 'running low' })] }
 

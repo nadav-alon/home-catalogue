@@ -6,7 +6,7 @@ export type AlertLevel = 'none' | 'soon' | 'now'
 const TABLE: Record<catalogue.Necessity, Record<core.State, AlertLevel>> = {
   essential: { enough: 'none', 'running low': 'now', out: 'now' },
   important: { enough: 'none', 'running low': 'soon', out: 'now' },
-  optional: { enough: 'none', 'running low': 'none', out: 'soon' },
+  optional: { enough: 'none', 'running low': 'none', out: 'none' },
 }
 
 /** The Necessity × State table from `CONTEXT.md`'s Alert entry. */
