@@ -19,6 +19,8 @@ const NONE = ''
 export function RecipeIngredientShopPicker({ db }: RecipeIngredientShopPickerProps) {
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [shopId, setShopId] = useState<catalogue.ShopId | undefined>(undefined)
+  // Bumped when a write is refused: shopId did not change, so this re-renders the Select back to it.
+  const [, setRefusals] = useState(0)
 
   useEffect(() => watchShops(db, setShops), [db])
   useEffect(
@@ -30,9 +32,10 @@ export function RecipeIngredientShopPicker({ db }: RecipeIngredientShopPickerPro
   )
 
   function handleChange(value: string) {
-    setRecipeIngredientShop(db, value === NONE ? undefined : catalogue.shopId(value)).catch((err: unknown) =>
-      reportFailure('Could not set the Shop for Recipe Ingredients', err),
-    )
+    setRecipeIngredientShop(db, value === NONE ? undefined : catalogue.shopId(value)).catch((err: unknown) => {
+      setRefusals((count) => count + 1)
+      reportFailure('Could not set the Shop for Recipe Ingredients', err)
+    })
   }
 
   return (

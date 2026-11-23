@@ -101,5 +101,6 @@ describe('RecipeIngredientShopPicker', () => {
     await act(async () => {})
 
     expect(reportFailure).toHaveBeenCalledWith('Could not set the Shop for Recipe Ingredients', refusal)
+    expect(picker).toHaveValue('')
   })
 })
