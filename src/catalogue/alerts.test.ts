@@ -5,7 +5,7 @@ import { alertLevel, type AlertLevel } from './alerts.ts'
 const expected: Record<catalogue.Necessity, Record<core.State, AlertLevel>> = {
   essential: { enough: 'none', 'running low': 'now', out: 'now' },
   important: { enough: 'none', 'running low': 'soon', out: 'now' },
-  optional: { enough: 'none', 'running low': 'none', out: 'soon' },
+  optional: { enough: 'none', 'running low': 'none', out: 'none' },
 }
 
 describe('alertLevel', () => {

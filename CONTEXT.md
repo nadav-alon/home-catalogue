@@ -56,7 +56,7 @@ _Avoid_: have / almost gone / need
 Every State change, timestamped, append-only.
 
 **Necessity**:
-`essential` / `important` / `optional`. Drives Alerts only.
+`essential` / `important` / `optional`. Drives Alerts only; `optional` means "not important" and never Alerts.
 _Avoid_: priority
 
 **Alert**:
@@ -67,7 +67,7 @@ on the exported event) or **soon** (advisory banner).
 | ----------------- | ------ | ----------- | ------- |
 | essential         | —      | **now**     | **now** |
 | important         | —      | **soon**    | **now** |
-| optional          | —      | —           | **soon**|
+| optional          | —      | —           | —       |
 
 **Shopping list**:
 Live view of every Item at `running low` or `out`, grouped by Shop, `running low` rows

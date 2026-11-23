@@ -21,7 +21,12 @@ describe('AlertBanner', () => {
   it('shows a soon banner naming the count when the worst level is soon', () => {
     render(
       <AlertBanner
-        items={[item('important', 'running low'), item('optional', 'out'), item('essential', 'enough')]}
+        items={[
+          item('important', 'running low'),
+          item('important', 'running low'),
+          item('optional', 'out'),
+          item('essential', 'enough'),
+        ]}
       />,
     )
 
@@ -29,6 +34,19 @@ describe('AlertBanner', () => {
     expect(banner).toHaveTextContent('2 Items to buy soon (not urgent)')
     expect(banner).toHaveClass('alert-banner--soon')
     expect(within(banner).queryByRole('link')).toBeNull()
+  })
+
+  it('shows no banner for an optional Item at any State', () => {
+    render(<AlertBanner items={[item('optional', 'enough'), item('optional', 'running low'), item('optional', 'out')]} />)
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('leaves an optional Item out of a non-empty soon count', () => {
+    render(<AlertBanner items={[item('important', 'running low'), item('optional', 'out')]} />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('1 Item to buy soon (not urgent)')
   })
 
   it('shows a soon banner in the singular for one soon Item', () => {
