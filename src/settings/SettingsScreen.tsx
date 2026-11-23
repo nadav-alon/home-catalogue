@@ -1,5 +1,7 @@
 import { AddDeviceQrCode } from '../setup/AddDeviceQrCode.tsx'
+import type { Firestore } from 'firebase/firestore'
 import type { FirebaseWebConfig } from 'data-platform/client'
+import { RecipeIngredientShopPicker } from './RecipeIngredientShopPicker.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { Icon } from 'household-ui/ui/Icon.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
@@ -16,6 +18,7 @@ const AISLES = route('/settings/aisles')
 const MEMBERS = route('/settings/members')
 
 export interface SettingsScreenProps {
+  db: Firestore
   config: FirebaseWebConfig
   /** Forgets the stored Firebase configuration; called once the user has confirmed. */
   onResetConfig: () => void | Promise<void>
@@ -23,7 +26,7 @@ export interface SettingsScreenProps {
 }
 
 /** The Settings screen: a list of rows, each opening a sub-page or running a device-level action. */
-export function SettingsScreen({ config, onResetConfig, onSignOut }: SettingsScreenProps) {
+export function SettingsScreen({ db, config, onResetConfig, onSignOut }: SettingsScreenProps) {
   return (
     <ul>
       <NavigationRow to={SHOPS} />
@@ -31,6 +34,9 @@ export function SettingsScreen({ config, onResetConfig, onSignOut }: SettingsScr
       <NavigationRow to={TAGS} />
       <NavigationRow to={AISLES} />
       <NavigationRow to={MEMBERS} />
+      <li>
+        <RecipeIngredientShopPicker db={db} />
+      </li>
       <li>
         <AddDeviceQrCode config={config} />
       </li>

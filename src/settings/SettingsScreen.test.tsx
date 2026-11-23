@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/preact'
+import type { Firestore } from 'firebase/firestore'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SettingsScreen } from './SettingsScreen.tsx'
 import { resetHash } from '../testing/hash.ts'
@@ -13,6 +14,11 @@ const config = firebaseWebConfig({
   appId: '1:123456789:web:abcdef',
 })
 
+const db = {} as Firestore
+
+vi.mock('./RecipeIngredientShopPicker.tsx', () => ({
+  RecipeIngredientShopPicker: () => <div data-testid="recipe-ingredient-shop-picker" />,
+}))
 const onResetConfig = vi.fn()
 const onSignOut = vi.fn()
 
@@ -31,7 +37,7 @@ describe('SettingsScreen', () => {
     ['Aisles', '#/settings/aisles'],
     ['Members', '#/settings/members'],
   ])('navigates to %s', (name, hash) => {
-    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
     const link = screen.getByRole('link', { name })
     expect(link).toHaveAttribute('href', hash)
@@ -40,8 +46,14 @@ describe('SettingsScreen', () => {
     expect(window.location.hash).toBe(hash)
   })
 
+  it('offers the Shop for Recipe Ingredients picker', () => {
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+
+    expect(screen.getByTestId('recipe-ingredient-shop-picker')).toBeInTheDocument()
+  })
+
   it('navigates when the row text is tapped, not only the chevron', () => {
-    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
     fireEvent.click(screen.getByText('Shops'))
 
@@ -49,7 +61,7 @@ describe('SettingsScreen', () => {
   })
 
   it('gives each navigation row one link, with the chevron hidden inside it', () => {
-    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
     const link = screen.getByRole('link', { name: 'Shops' })
     expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
@@ -57,7 +69,7 @@ describe('SettingsScreen', () => {
   })
 
   it('makes the link the only child of its row, which has no padding of its own', () => {
-    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
     const row = screen.getByRole('link', { name: 'Shops' }).closest('li')
 
@@ -67,7 +79,7 @@ describe('SettingsScreen', () => {
   })
 
   it('puts the chevron in the trailing slot, which takes its colour from the on-surface-variant token', () => {
-    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
     const trailing = screen.getByRole('link', { name: 'Shops' }).querySelector('.ui-list-row__trailing')
 
@@ -75,7 +87,7 @@ describe('SettingsScreen', () => {
   })
 
   it('lists Members above Add device', () => {
-    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
     const members = screen.getByRole('link', { name: 'Members' })
     const addDevice = screen.getByRole('button', { name: 'Show QR code' })
@@ -84,7 +96,7 @@ describe('SettingsScreen', () => {
   })
 
   it('shows the QR code from Add a device', async () => {
-    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Show QR code' }))
 
@@ -93,7 +105,7 @@ describe('SettingsScreen', () => {
 
   it('resets the Firebase configuration only after the user confirms', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true)
-    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
     const reset = screen.getByRole('button', { name: 'Reset Firebase configuration' })
 
     fireEvent.click(reset)
@@ -105,7 +117,7 @@ describe('SettingsScreen', () => {
   })
 
   it('gives every row action the tonal button style', () => {
-    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
     for (const button of screen.getAllByRole('button')) {
       expect(button).toHaveClass('ui-button--tonal')
@@ -113,7 +125,7 @@ describe('SettingsScreen', () => {
   })
 
   it('signs out', () => {
-    render(<SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
+    render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
 
