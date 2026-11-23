@@ -66,7 +66,7 @@ function Screen({
     case '/items':
       return <ItemsManager db={db} itemIds={itemIds} filter={filter} onFilterChange={setCategoryAndShop} onClearFilter={navigateToCategoryAndShop} handoff={handoff} />
     case '/settings':
-      return <SettingsScreen config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
+      return <SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
     case '/settings/shops':
       return <ShopsManager db={db} />
     case '/settings/categories':

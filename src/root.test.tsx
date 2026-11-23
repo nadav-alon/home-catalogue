@@ -32,6 +32,8 @@ vi.mock('data-platform/client', async (importOriginal) => ({
   }),
   householdExists: (db: unknown) => householdExists(db),
   isHouseholdMember: (db: unknown, uid: unknown) => isHouseholdMember(db, uid),
+  watchRecipeIngredientShop: () => vi.fn(),
+  setRecipeIngredientShop: vi.fn().mockResolvedValue(undefined),
   claimHousehold: vi.fn(),
   joinFromInvite: vi.fn().mockResolvedValue(false),
 }))
