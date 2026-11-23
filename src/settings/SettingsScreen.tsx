@@ -25,7 +25,10 @@ export interface SettingsScreenProps {
   onSignOut: () => void | Promise<void>
 }
 
-/** The Settings screen: a list of rows, each opening a sub-page or running a device-level action. */
+/**
+ * The Settings screen: a list of rows, each opening a sub-page, editing a Household-wide setting inline,
+ * or running a device-level action.
+ */
 export function SettingsScreen({ db, config, onResetConfig, onSignOut }: SettingsScreenProps) {
   return (
     <ul>
