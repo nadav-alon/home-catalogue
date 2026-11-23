@@ -16,8 +16,12 @@ const config = firebaseWebConfig({
 
 const db = {} as Firestore
 
+const pickerProps = vi.hoisted(() => vi.fn())
 vi.mock('./RecipeIngredientShopPicker.tsx', () => ({
-  RecipeIngredientShopPicker: () => <div data-testid="recipe-ingredient-shop-picker" />,
+  RecipeIngredientShopPicker: (props: { db: unknown }) => {
+    pickerProps(props)
+    return <div data-testid="recipe-ingredient-shop-picker" />
+  },
 }))
 const onResetConfig = vi.fn()
 const onSignOut = vi.fn()
@@ -50,6 +54,7 @@ describe('SettingsScreen', () => {
     render(<SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />)
 
     expect(screen.getByTestId('recipe-ingredient-shop-picker')).toBeInTheDocument()
+    expect(pickerProps).toHaveBeenCalledWith(expect.objectContaining({ db }))
   })
 
   it('navigates when the row text is tapped, not only the chevron', () => {
