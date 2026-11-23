@@ -38,6 +38,18 @@ _Avoid_: aisle
 **Aisle**:
 Household-wide label for where in a store an Item sits. Managed like a Tag, but an Item carries at most one. Not tied to any Shop or Store, and not a Category.
 
+**Recipe row**:
+An Unlinked Ingredient of a Wanted Recipe, shown among the Shopping list's rows. It is not an Item.
+
+**Unlinked Ingredient**:
+An Ingredient of a Recipe that is not linked to an Item.
+
+**Wanted Recipe**:
+A Recipe the Household has marked as wanted; its Ingredients feed the Shopping list.
+
+**Shop for Recipe Ingredients**:
+The Household-wide setting naming the Shop that Recipe rows belong to, picked in Settings. Optional: "None" clears it.
+
 **Store**:
 A named store under one Shop ("Osher Ad" under "grocery"). Carries its aisle order: the Aisles in the order one walks them; an Aisle the order has not reached is unplaced. An Item never points at a Store. Branches are not modelled: a second differing branch is another Store with a longer name.
 
