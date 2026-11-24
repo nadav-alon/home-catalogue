@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { catalogue, core, recipes } from 'data-platform'
-import { addItemHandoffOf, returnUrl, returnUrlWithItem, categoryIdOf, DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, itemsHashOf, route, recipeIdOf, routeOf, shopIdOf, withItemsFilter } from './route.ts'
+import { addItemHandoffOf, returnUrl, returnUrlWithItem, categoryIdOf, DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, itemsHashOf, route, recipeIdOf, routeOf, shopIdOf, withItemsFilter, withRecipeId } from './route.ts'
 
 const ROUTE_HASHES = ['#/list', '#/items', '#/settings', '#/settings/shops', '#/settings/categories', '#/settings/tags'] as const
 
@@ -140,5 +140,15 @@ describe('add-Item hand-off', () => {
 
   it('refuses to construct a foreign return URL', () => {
     expect(() => returnUrl('https://evil.test/', origin)).toThrow('Not a ReturnUrl')
+  })
+})
+
+describe('withRecipeId', () => {
+  it('sets and clears the Recipe on the Shopping list, keeping other queries', () => {
+    const pancakes = recipes.recipeId('pancakes')
+    expect(withRecipeId('#/list', pancakes)).toBe('#/list?recipe=pancakes')
+    expect(withRecipeId('#/list?x=1&recipe=old', pancakes)).toBe('#/list?x=1&recipe=pancakes')
+    expect(withRecipeId('#/list?x=1&recipe=pancakes', undefined)).toBe('#/list?x=1')
+    expect(withRecipeId('#/list?recipe=pancakes', undefined)).toBe('#/list')
   })
 })

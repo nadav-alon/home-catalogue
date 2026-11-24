@@ -120,6 +120,15 @@ export function withItemsFilter(hash: string, filter: ItemsFilter): string {
   return hashWithQuery(path, params)
 }
 
+/** `hash` with its `recipe` query set to `id` (cleared when undefined); every other query is kept. */
+export function withRecipeId(hash: string, id: recipes.RecipeId | undefined): string {
+  const [path, query] = hashParts(hash)
+  const params = new URLSearchParams(query)
+  if (id === undefined) params.delete(RECIPE_KEY)
+  else params.set(RECIPE_KEY, id)
+  return hashWithQuery(path, params)
+}
+
 const ADD_KEY = 'add'
 const RETURN_KEY = 'return'
 const ITEM_ID_KEY = 'itemId'
