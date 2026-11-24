@@ -10,7 +10,7 @@ const outBandages: ItemRecord = { ...bandages, state: 'out' }
 
 describe('shopDeepLink', () => {
   it('builds a Google Calendar TEMPLATE render link for the Shop and its pending Items', () => {
-    const group: ShopGroup = { shop: pharmacy, items: [outBandages] }
+    const group: ShopGroup = { name: pharmacy.name, items: [outBandages], neededBy: new Map(), recipeRows: [] }
 
     const link = shopDeepLink(group, exportDate('2026-03-05'))
     const url = new URL(link)
@@ -24,7 +24,7 @@ describe('shopDeepLink', () => {
 
   it('lists every pending Item name in the details', () => {
     const soap: ItemRecord = { ...outBandages, id: core.itemId('soap'), name: 'Dish soap' }
-    const group: ShopGroup = { shop: pharmacy, items: [outBandages, soap] }
+    const group: ShopGroup = { name: pharmacy.name, items: [outBandages, soap], neededBy: new Map(), recipeRows: [] }
 
     const link = shopDeepLink(group, exportDate('2026-03-05'))
 

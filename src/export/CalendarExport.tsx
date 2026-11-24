@@ -1,6 +1,7 @@
 import { useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
-import type { core } from "data-platform";
+import type { catalogue } from "data-platform";
+import type { RecipeRecord } from "../catalogue/recipes.ts";
 import type { CategoryRecord } from "../catalogue/categories.ts";
 import type { ItemRecord } from "../catalogue/items.ts";
 import type { ShopRecord } from "../catalogue/shops.ts";
@@ -23,8 +24,10 @@ export interface CalendarExportProps {
   shops: ShopRecord[];
   /** The Store the Shopping list sorts each Shop's Items by; the event lists them in that order. None for a Shop not sorted by aisle. */
   sortingStores: SortingStores;
-  /** The Items some Wanted Recipe needs; an optional Item is exported only if it is among them. */
-  neededItemIds: ReadonlySet<core.ItemId>;
+  /** The Recipes: an optional Item is exported only while a Wanted Recipe needs it, and each Item and Recipe row names the Wanted Recipes that need it. */
+  recipes: readonly RecipeRecord[];
+  /** The Shop for Recipe Ingredients, `undefined` when none is set, `null` until it has loaded. */
+  recipeShopId: catalogue.ShopId | undefined | null;
 }
 
 type ExportStatus =
@@ -55,7 +58,8 @@ export function CalendarExport({
   categories,
   shops,
   sortingStores,
-  neededItemIds,
+  recipes,
+  recipeShopId,
 }: CalendarExportProps) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
@@ -71,7 +75,8 @@ export function CalendarExport({
     categories,
     shops,
     sortingStores,
-    neededItemIds,
+    recipes,
+    recipeShopId,
   );
 
   // With nothing left to export, a pressed Export would replace the result's fallback links with an error.

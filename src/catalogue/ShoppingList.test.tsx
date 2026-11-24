@@ -1256,7 +1256,7 @@ describe('ShoppingList filter by Recipe', () => {
     })
 
     expect(exportShoppingList).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ shop: grocery, items: [candles] })]),
+      expect.arrayContaining([expect.objectContaining({ name: grocery.name, items: [candles] })]),
       '2026-03-05',
     )
   })

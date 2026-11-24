@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { act, fireEvent, render, screen, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { catalogue, core } from 'data-platform'
+import { catalogue, core, recipes } from 'data-platform'
 import { CalendarExport } from './CalendarExport.tsx'
 import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
+import type { RecipeRecord } from '../catalogue/recipes.ts'
 import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
@@ -51,18 +52,20 @@ function renderExport(
   categories: CategoryRecord[] = [medicine],
   shops: ShopRecord[] = [pharmacy],
   sortingStores: SortingStores = new Map(),
+  recipes: RecipeRecord[] = [],
+  recipeShopId: catalogue.ShopId | undefined = undefined,
 ) {
   const bar = (current: ItemRecord[]) => (
     <TopAppBar title="Shopping list">
-      <CalendarExport items={current} categories={categories} shops={shops} sortingStores={sortingStores} neededItemIds={new Set()} />
+      <CalendarExport items={current} categories={categories} shops={shops} sortingStores={sortingStores} recipes={recipes} recipeShopId={recipeShopId} />
     </TopAppBar>
   )
   const view = render(bar(items))
   return { rerender: (current: ItemRecord[]) => view.rerender(bar(current)) }
 }
 
-function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[], sortingStores: SortingStores = new Map()) {
-  const view = renderExport(items, categories, shops, sortingStores)
+function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[], sortingStores: SortingStores = new Map(), recipes: RecipeRecord[] = [], recipeShopId?: catalogue.ShopId) {
+  const view = renderExport(items, categories, shops, sortingStores, recipes, recipeShopId)
   fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
   return view
 }
@@ -85,6 +88,16 @@ async function startExportThenClose() {
 }
 
 describe('CalendarExport', () => {
+  it('exports a Recipe row in its own Not in the Catalogue event when no Shop for Recipe Ingredients is set', async () => {
+    const party: RecipeRecord = { id: recipes.recipeId('party'), title: 'Party', ingredients: [{ name: 'Balloons' }], prepSteps: [], steps: [], wanted: true }
+    exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
+    renderWith([], [medicine], [pharmacy], new Map(), [party])
+
+    await submit('2026-03-05')
+
+    expect(exportShoppingList).toHaveBeenCalledWith([{ name: 'Not in the Catalogue', items: [], neededBy: new Map(), recipeRows: [{ recipe: party, position: 0, name: 'Balloons' }] }], '2026-03-05')
+  })
+
   it("exports a Shop's Items in the aisle order of the Store the list is sorted by", async () => {
     const aisleA = catalogue.aisleId('a')
     const aisleB = catalogue.aisleId('b')
@@ -96,7 +109,7 @@ describe('CalendarExport', () => {
 
     await submit('2026-03-05')
 
-    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: grocery, items: [milk, rice] }], '2026-03-05')
+    expect(exportShoppingList).toHaveBeenCalledWith([{ name: grocery.name, items: [milk, rice], neededBy: new Map(), recipeRows: [] }], '2026-03-05')
   })
 
   it('lays out the dialog actions in the shared action row', () => {
@@ -156,7 +169,7 @@ describe('CalendarExport', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Export' }))
       })
 
-      expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+      expect(exportShoppingList).toHaveBeenCalledWith([{ name: pharmacy.name, items: [outBandages], neededBy: new Map(), recipeRows: [] }], '2026-03-05')
     })
   })
 
@@ -209,7 +222,7 @@ describe('CalendarExport', () => {
 
     await submit('2026-03-05')
 
-    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+    expect(exportShoppingList).toHaveBeenCalledWith([{ name: pharmacy.name, items: [outBandages], neededBy: new Map(), recipeRows: [] }], '2026-03-05')
     expect(screen.getByRole('status')).toHaveTextContent('Exported to Calendar.')
   })
 
@@ -414,7 +427,7 @@ describe('CalendarExport', () => {
     ).toBeInTheDocument()
     await submit('2026-03-05')
 
-    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+    expect(exportShoppingList).toHaveBeenCalledWith([{ name: pharmacy.name, items: [outBandages], neededBy: new Map(), recipeRows: [] }], '2026-03-05')
   })
 
   it('uses the singular when one pending Item needs a Shop', async () => {

@@ -36,8 +36,8 @@ const soap: ItemRecord = {
 }
 
 const groups: ShopGroup[] = [
-  { shop: pharmacy, items: [outBandages] },
-  { shop: grocery, items: [soap] },
+  { name: pharmacy.name, items: [outBandages], neededBy: new Map(), recipeRows: [] },
+  { name: grocery.name, items: [soap], neededBy: new Map(), recipeRows: [] },
 ]
 const date = exportDate('2026-03-05')
 

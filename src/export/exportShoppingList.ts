@@ -45,7 +45,7 @@ export async function exportShoppingList(groups: ShopGroup[], date: ExportDate):
     }
     return {
       status: 'fallback',
-      links: groups.slice(insertedCount).map((group) => ({ shopName: group.shop.name, url: shopDeepLink(group, date) })),
+      links: groups.slice(insertedCount).map((group) => ({ shopName: group.name, url: shopDeepLink(group, date) })),
     }
   }
 }

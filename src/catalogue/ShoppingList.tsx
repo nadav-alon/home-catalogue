@@ -21,7 +21,7 @@ import { showSnackbar } from 'household-ui/ui/Snackbar.tsx'
 import { narrowedToRecipe, shoppingListGroups } from './shoppingListGroups.ts'
 import './ShoppingList.css'
 import { RecipeFilter } from './RecipeFilter.tsx'
-import { chosenRecipe, itemIdsNeededBy, recipeChipLabels, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type RecipeRow, type WatchRecipes } from './recipes.ts'
+import { chosenRecipe, recipeChipLabels, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type RecipeRow, type WatchRecipes } from './recipes.ts'
 
 export interface ShoppingListProps {
   db: Firestore
@@ -206,7 +206,6 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   }
 
   const sortingStores = storesToSortBy(sortByAisle, shops, stores, aisles, chosenStoreIds)
-  const neededItemIds = itemIdsNeededBy(recipes ?? [])
   const recipesByItem = wantedRecipesByItem(recipes ?? [])
   const selected = chosenRecipe(recipes ?? [], selectedRecipeId)
   const selectedRecipe = selected?.recipe
@@ -223,7 +222,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
       <RecipeFilter recipes={recipes ?? []} selectedId={selectedRecipe?.id} onChange={setSelectedRecipeId} />
       <AlertBanner items={items ?? []} />
       {/* Export ignores the Recipe filter. */}
-      <CalendarExport items={items ?? []} categories={categories} shops={shops} sortingStores={sortingStores} neededItemIds={neededItemIds} />
+      <CalendarExport items={items ?? []} categories={categories} shops={shops} sortingStores={sortingStores} recipes={recipes ?? []} recipeShopId={listsLoaded.shops ? recipeShopId : null} />
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
       {items !== null && recipes !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
