@@ -18,7 +18,7 @@ describe('pendingItemsByShop', () => {
       tagIds: [],
     }
 
-    const { groups, unresolvedCount } = pendingItemsByShop([outBandages, soap], [medicine, cleaning], [pharmacy, grocery])
+    const { groups, unresolvedCount } = pendingItemsByShop([outBandages, soap], [medicine, cleaning], [pharmacy, grocery], new Map(), new Set())
 
     expect(groups).toEqual([
       { shop: pharmacy, items: [outBandages] },
@@ -30,17 +30,17 @@ describe('pendingItemsByShop', () => {
   it('groups an Item under its own Shop override instead of its Category default', () => {
     const bandagesAtGrocery: ItemRecord = { ...bandages, state: 'out', shopId: grocery.id }
 
-    const { groups } = pendingItemsByShop([bandagesAtGrocery], [medicine], [pharmacy, grocery])
+    const { groups } = pendingItemsByShop([bandagesAtGrocery], [medicine], [pharmacy, grocery], new Map(), new Set())
 
     expect(groups).toEqual([{ shop: grocery, items: [bandagesAtGrocery] }])
   })
 
   it('leaves out a Shop with no pending Items', () => {
-    expect(pendingItemsByShop([], [medicine], [pharmacy, grocery]).groups).toEqual([])
+    expect(pendingItemsByShop([], [medicine], [pharmacy, grocery], new Map(), new Set()).groups).toEqual([])
   })
 
   it('leaves out an Item that is enough', () => {
-    expect(pendingItemsByShop([{ ...bandages, state: 'enough' }], [medicine], [pharmacy]).groups).toEqual([])
+    expect(pendingItemsByShop([{ ...bandages, state: 'enough' }], [medicine], [pharmacy], new Map(), new Set()).groups).toEqual([])
   })
 
   it('leaves out an Item with no resolved Shop, and counts it as unresolved', () => {
@@ -53,7 +53,7 @@ describe('pendingItemsByShop', () => {
       tagIds: [],
     }
 
-    const { groups, unresolvedCount } = pendingItemsByShop([orphan], [medicine], [pharmacy])
+    const { groups, unresolvedCount } = pendingItemsByShop([orphan], [medicine], [pharmacy], new Map(), new Set())
 
     expect(groups).toEqual([])
     expect(unresolvedCount).toBe(1)
@@ -75,7 +75,7 @@ describe('pendingItemsByShop', () => {
       tagIds: [],
     }
 
-    const { groups, unresolvedCount } = pendingItemsByShop([seeds], [garden], [pharmacy])
+    const { groups, unresolvedCount } = pendingItemsByShop([seeds], [garden], [pharmacy], new Map(), new Set())
 
     expect(groups).toEqual([])
     expect(unresolvedCount).toBe(1)
@@ -90,8 +90,18 @@ describe('pendingItemsByShop with a chosen Store', () => {
     const milk: ItemRecord = { ...bandages, id: core.itemId('milk'), name: 'Milk', state: 'out', categoryId: cleaning.id, aisleId: aisleB }
     const store: StoreRecord = { id: catalogue.storeId('osher'), name: 'Osher Ad', shopId: grocery.id, aisleOrder: [aisleA, aisleB] }
 
-    const { groups } = pendingItemsByShop([milk, rice], [cleaning], [grocery], new Map([[grocery.id, store]]))
+    const { groups } = pendingItemsByShop([milk, rice], [cleaning], [grocery], new Map([[grocery.id, store]]), new Set())
 
     expect(groups).toEqual([{ shop: grocery, items: [rice, milk] }])
+  })
+})
+
+describe('pendingItemsByShop with optional Items', () => {
+  const candles = { ...bandages, id: core.itemId('candles'), name: 'Candles', necessity: 'optional' as const }
+
+  it('exports an optional Item only while a Wanted Recipe needs it', () => {
+    expect(pendingItemsByShop([{ ...candles, state: 'out' }], [medicine], [pharmacy], new Map(), new Set())).toMatchObject({ groups: [], nothingToBuy: true })
+    const { groups } = pendingItemsByShop([{ ...candles, state: 'out' }], [medicine], [pharmacy], new Map(), new Set([candles.id]))
+    expect(groups.flatMap((group) => group.items.map((item) => item.name))).toEqual(['Candles'])
   })
 })

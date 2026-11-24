@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
-import { catalogue, core } from 'data-platform'
+import { catalogue, core, recipes as recipesApi } from 'data-platform'
 import { ShoppingList } from './ShoppingList.tsx'
 import { choose } from '../testing/select.ts'
 import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
@@ -12,6 +12,8 @@ import type { ShopRecord } from './shops.ts'
 import type { AisleRecord } from './aisles.ts'
 import type { StoreRecord } from './stores.ts'
 import type { TagRecord } from './tags.ts'
+import { fakeRecipes, type FakeRecipes } from './recipesFake.ts'
+import type { RecipeRecord } from './recipes.ts'
 import { bandages, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const watchItems = vi.fn()
@@ -67,9 +69,12 @@ vi.mock('./tags.ts', async (importOriginal) => ({
   createTag: (db: unknown, name: unknown) => createTag(db, name),
 }))
 
+let recipes: FakeRecipes
+
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
 beforeEach(() => {
+  recipes = fakeRecipes()
   watchItems.mockReset()
   setItemState.mockReset().mockResolvedValue(undefined)
   findBarcodeHolders.mockReset().mockResolvedValue([])
@@ -113,9 +118,20 @@ function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: Sh
   })
   return render(
     <TopAppBar title="Shopping list">
-      <ShoppingList db={fakeDb} />
+      <ShoppingList db={fakeDb} watchRecipes={recipes.watch} />
     </TopAppBar>,
   )
+}
+
+function wantedRecipeNeeding(itemId: string, wanted = true): RecipeRecord {
+  return {
+    id: recipesApi.recipeId('party'),
+    title: 'Party',
+    ingredients: [{ name: 'Candles', itemId: core.itemId(itemId) }],
+    prepSteps: [],
+    steps: [],
+    ...(wanted ? { wanted: true } : {}),
+  }
 }
 
 describe('ShoppingList', () => {
@@ -228,7 +244,7 @@ describe('ShoppingList', () => {
     watchItems.mockReturnValue(vi.fn())
     watchCategories.mockReturnValue(vi.fn())
     watchShops.mockReturnValue(vi.fn())
-    render(<ShoppingList db={fakeDb} />)
+    render(<ShoppingList db={fakeDb} watchRecipes={recipes.watch} />)
 
     expect(screen.queryByText(/Nothing to buy/)).not.toBeInTheDocument()
   })
@@ -270,7 +286,8 @@ describe('ShoppingList', () => {
     expect(row).not.toHaveTextContent('optional')
   })
 
-  it('flags a running low Item whose Necessity is optional as running low only', () => {
+  it('flags a running low Item whose Necessity is optional, needed by a Wanted Recipe, as running low only', () => {
+    recipes = fakeRecipes([wantedRecipeNeeding('candles')])
     const candles: ItemRecord = {
       id: core.itemId('candles'),
       name: 'Candles',
@@ -361,7 +378,7 @@ describe('ShoppingList', () => {
       cb([pharmacy])
       return vi.fn()
     })
-    render(<ShoppingList db={fakeDb} />)
+    render(<ShoppingList db={fakeDb} watchRecipes={recipes.watch} />)
 
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
 
@@ -455,7 +472,7 @@ describe('ticking an Item', () => {
         cb([pharmacy])
         return vi.fn()
       })
-      render(<ShoppingList db={fakeDb} />)
+      render(<ShoppingList db={fakeDb} watchRecipes={recipes.watch} />)
       render(<SnackbarHost />)
 
       fireEvent.click(screen.getByRole('checkbox', { name: /Bandages/ }))
@@ -536,6 +553,20 @@ describe('a scanned barcode', () => {
     await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'enough'))
   })
 
+  it('sets a needed optional Item enough by its Barcode, with an Undo that restores its State', async () => {
+    render(<SnackbarHost />)
+    const optional: ItemRecord = { ...bandages, necessity: 'optional' }
+    recipes = fakeRecipes([wantedRecipeNeeding('bandages')])
+    renderWith([optional], [medicine], [pharmacy])
+
+    scan()
+
+    await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, optional, 'enough'))
+    setItemState.mockClear()
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, optional, 'out')
+  })
+
   it('says an Item that is already enough is, without a write or an Undo', async () => {
     render(<SnackbarHost />)
     const stocked: ItemRecord = { ...bandages, state: 'enough' }
@@ -554,7 +585,7 @@ describe('a scanned barcode', () => {
     watchShops.mockReturnValue(vi.fn())
     render(
       <TopAppBar title="Shopping list">
-        <ShoppingList db={fakeDb} />
+        <ShoppingList db={fakeDb} watchRecipes={recipes.watch} />
       </TopAppBar>,
     )
 
@@ -787,7 +818,7 @@ describe('a scanned barcode', () => {
     watchShops.mockReturnValue(vi.fn())
     render(
       <TopAppBar title="Shopping list">
-        <ShoppingList db={fakeDb} />
+        <ShoppingList db={fakeDb} watchRecipes={recipes.watch} />
         <SnackbarHost />
       </TopAppBar>,
     )
@@ -926,5 +957,58 @@ describe('ShoppingList sorted by aisle', () => {
     fireEvent.click(screen.getByLabelText('Sort by aisle'))
 
     expect(rowNames()).toEqual(['Soap', 'Rice', 'Milk'])
+  })
+})
+
+describe('ShoppingList optional Items', () => {
+  const candles: ItemRecord = {
+    id: core.itemId('candles'),
+    name: 'Candles',
+    state: 'out',
+    categoryId: cleaning.id,
+    necessity: 'optional',
+    tagIds: [],
+  }
+
+  it('omits an optional Item no Wanted Recipe needs', () => {
+    recipes = fakeRecipes([wantedRecipeNeeding('other'), wantedRecipeNeeding('candles', false)])
+    renderWith([candles], [cleaning], [grocery])
+
+    expect(screen.queryByText('Candles')).not.toBeInTheDocument()
+    expect(screen.getByText('Nothing to buy — every Item is enough.')).toBeInTheDocument()
+  })
+
+  it('lists it once a Recipe linking it becomes Wanted, and drops it when that Recipe stops being Wanted', () => {
+    renderWith([candles], [cleaning], [grocery])
+    expect(screen.queryByText('Candles')).not.toBeInTheDocument()
+
+    act(() => recipes.set([wantedRecipeNeeding('candles')]))
+    expect(screen.getByText('Candles')).toBeInTheDocument()
+
+    act(() => recipes.set([wantedRecipeNeeding('candles', false)]))
+    expect(screen.queryByText('Candles')).not.toBeInTheDocument()
+  })
+
+  it('keeps it while another Wanted Recipe still needs it', () => {
+    const other = { ...wantedRecipeNeeding('candles'), id: recipesApi.recipeId('dinner') }
+    renderWith([candles], [cleaning], [grocery])
+    act(() => recipes.set([wantedRecipeNeeding('candles'), other]))
+    act(() => recipes.set([wantedRecipeNeeding('candles', false), other]))
+    expect(screen.getByText('Candles')).toBeInTheDocument()
+  })
+
+  it('does not claim there is nothing to buy while the Recipes are still loading', () => {
+    recipes = { watch: () => vi.fn(), set: vi.fn() }
+    renderWith([candles], [cleaning], [grocery])
+
+    expect(screen.queryByText('Nothing to buy — every Item is enough.')).not.toBeInTheDocument()
+  })
+
+  it('ticks a needed optional Item enough like any other', () => {
+    recipes = fakeRecipes([wantedRecipeNeeding('candles')])
+    renderWith([candles], [cleaning], [grocery])
+
+    fireEvent.click(within(screen.getByText('Candles').closest('li')!).getByRole('checkbox'))
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, candles, 'enough')
   })
 })

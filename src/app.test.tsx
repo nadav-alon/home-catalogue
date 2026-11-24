@@ -23,6 +23,10 @@ const watchItems = vi.fn((_db: unknown, cb: (items: ItemRecord[]) => void) => {
 
 const watchCategoriesCallbacks: ((categories: CategoryRecord[]) => void)[] = []
 
+vi.mock('./catalogue/recipes.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./catalogue/recipes.ts')>()),
+  watchRecipes: () => vi.fn(),
+}))
 vi.mock('./catalogue/shops.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalogue/shops.ts')>()),
   watchShops: () => vi.fn(),

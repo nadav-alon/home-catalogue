@@ -30,7 +30,7 @@ describe('watchRecipes', () => {
     const callback = vi.fn()
     const unsubscribe = vi.fn()
     const ingredients = [
-      { name: 'Flour', itemId: 'flour' },
+      { name: 'Flour', itemId: core.itemId('flour') },
       { name: 'Salt', assumed: true },
       { name: 'Saffron', bought: true },
     ]
@@ -122,5 +122,25 @@ describe('Ingredient classification', () => {
     const { unlinkedIngredientNames } = await import('./recipes.ts')
     const salty = { ...recipe, ingredients: [{ name: 'Salt' }, { name: 'Honey' }, { name: 'Salt' }] }
     expect(unlinkedIngredientNames(salty)).toEqual(['Salt', 'Honey'])
+  })
+})
+
+describe('itemIdsNeededBy', () => {
+  const recipe = (id: string, over: Partial<import('./recipes.ts').RecipeRecord>): import('./recipes.ts').RecipeRecord => ({
+    id: recipes.recipeId(id),
+    title: id,
+    ingredients: [],
+    prepSteps: [],
+    steps: [],
+    ...over,
+  })
+
+  it('names the Items a Wanted Recipe links, not those of an unwanted Recipe or an unlinked Ingredient', async () => {
+    const { itemIdsNeededBy } = await import('./recipes.ts')
+    const needed = itemIdsNeededBy([
+      recipe('bread', { wanted: true, ingredients: [{ name: 'Flour', itemId: core.itemId('flour') }, { name: 'Salt', assumed: true }, { name: 'Saffron' }] }),
+      recipe('soup', { ingredients: [{ name: 'Leek', itemId: core.itemId('leek') }] }),
+    ])
+    expect([...needed]).toEqual([core.itemId('flour')])
   })
 })

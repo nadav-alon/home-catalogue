@@ -1,4 +1,4 @@
-import type { catalogue } from 'data-platform'
+import type { catalogue, core } from 'data-platform'
 import type { CategoryRecord } from './categories.ts'
 import { isPending, resolvedShopId, type ItemRecord } from './items.ts'
 import type { ShopRecord } from './shops.ts'
@@ -21,12 +21,15 @@ export interface PendingItemsByShop {
  * `shops` is not dropped: it is returned in `unresolved`, so each caller decides how to treat it.
  * A Shop with a Store in `sortingStores` has its group sorted by that Store's aisle order; any other
  * group, and `unresolved`, keeps the order of `items`.
+ * An `optional` Item is pending only while its id is in `neededItemIds` (some Wanted Recipe links an
+ * Ingredient to it); pass an empty set for none.
  */
 export function groupPendingItemsByShop(
   items: ItemRecord[],
   categories: CategoryRecord[],
   shops: ShopRecord[],
-  sortingStores: SortingStores = new Map(),
+  sortingStores: SortingStores,
+  neededItemIds: ReadonlySet<core.ItemId>,
 ): PendingItemsByShop {
   const categoriesById = new Map(categories.map((category) => [category.id, category]))
   const knownShopIds = new Set(shops.map((shop) => shop.id))
@@ -35,6 +38,7 @@ export function groupPendingItemsByShop(
 
   for (const item of items) {
     if (!isPending(item.state)) continue
+    if (item.necessity === 'optional' && !neededItemIds.has(item.id)) continue
     const shopId = resolvedShopId(item, categoriesById.get(item.categoryId))
     if (shopId === undefined || !knownShopIds.has(shopId)) {
       unresolved.push(item)

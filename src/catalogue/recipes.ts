@@ -50,3 +50,13 @@ export function unlinkedIngredientNames(recipe: recipes.Recipe): string[] {
   )
   return [...new Set(names)]
 }
+
+/** The ids of the Items a Wanted Recipe among `recipes` links an Ingredient to; an Unlinked or assumed Ingredient names none. */
+export function itemIdsNeededBy(recipes: readonly RecipeRecord[]): Set<core.ItemId> {
+  const needed = new Set<core.ItemId>()
+  for (const recipe of recipes) {
+    if (recipe.wanted !== true) continue
+    for (const ingredient of recipe.ingredients) if (ingredient.itemId !== undefined) needed.add(ingredient.itemId)
+  }
+  return needed
+}

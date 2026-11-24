@@ -18,9 +18,12 @@ import { CalendarExport } from '../export/CalendarExport.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { showSnackbar } from 'household-ui/ui/Snackbar.tsx'
 import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
+import { itemIdsNeededBy, watchRecipes as watchLiveRecipes, type RecipeRecord, type WatchRecipes } from './recipes.ts'
 
 export interface ShoppingListProps {
   db: Firestore
+  /** Where the Recipes come from; the Household's live Recipes unless a test supplies a fake. */
+  watchRecipes?: WatchRecipes
 }
 
 interface ShopGroup {
@@ -31,7 +34,7 @@ interface ShopGroup {
   items: ItemRecord[]
 }
 
-export function ShoppingList({ db }: ShoppingListProps) {
+export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingListProps) {
   const [items, setItems] = useState<ItemRecord[] | null>(null)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
@@ -40,9 +43,11 @@ export function ShoppingList({ db }: ShoppingListProps) {
   const [stores, setStores] = useState<StoreRecord[]>([])
   const [sortByAisle, setSortByAisle] = useState(getSortByAisle)
   const [chosenStoreIds, setChosenStoreIds] = useState(getChosenStoreIds)
+  const [recipes, setRecipes] = useState<RecipeRecord[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchItems(db, setItems), [db])
+  useEffect(() => watchRecipes(db, setRecipes), [db, watchRecipes])
   useEffect(() => watchTags(db, setTags), [db])
   useEffect(() => watchAisles(db, setAisles), [db])
   useEffect(() => watchStores(db, setStores), [db])
@@ -173,7 +178,8 @@ export function ShoppingList({ db }: ShoppingListProps) {
   }
 
   const sortingStores = storesToSortBy(sortByAisle, shops, stores, aisles, chosenStoreIds)
-  const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops, sortingStores)
+  const neededItemIds = itemIdsNeededBy(recipes ?? [])
+  const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops, sortingStores, neededItemIds)
   const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
     key: shop.id,
     shop,
@@ -192,10 +198,10 @@ export function ShoppingList({ db }: ShoppingListProps) {
       </label>
       <ScanEntry onScan={handleScan} />
       <AlertBanner items={items ?? []} />
-      <CalendarExport items={items ?? []} categories={categories} shops={shops} sortingStores={sortingStores} />
+      <CalendarExport items={items ?? []} categories={categories} shops={shops} sortingStores={sortingStores} neededItemIds={neededItemIds} />
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
-      {items !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
+      {items !== null && recipes !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
       {groups.map(({ key, name, shop, items: groupItems }) => {
         const options = sortByAisle && shop !== undefined ? storesOfShop(stores, shop) : []
         const sortingStore = shop === undefined ? undefined : sortingStores.get(shop.id)

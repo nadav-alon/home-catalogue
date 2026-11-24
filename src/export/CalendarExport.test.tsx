@@ -50,18 +50,18 @@ function renderExport(
   items: ItemRecord[],
   categories: CategoryRecord[] = [medicine],
   shops: ShopRecord[] = [pharmacy],
-  sortingStores?: SortingStores,
+  sortingStores: SortingStores = new Map(),
 ) {
   const bar = (current: ItemRecord[]) => (
     <TopAppBar title="Shopping list">
-      <CalendarExport items={current} categories={categories} shops={shops} sortingStores={sortingStores} />
+      <CalendarExport items={current} categories={categories} shops={shops} sortingStores={sortingStores} neededItemIds={new Set()} />
     </TopAppBar>
   )
   const view = render(bar(items))
   return { rerender: (current: ItemRecord[]) => view.rerender(bar(current)) }
 }
 
-function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[], sortingStores?: SortingStores) {
+function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[], sortingStores: SortingStores = new Map()) {
   const view = renderExport(items, categories, shops, sortingStores)
   fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
   return view
