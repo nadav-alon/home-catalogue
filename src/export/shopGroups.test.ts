@@ -4,10 +4,12 @@ import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import { bandages, cleaning, grocery, medicine, pharmacy } from '../catalogue/testFixtures.ts'
 import type { StoreRecord } from '../catalogue/stores.ts'
-import type { RecipeRecord } from '../catalogue/recipes.ts'
+import { wantedRecipesByItem, type RecipeRecord } from '../catalogue/recipes.ts'
 import { shoppingListGroups } from '../catalogue/shoppingListGroups.ts'
 import type { SortingStores } from '../catalogue/aisleSort.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
+import { buildShopEvent } from './calendarEvent.ts'
+import { exportDate } from './exportDate.ts'
 import { shoppingListEvents } from './shopGroups.ts'
 
 /** The events for the Shopping list over these inputs. */
@@ -107,6 +109,19 @@ describe('shoppingListEvents with a chosen Store', () => {
     const { groups } = eventsOf([milk, rice], [cleaning], [grocery], new Map([[grocery.id, store]]), [], undefined)
 
     expect(groups).toEqual([{ groupName: grocery.name, items: [rice, milk], recipeRows: [] }])
+  })
+
+  it("writes chipped Items in aisle order, then the Recipe rows, in one event", () => {
+    const aisleA = catalogue.aisleId('a')
+    const aisleB = catalogue.aisleId('b')
+    const rice: ItemRecord = { ...bandages, id: core.itemId('rice'), name: 'Rice', state: 'out', categoryId: cleaning.id, aisleId: aisleA }
+    const milk: ItemRecord = { ...bandages, id: core.itemId('milk'), name: 'Milk', state: 'out', categoryId: cleaning.id, aisleId: aisleB }
+    const store: StoreRecord = { id: catalogue.storeId('osher'), name: 'Osher Ad', shopId: grocery.id, aisleOrder: [aisleA, aisleB] }
+    const party = wantedRecipe([{ name: 'Milk', itemId: milk.id }, { name: 'Rice', itemId: rice.id }, { name: 'Balloons' }])
+
+    const { groups } = eventsOf([milk, rice], [cleaning], [grocery], new Map([[grocery.id, store]]), [party], grocery.id)
+
+    expect(buildShopEvent(groups[0]!, wantedRecipesByItem([party]), exportDate('2026-03-05')).description).toBe('Rice (for Party)\nMilk (for Party)\nBalloons (for Party)')
   })
 })
 
