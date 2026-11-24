@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import type { catalogue, core } from 'data-platform'
-import { watchRecipeIngredientShop } from 'data-platform/client'
+import { setIngredientBought, watchRecipeIngredientShop } from 'data-platform/client'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, isLiveReference, itemsWithBarcode, restoreItem, restoreItemWithEdit, setItemState, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { createAisle, watchAisles, type AisleRecord } from './aisles.ts'
@@ -105,6 +105,24 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
     showSnackbar({
       text,
       action: { label: 'Undo', onAction: () => void handleSetState(item, item.state) },
+    })
+  }
+
+  async function handleSetBought(row: RecipeRow, bought: boolean) {
+    try {
+      await setIngredientBought(db, row.recipe.id, row.position, bought)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update the Ingredient')
+    }
+  }
+
+  /** Ticking a Recipe row marks its Ingredient Bought; Undo clears that. */
+  function handleTickRecipeRow(row: RecipeRow) {
+    void handleSetBought(row, true)
+    showSnackbar({
+      text: `Marked ${row.name} bought`,
+      action: { label: 'Undo', onAction: () => void handleSetBought(row, false) },
     })
   }
 
@@ -243,7 +261,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
                 <ShoppingListRow key={item.id} item={item} neededBy={recipesByItem.get(item.id) ?? []} onTick={() => handleTick(item)} />
               ))}
               {groupRecipeRows.map((row) => (
-                <RecipeRowItem key={`${row.recipe.id}:${row.position}`} row={row} />
+                <RecipeRowItem key={`${row.recipe.id}:${row.position}`} row={row} onTick={() => handleTickRecipeRow(row)} />
               ))}
             </ul>
           </div>
@@ -322,7 +340,7 @@ function ShoppingListRow({ item, neededBy, onTick }: ShoppingListRowProps) {
 }
 
 /** A Recipe row: the Ingredient's name and its Recipe's chip, with no State flag. */
-function RecipeRowItem({ row }: { row: RecipeRow }) {
+function RecipeRowItem({ row, onTick }: { row: RecipeRow; onTick: () => void }) {
   return (
     <ListRow
       headline={row.name}
@@ -331,7 +349,7 @@ function RecipeRowItem({ row }: { row: RecipeRow }) {
           {label}
         </span>
       ))}
-      control={<input type="checkbox" checked={false} readOnly />}
+      control={<input type="checkbox" checked={false} onChange={onTick} />}
     />
   )
 }

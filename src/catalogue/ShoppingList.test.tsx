@@ -1114,6 +1114,8 @@ describe('ShoppingList Recipe chips', () => {
 })
 
 describe('ShoppingList Recipe rows', () => {
+  afterEach(() => resetSnackbar())
+
   const sriracha = { name: 'Sriracha' }
   function recipeWith(ingredients: recipesApi.Recipe['ingredients'], id = 'noodles', wanted = true): RecipeRecord {
     return { id: recipesApi.recipeId(id), title: 'Noodles', ingredients, prepSteps: [], steps: [], ...(wanted ? { wanted: true } : {}) }
@@ -1146,6 +1148,18 @@ describe('ShoppingList Recipe rows', () => {
     expect(screen.queryByRole('heading', { name: 'Not in the Catalogue' })).toBeNull()
     expect(within(screen.getByRole('heading', { name: grocery.name }).parentElement!).getAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)).toEqual(['Flour', 'Sriracha'])
     expect(screen.queryByRole('heading', { name: pharmacy.name })).toBeNull()
+  })
+
+  it('ticking one marks it Bought through the client and Undo clears it', () => {
+    recipes = fakeRecipes([recipeWith([{ name: 'Salt', assumed: true }, sriracha])])
+    renderWith([], [], [])
+    render(<SnackbarHost />)
+
+    fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
+
+    expect(setIngredientBought).toHaveBeenCalledWith(fakeDb, 'noodles', 1, true)
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 1, false)
   })
 
   it('lists no Linked, Assumed or Bought Ingredient, and none of a Recipe that is not Wanted', () => {
