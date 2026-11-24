@@ -19,6 +19,7 @@ import { CalendarExport } from '../export/CalendarExport.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { showSnackbar } from 'household-ui/ui/Snackbar.tsx'
 import { narrowedToRecipe, shoppingListGroups } from './shoppingListGroups.ts'
+import { setRecipeId, useRecipeId } from '../ui/useRoute.ts'
 import './ShoppingList.css'
 import { RecipeFilter } from './RecipeFilter.tsx'
 import { chosenRecipe, recipeChipLabels, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type RecipeRow, type WatchRecipes } from './recipes.ts'
@@ -44,8 +45,8 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   /** The latest Recipes, read when Undo is pressed rather than when the row was ticked. */
   const latestRecipes = useRef<RecipeRecord[] | null>(null)
   latestRecipes.current = recipes
-  /** The Recipe the list is narrowed to; one that is deleted stops filtering. */
-  const [selectedRecipeId, setSelectedRecipeId] = useState<RecipeRecord['id']>()
+  /** The Recipe the list is narrowed to, kept in the route as `recipe=<id>`; one that is deleted stops filtering. */
+  const selectedRecipeId = useRecipeId()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchItems(db, setItems), [db])
@@ -219,7 +220,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
         Sort by aisle
       </label>
       <ScanEntry onScan={handleScan} />
-      <RecipeFilter recipes={recipes ?? []} selectedId={selectedRecipe?.id} onChange={setSelectedRecipeId} />
+      <RecipeFilter recipes={recipes ?? []} selectedId={selectedRecipe?.id} onChange={setRecipeId} />
       <AlertBanner items={items ?? []} />
       {/* Export ignores the Recipe filter. */}
       <CalendarExport groups={allGroups} recipesByItem={recipesByItem} />

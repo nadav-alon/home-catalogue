@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
-import type { core } from 'data-platform'
+import type { core, recipes } from 'data-platform'
 import { afterPendingPop } from 'household-ui/ui/pendingPop.ts'
-import { addItemHandoffOf, categoryIdOf, DEFAULT_ROUTE, hashOf, itemIdsOf, itemsHashOf, routeIn, routeOf, recipeIdOf, shopIdOf, withItemsFilter, returnUrlWithItem, withoutAddItemHandoff, type AddItemHandoff, type ItemsFilter, type ReturnUrl, type Route } from './route.ts'
+import { addItemHandoffOf, categoryIdOf, DEFAULT_ROUTE, hashOf, itemIdsOf, itemsHashOf, routeIn, routeOf, recipeIdOf, shopIdOf, withItemsFilter, withRecipeId, returnUrlWithItem, withoutAddItemHandoff, type AddItemHandoff, type ItemsFilter, type ReturnUrl, type Route } from './route.ts'
 
 /** Rewrites a hash that does not name a route to the default route's hash, replacing the history entry (and keeping its state) rather than pushing one. */
 function normaliseHash(): void {
@@ -47,6 +47,16 @@ export function useItemsFilter(): ItemsFilter {
 /** Sets the Category, Shop and Recipe filters on the current hash by pushing a history entry, so back returns to the previous filter. */
 export function setItemsFilter(filter: ItemsFilter): void {
   window.location.hash = withItemsFilter(window.location.hash, filter)
+}
+
+/** The Recipe the current URL hash's `recipe` query names, re-read whenever the hash changes; undefined when there is none. */
+export function useRecipeId(): recipes.RecipeId | undefined {
+  return recipeIdOf(useHash())
+}
+
+/** Sets the `recipe` query on the current hash by pushing a history entry, so back returns to the previous filter; other queries are kept. */
+export function setRecipeId(id: recipes.RecipeId | undefined): void {
+  window.location.hash = withRecipeId(window.location.hash, id)
 }
 
 /** Shows the Items screen narrowed to `filter` alone, dropping any scanned Item filter, by pushing a history entry. */
