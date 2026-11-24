@@ -109,24 +109,25 @@ export interface ItemsFilter {
   recipeId: recipes.RecipeId | undefined
 }
 
-/** `hash` with its Category, Shop and Recipe filters set to those given (cleared when undefined); every other query is kept. */
-export function withItemsFilter(hash: string, filter: ItemsFilter): string {
+/** `hash` with each query in `entries` set to its value (cleared when undefined); every other query is kept. */
+function withQueries(hash: string, entries: readonly (readonly [string, string | undefined])[]): string {
   const [path, query] = hashParts(hash)
   const params = new URLSearchParams(query)
-  for (const [key, id] of [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId], [RECIPE_KEY, filter.recipeId]] as const) {
-    if (id === undefined) params.delete(key)
-    else params.set(key, id)
+  for (const [key, value] of entries) {
+    if (value === undefined) params.delete(key)
+    else params.set(key, value)
   }
   return hashWithQuery(path, params)
 }
 
+/** `hash` with its Category, Shop and Recipe filters set to those given (cleared when undefined); every other query is kept. */
+export function withItemsFilter(hash: string, filter: ItemsFilter): string {
+  return withQueries(hash, [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId], [RECIPE_KEY, filter.recipeId]])
+}
+
 /** `hash` with its `recipe` query set to `id` (cleared when undefined); every other query is kept. */
 export function withRecipeId(hash: string, id: recipes.RecipeId | undefined): string {
-  const [path, query] = hashParts(hash)
-  const params = new URLSearchParams(query)
-  if (id === undefined) params.delete(RECIPE_KEY)
-  else params.set(RECIPE_KEY, id)
-  return hashWithQuery(path, params)
+  return withQueries(hash, [[RECIPE_KEY, id]])
 }
 
 const ADD_KEY = 'add'

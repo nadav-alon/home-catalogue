@@ -49,13 +49,16 @@ export function setItemsFilter(filter: ItemsFilter): void {
   window.location.hash = withItemsFilter(window.location.hash, filter)
 }
 
-/** The Recipe the current URL hash's `recipe` query names, re-read whenever the hash changes; undefined when there is none. */
-export function useRecipeId(): recipes.RecipeId | undefined {
+/**
+ * The Recipe the current URL hash's `recipe` query names, re-read whenever the hash changes; undefined when there is none.
+ * A pair apart from `useItemsFilter`/`setItemsFilter`, which would also write `category` and `shop` keys onto `#/list`.
+ */
+export function useRecipeFilter(): recipes.RecipeId | undefined {
   return recipeIdOf(useHash())
 }
 
 /** Sets the `recipe` query on the current hash by pushing a history entry, so back returns to the previous filter; other queries are kept. */
-export function setRecipeId(id: recipes.RecipeId | undefined): void {
+export function setRecipeFilter(id: recipes.RecipeId | undefined): void {
   window.location.hash = withRecipeId(window.location.hash, id)
 }
 
