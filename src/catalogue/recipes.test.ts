@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
-import { recipes } from 'data-platform'
+import { core, recipes } from 'data-platform'
 
 const collection = vi.fn((_db: unknown, path: string) => ({ path }))
 const query = vi.fn((ref: unknown, ...constraints: unknown[]) => ({ ref, constraints }))
@@ -92,5 +92,35 @@ describe('watchRecipes', () => {
 
     expect(callback).toHaveBeenCalledTimes(2)
     expect(callback.mock.calls[1]?.[0]).toHaveLength(1)
+  })
+})
+
+describe('Ingredient classification', () => {
+  const recipe: recipes.Recipe = {
+    title: 'Pad Thai',
+    ingredients: [
+      { name: 'Noodles', itemId: core.itemId('noodles') },
+      { name: 'Salt', assumed: true },
+      { name: 'Sriracha' },
+      { name: 'Honey', bought: true },
+    ],
+    prepSteps: [],
+    steps: [],
+  }
+
+  it('linkedItemIds lists the linked Items only', async () => {
+    const { linkedItemIds } = await import('./recipes.ts')
+    expect(linkedItemIds(recipe)).toEqual([core.itemId('noodles')])
+  })
+
+  it('unlinkedIngredientNames lists neither linked nor Assumed Ingredients', async () => {
+    const { unlinkedIngredientNames } = await import('./recipes.ts')
+    expect(unlinkedIngredientNames(recipe)).toEqual(['Sriracha', 'Honey'])
+  })
+
+  it('unlinkedIngredientNames names an Ingredient once however many times the Recipe lists it', async () => {
+    const { unlinkedIngredientNames } = await import('./recipes.ts')
+    const salty = { ...recipe, ingredients: [{ name: 'Salt' }, { name: 'Honey' }, { name: 'Salt' }] }
+    expect(unlinkedIngredientNames(salty)).toEqual(['Salt', 'Honey'])
   })
 })

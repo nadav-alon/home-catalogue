@@ -35,6 +35,10 @@ vi.mock('./catalogue/aisles.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalogue/aisles.ts')>()),
   watchAisles: () => vi.fn(),
 }))
+vi.mock('./catalogue/recipes.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./catalogue/recipes.ts')>()),
+  watchRecipes: () => vi.fn(),
+}))
 vi.mock('./catalogue/stores.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./catalogue/stores.ts')>()),
   watchStores: () => vi.fn(),

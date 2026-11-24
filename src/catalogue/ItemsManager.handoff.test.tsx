@@ -56,6 +56,10 @@ vi.mock('./aisles.ts', async (importOriginal) => ({
     return vi.fn()
   },
 }))
+vi.mock('./recipes.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./recipes.ts')>()),
+  watchRecipes: () => vi.fn(),
+}))
 vi.mock('./tags.ts', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./tags.ts')>()),
   watchTags: (_db: unknown, cb: (rows: unknown[]) => void) => {
