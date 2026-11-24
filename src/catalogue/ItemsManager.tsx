@@ -305,7 +305,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   // A Recipe that is deleted stops filtering (until restored), as a Category or Shop that names nothing live does.
   const activeRecipe = recipes.find((recipe) => recipe.id === recipeId)
   const recipeItemIds = useMemo(() => (activeRecipe === undefined ? undefined : new Set(linkedItemIds(activeRecipe))), [activeRecipe])
-  const activeRecipeId = !recipesLoaded ? recipeId : activeRecipe?.id
+  const activeRecipeId = !recipesLoaded || isLiveReference(recipes, recipeId) ? recipeId : undefined
+  const activeFilter: ItemsFilter = { categoryId: activeCategoryId, shopId: activeShopId, recipeId: activeRecipeId }
   const unlinkedNames = activeRecipe === undefined ? [] : unlinkedIngredientNames(activeRecipe)
   const chipFiltered =
     activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0 || activeRecipe !== undefined
@@ -342,7 +343,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
       ) : (
         items !== undefined && (
-          <Chip label={`Scanned: ${scannedLabel}`} dismissLabel="Clear scanned filter" onDismiss={() => onClearFilter?.({ categoryId: activeCategoryId, shopId: activeShopId, recipeId: activeRecipeId })} />
+          <Chip label={`Scanned: ${scannedLabel}`} dismissLabel="Clear scanned filter" onDismiss={() => onClearFilter?.(activeFilter)} />
         )
       )}
       <div role="group" aria-label="Filter by Category" class="items-manager__chips">
@@ -351,7 +352,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             key={category.id}
             label={category.name}
             selected={category.id === activeCategoryId}
-            onToggle={() => onFilterChange?.({ categoryId: toggledSelection(activeCategoryId, category.id), shopId: activeShopId, recipeId: activeRecipeId })}
+            onToggle={() => onFilterChange?.({ ...activeFilter, categoryId: toggledSelection(activeCategoryId, category.id) })}
           />
         ))}
       </div>
@@ -361,7 +362,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             key={shop.id}
             label={shop.name}
             selected={shop.id === activeShopId}
-            onToggle={() => onFilterChange?.({ categoryId: activeCategoryId, shopId: toggledSelection(activeShopId, shop.id), recipeId: activeRecipeId })}
+            onToggle={() => onFilterChange?.({ ...activeFilter, shopId: toggledSelection(activeShopId, shop.id) })}
           />
         ))}
       </div>
@@ -381,7 +382,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             key={recipe.id}
             label={recipe.title}
             selected={recipe.id === activeRecipe?.id}
-            onToggle={() => onFilterChange?.({ categoryId: activeCategoryId, shopId: activeShopId, recipeId: toggledSelection(activeRecipeId, recipe.id) })}
+            onToggle={() => onFilterChange?.({ ...activeFilter, recipeId: toggledSelection(activeRecipeId, recipe.id) })}
           />
         ))}
       </div>
