@@ -296,8 +296,8 @@ function ShoppingListRow({ item, neededBy, onTick }: ShoppingListRowProps) {
       headline={item.name}
       supporting={runningLow ? 'running low' : undefined}
       muted={runningLow}
-      trailing={chipLabels.length === 0 ? undefined : chipLabels.map((label) => (
-        <span key={label} class="recipe-chip">
+      trailing={chipLabels.length === 0 ? undefined : chipLabels.map(({ key, label }) => (
+        <span key={key} class="shopping-list__recipe-chip">
           {label}
         </span>
       ))}
@@ -309,8 +309,9 @@ function ShoppingListRow({ item, neededBy, onTick }: ShoppingListRowProps) {
 /** The most Recipes a row names one by one; any more collapse into the first Recipe's chip, "for <A> +n". */
 const MAX_NAMED_RECIPES = 2
 
-/** The chip labels for the Wanted Recipes `recipes` that need a row: one "for <title>" each, or "for <first> +n" past {@link MAX_NAMED_RECIPES}. */
-function recipeChipLabels(recipes: readonly RecipeRecord[]): string[] {
-  if (recipes.length <= MAX_NAMED_RECIPES) return recipes.map((recipe) => `for ${recipe.title}`)
-  return [`for ${recipes[0]!.title} +${recipes.length - 1}`]
+/** The chips, keyed by Recipe id, for the Wanted Recipes `recipes` that need a row: one "for <title>" each, or "for <first> +n" (n the other Recipes) past {@link MAX_NAMED_RECIPES}. */
+function recipeChipLabels(recipes: readonly RecipeRecord[]): { key: RecipeRecord['id']; label: string }[] {
+  if (recipes.length <= MAX_NAMED_RECIPES) return recipes.map((recipe) => ({ key: recipe.id, label: `for ${recipe.title}` }))
+  const first = recipes[0]!
+  return [{ key: first.id, label: `for ${first.title} +${recipes.length - 1}` }]
 }
