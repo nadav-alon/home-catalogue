@@ -132,3 +132,23 @@ describe('groupPendingItemsByShop with a chosen Store', () => {
     expect(groups[0]?.items).toEqual(items)
   })
 })
+
+describe('groupPendingItemsByShop with optional Items', () => {
+  const candles = item('candles', { necessity: 'optional' })
+
+  it('leaves out an optional Item no Wanted Recipe needs', () => {
+    expect(groupPendingItemsByShop([candles], [medicine], [pharmacy])).toEqual({ groups: [], unresolved: [] })
+  })
+
+  it('lists an optional Item a Wanted Recipe needs', () => {
+    const { groups } = groupPendingItemsByShop([candles], [medicine], [pharmacy], new Map(), new Set([candles.id]))
+    expect(groups).toEqual([{ shop: pharmacy, items: [candles] }])
+  })
+
+  it('lists an essential or important Item whether or not a Recipe needs it', () => {
+    const tape = item('tape', { necessity: 'important' })
+    const gauze = item('gauze')
+    const { groups } = groupPendingItemsByShop([tape, gauze], [medicine], [pharmacy])
+    expect(groups[0]?.items).toEqual([tape, gauze])
+  })
+})
