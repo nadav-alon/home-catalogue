@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { catalogue, core } from 'data-platform'
-import { addItemHandoffOf, returnUrl, returnUrlWithItem, categoryIdOf, DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, itemsHashOf, route, routeOf, shopIdOf, withCategoryAndShop } from './route.ts'
+import { catalogue, core, recipes } from 'data-platform'
+import { addItemHandoffOf, returnUrl, returnUrlWithItem, categoryIdOf, DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, itemsHashOf, route, recipeIdOf, routeOf, shopIdOf, withItemsFilter } from './route.ts'
 
 const ROUTE_HASHES = ['#/list', '#/items', '#/settings', '#/settings/shops', '#/settings/categories', '#/settings/tags'] as const
 
@@ -81,18 +81,28 @@ describe('Category and Shop filter in the hash', () => {
   })
 
   it('sets the Category and Shop, keeping the Item filter', () => {
-    const hash = withCategoryAndShop('#/items?item=a,b', { categoryId: groceries, shopId: pharmacy })
+    const hash = withItemsFilter('#/items?item=a,b', { categoryId: groceries, shopId: pharmacy, recipeId: undefined })
     expect(hash).toBe('#/items?item=a,b&category=groceries&shop=pharmacy')
     expect(itemIdsOf(hash)).toEqual([core.itemId('a'), core.itemId('b')])
   })
 
   it('replaces one and clears the other', () => {
-    const hash = withCategoryAndShop('#/items?category=old&shop=pharmacy', { categoryId: groceries, shopId: undefined })
+    const hash = withItemsFilter('#/items?category=old&shop=pharmacy', { categoryId: groceries, shopId: undefined, recipeId: undefined })
     expect(hash).toBe('#/items?category=groceries')
   })
 
+  it('reads the Recipe from a recipe query, and none when it is absent', () => {
+    expect(recipeIdOf('#/items?category=groceries&recipe=pancakes')).toBe(recipes.recipeId('pancakes'))
+    expect(recipeIdOf('#/items?item=a')).toBeUndefined()
+  })
+
+  it('sets and clears the Recipe, keeping the Item filter', () => {
+    expect(withItemsFilter('#/items?item=a', { categoryId: undefined, shopId: undefined, recipeId: recipes.recipeId('pancakes') })).toBe('#/items?item=a&recipe=pancakes')
+    expect(withItemsFilter('#/items?item=a&recipe=pancakes', { categoryId: undefined, shopId: undefined, recipeId: undefined })).toBe('#/items?item=a')
+  })
+
   it('names the bare Items screen once both are cleared', () => {
-    expect(withCategoryAndShop('#/items?category=a&shop=b', { categoryId: undefined, shopId: undefined })).toBe('#/items')
+    expect(withItemsFilter('#/items?category=a&shop=b', { categoryId: undefined, shopId: undefined, recipeId: undefined })).toBe('#/items')
   })
 })
 

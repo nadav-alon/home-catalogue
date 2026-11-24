@@ -1,9 +1,9 @@
 import { useState } from 'preact/hooks'
 import { act, render, renderHook } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { catalogue, core } from 'data-platform'
+import { catalogue, core, recipes } from 'data-platform'
 import { DEFAULT_ROUTE, hashOf, returnUrl, route } from './route.ts'
-import { clearAddItemHandoff, leaveTo, navigate, navigateToItems, useAddItemHandoff, setCategoryAndShop, useCategoryAndShop, useItemIds, useRoute } from './useRoute.ts'
+import { clearAddItemHandoff, leaveTo, navigate, navigateToItems, useAddItemHandoff, setItemsFilter, useItemsFilter, useItemIds, useRoute } from './useRoute.ts'
 import { Dialog } from 'household-ui/ui/Dialog.tsx'
 import { stubModalDialog } from '../testing/dialog.ts'
 import { resetHash } from '../testing/hash.ts'
@@ -132,7 +132,7 @@ describe('navigateToItems', () => {
 
   it('keeps the Category and Shop filters on the current hash', async () => {
     window.location.hash = '#/items?category=groceries&shop=pharmacy'
-    const { result } = renderHook(() => ({ filter: useCategoryAndShop(), ids: useItemIds() }))
+    const { result } = renderHook(() => ({ filter: useItemsFilter(), ids: useItemIds() }))
     await act(async () => {
       navigateToItems([core.itemId('a')])
       await nextHashChange()
@@ -198,43 +198,54 @@ describe('navigateToItems', () => {
   })
 })
 
-describe('useCategoryAndShop and setCategoryAndShop', () => {
+describe('useItemsFilter and setItemsFilter', () => {
   const groceries = catalogue.categoryId('groceries')
   const pharmacy = catalogue.shopId('pharmacy')
 
   it('reads the Category and Shop from the hash', () => {
     window.location.hash = '#/items?category=groceries&shop=pharmacy'
-    const { result } = renderHook(() => useCategoryAndShop())
-    expect(result.current).toEqual({ categoryId: groceries, shopId: pharmacy })
+    const { result } = renderHook(() => useItemsFilter())
+    expect(result.current).toEqual({ categoryId: groceries, shopId: pharmacy, recipeId: undefined })
   })
 
   it('pushes a history entry with the filter, keeping the scanned Item filter, and re-renders', async () => {
     window.location.hash = '#/items?item=a'
-    const { result } = renderHook(() => ({ filter: useCategoryAndShop(), ids: useItemIds() }))
+    const { result } = renderHook(() => ({ filter: useItemsFilter(), ids: useItemIds() }))
     const before = history.length
     await act(async () => {
-      setCategoryAndShop({ categoryId: groceries, shopId: pharmacy })
+      setItemsFilter({ categoryId: groceries, shopId: pharmacy, recipeId: undefined })
       await nextHashChange()
     })
     expect(window.location.hash).toBe('#/items?item=a&category=groceries&shop=pharmacy')
     expect(history.length).toBe(before + 1)
-    expect(result.current).toEqual({ filter: { categoryId: groceries, shopId: pharmacy }, ids: [core.itemId('a')] })
+    expect(result.current).toEqual({ filter: { categoryId: groceries, shopId: pharmacy, recipeId: undefined }, ids: [core.itemId('a')] })
+  })
+
+  it('reads the Recipe from the hash and keeps it across a scan', async () => {
+    window.location.hash = '#/items?recipe=pancakes'
+    const { result } = renderHook(() => useItemsFilter())
+    expect(result.current.recipeId).toBe(recipes.recipeId('pancakes'))
+    await act(async () => {
+      navigateToItems([core.itemId('a')])
+      await nextHashChange()
+    })
+    expect(window.location.hash).toBe('#/items?item=a&recipe=pancakes')
   })
 
   it('restores the earlier filter when Back is pressed after a chip press', async () => {
     window.location.hash = '#/items?category=groceries'
     await nextHashChange()
-    const { result } = renderHook(() => useCategoryAndShop())
+    const { result } = renderHook(() => useItemsFilter())
     await act(async () => {
-      setCategoryAndShop({ categoryId: undefined, shopId: pharmacy })
+      setItemsFilter({ categoryId: undefined, shopId: pharmacy, recipeId: undefined })
       await nextHashChange()
     })
-    expect(result.current).toEqual({ categoryId: undefined, shopId: pharmacy })
+    expect(result.current).toEqual({ categoryId: undefined, shopId: pharmacy, recipeId: undefined })
     await act(async () => {
       history.back()
       await vi.waitFor(() => expect(window.location.hash).toBe('#/items?category=groceries'))
     })
-    expect(result.current).toEqual({ categoryId: groceries, shopId: undefined })
+    expect(result.current).toEqual({ categoryId: groceries, shopId: undefined, recipeId: undefined })
   })
 })
 
