@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
-import type { core } from 'data-platform'
+import type { catalogue, core } from 'data-platform'
+import { setIngredientBought, watchRecipeIngredientShop } from 'data-platform/client'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, isLiveReference, itemsWithBarcode, restoreItem, restoreItemWithEdit, setItemState, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { createAisle, watchAisles, type AisleRecord } from './aisles.ts'
@@ -19,7 +20,7 @@ import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { showSnackbar } from 'household-ui/ui/Snackbar.tsx'
 import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
 import './ShoppingList.css'
-import { itemIdsNeededBy, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type WatchRecipes } from './recipes.ts'
+import { itemIdsNeededBy, recipeRowsOf, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type RecipeRow, type WatchRecipes } from './recipes.ts'
 
 export interface ShoppingListProps {
   db: Firestore
@@ -33,7 +34,12 @@ interface ShopGroup {
   shop?: ShopRecord
   name: string
   items: ItemRecord[]
+  /** The Recipe rows, listed after the Items. */
+  recipeRows: RecipeRow[]
 }
+
+/** The name of the final group holding Recipe rows when no Shop for Recipe Ingredients is set. */
+const NOT_IN_CATALOGUE_NAME = 'Not in the Catalogue'
 
 export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingListProps) {
   const [items, setItems] = useState<ItemRecord[] | null>(null)
@@ -45,10 +51,16 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   const [sortByAisle, setSortByAisle] = useState(getSortByAisle)
   const [chosenStoreIds, setChosenStoreIds] = useState(getChosenStoreIds)
   const [recipes, setRecipes] = useState<RecipeRecord[] | null>(null)
+  /** The Household's Shop for Recipe Ingredients: `undefined` when unset or not live, `null` until the setting has loaded. */
+  const [recipeShopId, setRecipeShopId] = useState<catalogue.ShopId | undefined | null>(null)
+  /** The latest Recipes, read when Undo is pressed rather than when the row was ticked. */
+  const latestRecipes = useRef<RecipeRecord[] | null>(null)
+  latestRecipes.current = recipes
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(() => watchRecipes(db, setRecipes), [db, watchRecipes])
+  useEffect(() => watchRecipeIngredientShop(db, setRecipeShopId, (err) => setError(err.message)), [db])
   useEffect(() => watchTags(db, setTags), [db])
   useEffect(() => watchAisles(db, setAisles), [db])
   useEffect(() => watchStores(db, setStores), [db])
@@ -96,6 +108,31 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
     showSnackbar({
       text,
       action: { label: 'Undo', onAction: () => void handleSetState(item, item.state) },
+    })
+  }
+
+  async function handleSetBought(row: RecipeRow, bought: boolean) {
+    try {
+      if (!bought) {
+        const current = latestRecipes.current?.find((recipe) => recipe.id === row.recipe.id)
+        if (current?.ingredients[row.position]?.name !== row.name) {
+          setError(`Could not undo: ${row.recipe.title} changed, so ${row.name} is still marked bought`)
+          return
+        }
+      }
+      await setIngredientBought(db, row.recipe.id, row.position, bought)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update the Ingredient')
+    }
+  }
+
+  /** Ticking a Recipe row marks its Ingredient Bought; Undo clears that. */
+  function handleTickRecipeRow(row: RecipeRow) {
+    void handleSetBought(row, true)
+    showSnackbar({
+      text: `Marked ${row.name} bought`,
+      action: { label: 'Undo', onAction: () => void handleSetBought(row, false) },
     })
   }
 
@@ -182,15 +219,18 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   const neededItemIds = itemIdsNeededBy(recipes ?? [])
   const recipesByItem = wantedRecipesByItem(recipes ?? [])
   const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops, sortingStores, neededItemIds)
-  const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
-    key: shop.id,
-    shop,
-    name: shop.name,
-    items: shopItems,
-  }))
+  const recipeRows = recipeRowsOf(recipes ?? [])
+  const recipeShop = shops.find((shop) => shop.id === recipeShopId)
+  const groups: ShopGroup[] = shops.flatMap((shop) => {
+    const shopItems = shopGroups.find((group) => group.shop.id === shop.id)?.items ?? []
+    const shopRecipeRows = shop.id === recipeShop?.id ? recipeRows : []
+    return shopItems.length === 0 && shopRecipeRows.length === 0 ? [] : [{ key: shop.id, shop, name: shop.name, items: shopItems, recipeRows: shopRecipeRows }]
+  })
   if (unresolved.length > 0) {
-    groups.push({ key: UNKNOWN_SHOP_NAME, name: UNKNOWN_SHOP_NAME, items: unresolved })
+    groups.push({ key: UNKNOWN_SHOP_NAME, name: UNKNOWN_SHOP_NAME, items: unresolved, recipeRows: [] })
   }
+
+  if (recipeShop === undefined && recipeRows.length > 0 && recipeShopId !== null && listsLoaded.shops) groups.push({ key: NOT_IN_CATALOGUE_NAME, name: NOT_IN_CATALOGUE_NAME, items: [], recipeRows })
 
   return (
     <section>
@@ -204,7 +244,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
       {items !== null && recipes !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
-      {groups.map(({ key, name, shop, items: groupItems }) => {
+      {groups.map(({ key, name, shop, items: groupItems, recipeRows: groupRecipeRows }) => {
         const options = sortByAisle && shop !== undefined ? storesOfShop(stores, shop) : []
         const sortingStore = shop === undefined ? undefined : sortingStores.get(shop.id)
         return (
@@ -229,6 +269,9 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
             <ul>
               {groupItems.map((item) => (
                 <ShoppingListRow key={item.id} item={item} neededBy={recipesByItem.get(item.id) ?? []} onTick={() => handleTick(item)} />
+              ))}
+              {groupRecipeRows.map((row) => (
+                <ShoppingListRecipeRow key={`${row.recipe.id}:${row.position}`} row={row} onTick={() => handleTickRecipeRow(row)} />
               ))}
             </ul>
           </div>
@@ -296,13 +339,33 @@ function ShoppingListRow({ item, neededBy, onTick }: ShoppingListRowProps) {
       headline={item.name}
       supporting={runningLow ? 'running low' : undefined}
       muted={runningLow}
-      trailing={chipLabels.length === 0 ? undefined : chipLabels.map(({ key, label }) => (
+      trailing={chipLabels.length === 0 ? undefined : <RecipeChips recipes={neededBy} />}
+      control={<input type="checkbox" checked={false} onChange={onTick} />}
+    />
+  )
+}
+
+/** A Recipe row: the Ingredient's name and its Recipe's chip, with no State flag. */
+function ShoppingListRecipeRow({ row, onTick }: { row: RecipeRow; onTick: () => void }) {
+  return (
+    <ListRow
+      headline={row.name}
+      trailing={<RecipeChips recipes={[row.recipe]} />}
+      control={<input type="checkbox" checked={false} onChange={onTick} />}
+    />
+  )
+}
+
+/** The "for <Recipe>" chips of a row: the one place a chip's markup and class live. */
+function RecipeChips({ recipes }: { recipes: readonly RecipeRecord[] }) {
+  return (
+    <>
+      {recipeChipLabels(recipes).map(({ key, label }) => (
         <span key={key} class="shopping-list__recipe-chip">
           {label}
         </span>
       ))}
-      control={<input type="checkbox" checked={false} onChange={onTick} />}
-    />
+    </>
   )
 }
 

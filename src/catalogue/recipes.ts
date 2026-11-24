@@ -43,11 +43,14 @@ export function linkedItemIds(recipe: recipes.Recipe): core.ItemId[] {
   return recipe.ingredients.flatMap((ingredient) => (ingredient.itemId === undefined ? [] : [ingredient.itemId]))
 }
 
+/** Whether `ingredient` is Unlinked: neither linked to an Item nor Assumed. */
+function isUnlinked(ingredient: recipes.Recipe['ingredients'][number]): boolean {
+  return ingredient.itemId === undefined && ingredient.assumed !== true
+}
+
 /** The distinct names of `recipe`'s Unlinked Ingredients: those neither linked to an Item nor Assumed. */
 export function unlinkedIngredientNames(recipe: recipes.Recipe): string[] {
-  const names = recipe.ingredients.flatMap((ingredient) =>
-    ingredient.itemId === undefined && ingredient.assumed !== true ? [ingredient.name] : [],
-  )
+  const names = recipe.ingredients.flatMap((ingredient) => (isUnlinked(ingredient) ? [ingredient.name] : []))
   return [...new Set(names)]
 }
 
@@ -64,4 +67,25 @@ export function wantedRecipesByItem(recipes: readonly RecipeRecord[]): Map<core.
     for (const itemId of new Set(linkedItemIds(recipe))) byItem.set(itemId, [...(byItem.get(itemId) ?? []), recipe])
   }
   return byItem
+}
+
+/** An Unlinked Ingredient of a Wanted Recipe that is not yet Bought: one Recipe row of the Shopping list. */
+export interface RecipeRow {
+  recipe: RecipeRecord
+  /** The Ingredient's 0-based position in `recipe.ingredients`, the position `setIngredientBought` takes. */
+  position: number
+  name: string
+}
+
+/** The Recipe rows of the Wanted Recipes among `recipes`, in Recipe then Ingredient order; linked, Assumed and Bought Ingredients give none. */
+export function recipeRowsOf(recipes: readonly RecipeRecord[]): RecipeRow[] {
+  return recipes.flatMap((recipe) =>
+    recipe.wanted !== true
+      ? []
+      : recipe.ingredients.flatMap((ingredient, position) =>
+          isUnlinked(ingredient) && ingredient.bought !== true
+            ? [{ recipe, position, name: ingredient.name }]
+            : [],
+        ),
+  )
 }

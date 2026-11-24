@@ -69,6 +69,14 @@ vi.mock('./tags.ts', async (importOriginal) => ({
   createTag: (db: unknown, name: unknown) => createTag(db, name),
 }))
 
+const watchRecipeIngredientShop = vi.fn()
+const setIngredientBought = vi.fn()
+vi.mock('data-platform/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('data-platform/client')>()),
+  watchRecipeIngredientShop: (...args: unknown[]) => watchRecipeIngredientShop(...args),
+  setIngredientBought: (...args: unknown[]) => setIngredientBought(...args),
+}))
+
 let recipes: FakeRecipes
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -99,6 +107,11 @@ beforeEach(() => {
     cb([])
     return vi.fn()
   })
+  watchRecipeIngredientShop.mockReset().mockImplementation((_db: unknown, cb: (shopId: catalogue.ShopId | undefined) => void) => {
+    cb(undefined)
+    return vi.fn()
+  })
+  setIngredientBought.mockReset().mockResolvedValue(undefined)
   localStorage.clear()
   resetSnackbar()
 })
@@ -1097,5 +1110,96 @@ describe('ShoppingList Recipe chips', () => {
     expect(screen.getAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)).toEqual(['Rice', 'Milk'])
     expect(chipsOf('Milk')).toEqual(['for Bread'])
     expect(chipsOf('Rice')).toEqual([])
+  })
+})
+
+describe('ShoppingList Recipe rows', () => {
+  afterEach(() => resetSnackbar())
+
+  const sriracha = { name: 'Sriracha' }
+  function recipeWith(ingredients: recipesApi.Recipe['ingredients'], id = 'noodles', wanted = true): RecipeRecord {
+    return { id: recipesApi.recipeId(id), title: 'Noodles', ingredients, prepSteps: [], steps: [], ...(wanted ? { wanted: true } : {}) }
+  }
+  function rowNames() {
+    return screen.queryAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)
+  }
+
+  it('shows an Unlinked Ingredient of a Wanted Recipe with its chip and no State flag, in a final "Not in the Catalogue" group when no Shop is set', () => {
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+
+    const group = screen.getByRole('heading', { name: 'Not in the Catalogue' }).parentElement!
+    const row = within(group).getByRole('listitem')
+    expect(row.querySelector('.ui-list-row__headline')?.textContent).toBe('Sriracha')
+    expect(row.querySelector('.shopping-list__recipe-chip')?.textContent).toBe('for Noodles')
+    expect(row.textContent).not.toMatch(/running low|out/)
+    expect(screen.queryByText('Nothing to buy — every Item is enough.')).toBeNull()
+  })
+
+  it('puts them in the Shop for Recipe Ingredients\' group after its Items, and in a group of their own when no Item is pending there', () => {
+    watchRecipeIngredientShop.mockImplementation((_db: unknown, cb: (shopId: catalogue.ShopId) => void) => {
+      cb(grocery.id)
+      return vi.fn()
+    })
+    const flour: ItemRecord = { id: core.itemId('flour'), name: 'Flour', state: 'out', categoryId: cleaning.id, shopId: grocery.id, necessity: 'essential', tagIds: [] }
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([flour], [cleaning], [pharmacy, grocery])
+
+    expect(screen.queryByRole('heading', { name: 'Not in the Catalogue' })).toBeNull()
+    expect(within(screen.getByRole('heading', { name: grocery.name }).parentElement!).getAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)).toEqual(['Flour', 'Sriracha'])
+    expect(screen.queryByRole('heading', { name: pharmacy.name })).toBeNull()
+  })
+
+  it('ticking one marks it Bought through the client and Undo clears it', () => {
+    recipes = fakeRecipes([recipeWith([{ name: 'Salt', assumed: true }, sriracha])])
+    renderWith([], [], [])
+    render(<SnackbarHost />)
+
+    fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
+
+    expect(setIngredientBought).toHaveBeenCalledWith(fakeDb, 'noodles', 1, true)
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 1, false)
+  })
+
+  it('lists no linked, Assumed or Bought Ingredient, and none of a Recipe that is not Wanted', () => {
+    recipes = fakeRecipes([
+      recipeWith([{ name: 'Candles', itemId: core.itemId('candles') }, { name: 'Salt', assumed: true }, { name: 'Honey', bought: true }]),
+      recipeWith([sriracha], 'other', false),
+    ])
+    renderWith([], [], [])
+
+    expect(rowNames()).toEqual([])
+  })
+
+  it('drops a ticked row once the Recipe comes back with it Bought', () => {
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+
+    fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
+    act(() => recipes.set([recipeWith([{ ...sriracha, bought: true }])]))
+
+    expect(rowNames()).toEqual([])
+  })
+
+  it('does not clear Bought on another Ingredient when Undo is pressed after the Recipe\'s Ingredients moved', () => {
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+    render(<SnackbarHost />)
+
+    fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
+    act(() => recipes.set([recipeWith([{ name: 'Salt', assumed: true }, { ...sriracha, bought: true }])]))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(setIngredientBought).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('alert').textContent).toMatch(/Could not undo/)
+  })
+
+  it('shows no "Not in the Catalogue" group until the Shop for Recipe Ingredients setting has loaded', () => {
+    watchRecipeIngredientShop.mockImplementation(() => vi.fn())
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+
+    expect(screen.queryByRole('heading', { name: 'Not in the Catalogue' })).toBeNull()
   })
 })
