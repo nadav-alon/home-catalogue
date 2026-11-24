@@ -290,13 +290,27 @@ interface ShoppingListRowProps {
 
 function ShoppingListRow({ item, neededBy, onTick }: ShoppingListRowProps) {
   const runningLow = item.state === 'running low'
+  const chipLabels = recipeChipLabels(neededBy)
   return (
     <ListRow
       headline={item.name}
       supporting={runningLow ? 'running low' : undefined}
       muted={runningLow}
-      trailing={neededBy.length > 0 ? neededBy.map((recipe) => <span key={recipe.id} class="recipe-chip">for {recipe.title}</span>) : undefined}
+      trailing={chipLabels.length === 0 ? undefined : chipLabels.map((label) => (
+        <span key={label} class="recipe-chip">
+          {label}
+        </span>
+      ))}
       control={<input type="checkbox" checked={false} onChange={onTick} />}
     />
   )
+}
+
+/** The most Recipes a row names one by one; any more collapse into the first Recipe's chip, "for <A> +n". */
+const MAX_NAMED_RECIPES = 2
+
+/** The chip labels for the Wanted Recipes `recipes` that need a row: one "for <title>" each, or "for <first> +n" past {@link MAX_NAMED_RECIPES}. */
+function recipeChipLabels(recipes: readonly RecipeRecord[]): string[] {
+  if (recipes.length <= MAX_NAMED_RECIPES) return recipes.map((recipe) => `for ${recipe.title}`)
+  return [`for ${recipes[0]!.title} +${recipes.length - 1}`]
 }

@@ -1043,3 +1043,34 @@ describe('ShoppingList Recipe chips', () => {
     expect(screen.getAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)).toEqual(['Flour', 'Salt'])
   })
 })
+
+describe('ShoppingList Recipe chips for several Recipes', () => {
+  const flour: ItemRecord = { ...bandages, id: core.itemId('flour'), name: 'Flour', state: 'out', categoryId: cleaning.id }
+
+  function recipesNeedingFlour(...titles: string[]): RecipeRecord[] {
+    return titles.map((title) => ({
+      id: recipesApi.recipeId(title.toLowerCase()),
+      title,
+      ingredients: [{ name: 'Flour', itemId: flour.id }],
+      prepSteps: [],
+      steps: [],
+      wanted: true,
+    }))
+  }
+
+  const chipsOfFlour = () => [...screen.getByText('Flour').closest('li')!.querySelectorAll('.recipe-chip')].map((chip) => chip.textContent)
+
+  it('shows one chip per Recipe when two need it', () => {
+    recipes = fakeRecipes(recipesNeedingFlour('Bread', 'Pie'))
+    renderWith([flour], [cleaning], [grocery])
+
+    expect(chipsOfFlour()).toEqual(['for Bread', 'for Pie'])
+  })
+
+  it('shows "for <A> +1" when three need it, counting every Recipe past the first', () => {
+    recipes = fakeRecipes(recipesNeedingFlour('Bread', 'Pie', 'Cake', 'Scones'))
+    renderWith([flour], [cleaning], [grocery])
+
+    expect(chipsOfFlour()).toEqual(['for Bread +3'])
+  })
+})
