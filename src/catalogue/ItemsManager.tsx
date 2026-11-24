@@ -65,6 +65,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [tags, setTags] = useState<TagRecord[]>([])
   const [aisles, setAisles] = useState<AisleRecord[]>([])
   const [recipes, setRecipes] = useState<RecipeRecord[]>([])
+  /** Whether `watchRecipes` has delivered, so a missing chosen Recipe means deleted, not not-yet-loaded. */
+  const [recipesLoaded, setRecipesLoaded] = useState(false)
   /** The Recipe whose chip is pressed; the list narrows to the Items its Ingredients link. */
   const [selectedRecipeId, setSelectedRecipeId] = useState<RecipeRecord['id'] | undefined>(undefined)
   // Undo outlives the render that deleted the Item, so it reads the Categories and Shops as they are when it is pressed.
@@ -174,7 +176,14 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
 
   useEffect(() => watchTags(db, setTags), [db])
   useEffect(() => watchAisles(db, setAisles), [db])
-  useEffect(() => watchRecipes(db, setRecipes), [db])
+  useEffect(
+    () =>
+      watchRecipes(db, (next) => {
+        setRecipes(next)
+        setRecipesLoaded(true)
+      }),
+    [db],
+  )
 
   async function handleScan(barcode: core.Barcode) {
     if (items === undefined) {
@@ -298,6 +307,10 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   // A Recipe that is deleted stops filtering, as a Category or Shop that names nothing live does.
   const activeRecipe = recipes.find((recipe) => recipe.id === selectedRecipeId)
   const recipeItemIds = useMemo(() => (activeRecipe === undefined ? undefined : new Set(linkedItemIds(activeRecipe))), [activeRecipe])
+  // A Recipe that is deleted is dropped from the choice for good, so it is not chosen again if it is restored.
+  useEffect(() => {
+    if (recipesLoaded && selectedRecipeId !== undefined && activeRecipe === undefined) setSelectedRecipeId(undefined)
+  }, [recipesLoaded, selectedRecipeId, activeRecipe])
   const unlinkedNames = activeRecipe === undefined ? [] : unlinkedIngredientNames(activeRecipe)
   const chipFiltered =
     activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0 || activeRecipe !== undefined

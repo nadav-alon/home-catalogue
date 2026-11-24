@@ -117,4 +117,10 @@ describe('Ingredient classification', () => {
     const { unlinkedIngredientNames } = await import('./recipes.ts')
     expect(unlinkedIngredientNames(recipe)).toEqual(['Sriracha', 'Honey'])
   })
+
+  it('unlinkedIngredientNames names an Ingredient once however many times the Recipe lists it', async () => {
+    const { unlinkedIngredientNames } = await import('./recipes.ts')
+    const salty = { ...recipe, ingredients: [{ name: 'Salt' }, { name: 'Honey' }, { name: 'Salt' }] }
+    expect(unlinkedIngredientNames(salty)).toEqual(['Salt', 'Honey'])
+  })
 })

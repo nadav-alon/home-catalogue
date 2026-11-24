@@ -43,9 +43,10 @@ export function linkedItemIds(recipe: recipes.Recipe): core.ItemId[] {
   return recipe.ingredients.flatMap((ingredient) => (ingredient.itemId === undefined ? [] : [ingredient.itemId]))
 }
 
-/** The names of `recipe`'s Unlinked Ingredients: those neither linked to an Item nor Assumed. */
+/** The distinct names of `recipe`'s Unlinked Ingredients: those neither linked to an Item nor Assumed. */
 export function unlinkedIngredientNames(recipe: recipes.Recipe): string[] {
-  return recipe.ingredients.flatMap((ingredient) =>
+  const names = recipe.ingredients.flatMap((ingredient) =>
     ingredient.itemId === undefined && ingredient.assumed !== true ? [ingredient.name] : [],
   )
+  return [...new Set(names)]
 }

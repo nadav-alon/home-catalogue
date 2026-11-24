@@ -2728,10 +2728,10 @@ describe('ItemsManager Recipe filter', () => {
     { name: 'Tape', itemId: tape.id },
   ])
 
-  function renderWithRecipes(initial: RecipeRecord[]) {
+  function renderWithRecipes(initial: RecipeRecord[], filter?: CategoryAndShop) {
     const fake = fakeRecipes(initial)
     watchRecipes.mockImplementation((db: Firestore, cb: (recipes: RecipeRecord[]) => void) => fake.watch(db, cb))
-    renderWith([bandages, tape, soap], [medicine, cleaning], [pharmacy, grocery])
+    renderWith([bandages, tape, soap], [medicine, cleaning], [pharmacy, grocery], undefined, undefined, { filter })
     return fake
   }
   const recipeChips = () => within(screen.getByRole('group', { name: 'Filter by Recipe' }))
@@ -2754,7 +2754,17 @@ describe('ItemsManager Recipe filter', () => {
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
   })
 
-  it('combines with the Category chips and the search', () => {
+  it('combines with the Category chips', () => {
+    renderWithRecipes([firstAid, cleanUp], { categoryId: cleaning.id, shopId: undefined })
+
+    fireEvent.click(recipeChips().getByRole('button', { name: 'Clean up' }))
+
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+    expect(screen.queryByText('Tape')).not.toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('combines with the search', () => {
     renderWithRecipes([firstAid, cleanUp])
 
     fireEvent.click(recipeChips().getByRole('button', { name: 'Clean up' }))
@@ -2792,6 +2802,26 @@ describe('ItemsManager Recipe filter', () => {
     act(() => fake.set([]))
 
     expect(screen.getByText('Dish soap')).toBeInTheDocument()
+  })
+
+  it('does not choose a deleted Recipe again when it is restored', () => {
+    const fake = renderWithRecipes([firstAid])
+    fireEvent.click(recipeChips().getByRole('button', { name: 'First aid' }))
+    act(() => fake.set([]))
+
+    act(() => fake.set([firstAid]))
+
+    expect(recipeChips().getByRole('button', { name: 'First aid', pressed: false })).toBeInTheDocument()
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+  })
+
+  it('names a duplicated Unlinked Ingredient once, with one Add button', () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
+
+    fireEvent.click(recipeChips().getByRole('button', { name: 'Curry' }))
+
+    expect(screen.getByText('1 Ingredient not in the Catalogue: Salt')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Add Salt to Catalogue' })).toHaveLength(1)
   })
 
   it('names the chosen Recipe’s Unlinked Ingredients, not its Assumed or linked ones', () => {
