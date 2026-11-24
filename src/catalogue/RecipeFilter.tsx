@@ -1,5 +1,6 @@
 import { FilterChip } from 'household-ui/ui/FilterChip.tsx'
 import type { RecipeRecord } from './recipes.ts'
+import { toggledSelection } from './selection.ts'
 import './RecipeFilter.css'
 
 export interface RecipeFilterProps {
@@ -19,7 +20,7 @@ export function RecipeFilter({ recipes, selectedId, onChange }: RecipeFilterProp
           key={recipe.id}
           label={recipe.title}
           selected={recipe.id === selectedId}
-          onToggle={() => onChange(recipe.id === selectedId ? undefined : recipe.id)}
+          onToggle={() => onChange(toggledSelection(selectedId, recipe.id))}
         />
       ))}
     </div>

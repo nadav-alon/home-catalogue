@@ -21,7 +21,7 @@ import { showSnackbar } from 'household-ui/ui/Snackbar.tsx'
 import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
 import './ShoppingList.css'
 import { RecipeFilter } from './RecipeFilter.tsx'
-import { itemIdsNeededBy, linkedItemIds, recipeRowsOf, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type RecipeRow, type WatchRecipes } from './recipes.ts'
+import { chosenRecipe, itemIdsNeededBy, recipeRowsOf, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type RecipeRow, type WatchRecipes } from './recipes.ts'
 
 export interface ShoppingListProps {
   db: Firestore
@@ -58,7 +58,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   const latestRecipes = useRef<RecipeRecord[] | null>(null)
   latestRecipes.current = recipes
   /** The Recipe the list is narrowed to; one that is deleted stops filtering. */
-  const [filterRecipeId, setFilterRecipeId] = useState<RecipeRecord['id']>()
+  const [selectedRecipeId, setSelectedRecipeId] = useState<RecipeRecord['id']>()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchItems(db, setItems), [db])
@@ -221,11 +221,11 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   const sortingStores = storesToSortBy(sortByAisle, shops, stores, aisles, chosenStoreIds)
   const neededItemIds = itemIdsNeededBy(recipes ?? [])
   const recipesByItem = wantedRecipesByItem(recipes ?? [])
-  const filterRecipe = recipes?.find((recipe) => recipe.id === filterRecipeId)
-  const filterItemIds = filterRecipe === undefined ? undefined : new Set(linkedItemIds(filterRecipe))
-  const shownItems = (items ?? []).filter((item) => filterItemIds === undefined || filterItemIds.has(item.id))
+  const selected = chosenRecipe(recipes ?? [], selectedRecipeId)
+  const selectedRecipe = selected?.recipe
+  const shownItems = (items ?? []).filter((item) => selected === undefined || selected.itemIds.has(item.id))
   const { groups: shopGroups, unresolved } = groupPendingItemsByShop(shownItems, categories, shops, sortingStores, neededItemIds)
-  const recipeRows = recipeRowsOf(recipes ?? []).filter((row) => filterRecipe === undefined || row.recipe.id === filterRecipe.id)
+  const recipeRows = recipeRowsOf(recipes ?? []).filter((row) => selectedRecipe === undefined || row.recipe.id === selectedRecipe.id)
   const recipeShop = shops.find((shop) => shop.id === recipeShopId)
   const groups: ShopGroup[] = shops.flatMap((shop) => {
     const shopItems = shopGroups.find((group) => group.shop.id === shop.id)?.items ?? []
@@ -245,9 +245,9 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
         Sort by aisle
       </label>
       <ScanEntry onScan={handleScan} />
-      <RecipeFilter recipes={recipes ?? []} selectedId={filterRecipe?.id} onChange={setFilterRecipeId} />
+      <RecipeFilter recipes={recipes ?? []} selectedId={selectedRecipe?.id} onChange={setSelectedRecipeId} />
       <AlertBanner items={items ?? []} />
-      {/* Export reads every Item, never the filtered ones. */}
+      {/* Export ignores the Recipe filter. */}
       <CalendarExport items={items ?? []} categories={categories} shops={shops} sortingStores={sortingStores} neededItemIds={neededItemIds} />
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
