@@ -1,5 +1,6 @@
 import { useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
+import type { core } from "data-platform";
 import type { CategoryRecord } from "../catalogue/categories.ts";
 import type { ItemRecord } from "../catalogue/items.ts";
 import type { ShopRecord } from "../catalogue/shops.ts";
@@ -22,6 +23,8 @@ export interface CalendarExportProps {
   shops: ShopRecord[];
   /** The Store the Shopping list sorts each Shop's Items by; the event lists them in that order. None for a Shop not sorted by aisle. */
   sortingStores?: SortingStores;
+  /** The Items some Wanted Recipe needs; an optional Item is exported only if it is among them. */
+  neededItemIds?: ReadonlySet<core.ItemId>;
 }
 
 type ExportStatus =
@@ -52,6 +55,7 @@ export function CalendarExport({
   categories,
   shops,
   sortingStores,
+  neededItemIds,
 }: CalendarExportProps) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
@@ -67,6 +71,7 @@ export function CalendarExport({
     categories,
     shops,
     sortingStores,
+    neededItemIds,
   );
 
   // With nothing left to export, a pressed Export would replace the result's fallback links with an error.

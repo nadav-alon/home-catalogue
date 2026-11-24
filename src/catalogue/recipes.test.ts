@@ -124,3 +124,23 @@ describe('Ingredient classification', () => {
     expect(unlinkedIngredientNames(salty)).toEqual(['Salt', 'Honey'])
   })
 })
+
+describe('itemIdsNeededBy', () => {
+  const recipe = (id: string, over: object): import('./recipes.ts').RecipeRecord => ({
+    id: recipes.recipeId(id),
+    title: id,
+    ingredients: [],
+    prepSteps: [],
+    steps: [],
+    ...over,
+  })
+
+  it('names the Items a Wanted Recipe links, not those of an unwanted Recipe or an unlinked Ingredient', async () => {
+    const { itemIdsNeededBy } = await import('./recipes.ts')
+    const needed = itemIdsNeededBy([
+      recipe('bread', { wanted: true, ingredients: [{ name: 'Flour', itemId: 'flour' }, { name: 'Salt', assumed: true }, { name: 'Saffron' }] }),
+      recipe('soup', { ingredients: [{ name: 'Leek', itemId: 'leek' }] }),
+    ])
+    expect([...needed]).toEqual(['flour'])
+  })
+})

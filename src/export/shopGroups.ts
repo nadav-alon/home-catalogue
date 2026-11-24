@@ -1,3 +1,4 @@
+import type { core } from 'data-platform'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ItemRecord } from '../catalogue/items.ts'
 import { groupPendingItemsByShop, type PendingShopGroup } from '../catalogue/pendingItemsByShop.ts'
@@ -24,14 +25,16 @@ export interface PendingItemGroups {
  * Shopping list's own "Unknown Shop" bucket, which is a display-only affordance) and counted in
  * `unresolvedCount` instead. So is an Item whose resolved Shop has no record in `shops`.
  * Each group's Items are in the order the Shopping list shows them: pass the Stores the list sorts
- * by as `sortingStores`, none when it is not sorted by aisle.
+ * by as `sortingStores`, none when it is not sorted by aisle. `neededItemIds` is the Shopping list's: an optional
+ * Item is exported only while a Wanted Recipe needs it.
  */
 export function pendingItemsByShop(
   items: ItemRecord[],
   categories: CategoryRecord[],
   shops: ShopRecord[],
   sortingStores: SortingStores = new Map(),
+  neededItemIds: ReadonlySet<core.ItemId> = new Set(),
 ): PendingItemGroups {
-  const { groups, unresolved } = groupPendingItemsByShop(items, categories, shops, sortingStores)
+  const { groups, unresolved } = groupPendingItemsByShop(items, categories, shops, sortingStores, neededItemIds)
   return { groups, unresolvedCount: unresolved.length, nothingToBuy: groups.length === 0 && unresolved.length === 0 }
 }
