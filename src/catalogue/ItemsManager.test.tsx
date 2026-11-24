@@ -2793,4 +2793,38 @@ describe('ItemsManager Recipe filter', () => {
 
     expect(screen.getByText('Dish soap')).toBeInTheDocument()
   })
+
+  it('names the chosen Recipe’s Unlinked Ingredients, not its Assumed or linked ones', () => {
+    renderWithRecipes([
+      recipe('curry', 'Curry', [
+        { name: 'Tape', itemId: tape.id },
+        { name: 'Salt', assumed: true },
+        { name: 'Sriracha' },
+        { name: 'Honey' },
+      ]),
+    ])
+    expect(screen.queryByText(/not in the Catalogue/)).not.toBeInTheDocument()
+
+    fireEvent.click(recipeChips().getByRole('button', { name: 'Curry' }))
+
+    expect(screen.getByText('2 Ingredients not in the Catalogue: Sriracha, Honey')).toBeInTheDocument()
+  })
+
+  it('says nothing when every Ingredient is in the Catalogue', () => {
+    renderWithRecipes([firstAid])
+
+    fireEvent.click(recipeChips().getByRole('button', { name: 'First aid' }))
+
+    expect(screen.queryByText(/not in the Catalogue/)).not.toBeInTheDocument()
+  })
+
+  it('opens the add-Item dialog prefilled with the Unlinked Ingredient’s name', () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Sriracha' }, { name: 'Honey' }])])
+    fireEvent.click(recipeChips().getByRole('button', { name: 'Curry' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Honey to Catalogue' }))
+
+    expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Honey')
+  })
 })
