@@ -1203,3 +1203,52 @@ describe('ShoppingList Recipe rows', () => {
     expect(screen.queryByRole('heading', { name: 'Not in the Catalogue' })).toBeNull()
   })
 })
+
+describe('ShoppingList filter by Recipe', () => {
+  afterEach(() => resetSnackbar())
+
+  const candles: ItemRecord = { id: core.itemId('candles'), name: 'Candles', state: 'out', categoryId: cleaning.id, shopId: grocery.id, necessity: 'essential', tagIds: [] }
+  const soap: ItemRecord = { id: core.itemId('soap'), name: 'Soap', state: 'out', categoryId: cleaning.id, shopId: pharmacy.id, necessity: 'essential', tagIds: [] }
+  const party: RecipeRecord = { ...wantedRecipeNeeding('candles'), ingredients: [{ name: 'Candles', itemId: candles.id }, { name: 'Sriracha' }] }
+  const wash: RecipeRecord = { id: recipesApi.recipeId('wash'), title: 'Wash', ingredients: [{ name: 'Soap', itemId: soap.id }, { name: 'Rags' }], prepSteps: [], steps: [], wanted: true }
+  const rowNames = () => screen.queryAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)
+
+  function renderFiltered() {
+    watchRecipeIngredientShop.mockImplementation((_db: unknown, cb: (shopId: catalogue.ShopId) => void) => {
+      cb(grocery.id)
+      return vi.fn()
+    })
+    recipes = fakeRecipes([party, wash])
+    renderWith([candles, soap], [cleaning], [grocery, pharmacy])
+  }
+
+  it('narrows each Shop group to the Recipe\'s linked Items and its own Recipe rows, hiding empty groups, and restores the list when cleared', () => {
+    renderFiltered()
+    expect(rowNames()).toEqual(['Candles', 'Sriracha', 'Rags', 'Soap'])
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Filter by Recipe' })).getByRole('button', { name: 'Wash' }))
+    expect(rowNames()).toEqual(['Rags', 'Soap'])
+    expect(screen.queryByRole('heading', { name: grocery.name })).not.toBeNull()
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Filter by Recipe' })).getByRole('button', { name: 'Wash' }))
+    expect(rowNames()).toEqual(['Candles', 'Sriracha', 'Rags', 'Soap'])
+  })
+
+  it('hides a Shop group the Recipe has nothing in', () => {
+    renderFiltered()
+    recipes.set([party, { ...wash, ingredients: [{ name: 'Soap', itemId: soap.id }] }])
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'Filter by Recipe' })).getByRole('button', { name: 'Wash' }))
+
+    expect(screen.queryByRole('heading', { name: grocery.name })).toBeNull()
+    expect(rowNames()).toEqual(['Soap'])
+  })
+
+  it('leaves the filter off when its Recipe is deleted', () => {
+    renderFiltered()
+    fireEvent.click(within(screen.getByRole('group', { name: 'Filter by Recipe' })).getByRole('button', { name: 'Wash' }))
+    act(() => recipes.set([party]))
+
+    expect(rowNames()).toEqual(['Candles', 'Sriracha', 'Soap'])
+  })
+})
