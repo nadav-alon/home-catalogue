@@ -95,3 +95,13 @@ describe('pendingItemsByShop with a chosen Store', () => {
     expect(groups).toEqual([{ shop: grocery, items: [rice, milk] }])
   })
 })
+
+describe('pendingItemsByShop with optional Items', () => {
+  const candles = { ...bandages, id: core.itemId('candles'), name: 'Candles', necessity: 'optional' as const }
+
+  it('exports an optional Item only while a Wanted Recipe needs it', () => {
+    expect(pendingItemsByShop([{ ...candles, state: 'out' }], [medicine], [pharmacy])).toMatchObject({ groups: [], nothingToBuy: true })
+    const { groups } = pendingItemsByShop([{ ...candles, state: 'out' }], [medicine], [pharmacy], new Map(), new Set([candles.id]))
+    expect(groups.flatMap((group) => group.items.map((item) => item.name))).toEqual(['Candles'])
+  })
+})

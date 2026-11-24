@@ -83,7 +83,7 @@ on the exported event) or **soon** (advisory banner).
 
 **Shopping list**:
 Live view of every Item at `running low` or `out`, grouped by Shop, `running low` rows
-flagged with their State. Ticking an Item sets it `enough` and shows an Undo snackbar; so does scanning its Barcode, whether or not the Item was on the list; so does attaching an unknown Barcode to an Item through the chooser; an Item already `enough` is left as it is, with no Undo.
+flagged with their State. An `optional` Item is listed only while some Wanted Recipe links an Ingredient to it. Ticking an Item sets it `enough` and shows an Undo snackbar; so does scanning its Barcode, whether or not the Item was on the list; so does attaching an unknown Barcode to an Item through the chooser; an Item already `enough` is left as it is, with no Undo.
 A "Sort by aisle" toggle, per device and off by default, sorts each Shop group by a Store's aisle order: Items sharing an Aisle by name, Items with no Aisle (or one the Store has not placed) at the bottom by name. A Shop with several Stores shows a Store dropdown at its group header, the choice remembered per device; one Store is used silently; none leaves plain name order.
 Canonical; works offline.
 
