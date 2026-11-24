@@ -1134,6 +1134,20 @@ describe('ShoppingList Recipe rows', () => {
     expect(screen.queryByText('Nothing to buy — every Item is enough.')).toBeNull()
   })
 
+  it('puts them in the Shop for Recipe Ingredients\' group after its Items, and in a group of their own when no Item is pending there', () => {
+    watchRecipeIngredientShop.mockImplementation((_db: unknown, cb: (shopId: catalogue.ShopId) => void) => {
+      cb(grocery.id)
+      return vi.fn()
+    })
+    const flour: ItemRecord = { id: core.itemId('flour'), name: 'Flour', state: 'out', categoryId: cleaning.id, shopId: grocery.id, necessity: 'essential', tagIds: [] }
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([flour], [cleaning], [pharmacy, grocery])
+
+    expect(screen.queryByRole('heading', { name: 'Not in the Catalogue' })).toBeNull()
+    expect(within(screen.getByRole('heading', { name: grocery.name }).parentElement!).getAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)).toEqual(['Flour', 'Sriracha'])
+    expect(screen.queryByRole('heading', { name: pharmacy.name })).toBeNull()
+  })
+
   it('lists no Linked, Assumed or Bought Ingredient, and none of a Recipe that is not Wanted', () => {
     recipes = fakeRecipes([
       recipeWith([{ name: 'Candles', itemId: core.itemId('candles') }, { name: 'Salt', assumed: true }, { name: 'Honey', bought: true }]),

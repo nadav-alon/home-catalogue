@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
-import type { core } from 'data-platform'
+import type { catalogue, core } from 'data-platform'
+import { watchRecipeIngredientShop } from 'data-platform/client'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, isLiveReference, itemsWithBarcode, restoreItem, restoreItemWithEdit, setItemState, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { createAisle, watchAisles, type AisleRecord } from './aisles.ts'
@@ -50,10 +51,13 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   const [sortByAisle, setSortByAisle] = useState(getSortByAisle)
   const [chosenStoreIds, setChosenStoreIds] = useState(getChosenStoreIds)
   const [recipes, setRecipes] = useState<RecipeRecord[] | null>(null)
+  /** The Household's Shop for Recipe Ingredients, if set and live. */
+  const [recipeShopId, setRecipeShopId] = useState<catalogue.ShopId>()
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchItems(db, setItems), [db])
   useEffect(() => watchRecipes(db, setRecipes), [db, watchRecipes])
+  useEffect(() => watchRecipeIngredientShop(db, setRecipeShopId, (err) => setError(err.message)), [db])
   useEffect(() => watchTags(db, setTags), [db])
   useEffect(() => watchAisles(db, setAisles), [db])
   useEffect(() => watchStores(db, setStores), [db])
@@ -187,19 +191,18 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   const neededItemIds = itemIdsNeededBy(recipes ?? [])
   const recipesByItem = wantedRecipesByItem(recipes ?? [])
   const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops, sortingStores, neededItemIds)
-  const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
-    key: shop.id,
-    shop,
-    name: shop.name,
-    items: shopItems,
-    recipeRows: [],
-  }))
+  const recipeRows = recipeRowsOf(recipes ?? [])
+  const recipeShop = shops.find((shop) => shop.id === recipeShopId)
+  const groups: ShopGroup[] = shops.flatMap((shop) => {
+    const shopItems = shopGroups.find((group) => group.shop.id === shop.id)?.items ?? []
+    const shopRecipeRows = shop.id === recipeShop?.id ? recipeRows : []
+    return shopItems.length === 0 && shopRecipeRows.length === 0 ? [] : [{ key: shop.id, shop, name: shop.name, items: shopItems, recipeRows: shopRecipeRows }]
+  })
   if (unresolved.length > 0) {
     groups.push({ key: UNKNOWN_SHOP_NAME, name: UNKNOWN_SHOP_NAME, items: unresolved, recipeRows: [] })
   }
 
-  const recipeRows = recipeRowsOf(recipes ?? [])
-  if (recipeRows.length > 0) groups.push({ key: NOT_IN_CATALOGUE_NAME, name: NOT_IN_CATALOGUE_NAME, items: [], recipeRows })
+  if (recipeShop === undefined && recipeRows.length > 0) groups.push({ key: NOT_IN_CATALOGUE_NAME, name: NOT_IN_CATALOGUE_NAME, items: [], recipeRows })
 
   return (
     <section>

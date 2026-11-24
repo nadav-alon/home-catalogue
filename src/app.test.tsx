@@ -71,6 +71,7 @@ vi.mock('./members/invites.ts', async (importOriginal) => ({
 vi.mock('data-platform/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('data-platform/client')>()),
   authClient: () => ({ currentUid: () => undefined }),
+  watchRecipeIngredientShop: () => vi.fn(),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
