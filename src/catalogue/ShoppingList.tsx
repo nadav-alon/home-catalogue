@@ -43,7 +43,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   const [stores, setStores] = useState<StoreRecord[]>([])
   const [sortByAisle, setSortByAisle] = useState(getSortByAisle)
   const [chosenStoreIds, setChosenStoreIds] = useState(getChosenStoreIds)
-  const [recipes, setRecipes] = useState<RecipeRecord[]>([])
+  const [recipes, setRecipes] = useState<RecipeRecord[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchItems(db, setItems), [db])
@@ -178,7 +178,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   }
 
   const sortingStores = storesToSortBy(sortByAisle, shops, stores, aisles, chosenStoreIds)
-  const neededItemIds = itemIdsNeededBy(recipes)
+  const neededItemIds = itemIdsNeededBy(recipes ?? [])
   const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops, sortingStores, neededItemIds)
   const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
     key: shop.id,
@@ -201,7 +201,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
       <CalendarExport items={items ?? []} categories={categories} shops={shops} sortingStores={sortingStores} neededItemIds={neededItemIds} />
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
-      {items !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
+      {items !== null && recipes !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
       {groups.map(({ key, name, shop, items: groupItems }) => {
         const options = sortByAisle && shop !== undefined ? storesOfShop(stores, shop) : []
         const sortingStore = shop === undefined ? undefined : sortingStores.get(shop.id)

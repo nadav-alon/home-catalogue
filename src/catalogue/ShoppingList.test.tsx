@@ -553,6 +553,20 @@ describe('a scanned barcode', () => {
     await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, bandages, 'enough'))
   })
 
+  it('sets a needed optional Item enough by its Barcode, with an Undo that restores its State', async () => {
+    render(<SnackbarHost />)
+    const optional: ItemRecord = { ...bandages, necessity: 'optional' }
+    recipes = fakeRecipes([wantedRecipeNeeding('bandages')])
+    renderWith([optional], [medicine], [pharmacy])
+
+    scan()
+
+    await waitFor(() => expect(setItemState).toHaveBeenCalledWith(fakeDb, optional, 'enough'))
+    setItemState.mockClear()
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    expect(setItemState).toHaveBeenCalledWith(fakeDb, optional, 'out')
+  })
+
   it('says an Item that is already enough is, without a write or an Undo', async () => {
     render(<SnackbarHost />)
     const stocked: ItemRecord = { ...bandages, state: 'enough' }
@@ -981,6 +995,13 @@ describe('ShoppingList optional Items', () => {
     act(() => recipes.set([wantedRecipeNeeding('candles'), other]))
     act(() => recipes.set([wantedRecipeNeeding('candles', false), other]))
     expect(screen.getByText('Candles')).toBeInTheDocument()
+  })
+
+  it('does not claim there is nothing to buy while the Recipes are still loading', () => {
+    recipes = { watch: () => vi.fn(), set: vi.fn() }
+    renderWith([candles], [cleaning], [grocery])
+
+    expect(screen.queryByText('Nothing to buy — every Item is enough.')).not.toBeInTheDocument()
   })
 
   it('ticks a needed optional Item enough like any other', () => {

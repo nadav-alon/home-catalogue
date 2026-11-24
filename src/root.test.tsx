@@ -56,6 +56,10 @@ vi.mock('./catalogue/tags.ts', () => ({
 vi.mock('./catalogue/categories.ts', () => ({
   watchCategories: () => vi.fn(),
 }))
+vi.mock('./catalogue/recipes.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./catalogue/recipes.ts')>()),
+  watchRecipes: () => vi.fn(),
+}))
 vi.mock('./catalogue/items.ts', () => ({
   watchItems: () => vi.fn(),
   createItem: vi.fn(),
