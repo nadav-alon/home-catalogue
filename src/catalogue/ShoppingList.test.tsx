@@ -1162,7 +1162,7 @@ describe('ShoppingList Recipe rows', () => {
     expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 1, false)
   })
 
-  it('lists no Linked, Assumed or Bought Ingredient, and none of a Recipe that is not Wanted', () => {
+  it('lists no linked, Assumed or Bought Ingredient, and none of a Recipe that is not Wanted', () => {
     recipes = fakeRecipes([
       recipeWith([{ name: 'Candles', itemId: core.itemId('candles') }, { name: 'Salt', assumed: true }, { name: 'Honey', bought: true }]),
       recipeWith([sriracha], 'other', false),
