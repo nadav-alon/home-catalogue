@@ -98,3 +98,13 @@ export function recipeRowsOf(recipes: readonly RecipeRecord[]): RecipeRow[] {
         ),
   )
 }
+
+/** The most Recipes a row names one by one; any more collapse into the first Recipe's chip, "for <A> +n". */
+const MAX_NAMED_RECIPES = 2
+
+/** The chips, keyed by Recipe id, for the Wanted Recipes `recipes` that need a row: one "for <title>" each, or "for <first> +n" (n the other Recipes) past {@link MAX_NAMED_RECIPES}. */
+export function recipeChipLabels(recipes: readonly RecipeRecord[]): { key: RecipeRecord['id']; label: string }[] {
+  if (recipes.length <= MAX_NAMED_RECIPES) return recipes.map((recipe) => ({ key: recipe.id, label: `for ${recipe.title}` }))
+  const first = recipes[0]!
+  return [{ key: first.id, label: `for ${first.title} +${recipes.length - 1}` }]
+}

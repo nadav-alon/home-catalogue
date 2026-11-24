@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { act, fireEvent, render, screen, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { catalogue, core } from 'data-platform'
+import { catalogue, core, recipes } from 'data-platform'
 import { CalendarExport } from './CalendarExport.tsx'
 import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
+import { wantedRecipesByItem, type RecipeRecord } from '../catalogue/recipes.ts'
+import { shoppingListGroups } from '../catalogue/shoppingListGroups.ts'
 import type { ItemRecord } from '../catalogue/items.ts'
 import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ShopRecord } from '../catalogue/shops.ts'
@@ -15,7 +17,7 @@ import type { ExportResult } from './exportShoppingList.ts'
 
 const exportShoppingList = vi.fn()
 vi.mock('./exportShoppingList.ts', () => ({
-  exportShoppingList: (groups: unknown, date: unknown) => exportShoppingList(groups, date),
+  exportShoppingList: (groups: unknown, neededBy: unknown, date: unknown) => exportShoppingList(groups, neededBy, date),
 }))
 
 const outBandages: ItemRecord = { ...bandages, state: 'out' }
@@ -51,18 +53,20 @@ function renderExport(
   categories: CategoryRecord[] = [medicine],
   shops: ShopRecord[] = [pharmacy],
   sortingStores: SortingStores = new Map(),
+  recipes: RecipeRecord[] = [],
+  recipeShopId: catalogue.ShopId | undefined = undefined,
 ) {
   const bar = (current: ItemRecord[]) => (
     <TopAppBar title="Shopping list">
-      <CalendarExport items={current} categories={categories} shops={shops} sortingStores={sortingStores} neededItemIds={new Set()} />
+      <CalendarExport groups={shoppingListGroups(current, categories, shops, sortingStores, recipes, recipeShopId)} recipesByItem={wantedRecipesByItem(recipes)} />
     </TopAppBar>
   )
   const view = render(bar(items))
   return { rerender: (current: ItemRecord[]) => view.rerender(bar(current)) }
 }
 
-function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[], sortingStores: SortingStores = new Map()) {
-  const view = renderExport(items, categories, shops, sortingStores)
+function renderWith(items: ItemRecord[], categories: CategoryRecord[], shops: ShopRecord[], sortingStores: SortingStores = new Map(), recipes: RecipeRecord[] = [], recipeShopId?: catalogue.ShopId) {
+  const view = renderExport(items, categories, shops, sortingStores, recipes, recipeShopId)
   fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
   return view
 }
@@ -85,6 +89,16 @@ async function startExportThenClose() {
 }
 
 describe('CalendarExport', () => {
+  it('exports a Recipe row in its own Not in the Catalogue event when no Shop for Recipe Ingredients is set', async () => {
+    const party: RecipeRecord = { id: recipes.recipeId('party'), title: 'Party', ingredients: [{ name: 'Balloons' }], prepSteps: [], steps: [], wanted: true }
+    exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
+    renderWith([], [medicine], [pharmacy], new Map(), [party])
+
+    await submit('2026-03-05')
+
+    expect(exportShoppingList).toHaveBeenCalledWith([{ groupName: 'Not in the Catalogue', items: [], recipeRows: [{ recipe: party, position: 0, name: 'Balloons' }] }], new Map(), '2026-03-05')
+  })
+
   it("exports a Shop's Items in the aisle order of the Store the list is sorted by", async () => {
     const aisleA = catalogue.aisleId('a')
     const aisleB = catalogue.aisleId('b')
@@ -96,7 +110,7 @@ describe('CalendarExport', () => {
 
     await submit('2026-03-05')
 
-    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: grocery, items: [milk, rice] }], '2026-03-05')
+    expect(exportShoppingList).toHaveBeenCalledWith([{ groupName: grocery.name, items: [milk, rice], recipeRows: [] }], new Map(), '2026-03-05')
   })
 
   it('lays out the dialog actions in the shared action row', () => {
@@ -156,7 +170,7 @@ describe('CalendarExport', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Export' }))
       })
 
-      expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+      expect(exportShoppingList).toHaveBeenCalledWith([{ groupName: pharmacy.name, items: [outBandages], recipeRows: [] }], new Map(), '2026-03-05')
     })
   })
 
@@ -209,7 +223,7 @@ describe('CalendarExport', () => {
 
     await submit('2026-03-05')
 
-    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+    expect(exportShoppingList).toHaveBeenCalledWith([{ groupName: pharmacy.name, items: [outBandages], recipeRows: [] }], new Map(), '2026-03-05')
     expect(screen.getByRole('status')).toHaveTextContent('Exported to Calendar.')
   })
 
@@ -222,7 +236,7 @@ describe('CalendarExport', () => {
   it('shows a deep link per Shop when the export falls back', async () => {
     exportShoppingList.mockResolvedValueOnce({
       status: 'fallback',
-      links: [{ shopName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }],
+      links: [{ groupName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }],
     })
     renderWith([outBandages], [medicine], [pharmacy])
 
@@ -290,7 +304,7 @@ describe('CalendarExport', () => {
   it('shows no fallback links when the dialog is reopened after a fallback', async () => {
     exportShoppingList.mockResolvedValueOnce({
       status: 'fallback',
-      links: [{ shopName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }],
+      links: [{ groupName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }],
     })
     renderWith([outBandages], [medicine], [pharmacy])
     await submit('2026-03-05')
@@ -334,7 +348,7 @@ describe('CalendarExport', () => {
   it('keeps fallback links that landed while the dialog was closed reachable after the list empties', async () => {
     const { view, finish } = await startExportThenClose()
     view.rerender([])
-    await finish({ status: 'fallback' as const, links: [{ shopName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }] })
+    await finish({ status: 'fallback' as const, links: [{ groupName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }] })
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
 
@@ -344,7 +358,7 @@ describe('CalendarExport', () => {
   it('keeps the unseen fallback links when Export is pressed with an empty list', async () => {
     const { view, finish } = await startExportThenClose()
     view.rerender([])
-    await finish({ status: 'fallback' as const, links: [{ shopName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }] })
+    await finish({ status: 'fallback' as const, links: [{ groupName: 'Pharmacy', url: 'https://calendar.google.com/calendar/render?text=Pharmacy' }] })
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
 
     const exportButton = screen.getByRole('button', { name: 'Export' })
@@ -414,7 +428,7 @@ describe('CalendarExport', () => {
     ).toBeInTheDocument()
     await submit('2026-03-05')
 
-    expect(exportShoppingList).toHaveBeenCalledWith([{ shop: pharmacy, items: [outBandages] }], '2026-03-05')
+    expect(exportShoppingList).toHaveBeenCalledWith([{ groupName: pharmacy.name, items: [outBandages], recipeRows: [] }], new Map(), '2026-03-05')
   })
 
   it('uses the singular when one pending Item needs a Shop', async () => {

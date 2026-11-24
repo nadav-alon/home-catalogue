@@ -3,10 +3,10 @@ import { shopDeepLink } from './calendarDeepLink.ts'
 import type { ExportDate } from './exportDate.ts'
 import { GoogleSignInCancelledError, GoogleSignInPopupBlockedError, requestCalendarAccessToken } from './googleAuthClient.ts'
 import { findOrCreateAppCalendar, forgetAppCalendar, GoogleCalendarApiError, insertCalendarEvent } from './googleCalendarApi.ts'
-import type { ShopGroup } from './shopGroups.ts'
+import type { ExportGroup, RecipesByItem } from './shopGroups.ts'
 
 export interface ShopFallbackLink {
-  shopName: string
+  groupName: string
   url: string
 }
 
@@ -17,7 +17,7 @@ export type ExportResult =
   | { status: 'popup-blocked' }
 
 /**
- * Exports one Calendar event per `groups` entry, in order. A Shop's event is never retried or
+ * Exports one Calendar event per `groups` entry (its Items chipped by `neededBy`), in order. A Shop's event is never retried or
  * duplicated once inserted: if a later group fails, only the groups not yet inserted fall back to
  * a deep link, so the household is never asked to add an event that is already on the Calendar.
  * If the app calendar itself is gone (404) or no longer accessible (403), the persisted calendar
@@ -26,13 +26,13 @@ export type ExportResult =
  * they can simply export again; a blocked popup likewise gets `popup-blocked`. The underlying error
  * of any other failure is only logged; the dialog's fallback links are the user-facing report.
  */
-export async function exportShoppingList(groups: ShopGroup[], date: ExportDate): Promise<ExportResult> {
+export async function exportShoppingList(groups: ExportGroup[], neededBy: RecipesByItem, date: ExportDate): Promise<ExportResult> {
   let insertedCount = 0
   try {
     const accessToken = await requestCalendarAccessToken()
     const calendarId = await findOrCreateAppCalendar(accessToken)
     for (const group of groups) {
-      await insertCalendarEvent(accessToken, calendarId, buildShopEvent(group, date))
+      await insertCalendarEvent(accessToken, calendarId, buildShopEvent(group, neededBy, date))
       insertedCount++
     }
     return { status: 'exported' }
@@ -45,7 +45,7 @@ export async function exportShoppingList(groups: ShopGroup[], date: ExportDate):
     }
     return {
       status: 'fallback',
-      links: groups.slice(insertedCount).map((group) => ({ shopName: group.shop.name, url: shopDeepLink(group, date) })),
+      links: groups.slice(insertedCount).map((group) => ({ groupName: group.groupName, url: shopDeepLink(group, neededBy, date) })),
     }
   }
 }

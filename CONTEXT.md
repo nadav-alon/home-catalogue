@@ -92,8 +92,8 @@ A "Sort by aisle" toggle, per device and off by default, sorts each Shop group b
 Canonical; works offline.
 
 **Export**:
-One tap creating one Google Calendar event per Shop with pending Items, list in the description,
-on a picked date. A read-only copy of the Shopping list, in the order the list shows, the aisle sort and chosen Stores included.
+One tap creating one Google Calendar event per Shop with pending Items or Recipe rows (Recipe rows without a Shop in a "Not in the Catalogue" event), list in the description,
+on a picked date. A read-only copy of the Shopping list, each Item and Recipe row followed by its "(for <Recipe>)" chips, in the order the list shows, the aisle sort and chosen Stores included.
 
 **Soft delete**:
 Deleting an Item, Category, Shop, Store, Tag or Aisle by setting its `deletedAt` rather than removing the record. The

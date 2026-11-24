@@ -1,18 +1,26 @@
 import type { core } from 'data-platform'
-import type { CategoryRecord } from '../catalogue/categories.ts'
 import type { ItemRecord } from '../catalogue/items.ts'
-import { groupPendingItemsByShop, type PendingShopGroup } from '../catalogue/pendingItemsByShop.ts'
-import type { ShopRecord } from '../catalogue/shops.ts'
-import type { SortingStores } from '../catalogue/aisleSort.ts'
+import type { RecipeRecord, RecipeRow } from '../catalogue/recipes.ts'
+import type { ShoppingListGroup } from '../catalogue/shoppingListGroups.ts'
 
-export type ShopGroup = PendingShopGroup
+/** The Wanted Recipes each Item is needed by, named in its "(for <Recipe>)" chips. */
+export type RecipesByItem = ReadonlyMap<core.ItemId, readonly RecipeRecord[]>
 
-export interface PendingItemGroups {
-  groups: ShopGroup[]
+/** One Calendar event's worth of the Shopping list: a group's Items, then its Recipe rows. */
+export interface ExportGroup {
+  /** The group's name: a Shop's name, or "Not in the Catalogue"; the event is titled with it. */
+  groupName: string
+  items: ItemRecord[]
+  /** The Recipe rows, exported after the Items. */
+  recipeRows: RecipeRow[]
+}
+
+export interface ShoppingListEvents {
+  groups: ExportGroup[]
   /** Pending Items left out of `groups`: no Shop, or a Shop with no record in `shops`, to name a Calendar event after. */
   unresolvedCount: number
   /**
-   * Whether no Item is pending at all, the Items listed under "Unknown Shop" included (no Shop, or a Shop
+   * Whether the Shopping list has nothing to show at all, the Items listed under "Unknown Shop" included (no Shop, or a Shop
    * with no record in `shops`). Unlike `groups`,
    * this matches the Shopping list's own "Nothing to buy" empty state.
    */
@@ -20,21 +28,18 @@ export interface PendingItemGroups {
 }
 
 /**
- * Every Shop with at least one pending Item, in `shops` order. An Item with no resolved Shop has
- * no Shop of its own to name a Calendar event after, so it is left out of `groups` (unlike the
- * Shopping list's own "Unknown Shop" bucket, which is a display-only affordance) and counted in
- * `unresolvedCount` instead. So is an Item whose resolved Shop has no record in `shops`.
- * Each group's Items are in the order the Shopping list shows them: pass the Stores the list sorts
- * by as `sortingStores`, none when it is not sorted by aisle. `neededItemIds` is the Shopping list's: an optional
- * Item is exported only while a Wanted Recipe needs it.
+ * The Shopping list's `listGroups` as Calendar events, one per group with an Item or a Recipe row, in the order the
+ * list shows them. An Item with no resolved Shop has no Shop of its own to name a Calendar event after, so the
+ * list's "Unknown Shop" group is left out of `groups` (it is a display-only affordance) and its Items counted in
+ * `unresolvedCount` instead. That includes an Item whose resolved Shop has no record in `shops`.
  */
-export function pendingItemsByShop(
-  items: ItemRecord[],
-  categories: CategoryRecord[],
-  shops: ShopRecord[],
-  sortingStores: SortingStores,
-  neededItemIds: ReadonlySet<core.ItemId>,
-): PendingItemGroups {
-  const { groups, unresolved } = groupPendingItemsByShop(items, categories, shops, sortingStores, neededItemIds)
-  return { groups, unresolvedCount: unresolved.length, nothingToBuy: groups.length === 0 && unresolved.length === 0 }
+export function shoppingListEvents(listGroups: readonly ShoppingListGroup[]): ShoppingListEvents {
+  const unknown = listGroups.find((group) => group.kind === 'unknown-shop')
+  return {
+    groups: listGroups
+      .filter((group) => group !== unknown)
+      .map(({ name, items, recipeRows }) => ({ groupName: name, items, recipeRows })),
+    unresolvedCount: unknown?.items.length ?? 0,
+    nothingToBuy: listGroups.length === 0,
+  }
 }
