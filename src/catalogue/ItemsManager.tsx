@@ -11,7 +11,7 @@ import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED, type GroupKey } from './collapsedCategories.ts'
 import { linkedItemIds, unlinkedIngredientNames, watchRecipes, type RecipeRecord } from './recipes.ts'
 import { watchShops, type ShopRecord } from './shops.ts'
-import type { AddItemHandoff, CategoryAndShop } from '../ui/route.ts'
+import type { AddItemHandoff, ItemsFilter } from '../ui/route.ts'
 import { clearAddItemHandoff, leaveTo, navigateToItems } from '../ui/useRoute.ts'
 import { afterPendingPop } from 'household-ui/ui/pendingPop.ts'
 import { ItemDialog } from './ItemDialog.tsx'
@@ -31,15 +31,15 @@ export interface ItemsManagerProps {
   db: Firestore
   /** Show only the Items with these ids; unknown ids are ignored. Every Item when empty or omitted. */
   itemIds?: readonly core.ItemId[]
-  /** Called when the chip naming the id filter is dismissed, with the Category and Shop filters that are live, to be kept. */
-  onClearFilter?: (filter: CategoryAndShop) => void
+  /** Called when the chip naming the id filter is dismissed, with the Category, Shop and Recipe filters that are live, to be kept. */
+  onClearFilter?: (filter: ItemsFilter) => void
   /**
-   * Show only the Items in this Category and sold at this Shop (the Item's own or else its Category's); each is
-   * ignored once no live Category or Shop has the id.
+   * Show only the Items in this Category, sold at this Shop (the Item's own or else its Category's) and linked by this Recipe; each is
+   * ignored once no live one has the id.
    */
-  filter?: CategoryAndShop
-  /** Called with the Category and Shop filters a pressed chip asks for; undefined clears one. */
-  onFilterChange?: (filter: CategoryAndShop) => void
+  filter?: ItemsFilter
+  /** Called with the Category, Shop and Recipe filters a pressed chip asks for; undefined clears one. */
+  onFilterChange?: (filter: ItemsFilter) => void
   /**
    * Opens the add-Item dialog with the name prefilled and State `out`, once, when given. When it carries a return URL
    * the app goes there as the dialog closes, with the new Item's id appended if it was saved.
@@ -58,7 +58,7 @@ function toggledMember<Id extends string>(ids: readonly Id[], id: Id): readonly 
 }
 
 export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilterChange, handoff }: ItemsManagerProps) {
-  const { categoryId, shopId } = filter ?? { categoryId: undefined, shopId: undefined }
+  const { categoryId, shopId, recipeId } = filter ?? { categoryId: undefined, shopId: undefined, recipeId: undefined }
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
@@ -67,8 +67,6 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [recipes, setRecipes] = useState<RecipeRecord[]>([])
   /** Whether `watchRecipes` has delivered, so a missing chosen Recipe means deleted, not not-yet-loaded. */
   const [recipesLoaded, setRecipesLoaded] = useState(false)
-  /** The Recipe whose chip is pressed; the list narrows to the Items its Ingredients link. */
-  const [selectedRecipeId, setSelectedRecipeId] = useState<RecipeRecord['id'] | undefined>(undefined)
   // Undo outlives the render that deleted the Item, so it reads the Categories and Shops as they are when it is pressed.
   const categoriesRef = useRef(categories)
   categoriesRef.current = categories
@@ -304,13 +302,11 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   useEffect(() => {
     if (activeTagIds.length !== selectedTagIds.length) setSelectedTagIds(activeTagIds)
   }, [activeTagIds.length, selectedTagIds.length])
-  // A Recipe that is deleted stops filtering, as a Category or Shop that names nothing live does.
-  const activeRecipe = recipes.find((recipe) => recipe.id === selectedRecipeId)
+  // A Recipe that is deleted stops filtering (until restored), as a Category or Shop that names nothing live does.
+  const activeRecipe = recipes.find((recipe) => recipe.id === recipeId)
   const recipeItemIds = useMemo(() => (activeRecipe === undefined ? undefined : new Set(linkedItemIds(activeRecipe))), [activeRecipe])
-  // A Recipe that is deleted is dropped from the choice for good, so it is not chosen again if it is restored.
-  useEffect(() => {
-    if (recipesLoaded && selectedRecipeId !== undefined && activeRecipe === undefined) setSelectedRecipeId(undefined)
-  }, [recipesLoaded, selectedRecipeId, activeRecipe])
+  const activeRecipeId = !recipesLoaded || isLiveReference(recipes, recipeId) ? recipeId : undefined
+  const activeFilter: ItemsFilter = { categoryId: activeCategoryId, shopId: activeShopId, recipeId: activeRecipeId }
   const unlinkedNames = activeRecipe === undefined ? [] : unlinkedIngredientNames(activeRecipe)
   const chipFiltered =
     activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0 || activeRecipe !== undefined
@@ -347,7 +343,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         <TextField type="search" label="Search Items" value={search} onInput={(event) => setSearch(event.currentTarget.value)} />
       ) : (
         items !== undefined && (
-          <Chip label={`Scanned: ${scannedLabel}`} dismissLabel="Clear scanned filter" onDismiss={() => onClearFilter?.({ categoryId: activeCategoryId, shopId: activeShopId })} />
+          <Chip label={`Scanned: ${scannedLabel}`} dismissLabel="Clear scanned filter" onDismiss={() => onClearFilter?.(activeFilter)} />
         )
       )}
       <div role="group" aria-label="Filter by Category" class="items-manager__chips">
@@ -356,7 +352,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             key={category.id}
             label={category.name}
             selected={category.id === activeCategoryId}
-            onToggle={() => onFilterChange?.({ categoryId: toggledSelection(activeCategoryId, category.id), shopId: activeShopId })}
+            onToggle={() => onFilterChange?.({ ...activeFilter, categoryId: toggledSelection(activeCategoryId, category.id) })}
           />
         ))}
       </div>
@@ -366,7 +362,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             key={shop.id}
             label={shop.name}
             selected={shop.id === activeShopId}
-            onToggle={() => onFilterChange?.({ categoryId: activeCategoryId, shopId: toggledSelection(activeShopId, shop.id) })}
+            onToggle={() => onFilterChange?.({ ...activeFilter, shopId: toggledSelection(activeShopId, shop.id) })}
           />
         ))}
       </div>
@@ -386,7 +382,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             key={recipe.id}
             label={recipe.title}
             selected={recipe.id === activeRecipe?.id}
-            onToggle={() => setSelectedRecipeId(toggledSelection(activeRecipe?.id, recipe.id))}
+            onToggle={() => onFilterChange?.({ ...activeFilter, recipeId: toggledSelection(activeRecipeId, recipe.id) })}
           />
         ))}
       </div>

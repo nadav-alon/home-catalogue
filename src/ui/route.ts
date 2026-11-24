@@ -1,4 +1,4 @@
-import { catalogue, core } from 'data-platform'
+import { catalogue, core, recipes } from 'data-platform'
 
 const ROUTES = ['/list', '/items', '/settings', '/settings/shops', '/settings/categories', '/settings/tags', '/settings/aisles', '/settings/members'] as const
 
@@ -40,6 +40,7 @@ const ITEM_KEY = 'item'
 const ITEM_ID_SEPARATOR = ','
 const CATEGORY_KEY = 'category'
 const SHOP_KEY = 'shop'
+const RECIPE_KEY = 'recipe'
 
 /** The value of the `key` query on the hash; undefined when there is none or it is empty. */
 function queryValueOf(hash: string, key: string): string | undefined {
@@ -95,17 +96,24 @@ export function shopIdOf(hash: string): catalogue.ShopId | undefined {
   return id !== undefined && catalogue.isShopId(id) ? id : undefined
 }
 
-/** The Category and Shop an Items screen is narrowed to; undefined for each that is not. */
-export interface CategoryAndShop {
-  categoryId: catalogue.CategoryId | undefined
-  shopId: catalogue.ShopId | undefined
+/** The Recipe a `recipe=<id>` query on the hash names; undefined when there is none. Says nothing about whether it exists. */
+export function recipeIdOf(hash: string): recipes.RecipeId | undefined {
+  const id = queryValueOf(hash, RECIPE_KEY)
+  return id !== undefined && recipes.isRecipeId(id) ? id : undefined
 }
 
-/** `hash` with its Category and Shop filters set to those given (cleared when undefined); every other query is kept. */
-export function withCategoryAndShop(hash: string, filter: CategoryAndShop): string {
+/** The Category, Shop and Recipe an Items screen is narrowed to; undefined for each that is not. */
+export interface ItemsFilter {
+  categoryId: catalogue.CategoryId | undefined
+  shopId: catalogue.ShopId | undefined
+  recipeId: recipes.RecipeId | undefined
+}
+
+/** `hash` with its Category, Shop and Recipe filters set to those given (cleared when undefined); every other query is kept. */
+export function withItemsFilter(hash: string, filter: ItemsFilter): string {
   const [path, query] = hashParts(hash)
   const params = new URLSearchParams(query)
-  for (const [key, id] of [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId]] as const) {
+  for (const [key, id] of [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId], [RECIPE_KEY, filter.recipeId]] as const) {
     if (id === undefined) params.delete(key)
     else params.set(key, id)
   }

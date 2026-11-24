@@ -14,8 +14,8 @@ import { NavBar } from './shell/NavBar.tsx'
 import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
 import { titleOf } from './shell/titles.ts'
 import { SnackbarHost } from 'household-ui/ui/Snackbar.tsx'
-import type { AddItemHandoff, CategoryAndShop, Route } from './ui/route.ts'
-import { navigateToCategoryAndShop, setCategoryAndShop, useAddItemHandoff, useCategoryAndShop, useItemIds, useRoute } from './ui/useRoute.ts'
+import type { AddItemHandoff, ItemsFilter, Route } from './ui/route.ts'
+import { navigateToItemsFilter, setItemsFilter, useAddItemHandoff, useItemsFilter, useItemIds, useRoute } from './ui/useRoute.ts'
 import './app.css'
 import type { FirebaseWebConfig } from 'data-platform/client'
 
@@ -29,7 +29,7 @@ export interface AppProps {
 export function App({ db, config, onResetConfig, onSignOut }: AppProps) {
   const current = useRoute()
   const itemIds = useItemIds()
-  const filter = useCategoryAndShop()
+  const filter = useItemsFilter()
   const handoff = useAddItemHandoff()
 
   return (
@@ -59,12 +59,12 @@ function Screen({
   config,
   onResetConfig,
   onSignOut,
-}: { route: Route; itemIds: readonly core.ItemId[]; filter: CategoryAndShop; handoff: AddItemHandoff | undefined } & AppProps) {
+}: { route: Route; itemIds: readonly core.ItemId[]; filter: ItemsFilter; handoff: AddItemHandoff | undefined } & AppProps) {
   switch (current) {
     case '/list':
       return <ShoppingList db={db} />
     case '/items':
-      return <ItemsManager db={db} itemIds={itemIds} filter={filter} onFilterChange={setCategoryAndShop} onClearFilter={navigateToCategoryAndShop} handoff={handoff} />
+      return <ItemsManager db={db} itemIds={itemIds} filter={filter} onFilterChange={setItemsFilter} onClearFilter={navigateToItemsFilter} handoff={handoff} />
     case '/settings':
       return <SettingsScreen db={db} config={config} onResetConfig={onResetConfig} onSignOut={onSignOut} />
     case '/settings/shops':
