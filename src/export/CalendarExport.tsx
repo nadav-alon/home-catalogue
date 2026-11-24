@@ -1,11 +1,6 @@
 import { useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
-import type { catalogue } from "data-platform";
-import type { RecipeRecord } from "../catalogue/recipes.ts";
-import type { CategoryRecord } from "../catalogue/categories.ts";
-import type { ItemRecord } from "../catalogue/items.ts";
-import type { ShopRecord } from "../catalogue/shops.ts";
-import type { SortingStores } from "../catalogue/aisleSort.ts";
+import type { ShoppingListGroup } from "../catalogue/shoppingListGroups.ts";
 import { Button } from "household-ui/ui/Button.tsx";
 import { Dialog } from "household-ui/ui/Dialog.tsx";
 import { DIALOG_FORM_CLASS, DialogActions } from "household-ui/ui/DialogActions.tsx";
@@ -16,18 +11,13 @@ import {
   exportShoppingList,
   type ShopFallbackLink,
 } from "./exportShoppingList.ts";
-import { pendingItemsByShop } from "./shopGroups.ts";
+import { shoppingListEvents, type RecipesByItem } from "./shopGroups.ts";
 
 export interface CalendarExportProps {
-  items: ItemRecord[];
-  categories: CategoryRecord[];
-  shops: ShopRecord[];
-  /** The Store the Shopping list sorts each Shop's Items by; the event lists them in that order. None for a Shop not sorted by aisle. */
-  sortingStores: SortingStores;
-  /** The Recipes: an optional Item is exported only while a Wanted Recipe needs it, and each Item and Recipe row names the Wanted Recipes that need it. */
-  recipes: readonly RecipeRecord[];
-  /** The Shop for Recipe Ingredients, `undefined` when none is set, `null` until it has loaded. */
-  recipeShopId: catalogue.ShopId | undefined | null;
+  /** The Shopping list's groups as it shows them: the export copies them, so it matches the list by construction. */
+  groups: readonly ShoppingListGroup[];
+  /** The Wanted Recipes each Item is needed by, named in the Items' "(for <Recipe>)" chips. */
+  recipesByItem: RecipesByItem;
 }
 
 type ExportStatus =
@@ -49,18 +39,11 @@ function needShopMessage(count: number): string {
 }
 
 /**
- * Export of the Shopping list to Calendar, opened from a top app bar action: one event per Shop, or a
- * deep link per Shop if the Calendar API or the token request fails; a cancelled or blocked Google
- * sign-in just says so, so Export can be retried. Works from the Items, Categories and Shops it is given.
+ * Export of the Shopping list to Calendar, opened from a top app bar action: one event per group, or a
+ * deep link per group if the Calendar API or the token request fails; a cancelled or blocked Google
+ * sign-in just says so, so Export can be retried. Works from the Shopping list's groups it is given.
  */
-export function CalendarExport({
-  items,
-  categories,
-  shops,
-  sortingStores,
-  recipes,
-  recipeShopId,
-}: CalendarExportProps) {
+export function CalendarExport({ groups: listGroups, recipesByItem }: CalendarExportProps) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
   const [status, setStatus] = useState<ExportStatus>({ phase: "idle" });
@@ -70,14 +53,7 @@ export function CalendarExport({
   // Open and close only through `setDialogOpen`, or an unseen result is never flagged.
   const openRef = useRef(false);
 
-  const { groups, unresolvedCount, nothingToBuy } = pendingItemsByShop(
-    items,
-    categories,
-    shops,
-    sortingStores,
-    recipes,
-    recipeShopId,
-  );
+  const { groups, unresolvedCount, nothingToBuy } = shoppingListEvents(listGroups);
 
   // With nothing left to export, a pressed Export would replace the result's fallback links with an error.
   const exportDisabled =
@@ -116,7 +92,7 @@ export function CalendarExport({
     }
 
     setStatus({ phase: "exporting" });
-    const result = await exportShoppingList(groups, date);
+    const result = await exportShoppingList(groups, recipesByItem, date);
     setStatus(
       result.status === "fallback"
         ? { phase: "fallback", links: result.links }
@@ -176,9 +152,9 @@ export function CalendarExport({
             <p>Couldn't reach Google Calendar. Add these events yourself:</p>
             <ul>
               {status.links.map((link) => (
-                <li key={link.shopName}>
+                <li key={link.groupName}>
                   <a href={link.url} target="_blank" rel="noreferrer">
-                    {link.shopName}
+                    {link.groupName}
                   </a>
                 </li>
               ))}

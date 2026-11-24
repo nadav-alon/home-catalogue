@@ -6,7 +6,7 @@ import { accessToken, GoogleSignInCancelledError, GoogleSignInPopupBlockedError 
 import { exportDate } from './exportDate.ts'
 import { exportShoppingList } from './exportShoppingList.ts'
 import { GoogleCalendarApiError } from './googleCalendarApi.ts'
-import type { ShopGroup } from './shopGroups.ts'
+import type { ExportGroup } from './shopGroups.ts'
 
 const requestCalendarAccessToken = vi.fn()
 vi.mock('./googleAuthClient.ts', async (importOriginal) => ({
@@ -35,9 +35,9 @@ const soap: ItemRecord = {
   tagIds: [],
 }
 
-const groups: ShopGroup[] = [
-  { name: pharmacy.name, items: [outBandages], neededBy: new Map(), recipeRows: [] },
-  { name: grocery.name, items: [soap], neededBy: new Map(), recipeRows: [] },
+const groups: ExportGroup[] = [
+  { groupName: pharmacy.name, items: [outBandages], recipeRows: [] },
+  { groupName: grocery.name, items: [soap], recipeRows: [] },
 ]
 const date = exportDate('2026-03-05')
 
@@ -54,7 +54,7 @@ describe('exportShoppingList', () => {
     findOrCreateAppCalendar.mockResolvedValueOnce('app-cal')
     insertCalendarEvent.mockResolvedValue(undefined)
 
-    const result = await exportShoppingList(groups, date)
+    const result = await exportShoppingList(groups, new Map(), date)
 
     expect(result).toEqual({ status: 'exported' })
     expect(findOrCreateAppCalendar).toHaveBeenCalledWith('a-token')
@@ -66,11 +66,11 @@ describe('exportShoppingList', () => {
   it('falls back to a deep link per Shop when the token request fails', async () => {
     requestCalendarAccessToken.mockRejectedValueOnce(new Error('network down'))
 
-    const result = await exportShoppingList(groups, date)
+    const result = await exportShoppingList(groups, new Map(), date)
 
     expect(result.status).toBe('fallback')
     if (result.status !== 'fallback') throw new Error('expected fallback')
-    expect(result.links.map((link) => link.shopName)).toEqual(['Pharmacy', 'Grocery'])
+    expect(result.links.map((link) => link.groupName)).toEqual(['Pharmacy', 'Grocery'])
     expect(result.links.every((link) => link.url.startsWith('https://calendar.google.com/calendar/render?'))).toBe(true)
     expect(findOrCreateAppCalendar).not.toHaveBeenCalled()
   })
@@ -78,7 +78,7 @@ describe('exportShoppingList', () => {
   it('reports a cancelled sign-in, not links, when the Member closes the popup', async () => {
     requestCalendarAccessToken.mockRejectedValueOnce(new GoogleSignInCancelledError('closed'))
 
-    const result = await exportShoppingList(groups, date)
+    const result = await exportShoppingList(groups, new Map(), date)
 
     expect(result).toEqual({ status: 'cancelled' })
     expect(findOrCreateAppCalendar).not.toHaveBeenCalled()
@@ -87,7 +87,7 @@ describe('exportShoppingList', () => {
   it('reports a blocked popup, not links, when the browser refuses the sign-in window', async () => {
     requestCalendarAccessToken.mockRejectedValueOnce(new GoogleSignInPopupBlockedError('blocked'))
 
-    const result = await exportShoppingList(groups, date)
+    const result = await exportShoppingList(groups, new Map(), date)
 
     expect(result).toEqual({ status: 'popup-blocked' })
     expect(findOrCreateAppCalendar).not.toHaveBeenCalled()
@@ -98,11 +98,11 @@ describe('exportShoppingList', () => {
     findOrCreateAppCalendar.mockResolvedValueOnce('app-cal')
     insertCalendarEvent.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('quota exceeded'))
 
-    const result = await exportShoppingList(groups, date)
+    const result = await exportShoppingList(groups, new Map(), date)
 
     expect(result.status).toBe('fallback')
     if (result.status !== 'fallback') throw new Error('expected fallback')
-    expect(result.links.map((link) => link.shopName)).toEqual(['Grocery'])
+    expect(result.links.map((link) => link.groupName)).toEqual(['Grocery'])
   })
 
   it('forgets the app calendar when the Calendar API says it is gone (404)', async () => {
@@ -110,7 +110,7 @@ describe('exportShoppingList', () => {
     findOrCreateAppCalendar.mockResolvedValueOnce('app-cal')
     insertCalendarEvent.mockRejectedValueOnce(new GoogleCalendarApiError('gone', 404))
 
-    await exportShoppingList(groups, date)
+    await exportShoppingList(groups, new Map(), date)
 
     expect(forgetAppCalendar).toHaveBeenCalledOnce()
   })
@@ -120,7 +120,7 @@ describe('exportShoppingList', () => {
     findOrCreateAppCalendar.mockResolvedValueOnce('app-cal')
     insertCalendarEvent.mockRejectedValueOnce(new GoogleCalendarApiError('forbidden', 403))
 
-    await exportShoppingList(groups, date)
+    await exportShoppingList(groups, new Map(), date)
 
     expect(forgetAppCalendar).toHaveBeenCalledOnce()
   })
@@ -130,7 +130,7 @@ describe('exportShoppingList', () => {
     findOrCreateAppCalendar.mockResolvedValueOnce('app-cal')
     insertCalendarEvent.mockRejectedValueOnce(new GoogleCalendarApiError('quota exceeded', 429))
 
-    await exportShoppingList(groups, date)
+    await exportShoppingList(groups, new Map(), date)
 
     expect(forgetAppCalendar).not.toHaveBeenCalled()
   })
@@ -143,7 +143,7 @@ describe('exportShoppingList', () => {
       watchWriteRejections((list) => {
         watched.messages = list.map((rejection) => rejection.message)
       })
-      const result = await exportShoppingList(groups, date)
+      const result = await exportShoppingList(groups, new Map(), date)
       return { messages: watched.messages, result }
     }
 

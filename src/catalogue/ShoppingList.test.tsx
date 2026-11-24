@@ -18,7 +18,7 @@ import { bandages, cleaning, grocery, medicine, pharmacy } from './testFixtures.
 
 const exportShoppingList = vi.fn()
 vi.mock('../export/exportShoppingList.ts', () => ({
-  exportShoppingList: (groups: unknown, date: unknown) => exportShoppingList(groups, date),
+  exportShoppingList: (groups: unknown, neededBy: unknown, date: unknown) => exportShoppingList(groups, neededBy, date),
 }))
 const watchItems = vi.fn()
 const setItemState = vi.fn()
@@ -1256,7 +1256,8 @@ describe('ShoppingList filter by Recipe', () => {
     })
 
     expect(exportShoppingList).toHaveBeenCalledWith(
-      expect.arrayContaining([expect.objectContaining({ name: grocery.name, items: [candles] })]),
+      expect.arrayContaining([expect.objectContaining({ groupName: grocery.name, items: [candles] })]),
+      expect.any(Map),
       '2026-03-05',
     )
   })

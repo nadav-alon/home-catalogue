@@ -222,7 +222,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
       <RecipeFilter recipes={recipes ?? []} selectedId={selectedRecipe?.id} onChange={setSelectedRecipeId} />
       <AlertBanner items={items ?? []} />
       {/* Export ignores the Recipe filter. */}
-      <CalendarExport items={items ?? []} categories={categories} shops={shops} sortingStores={sortingStores} recipes={recipes ?? []} recipeShopId={listsLoaded.shops ? recipeShopId : null} />
+      <CalendarExport groups={allGroups} recipesByItem={recipesByItem} />
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
       {items !== null && recipes !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}

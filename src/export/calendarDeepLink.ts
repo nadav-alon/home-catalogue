@@ -1,6 +1,6 @@
 import { buildShopEvent } from './calendarEvent.ts'
 import type { ExportDate } from './exportDate.ts'
-import type { ShopGroup } from './shopGroups.ts'
+import type { ExportGroup, RecipesByItem } from './shopGroups.ts'
 
 function compact(date: ExportDate): string {
   return date.replaceAll('-', '')
@@ -11,8 +11,8 @@ function compact(date: ExportDate): string {
  * the Calendar API call uses, so the two can't drift apart: used when the GIS token or Calendar
  * API is unavailable, so the household can still add the event by hand.
  */
-export function shopDeepLink(group: ShopGroup, date: ExportDate): string {
-  const event = buildShopEvent(group, date)
+export function shopDeepLink(group: ExportGroup, neededBy: RecipesByItem, date: ExportDate): string {
+  const event = buildShopEvent(group, neededBy, date)
   const params = new URLSearchParams({
     action: 'TEMPLATE',
     text: event.summary,
