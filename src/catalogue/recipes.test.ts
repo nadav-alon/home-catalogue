@@ -18,6 +18,9 @@ const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
 beforeEach(() => {
   vi.spyOn(console, 'error').mockImplementation(() => {})
+  collection.mockClear()
+  query.mockClear()
+  orderBy.mockClear()
   onSnapshot.mockReset()
 })
 

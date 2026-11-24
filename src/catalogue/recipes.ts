@@ -19,7 +19,7 @@ export type WatchRecipes = (db: Firestore, callback: (recipes: RecipeRecord[]) =
  * Items do. A document failing {@link recipes.recipeSchema} is skipped and logged rather than
  * breaking the whole list. Returns the unsubscribe function.
  */
-export const watchRecipes: WatchRecipes = (db, callback) => {
+export function watchRecipes(db: Firestore, callback: (recipes: RecipeRecord[]) => void): () => void {
   const recipesQuery = query(collection(db, recipes.RECIPES_COLLECTION), orderBy('title'))
   return onSnapshot(recipesQuery, (snapshot) => {
     callback(
@@ -35,3 +35,5 @@ export const watchRecipes: WatchRecipes = (db, callback) => {
     )
   })
 }
+
+watchRecipes satisfies WatchRecipes
