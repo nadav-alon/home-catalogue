@@ -261,7 +261,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
                 <ShoppingListRow key={item.id} item={item} neededBy={recipesByItem.get(item.id) ?? []} onTick={() => handleTick(item)} />
               ))}
               {groupRecipeRows.map((row) => (
-                <RecipeRowItem key={`${row.recipe.id}:${row.position}`} row={row} onTick={() => handleTickRecipeRow(row)} />
+                <ShoppingListRecipeRow key={`${row.recipe.id}:${row.position}`} row={row} onTick={() => handleTickRecipeRow(row)} />
               ))}
             </ul>
           </div>
@@ -329,28 +329,33 @@ function ShoppingListRow({ item, neededBy, onTick }: ShoppingListRowProps) {
       headline={item.name}
       supporting={runningLow ? 'running low' : undefined}
       muted={runningLow}
-      trailing={chipLabels.length === 0 ? undefined : chipLabels.map(({ key, label }) => (
-        <span key={key} class="shopping-list__recipe-chip">
-          {label}
-        </span>
-      ))}
+      trailing={chipLabels.length === 0 ? undefined : <RecipeChips recipes={neededBy} />}
       control={<input type="checkbox" checked={false} onChange={onTick} />}
     />
   )
 }
 
 /** A Recipe row: the Ingredient's name and its Recipe's chip, with no State flag. */
-function RecipeRowItem({ row, onTick }: { row: RecipeRow; onTick: () => void }) {
+function ShoppingListRecipeRow({ row, onTick }: { row: RecipeRow; onTick: () => void }) {
   return (
     <ListRow
       headline={row.name}
-      trailing={recipeChipLabels([row.recipe]).map(({ key, label }) => (
+      trailing={<RecipeChips recipes={[row.recipe]} />}
+      control={<input type="checkbox" checked={false} onChange={onTick} />}
+    />
+  )
+}
+
+/** The "for <Recipe>" chips of a row: the one place a chip's markup and class live. */
+function RecipeChips({ recipes }: { recipes: readonly RecipeRecord[] }) {
+  return (
+    <>
+      {recipeChipLabels(recipes).map(({ key, label }) => (
         <span key={key} class="shopping-list__recipe-chip">
           {label}
         </span>
       ))}
-      control={<input type="checkbox" checked={false} onChange={onTick} />}
-    />
+    </>
   )
 }
 
