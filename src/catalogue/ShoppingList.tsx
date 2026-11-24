@@ -9,7 +9,7 @@ import { getChosenStoreIds, getSortByAisle, saveChosenStoreIds, saveSortByAisle,
 import { watchStores, type StoreRecord } from './stores.ts'
 import { Select } from 'household-ui/ui/Select.tsx'
 import { createTag, watchTags, type TagRecord } from './tags.ts'
-import { UNKNOWN_SHOP_NAME, watchShops, type ShopRecord } from './shops.ts'
+import { watchShops, type ShopRecord } from './shops.ts'
 import { AlertBanner } from './AlertBanner.tsx'
 import { ItemDialog } from './ItemDialog.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
@@ -18,29 +18,16 @@ import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { CalendarExport } from '../export/CalendarExport.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { showSnackbar } from 'household-ui/ui/Snackbar.tsx'
-import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
+import { narrowedToRecipe, shoppingListGroups } from './shoppingListGroups.ts'
 import './ShoppingList.css'
 import { RecipeFilter } from './RecipeFilter.tsx'
-import { chosenRecipe, itemIdsNeededBy, recipeRowsOf, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type RecipeRow, type WatchRecipes } from './recipes.ts'
+import { chosenRecipe, itemIdsNeededBy, recipeChipLabels, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type RecipeRow, type WatchRecipes } from './recipes.ts'
 
 export interface ShoppingListProps {
   db: Firestore
   /** Where the Recipes come from; the Household's live Recipes unless a test supplies a fake. */
   watchRecipes?: WatchRecipes
 }
-
-interface ShopGroup {
-  key: string
-  /** Set for a resolved Shop, whose group can be sorted by one of its Stores. */
-  shop?: ShopRecord
-  name: string
-  items: ItemRecord[]
-  /** The Recipe rows, listed after the Items. */
-  recipeRows: RecipeRow[]
-}
-
-/** The name of the final group holding Recipe rows when no Shop for Recipe Ingredients is set. */
-const NOT_IN_CATALOGUE_NAME = 'Not in the Catalogue'
 
 export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingListProps) {
   const [items, setItems] = useState<ItemRecord[] | null>(null)
@@ -223,20 +210,8 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   const recipesByItem = wantedRecipesByItem(recipes ?? [])
   const selected = chosenRecipe(recipes ?? [], selectedRecipeId)
   const selectedRecipe = selected?.recipe
-  const shownItems = (items ?? []).filter((item) => selected === undefined || selected.itemIds.has(item.id))
-  const { groups: shopGroups, unresolved } = groupPendingItemsByShop(shownItems, categories, shops, sortingStores, neededItemIds)
-  const recipeRows = recipeRowsOf(recipes ?? []).filter((row) => selectedRecipe === undefined || row.recipe.id === selectedRecipe.id)
-  const recipeShop = shops.find((shop) => shop.id === recipeShopId)
-  const groups: ShopGroup[] = shops.flatMap((shop) => {
-    const shopItems = shopGroups.find((group) => group.shop.id === shop.id)?.items ?? []
-    const shopRecipeRows = shop.id === recipeShop?.id ? recipeRows : []
-    return shopItems.length === 0 && shopRecipeRows.length === 0 ? [] : [{ key: shop.id, shop, name: shop.name, items: shopItems, recipeRows: shopRecipeRows }]
-  })
-  if (unresolved.length > 0) {
-    groups.push({ key: UNKNOWN_SHOP_NAME, name: UNKNOWN_SHOP_NAME, items: unresolved, recipeRows: [] })
-  }
-
-  if (recipeShop === undefined && recipeRows.length > 0 && recipeShopId !== null && listsLoaded.shops) groups.push({ key: NOT_IN_CATALOGUE_NAME, name: NOT_IN_CATALOGUE_NAME, items: [], recipeRows })
+  const allGroups = shoppingListGroups(items ?? [], categories, shops, sortingStores, recipes ?? [], listsLoaded.shops ? recipeShopId : null)
+  const groups = selected === undefined ? allGroups : narrowedToRecipe(allGroups, selected.recipe.id, selected.itemIds)
 
   return (
     <section>
@@ -375,14 +350,4 @@ function RecipeChips({ recipes }: { recipes: readonly RecipeRecord[] }) {
       ))}
     </>
   )
-}
-
-/** The most Recipes a row names one by one; any more collapse into the first Recipe's chip, "for <A> +n". */
-const MAX_NAMED_RECIPES = 2
-
-/** The chips, keyed by Recipe id, for the Wanted Recipes `recipes` that need a row: one "for <title>" each, or "for <first> +n" (n the other Recipes) past {@link MAX_NAMED_RECIPES}. */
-function recipeChipLabels(recipes: readonly RecipeRecord[]): { key: RecipeRecord['id']; label: string }[] {
-  if (recipes.length <= MAX_NAMED_RECIPES) return recipes.map((recipe) => ({ key: recipe.id, label: `for ${recipe.title}` }))
-  const first = recipes[0]!
-  return [{ key: first.id, label: `for ${first.title} +${recipes.length - 1}` }]
 }
