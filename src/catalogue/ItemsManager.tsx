@@ -10,6 +10,7 @@ import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED, type GroupKey } from './collapsedCategories.ts'
 import { linkedItemIds, unlinkedIngredientNames, watchRecipes, type RecipeRecord } from './recipes.ts'
+import { RecipeFilter } from './RecipeFilter.tsx'
 import { watchShops, type ShopRecord } from './shops.ts'
 import type { AddItemHandoff, ItemsFilter } from '../ui/route.ts'
 import { clearAddItemHandoff, leaveTo, navigateToItems } from '../ui/useRoute.ts'
@@ -376,16 +377,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
           />
         ))}
       </div>
-      <div role="group" aria-label="Filter by Recipe" class="items-manager__chips">
-        {recipes.map((recipe) => (
-          <FilterChip
-            key={recipe.id}
-            label={recipe.title}
-            selected={recipe.id === activeRecipe?.id}
-            onToggle={() => onFilterChange?.({ ...activeFilter, recipeId: toggledSelection(activeRecipeId, recipe.id) })}
-          />
-        ))}
-      </div>
+      <RecipeFilter recipes={recipes} selectedId={activeRecipe?.id} onChange={(next) => onFilterChange?.({ ...activeFilter, recipeId: next })} />
       {unlinkedNames.length > 0 && (
         <div role="status" class="items-manager__unlinked">
           <p>
