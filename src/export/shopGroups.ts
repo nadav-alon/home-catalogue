@@ -32,8 +32,8 @@ export function pendingItemsByShop(
   items: ItemRecord[],
   categories: CategoryRecord[],
   shops: ShopRecord[],
-  sortingStores: SortingStores = new Map(),
-  neededItemIds: ReadonlySet<core.ItemId> = new Set(),
+  sortingStores: SortingStores,
+  neededItemIds: ReadonlySet<core.ItemId>,
 ): PendingItemGroups {
   const { groups, unresolved } = groupPendingItemsByShop(items, categories, shops, sortingStores, neededItemIds)
   return { groups, unresolvedCount: unresolved.length, nothingToBuy: groups.length === 0 && unresolved.length === 0 }

@@ -22,9 +22,9 @@ export interface CalendarExportProps {
   categories: CategoryRecord[];
   shops: ShopRecord[];
   /** The Store the Shopping list sorts each Shop's Items by; the event lists them in that order. None for a Shop not sorted by aisle. */
-  sortingStores?: SortingStores;
+  sortingStores: SortingStores;
   /** The Items some Wanted Recipe needs; an optional Item is exported only if it is among them. */
-  neededItemIds?: ReadonlySet<core.ItemId>;
+  neededItemIds: ReadonlySet<core.ItemId>;
 }
 
 type ExportStatus =

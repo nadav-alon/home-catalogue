@@ -22,14 +22,14 @@ export interface PendingItemsByShop {
  * A Shop with a Store in `sortingStores` has its group sorted by that Store's aisle order; any other
  * group, and `unresolved`, keeps the order of `items`.
  * An `optional` Item is pending only while its id is in `neededItemIds` (some Wanted Recipe links an
- * Ingredient to it); with none given, no optional Item is.
+ * Ingredient to it); pass an empty set for none.
  */
 export function groupPendingItemsByShop(
   items: ItemRecord[],
   categories: CategoryRecord[],
   shops: ShopRecord[],
-  sortingStores: SortingStores = new Map(),
-  neededItemIds: ReadonlySet<core.ItemId> = new Set(),
+  sortingStores: SortingStores,
+  neededItemIds: ReadonlySet<core.ItemId>,
 ): PendingItemsByShop {
   const categoriesById = new Map(categories.map((category) => [category.id, category]))
   const knownShopIds = new Set(shops.map((shop) => shop.id))
