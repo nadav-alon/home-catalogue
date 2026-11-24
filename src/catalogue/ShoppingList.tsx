@@ -18,7 +18,8 @@ import { CalendarExport } from '../export/CalendarExport.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { showSnackbar } from 'household-ui/ui/Snackbar.tsx'
 import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
-import { itemIdsNeededBy, watchRecipes as watchLiveRecipes, type RecipeRecord, type WatchRecipes } from './recipes.ts'
+import './ShoppingList.css'
+import { itemIdsNeededBy, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type WatchRecipes } from './recipes.ts'
 
 export interface ShoppingListProps {
   db: Firestore
@@ -179,6 +180,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
 
   const sortingStores = storesToSortBy(sortByAisle, shops, stores, aisles, chosenStoreIds)
   const neededItemIds = itemIdsNeededBy(recipes ?? [])
+  const recipesByItem = wantedRecipesByItem(recipes ?? [])
   const { groups: shopGroups, unresolved } = groupPendingItemsByShop(items ?? [], categories, shops, sortingStores, neededItemIds)
   const groups: ShopGroup[] = shopGroups.map(({ shop, items: shopItems }) => ({
     key: shop.id,
@@ -226,7 +228,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
             )}
             <ul>
               {groupItems.map((item) => (
-                <ShoppingListRow key={item.id} item={item} onTick={() => handleTick(item)} />
+                <ShoppingListRow key={item.id} item={item} neededBy={recipesByItem.get(item.id) ?? []} onTick={() => handleTick(item)} />
               ))}
             </ul>
           </div>
@@ -281,17 +283,35 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
 
 interface ShoppingListRowProps {
   item: ItemRecord
+  /** The Wanted Recipes that link the Item; each is named in a chip. */
+  neededBy: readonly RecipeRecord[]
   onTick: () => void
 }
 
-function ShoppingListRow({ item, onTick }: ShoppingListRowProps) {
+function ShoppingListRow({ item, neededBy, onTick }: ShoppingListRowProps) {
   const runningLow = item.state === 'running low'
+  const chipLabels = recipeChipLabels(neededBy)
   return (
     <ListRow
       headline={item.name}
       supporting={runningLow ? 'running low' : undefined}
       muted={runningLow}
+      trailing={chipLabels.length === 0 ? undefined : chipLabels.map(({ key, label }) => (
+        <span key={key} class="shopping-list__recipe-chip">
+          {label}
+        </span>
+      ))}
       control={<input type="checkbox" checked={false} onChange={onTick} />}
     />
   )
+}
+
+/** The most Recipes a row names one by one; any more collapse into the first Recipe's chip, "for <A> +n". */
+const MAX_NAMED_RECIPES = 2
+
+/** The chips, keyed by Recipe id, for the Wanted Recipes `recipes` that need a row: one "for <title>" each, or "for <first> +n" (n the other Recipes) past {@link MAX_NAMED_RECIPES}. */
+function recipeChipLabels(recipes: readonly RecipeRecord[]): { key: RecipeRecord['id']; label: string }[] {
+  if (recipes.length <= MAX_NAMED_RECIPES) return recipes.map((recipe) => ({ key: recipe.id, label: `for ${recipe.title}` }))
+  const first = recipes[0]!
+  return [{ key: first.id, label: `for ${first.title} +${recipes.length - 1}` }]
 }

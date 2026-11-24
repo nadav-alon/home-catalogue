@@ -1,0 +1,9 @@
+/* Set apart from the State flag: a filled tag in the tertiary role, where the flag is plain muted text. */
+.shopping-list__recipe-chip {
+  display: inline-block;
+  padding: var(--md-sys-spacing-1) var(--md-sys-spacing-3);
+  border-radius: var(--md-sys-shape-corner-small);
+  background: var(--md-sys-color-tertiary-container);
+  color: var(--md-sys-color-on-tertiary-container);
+  font-size: var(--md-sys-typescale-label-size);
+}

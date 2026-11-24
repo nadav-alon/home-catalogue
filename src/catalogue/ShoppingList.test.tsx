@@ -1012,3 +1012,90 @@ describe('ShoppingList optional Items', () => {
     expect(setItemState).toHaveBeenCalledWith(fakeDb, candles, 'enough')
   })
 })
+
+describe('ShoppingList Recipe chips', () => {
+  const flour: ItemRecord = { ...bandages, id: core.itemId('flour'), name: 'Flour', state: 'out', categoryId: cleaning.id }
+  const salt: ItemRecord = { ...flour, id: core.itemId('salt'), name: 'Salt' }
+
+  function recipeNeeding(title: string, itemId: core.ItemId, wanted = true): RecipeRecord {
+    return {
+      id: recipesApi.recipeId(title.toLowerCase()),
+      title,
+      ingredients: [{ name: 'Ingredient', itemId }],
+      prepSteps: [],
+      steps: [],
+      ...(wanted ? { wanted: true } : {}),
+    }
+  }
+
+  const recipesNeeding = (itemId: core.ItemId, ...titles: string[]) => titles.map((title) => recipeNeeding(title, itemId))
+  const chipsOf = (name: string) => [...screen.getByText(name).closest('li')!.querySelectorAll('.shopping-list__recipe-chip')].map((chip) => chip.textContent)
+
+  it.each(['essential', 'important', 'optional'] as const)('shows "for <Recipe title>" on a row a Wanted Recipe needs, at %s Necessity', (necessity) => {
+    const item = { ...flour, necessity }
+    recipes = fakeRecipes([recipeNeeding('Bread', item.id)])
+    renderWith([item], [cleaning], [grocery])
+
+    expect(chipsOf('Flour')).toEqual(['for Bread'])
+  })
+
+  it('shows no chip on a row no Wanted Recipe needs, and keeps its place in the group', () => {
+    recipes = fakeRecipes([recipeNeeding('Bread', flour.id), recipeNeeding('Soup', salt.id, false)])
+    renderWith([flour, salt], [cleaning], [grocery])
+
+    expect(chipsOf('Salt')).toEqual([])
+    expect(screen.getAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)).toEqual(['Flour', 'Salt'])
+  })
+
+  it('shows one chip per Recipe when two need it', () => {
+    recipes = fakeRecipes(recipesNeeding(flour.id, 'Bread', 'Pie'))
+    renderWith([flour], [cleaning], [grocery])
+
+    expect(chipsOf('Flour')).toEqual(['for Bread', 'for Pie'])
+  })
+
+  it('collapses to "for <A> +2" when three need it, counting the Recipes besides the first', () => {
+    recipes = fakeRecipes(recipesNeeding(flour.id, 'Bread', 'Pie', 'Cake'))
+    renderWith([flour], [cleaning], [grocery])
+
+    expect(chipsOf('Flour')).toEqual(['for Bread +2'])
+  })
+
+  it('collapses to "for <A> +3" when four need it', () => {
+    recipes = fakeRecipes(recipesNeeding(flour.id, 'Bread', 'Pie', 'Cake', 'Scones'))
+    renderWith([flour], [cleaning], [grocery])
+
+    expect(chipsOf('Flour')).toEqual(['for Bread +3'])
+  })
+
+  it('keeps a chip for each of two Recipes sharing a title', () => {
+    recipes = fakeRecipes([{ ...recipeNeeding('Bread', flour.id), id: recipesApi.recipeId('a') }, { ...recipeNeeding('Bread', flour.id), id: recipesApi.recipeId('b') }])
+    renderWith([flour], [cleaning], [grocery])
+
+    expect(chipsOf('Flour')).toEqual(['for Bread', 'for Bread'])
+  })
+
+  it('keeps chipped rows in aisle order while Sort by aisle is on', () => {
+    const aisleA = catalogue.aisleId('a')
+    const aisleB = catalogue.aisleId('b')
+    const store: StoreRecord = { id: catalogue.storeId('shufersal'), name: 'Shufersal', shopId: grocery.id, aisleOrder: [aisleA, aisleB] }
+    watchAisles.mockImplementation((_db: unknown, cb: (aisles: AisleRecord[]) => void) => {
+      cb([aisleA, aisleB].map((id) => ({ id, name: id }) as AisleRecord))
+      return vi.fn()
+    })
+    watchStores.mockImplementation((_db: unknown, cb: (stores: StoreRecord[]) => void) => {
+      cb([store])
+      return vi.fn()
+    })
+    const milk: ItemRecord = { ...flour, id: core.itemId('milk'), name: 'Milk', aisleId: aisleB }
+    const rice: ItemRecord = { ...flour, id: core.itemId('rice'), name: 'Rice', aisleId: aisleA }
+    recipes = fakeRecipes(recipesNeeding(milk.id, 'Bread'))
+    renderWith([milk, rice], [cleaning], [grocery])
+
+    fireEvent.click(screen.getByLabelText('Sort by aisle'))
+
+    expect(screen.getAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)).toEqual(['Rice', 'Milk'])
+    expect(chipsOf('Milk')).toEqual(['for Bread'])
+    expect(chipsOf('Rice')).toEqual([])
+  })
+})
