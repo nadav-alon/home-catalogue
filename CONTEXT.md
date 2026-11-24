@@ -39,10 +39,13 @@ _Avoid_: aisle
 Household-wide label for where in a store an Item sits. Managed like a Tag, but an Item carries at most one. Not tied to any Shop or Store, and not a Category.
 
 **Recipe row**:
-An Unlinked Ingredient of a Wanted Recipe, shown among the Shopping list's rows. It is not an Item.
+An Unlinked Ingredient of a Wanted Recipe that is not Assumed and not Bought, shown among the Shopping list's rows by name with a "for <Recipe>" chip and no State. It sits in the Shop for Recipe Ingredients' group after that group's Items, or in a final "Not in the Catalogue" group when none is set. It is not an Item.
 
 **Unlinked Ingredient**:
 An Ingredient of a Recipe that is not linked to an Item.
+
+**Bought**:
+A flag on a Recipe's Unlinked Ingredient: set by ticking its Recipe row, cleared by that tick's Undo. A Bought Ingredient is no longer a Recipe row.
 
 **Wanted Recipe**:
 A Recipe the Household has marked as wanted; its Ingredients feed the Shopping list.
@@ -84,6 +87,7 @@ on the exported event) or **soon** (advisory banner).
 **Shopping list**:
 Live view of every Item at `running low` or `out`, grouped by Shop, `running low` rows
 flagged with their State. An `optional` Item is listed only while some Wanted Recipe links an Ingredient to it. Ticking an Item sets it `enough` and shows an Undo snackbar; so does scanning its Barcode, whether or not the Item was on the list; so does attaching an unknown Barcode to an Item through the chooser; an Item already `enough` is left as it is, with no Undo.
+Every Recipe row of a Wanted Recipe is listed too, after the Items of its group; ticking one marks it Bought with an Undo snackbar.
 A "Sort by aisle" toggle, per device and off by default, sorts each Shop group by a Store's aisle order: Items sharing an Aisle by name, Items with no Aisle (or one the Store has not placed) at the bottom by name. A Shop with several Stores shows a Store dropdown at its group header, the choice remembered per device; one Store is used silently; none leaves plain name order.
 Canonical; works offline.
 
