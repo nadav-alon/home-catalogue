@@ -68,7 +68,7 @@ _Avoid_: have / almost gone / need
 Every State change, timestamped, append-only.
 
 **Necessity**:
-`essential` / `important` / `optional`. Drives Alerts only; `optional` means "not important" and never Alerts.
+`essential` / `important` / `optional`. Drives Alerts, and whether an `optional` Item is on the Shopping list; `optional` means "not important" and never Alerts.
 _Avoid_: priority
 
 **Alert**:
