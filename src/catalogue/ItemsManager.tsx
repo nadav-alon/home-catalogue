@@ -9,6 +9,7 @@ import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED, type GroupKey } from './collapsedCategories.ts'
+import { linkedItemIds, watchRecipes, type RecipeRecord } from './recipes.ts'
 import { watchShops, type ShopRecord } from './shops.ts'
 import type { AddItemHandoff, CategoryAndShop } from '../ui/route.ts'
 import { clearAddItemHandoff, leaveTo, navigateToItems } from '../ui/useRoute.ts'
@@ -63,6 +64,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [shops, setShops] = useState<ShopRecord[]>([])
   const [tags, setTags] = useState<TagRecord[]>([])
   const [aisles, setAisles] = useState<AisleRecord[]>([])
+  const [recipes, setRecipes] = useState<RecipeRecord[]>([])
+  /** The Recipe whose chip is pressed; the list narrows to the Items its Ingredients link. */
+  const [selectedRecipeId, setSelectedRecipeId] = useState<RecipeRecord['id'] | undefined>(undefined)
   // Undo outlives the render that deleted the Item, so it reads the Categories and Shops as they are when it is pressed.
   const categoriesRef = useRef(categories)
   categoriesRef.current = categories
@@ -170,6 +174,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
 
   useEffect(() => watchTags(db, setTags), [db])
   useEffect(() => watchAisles(db, setAisles), [db])
+  useEffect(() => watchRecipes(db, setRecipes), [db])
 
   async function handleScan(barcode: core.Barcode) {
     if (items === undefined) {
@@ -290,7 +295,11 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   useEffect(() => {
     if (activeTagIds.length !== selectedTagIds.length) setSelectedTagIds(activeTagIds)
   }, [activeTagIds.length, selectedTagIds.length])
-  const chipFiltered =activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0
+  // A Recipe that is deleted stops filtering, as a Category or Shop that names nothing live does.
+  const activeRecipe = recipes.find((recipe) => recipe.id === selectedRecipeId)
+  const recipeItemIds = useMemo(() => (activeRecipe === undefined ? undefined : new Set(linkedItemIds(activeRecipe))), [activeRecipe])
+  const chipFiltered =
+    activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0 || activeRecipe !== undefined
   const visibleItems = (scanFiltered ? candidateItems : candidateItems.filter((item) => matchesSearch(item, search, tags))).filter(
     (item) =>
       (activeCategoryId === undefined || item.categoryId === activeCategoryId) &&
@@ -298,7 +307,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
       (activeShopId === undefined ||
         !listsLoaded.categories ||
         resolvedShopId(item, categoriesById.get(item.categoryId)) === activeShopId) &&
-      (activeTagIds.length === 0 || carriesAnyTag(item, activeTagIds)),
+      (activeTagIds.length === 0 || carriesAnyTag(item, activeTagIds)) &&
+      (recipeItemIds === undefined || recipeItemIds.has(item.id)),
   )
   // A search, scan or chip filter shows its matches whatever was collapsed; the remembered state is left alone for when it clears.
   const filterActive = scanFiltered || search !== '' || chipFiltered
@@ -353,6 +363,16 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             label={tag.name}
             selected={activeTagIds.includes(tag.id)}
             onToggle={() => setSelectedTagIds(toggledMember(activeTagIds, tag.id))}
+          />
+        ))}
+      </div>
+      <div role="group" aria-label="Filter by Recipe" class="items-manager__chips">
+        {recipes.map((recipe) => (
+          <FilterChip
+            key={recipe.id}
+            label={recipe.title}
+            selected={recipe.id === activeRecipe?.id}
+            onToggle={() => setSelectedRecipeId(toggledSelection(activeRecipe?.id, recipe.id))}
           />
         ))}
       </div>

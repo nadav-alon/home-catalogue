@@ -1,13 +1,15 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import type { Firestore } from 'firebase/firestore'
-import { catalogue, core } from 'data-platform'
+import { catalogue, core, recipes } from 'data-platform'
 import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
 import { ItemsManager } from './ItemsManager.tsx'
 import type { ItemRecord } from './items.ts'
 import type { CategoryRecord } from './categories.ts'
 import type { ShopRecord } from './shops.ts'
 import type { AisleRecord } from './aisles.ts'
+import type { RecipeRecord } from './recipes.ts'
+import { fakeRecipes } from './recipesFake.ts'
 import type { TagRecord } from './tags.ts'
 import { returnUrl, type AddItemHandoff, type CategoryAndShop } from '../ui/route.ts'
 import { resetHash } from '../testing/hash.ts'
@@ -73,6 +75,12 @@ vi.mock('./aisles.ts', async (importOriginal) => ({
   createAisle: (db: unknown, name: unknown) => createAisle(db, name),
 }))
 
+const watchRecipes = vi.fn()
+vi.mock('./recipes.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./recipes.ts')>()),
+  watchRecipes: (db: unknown, cb: unknown) => watchRecipes(db, cb),
+}))
+
 const watchTags = vi.fn()
 const createTag = vi.fn()
 vi.mock('./tags.ts', async (importOriginal) => ({
@@ -103,6 +111,10 @@ beforeEach(() => {
   watchCategories.mockReset()
   createCategory.mockReset()
   watchShops.mockReset()
+  watchRecipes.mockReset().mockImplementation((_db: unknown, cb: (recipes: RecipeRecord[]) => void) => {
+    cb([])
+    return vi.fn()
+  })
   watchTags.mockReset().mockImplementation((_db: unknown, cb: (tags: TagRecord[]) => void) => {
     cb([])
     return vi.fn()
@@ -2697,5 +2709,88 @@ describe('Aisle in the Item dialog', () => {
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
 
     expect(confirmSpy).toHaveBeenCalledOnce()
+  })
+})
+
+describe('ItemsManager Recipe filter', () => {
+  const tape: ItemRecord = { ...bandages, id: core.itemId('tape'), name: 'Tape' }
+  const soap: ItemRecord = { ...bandages, id: core.itemId('soap'), name: 'Dish soap', categoryId: cleaning.id }
+  const recipe = (id: string, title: string, ingredients: recipes.Recipe['ingredients']): RecipeRecord => ({
+    id: recipes.recipeId(id),
+    title,
+    ingredients,
+    prepSteps: [],
+    steps: [],
+  })
+  const firstAid = recipe('first-aid', 'First aid', [{ name: 'Bandages', itemId: bandages.id }])
+  const cleanUp = recipe('clean-up', 'Clean up', [
+    { name: 'Soap', itemId: soap.id },
+    { name: 'Tape', itemId: tape.id },
+  ])
+
+  function renderWithRecipes(initial: RecipeRecord[]) {
+    const fake = fakeRecipes(initial)
+    watchRecipes.mockImplementation((db: Firestore, cb: (recipes: RecipeRecord[]) => void) => fake.watch(db, cb))
+    renderWith([bandages, tape, soap], [medicine, cleaning], [pharmacy, grocery])
+    return fake
+  }
+  const recipeChips = () => within(screen.getByRole('group', { name: 'Filter by Recipe' }))
+
+  it('offers a chip for every live Recipe by title, none pressed', () => {
+    renderWithRecipes([firstAid, cleanUp])
+
+    expect(recipeChips().getByRole('button', { name: 'First aid', pressed: false })).toBeInTheDocument()
+    expect(recipeChips().getByRole('button', { name: 'Clean up', pressed: false })).toBeInTheDocument()
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+  })
+
+  it("narrows the Items to those the chosen Recipe's Ingredients link", () => {
+    renderWithRecipes([firstAid, cleanUp])
+
+    fireEvent.click(recipeChips().getByRole('button', { name: 'Clean up' }))
+
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+    expect(screen.getByText('Tape')).toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('combines with the Category chips and the search', () => {
+    renderWithRecipes([firstAid, cleanUp])
+
+    fireEvent.click(recipeChips().getByRole('button', { name: 'Clean up' }))
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'tape' } })
+
+    expect(screen.getByText('Tape')).toBeInTheDocument()
+    expect(screen.queryByText('Dish soap')).not.toBeInTheDocument()
+  })
+
+  it('follows a relinked Ingredient without a reload', () => {
+    const fake = renderWithRecipes([firstAid])
+    fireEvent.click(recipeChips().getByRole('button', { name: 'First aid' }))
+    expect(screen.queryByText('Tape')).not.toBeInTheDocument()
+
+    act(() => fake.set([recipe('first-aid', 'First aid', [{ name: 'Tape', itemId: tape.id }])]))
+
+    expect(screen.getByText('Tape')).toBeInTheDocument()
+    expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
+  })
+
+  it('restores the list when the chosen Recipe is chosen again', () => {
+    renderWithRecipes([firstAid])
+    fireEvent.click(recipeChips().getByRole('button', { name: 'First aid' }))
+
+    fireEvent.click(recipeChips().getByRole('button', { name: 'First aid', pressed: true }))
+
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+    expect(screen.getByText('Tape')).toBeInTheDocument()
+  })
+
+  it('stops filtering once the chosen Recipe is deleted', () => {
+    const fake = renderWithRecipes([firstAid])
+    fireEvent.click(recipeChips().getByRole('button', { name: 'First aid' }))
+
+    act(() => fake.set([]))
+
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
   })
 })
