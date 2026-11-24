@@ -65,3 +65,24 @@ export function wantedRecipesByItem(recipes: readonly RecipeRecord[]): Map<core.
   }
   return byItem
 }
+
+/** An Unlinked Ingredient of a Wanted Recipe that is not yet Bought: one Recipe row of the Shopping list. */
+export interface RecipeRow {
+  recipe: RecipeRecord
+  /** The Ingredient's 0-based position in `recipe.ingredients`, the position `setIngredientBought` takes. */
+  position: number
+  name: string
+}
+
+/** The Recipe rows of the Wanted Recipes among `recipes`, in Recipe then Ingredient order; Linked, Assumed and Bought Ingredients give none. */
+export function recipeRowsOf(recipes: readonly RecipeRecord[]): RecipeRow[] {
+  return recipes.flatMap((recipe) =>
+    recipe.wanted !== true
+      ? []
+      : recipe.ingredients.flatMap((ingredient, position) =>
+          ingredient.itemId === undefined && ingredient.assumed !== true && ingredient.bought !== true
+            ? [{ recipe, position, name: ingredient.name }]
+            : [],
+        ),
+  )
+}

@@ -19,7 +19,7 @@ import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { showSnackbar } from 'household-ui/ui/Snackbar.tsx'
 import { groupPendingItemsByShop } from './pendingItemsByShop.ts'
 import './ShoppingList.css'
-import { itemIdsNeededBy, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type WatchRecipes } from './recipes.ts'
+import { itemIdsNeededBy, recipeRowsOf, wantedRecipesByItem, watchRecipes as watchLiveRecipes, type RecipeRecord, type RecipeRow, type WatchRecipes } from './recipes.ts'
 
 export interface ShoppingListProps {
   db: Firestore
@@ -33,7 +33,12 @@ interface ShopGroup {
   shop?: ShopRecord
   name: string
   items: ItemRecord[]
+  /** The Recipe rows, listed after the Items. */
+  recipeRows: RecipeRow[]
 }
+
+/** The name of the final group holding Recipe rows when no Shop for Recipe Ingredients is set. */
+const NOT_IN_CATALOGUE_NAME = 'Not in the Catalogue'
 
 export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingListProps) {
   const [items, setItems] = useState<ItemRecord[] | null>(null)
@@ -187,10 +192,14 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
     shop,
     name: shop.name,
     items: shopItems,
+    recipeRows: [],
   }))
   if (unresolved.length > 0) {
-    groups.push({ key: UNKNOWN_SHOP_NAME, name: UNKNOWN_SHOP_NAME, items: unresolved })
+    groups.push({ key: UNKNOWN_SHOP_NAME, name: UNKNOWN_SHOP_NAME, items: unresolved, recipeRows: [] })
   }
+
+  const recipeRows = recipeRowsOf(recipes ?? [])
+  if (recipeRows.length > 0) groups.push({ key: NOT_IN_CATALOGUE_NAME, name: NOT_IN_CATALOGUE_NAME, items: [], recipeRows })
 
   return (
     <section>
@@ -204,7 +213,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
       {items !== null && recipes !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
-      {groups.map(({ key, name, shop, items: groupItems }) => {
+      {groups.map(({ key, name, shop, items: groupItems, recipeRows: groupRecipeRows }) => {
         const options = sortByAisle && shop !== undefined ? storesOfShop(stores, shop) : []
         const sortingStore = shop === undefined ? undefined : sortingStores.get(shop.id)
         return (
@@ -229,6 +238,9 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
             <ul>
               {groupItems.map((item) => (
                 <ShoppingListRow key={item.id} item={item} neededBy={recipesByItem.get(item.id) ?? []} onTick={() => handleTick(item)} />
+              ))}
+              {groupRecipeRows.map((row) => (
+                <RecipeRowItem key={`${row.recipe.id}:${row.position}`} row={row} />
               ))}
             </ul>
           </div>
@@ -302,6 +314,21 @@ function ShoppingListRow({ item, neededBy, onTick }: ShoppingListRowProps) {
         </span>
       ))}
       control={<input type="checkbox" checked={false} onChange={onTick} />}
+    />
+  )
+}
+
+/** A Recipe row: the Ingredient's name and its Recipe's chip, with no State flag. */
+function RecipeRowItem({ row }: { row: RecipeRow }) {
+  return (
+    <ListRow
+      headline={row.name}
+      trailing={recipeChipLabels([row.recipe]).map(({ key, label }) => (
+        <span key={key} class="shopping-list__recipe-chip">
+          {label}
+        </span>
+      ))}
+      control={<input type="checkbox" checked={false} readOnly />}
     />
   )
 }

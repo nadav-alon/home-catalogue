@@ -69,6 +69,14 @@ vi.mock('./tags.ts', async (importOriginal) => ({
   createTag: (db: unknown, name: unknown) => createTag(db, name),
 }))
 
+const watchRecipeIngredientShop = vi.fn()
+const setIngredientBought = vi.fn()
+vi.mock('data-platform/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('data-platform/client')>()),
+  watchRecipeIngredientShop: (...args: unknown[]) => watchRecipeIngredientShop(...args),
+  setIngredientBought: (...args: unknown[]) => setIngredientBought(...args),
+}))
+
 let recipes: FakeRecipes
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -99,6 +107,11 @@ beforeEach(() => {
     cb([])
     return vi.fn()
   })
+  watchRecipeIngredientShop.mockReset().mockImplementation((_db: unknown, cb: (shopId: catalogue.ShopId | undefined) => void) => {
+    cb(undefined)
+    return vi.fn()
+  })
+  setIngredientBought.mockReset().mockResolvedValue(undefined)
   localStorage.clear()
   resetSnackbar()
 })
@@ -1097,5 +1110,37 @@ describe('ShoppingList Recipe chips', () => {
     expect(screen.getAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)).toEqual(['Rice', 'Milk'])
     expect(chipsOf('Milk')).toEqual(['for Bread'])
     expect(chipsOf('Rice')).toEqual([])
+  })
+})
+
+describe('ShoppingList Recipe rows', () => {
+  const sriracha = { name: 'Sriracha' }
+  function recipeWith(ingredients: recipesApi.Recipe['ingredients'], id = 'noodles', wanted = true): RecipeRecord {
+    return { id: recipesApi.recipeId(id), title: 'Noodles', ingredients, prepSteps: [], steps: [], ...(wanted ? { wanted: true } : {}) }
+  }
+  function rowNames() {
+    return screen.queryAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)
+  }
+
+  it('shows an Unlinked Ingredient of a Wanted Recipe with its chip and no State flag, in a final "Not in the Catalogue" group when no Shop is set', () => {
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+
+    const group = screen.getByRole('heading', { name: 'Not in the Catalogue' }).parentElement!
+    const row = within(group).getByRole('listitem')
+    expect(row.querySelector('.ui-list-row__headline')?.textContent).toBe('Sriracha')
+    expect(row.querySelector('.shopping-list__recipe-chip')?.textContent).toBe('for Noodles')
+    expect(row.textContent).not.toMatch(/running low|out/)
+    expect(screen.queryByText('Nothing to buy — every Item is enough.')).toBeNull()
+  })
+
+  it('lists no Linked, Assumed or Bought Ingredient, and none of a Recipe that is not Wanted', () => {
+    recipes = fakeRecipes([
+      recipeWith([{ name: 'Candles', itemId: core.itemId('candles') }, { name: 'Salt', assumed: true }, { name: 'Honey', bought: true }]),
+      recipeWith([sriracha], 'other', false),
+    ])
+    renderWith([], [], [])
+
+    expect(rowNames()).toEqual([])
   })
 })
