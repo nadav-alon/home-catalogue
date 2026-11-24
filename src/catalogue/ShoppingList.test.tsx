@@ -1171,4 +1171,35 @@ describe('ShoppingList Recipe rows', () => {
 
     expect(rowNames()).toEqual([])
   })
+
+  it('drops a ticked row once the Recipe comes back with it Bought', () => {
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+
+    fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
+    act(() => recipes.set([recipeWith([{ ...sriracha, bought: true }])]))
+
+    expect(rowNames()).toEqual([])
+  })
+
+  it('does not clear Bought on another Ingredient when Undo is pressed after the Recipe\'s Ingredients moved', () => {
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+    render(<SnackbarHost />)
+
+    fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
+    act(() => recipes.set([recipeWith([{ name: 'Salt', assumed: true }, { ...sriracha, bought: true }])]))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(setIngredientBought).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('alert').textContent).toMatch(/Could not undo/)
+  })
+
+  it('shows no "Not in the Catalogue" group until the Shop for Recipe Ingredients setting has loaded', () => {
+    watchRecipeIngredientShop.mockImplementation(() => vi.fn())
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+
+    expect(screen.queryByRole('heading', { name: 'Not in the Catalogue' })).toBeNull()
+  })
 })

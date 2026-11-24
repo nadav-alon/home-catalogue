@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import type { catalogue, core } from 'data-platform'
 import { setIngredientBought, watchRecipeIngredientShop } from 'data-platform/client'
@@ -51,8 +51,11 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   const [sortByAisle, setSortByAisle] = useState(getSortByAisle)
   const [chosenStoreIds, setChosenStoreIds] = useState(getChosenStoreIds)
   const [recipes, setRecipes] = useState<RecipeRecord[] | null>(null)
-  /** The Household's Shop for Recipe Ingredients, if set and live. */
-  const [recipeShopId, setRecipeShopId] = useState<catalogue.ShopId>()
+  /** The Household's Shop for Recipe Ingredients: `undefined` when unset or not live, `null` until the setting has loaded. */
+  const [recipeShopId, setRecipeShopId] = useState<catalogue.ShopId | undefined | null>(null)
+  /** The latest Recipes, read when Undo is pressed rather than when the row was ticked. */
+  const latestRecipes = useRef<RecipeRecord[] | null>(null)
+  latestRecipes.current = recipes
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => watchItems(db, setItems), [db])
@@ -110,6 +113,13 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
 
   async function handleSetBought(row: RecipeRow, bought: boolean) {
     try {
+      if (!bought) {
+        const current = latestRecipes.current?.find((recipe) => recipe.id === row.recipe.id)
+        if (current?.ingredients[row.position]?.name !== row.name) {
+          setError(`Could not undo: ${row.recipe.title} changed, so ${row.name} is still marked bought`)
+          return
+        }
+      }
       await setIngredientBought(db, row.recipe.id, row.position, bought)
       setError(null)
     } catch (err) {
@@ -220,7 +230,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
     groups.push({ key: UNKNOWN_SHOP_NAME, name: UNKNOWN_SHOP_NAME, items: unresolved, recipeRows: [] })
   }
 
-  if (recipeShop === undefined && recipeRows.length > 0) groups.push({ key: NOT_IN_CATALOGUE_NAME, name: NOT_IN_CATALOGUE_NAME, items: [], recipeRows })
+  if (recipeShop === undefined && recipeRows.length > 0 && recipeShopId !== null && listsLoaded.shops) groups.push({ key: NOT_IN_CATALOGUE_NAME, name: NOT_IN_CATALOGUE_NAME, items: [], recipeRows })
 
   return (
     <section>
