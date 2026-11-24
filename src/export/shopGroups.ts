@@ -3,7 +3,7 @@ import type { ItemRecord } from '../catalogue/items.ts'
 import { wantedRecipesByItem, type RecipeRecord, type RecipeRow } from '../catalogue/recipes.ts'
 import { shoppingListGroups } from '../catalogue/shoppingListGroups.ts'
 import type { catalogue, core } from 'data-platform'
-import { UNKNOWN_SHOP_NAME, type ShopRecord } from '../catalogue/shops.ts'
+import type { ShopRecord } from '../catalogue/shops.ts'
 import type { SortingStores } from '../catalogue/aisleSort.ts'
 
 /** One Calendar event's worth of the Shopping list: a group's Items, then its Recipe rows. */
@@ -50,7 +50,7 @@ export function pendingItemsByShop(
 ): PendingItemGroups {
   const all = shoppingListGroups(items, categories, shops, sortingStores, recipes, recipeShopId)
   const neededBy = wantedRecipesByItem(recipes)
-  const unknown = all.find((group) => group.key === UNKNOWN_SHOP_NAME)
+  const unknown = all.find((group) => group.kind === 'unknown-shop')
   const groups = all.filter((group) => group !== unknown)
   return {
     groups: groups.map(({ name, items: groupItems, recipeRows }) => ({ name, items: groupItems, neededBy, recipeRows })),

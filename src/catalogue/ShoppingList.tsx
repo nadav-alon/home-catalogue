@@ -226,11 +226,11 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
       {items !== null && recipes !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
-      {groups.map(({ key, name, shop, items: groupItems, recipeRows: groupRecipeRows }) => {
+      {groups.map(({ kind, name, shop, items: groupItems, recipeRows: groupRecipeRows }) => {
         const options = sortByAisle && shop !== undefined ? storesOfShop(stores, shop) : []
         const sortingStore = shop === undefined ? undefined : sortingStores.get(shop.id)
         return (
-          <div key={key}>
+          <div key={shop?.id ?? kind}>
             <h2>{name}</h2>
             {shop !== undefined && sortingStore !== undefined && options.length > 1 && (
               <Select

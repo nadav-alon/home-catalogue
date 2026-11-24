@@ -8,7 +8,8 @@ import type { SortingStores } from './aisleSort.ts'
 
 /** One group of the Shopping list: a Shop's Items then its Recipe rows, or one of the two groups with no Shop. */
 export interface ShoppingListGroup {
-  key: string
+  /** Which of the three kinds of group this is; only a 'shop' group has a {@link ShopRecord}. */
+  kind: 'shop' | 'unknown-shop' | 'not-in-catalogue'
   /** Set for a resolved Shop, whose group can be sorted by one of its Stores; unset for {@link UNKNOWN_SHOP_NAME} and {@link NOT_IN_CATALOGUE_NAME}. */
   shop?: ShopRecord
   name: string
@@ -42,10 +43,10 @@ export function shoppingListGroups(
   const groups: ShoppingListGroup[] = shops.flatMap((shop) => {
     const shopItems = shopGroups.find((group) => group.shop.id === shop.id)?.items ?? []
     const shopRecipeRows = shop.id === recipeShop?.id ? recipeRows : []
-    return shopItems.length === 0 && shopRecipeRows.length === 0 ? [] : [{ key: shop.id, shop, name: shop.name, items: shopItems, recipeRows: shopRecipeRows }]
+    return shopItems.length === 0 && shopRecipeRows.length === 0 ? [] : [{ kind: 'shop', shop, name: shop.name, items: shopItems, recipeRows: shopRecipeRows }]
   })
-  if (unresolved.length > 0) groups.push({ key: UNKNOWN_SHOP_NAME, name: UNKNOWN_SHOP_NAME, items: unresolved, recipeRows: [] })
-  if (recipeShop === undefined && recipeRows.length > 0 && recipeShopId !== null) groups.push({ key: NOT_IN_CATALOGUE_NAME, name: NOT_IN_CATALOGUE_NAME, items: [], recipeRows })
+  if (unresolved.length > 0) groups.push({ kind: 'unknown-shop', name: UNKNOWN_SHOP_NAME, items: unresolved, recipeRows: [] })
+  if (recipeShop === undefined && recipeRows.length > 0 && recipeShopId !== null) groups.push({ kind: 'not-in-catalogue', name: NOT_IN_CATALOGUE_NAME, items: [], recipeRows })
   return groups
 }
 
