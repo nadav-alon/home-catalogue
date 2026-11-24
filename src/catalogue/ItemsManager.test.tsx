@@ -2754,7 +2754,7 @@ describe('ItemsManager Recipe filter', () => {
     })
   }
 
-  it('offers a chip for every live Recipe by title, none pressed', async () => {
+  it('offers a chip for every live Recipe by title, none pressed', () => {
     renderWithRecipes([firstAid, cleanUp])
 
     expect(recipeChips().getByRole('button', { name: 'First aid', pressed: false })).toBeInTheDocument()
@@ -2823,6 +2823,19 @@ describe('ItemsManager Recipe filter', () => {
     expect(screen.getByText('Dish soap')).toBeInTheDocument()
   })
 
+  it('filters again when the chosen Recipe is restored, as a deleted Category or Shop does', async () => {
+    const fake = renderWithRecipes([firstAid])
+    await pressRecipe('First aid')
+    act(() => fake.set([]))
+    expect(screen.getByText('Tape')).toBeInTheDocument()
+
+    act(() => fake.set([firstAid]))
+
+    expect(recipeChips().getByRole('button', { name: 'First aid', pressed: true })).toBeInTheDocument()
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+    expect(screen.queryByText('Tape')).not.toBeInTheDocument()
+  })
+
   it('writes the chosen Recipe to the hash as recipe=<id>, beside the Category and Shop', async () => {
     window.location.hash = '#/items?category=cleaning'
     renderWithRecipes([firstAid, cleanUp])
@@ -2830,6 +2843,21 @@ describe('ItemsManager Recipe filter', () => {
     await pressRecipe('Clean up')
 
     expect(window.location.hash).toBe('#/items?category=cleaning&recipe=clean-up')
+  })
+
+  it('keeps the chosen Recipe when the Scanned chip is dismissed', () => {
+    const onClearFilter = vi.fn()
+    watchRecipes.mockImplementation((_db: unknown, cb: (recipes: RecipeRecord[]) => void) => {
+      cb([cleanUp])
+      return vi.fn()
+    })
+    renderWith([bandages, tape, soap], [medicine, cleaning], [pharmacy, grocery], [tape.id], onClearFilter, {
+      filter: { categoryId: undefined, shopId: undefined, recipeId: cleanUp.id },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear scanned filter' }))
+
+    expect(onClearFilter).toHaveBeenCalledWith({ categoryId: undefined, shopId: undefined, recipeId: cleanUp.id })
   })
 
   it('keeps the chosen Recipe when a Category chip is pressed', async () => {

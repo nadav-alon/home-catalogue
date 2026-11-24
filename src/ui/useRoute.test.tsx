@@ -130,16 +130,16 @@ describe('navigateToItems', () => {
     expect(window.location.hash).toBe('#/items?item=a,b')
   })
 
-  it('keeps the Category and Shop filters on the current hash', async () => {
-    window.location.hash = '#/items?category=groceries&shop=pharmacy'
+  it('keeps the Category, Shop and Recipe filters on the current hash', async () => {
+    window.location.hash = '#/items?category=groceries&shop=pharmacy&recipe=pancakes'
     const { result } = renderHook(() => ({ filter: useItemsFilter(), ids: useItemIds() }))
     await act(async () => {
       navigateToItems([core.itemId('a')])
       await nextHashChange()
     })
-    expect(window.location.hash).toBe('#/items?item=a&category=groceries&shop=pharmacy')
+    expect(window.location.hash).toBe('#/items?item=a&category=groceries&shop=pharmacy&recipe=pancakes')
     expect(result.current.ids).toEqual([core.itemId('a')])
-    expect(result.current.filter).toEqual({ categoryId: catalogue.categoryId('groceries'), shopId: catalogue.shopId('pharmacy') })
+    expect(result.current.filter).toEqual({ categoryId: catalogue.categoryId('groceries'), shopId: catalogue.shopId('pharmacy'), recipeId: recipes.recipeId('pancakes') })
   })
 
   it("waits for a closing Dialog's history pop to land before pushing the filter", async () => {

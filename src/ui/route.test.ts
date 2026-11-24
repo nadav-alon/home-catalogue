@@ -65,7 +65,7 @@ describe('itemsHashOf', () => {
   })
 })
 
-describe('Category and Shop filter in the hash', () => {
+describe('ItemsFilter in the hash', () => {
   const groceries = catalogue.categoryId('groceries')
   const pharmacy = catalogue.shopId('pharmacy')
 
@@ -101,7 +101,7 @@ describe('Category and Shop filter in the hash', () => {
     expect(withItemsFilter('#/items?item=a&recipe=pancakes', { categoryId: undefined, shopId: undefined, recipeId: undefined })).toBe('#/items?item=a')
   })
 
-  it('names the bare Items screen once both are cleared', () => {
+  it('names the bare Items screen once every filter is cleared', () => {
     expect(withItemsFilter('#/items?category=a&shop=b', { categoryId: undefined, shopId: undefined, recipeId: undefined })).toBe('#/items')
   })
 })
