@@ -16,6 +16,10 @@ import { fakeRecipes, type FakeRecipes } from './recipesFake.ts'
 import type { RecipeRecord } from './recipes.ts'
 import { bandages, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 
+const exportShoppingList = vi.fn()
+vi.mock('../export/exportShoppingList.ts', () => ({
+  exportShoppingList: (groups: unknown, date: unknown) => exportShoppingList(groups, date),
+}))
 const watchItems = vi.fn()
 const setItemState = vi.fn()
 const findBarcodeHolders = vi.fn()
@@ -1201,5 +1205,77 @@ describe('ShoppingList Recipe rows', () => {
     renderWith([], [], [])
 
     expect(screen.queryByRole('heading', { name: 'Not in the Catalogue' })).toBeNull()
+  })
+})
+
+describe('ShoppingList filter by Recipe', () => {
+  afterEach(() => resetSnackbar())
+
+  const candles: ItemRecord = { id: core.itemId('candles'), name: 'Candles', state: 'out', categoryId: cleaning.id, shopId: grocery.id, necessity: 'essential', tagIds: [] }
+  const soap: ItemRecord = { id: core.itemId('soap'), name: 'Soap', state: 'out', categoryId: cleaning.id, shopId: pharmacy.id, necessity: 'essential', tagIds: [] }
+  const party: RecipeRecord = { ...wantedRecipeNeeding('candles'), ingredients: [{ name: 'Candles', itemId: candles.id }, { name: 'Sriracha' }] }
+  const wash: RecipeRecord = { id: recipesApi.recipeId('wash'), title: 'Wash', ingredients: [{ name: 'Soap', itemId: soap.id }, { name: 'Rags' }], prepSteps: [], steps: [], wanted: true }
+  const rowNames = () => screen.queryAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)
+
+  const chooseRecipe = (title: string) =>
+    fireEvent.click(within(screen.getByRole('group', { name: 'Filter by Recipe' })).getByRole('button', { name: title }))
+
+  function renderFiltered() {
+    watchRecipeIngredientShop.mockImplementation((_db: unknown, cb: (shopId: catalogue.ShopId) => void) => {
+      cb(grocery.id)
+      return vi.fn()
+    })
+    recipes = fakeRecipes([party, wash])
+    renderWith([candles, soap], [cleaning], [grocery, pharmacy])
+  }
+
+  it('narrows each Shop group to the Recipe\'s linked Items and its own Recipe rows, hiding empty groups, and restores the list when cleared', () => {
+    renderFiltered()
+    expect(rowNames()).toEqual(['Candles', 'Sriracha', 'Rags', 'Soap'])
+
+    chooseRecipe('Wash')
+    expect(rowNames()).toEqual(['Rags', 'Soap'])
+    expect(screen.queryByRole('heading', { name: grocery.name })).not.toBeNull()
+
+    chooseRecipe('Wash')
+    expect(rowNames()).toEqual(['Candles', 'Sriracha', 'Rags', 'Soap'])
+  })
+
+  it('still exports the Items the filter hides', async () => {
+    HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.setAttribute('open', '')
+    })
+    exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
+    renderFiltered()
+    chooseRecipe('Wash')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
+    fireEvent.input(screen.getByLabelText('Date'), { target: { value: '2026-03-05' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+    })
+
+    expect(exportShoppingList).toHaveBeenCalledWith(
+      expect.arrayContaining([expect.objectContaining({ shop: grocery, items: [candles] })]),
+      '2026-03-05',
+    )
+  })
+
+  it('hides a Shop group the Recipe has nothing in', () => {
+    renderFiltered()
+    recipes.set([party, { ...wash, ingredients: [{ name: 'Soap', itemId: soap.id }] }])
+
+    chooseRecipe('Wash')
+
+    expect(screen.queryByRole('heading', { name: grocery.name })).toBeNull()
+    expect(rowNames()).toEqual(['Soap'])
+  })
+
+  it('leaves the filter off when its Recipe is deleted', () => {
+    renderFiltered()
+    chooseRecipe('Wash')
+    act(() => recipes.set([party]))
+
+    expect(rowNames()).toEqual(['Candles', 'Sriracha', 'Soap'])
   })
 })

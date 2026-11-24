@@ -1,0 +1,5 @@
+.recipe-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--md-sys-spacing-2);
+}

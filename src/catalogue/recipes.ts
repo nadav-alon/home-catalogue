@@ -43,6 +43,15 @@ export function linkedItemIds(recipe: recipes.Recipe): core.ItemId[] {
   return recipe.ingredients.flatMap((ingredient) => (ingredient.itemId === undefined ? [] : [ingredient.itemId]))
 }
 
+/** The Recipe `recipeId` names among `all` with the ids of the Items it links; undefined when nothing is chosen or the Recipe is gone. */
+export function chosenRecipe(
+  all: readonly RecipeRecord[],
+  recipeId: RecipeRecord['id'] | undefined,
+): { recipe: RecipeRecord; itemIds: ReadonlySet<core.ItemId> } | undefined {
+  const recipe = all.find((candidate) => candidate.id === recipeId)
+  return recipe === undefined ? undefined : { recipe, itemIds: new Set(linkedItemIds(recipe)) }
+}
+
 /** Whether `ingredient` is Unlinked: neither linked to an Item nor Assumed. */
 function isUnlinked(ingredient: recipes.Recipe['ingredients'][number]): boolean {
   return ingredient.itemId === undefined && ingredient.assumed !== true

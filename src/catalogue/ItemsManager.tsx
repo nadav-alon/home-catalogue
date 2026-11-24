@@ -9,7 +9,9 @@ import { ScanEntry } from '../scan/ScanEntry.tsx'
 import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED, type GroupKey } from './collapsedCategories.ts'
-import { linkedItemIds, unlinkedIngredientNames, watchRecipes, type RecipeRecord } from './recipes.ts'
+import { chosenRecipe, unlinkedIngredientNames, watchRecipes, type RecipeRecord } from './recipes.ts'
+import { RecipeFilter } from './RecipeFilter.tsx'
+import { toggledSelection } from './selection.ts'
 import { watchShops, type ShopRecord } from './shops.ts'
 import type { AddItemHandoff, ItemsFilter } from '../ui/route.ts'
 import { clearAddItemHandoff, leaveTo, navigateToItems } from '../ui/useRoute.ts'
@@ -45,11 +47,6 @@ export interface ItemsManagerProps {
    * the app goes there as the dialog closes, with the new Item's id appended if it was saved.
    */
   handoff?: AddItemHandoff
-}
-
-/** `current` cleared when it is `id`, else `id`: what pressing a chip of a one-at-a-time group selects. */
-function toggledSelection<Id extends string>(current: Id | undefined, id: Id): Id | undefined {
-  return current === id ? undefined : id
 }
 
 /** `ids` without `id` when it holds it, else with `id` added: what pressing a chip of a many-at-once group selects. */
@@ -303,8 +300,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     if (activeTagIds.length !== selectedTagIds.length) setSelectedTagIds(activeTagIds)
   }, [activeTagIds.length, selectedTagIds.length])
   // A Recipe that is deleted stops filtering (until restored), as a Category or Shop that names nothing live does.
-  const activeRecipe = recipes.find((recipe) => recipe.id === recipeId)
-  const recipeItemIds = useMemo(() => (activeRecipe === undefined ? undefined : new Set(linkedItemIds(activeRecipe))), [activeRecipe])
+  const chosen = useMemo(() => chosenRecipe(recipes, recipeId), [recipes, recipeId])
+  const activeRecipe = chosen?.recipe
+  const recipeItemIds = chosen?.itemIds
   const activeRecipeId = !recipesLoaded || isLiveReference(recipes, recipeId) ? recipeId : undefined
   const activeFilter: ItemsFilter = { categoryId: activeCategoryId, shopId: activeShopId, recipeId: activeRecipeId }
   const unlinkedNames = activeRecipe === undefined ? [] : unlinkedIngredientNames(activeRecipe)
@@ -376,16 +374,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
           />
         ))}
       </div>
-      <div role="group" aria-label="Filter by Recipe" class="items-manager__chips">
-        {recipes.map((recipe) => (
-          <FilterChip
-            key={recipe.id}
-            label={recipe.title}
-            selected={recipe.id === activeRecipe?.id}
-            onToggle={() => onFilterChange?.({ ...activeFilter, recipeId: toggledSelection(activeRecipeId, recipe.id) })}
-          />
-        ))}
-      </div>
+      <RecipeFilter recipes={recipes} selectedId={activeRecipe?.id} onChange={(next) => onFilterChange?.({ ...activeFilter, recipeId: next })} />
       {unlinkedNames.length > 0 && (
         <div role="status" class="items-manager__unlinked">
           <p>
