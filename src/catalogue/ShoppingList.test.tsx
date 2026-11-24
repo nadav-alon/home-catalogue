@@ -1012,3 +1012,34 @@ describe('ShoppingList optional Items', () => {
     expect(setItemState).toHaveBeenCalledWith(fakeDb, candles, 'enough')
   })
 })
+
+describe('ShoppingList Recipe chips', () => {
+  const flour: ItemRecord = { ...bandages, id: core.itemId('flour'), name: 'Flour', state: 'out', categoryId: cleaning.id }
+  const salt: ItemRecord = { ...flour, id: core.itemId('salt'), name: 'Salt' }
+
+  function recipeNeeding(title: string, itemId: string, wanted = true): RecipeRecord {
+    return {
+      id: recipesApi.recipeId(title.toLowerCase()),
+      title,
+      ingredients: [{ name: 'Ingredient', itemId: core.itemId(itemId) }],
+      prepSteps: [],
+      steps: [],
+      ...(wanted ? { wanted: true } : {}),
+    }
+  }
+
+  it('shows "for <Recipe title>" on a row a Wanted Recipe needs, at any Necessity', () => {
+    recipes = fakeRecipes([recipeNeeding('Bread', 'flour')])
+    renderWith([flour], [cleaning], [grocery])
+
+    expect(within(screen.getByText('Flour').closest('li')!).getByText('for Bread')).toBeInTheDocument()
+  })
+
+  it('shows no chip on a row no Wanted Recipe needs, and keeps its place in the group', () => {
+    recipes = fakeRecipes([recipeNeeding('Bread', 'flour'), recipeNeeding('Soup', 'salt', false)])
+    renderWith([flour, salt], [cleaning], [grocery])
+
+    expect(within(screen.getByText('Salt').closest('li')!).queryByText(/^for /)).not.toBeInTheDocument()
+    expect(screen.getAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)).toEqual(['Flour', 'Salt'])
+  })
+})

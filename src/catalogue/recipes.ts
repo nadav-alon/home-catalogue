@@ -60,3 +60,13 @@ export function itemIdsNeededBy(recipes: readonly RecipeRecord[]): Set<core.Item
   }
   return needed
 }
+
+/** The Wanted Recipes among `recipes` that link an Ingredient to each Item, in the order given; an Item no Wanted Recipe links has no entry. */
+export function wantedRecipesByItem(recipes: readonly RecipeRecord[]): Map<core.ItemId, RecipeRecord[]> {
+  const byItem = new Map<core.ItemId, RecipeRecord[]>()
+  for (const recipe of recipes) {
+    if (recipe.wanted !== true) continue
+    for (const itemId of new Set(linkedItemIds(recipe))) byItem.set(itemId, [...(byItem.get(itemId) ?? []), recipe])
+  }
+  return byItem
+}
