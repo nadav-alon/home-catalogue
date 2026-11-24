@@ -1,5 +1,5 @@
 import { collection, onSnapshot, orderBy, query, type Firestore } from 'firebase/firestore'
-import { recipes } from 'data-platform'
+import { recipes, type core } from 'data-platform'
 
 /**
  * A live Recipe with its id. Each Ingredient is linked (`itemId`), assumed (`assumed`), or an
@@ -37,3 +37,15 @@ export function watchRecipes(db: Firestore, callback: (recipes: RecipeRecord[]) 
 }
 
 watchRecipes satisfies WatchRecipes
+
+/** The ids of the Items `recipe`'s Ingredients link; Assumed and Unlinked Ingredients contribute none. */
+export function linkedItemIds(recipe: recipes.Recipe): core.ItemId[] {
+  return recipe.ingredients.flatMap((ingredient) => (ingredient.itemId === undefined ? [] : [ingredient.itemId]))
+}
+
+/** The names of `recipe`'s Unlinked Ingredients: those neither linked to an Item nor Assumed. */
+export function unlinkedIngredientNames(recipe: recipes.Recipe): string[] {
+  return recipe.ingredients.flatMap((ingredient) =>
+    ingredient.itemId === undefined && ingredient.assumed !== true ? [ingredient.name] : [],
+  )
+}
