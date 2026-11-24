@@ -14,6 +14,8 @@ import type { StoreRecord } from './stores.ts'
 import type { TagRecord } from './tags.ts'
 import { fakeRecipes, type FakeRecipes } from './recipesFake.ts'
 import type { RecipeRecord } from './recipes.ts'
+import { nextTask } from '../testing/nextTask.ts'
+import { resetHash } from '../testing/hash.ts'
 import { bandages, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 
 const exportShoppingList = vi.fn()
@@ -84,6 +86,8 @@ vi.mock('data-platform/client', async (importOriginal) => ({
 let recipes: FakeRecipes
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
+
+afterEach(resetHash)
 
 beforeEach(() => {
   recipes = fakeRecipes()
@@ -1217,27 +1221,33 @@ describe('ShoppingList filter by Recipe', () => {
   const wash: RecipeRecord = { id: recipesApi.recipeId('wash'), title: 'Wash', ingredients: [{ name: 'Soap', itemId: soap.id }, { name: 'Rags' }], prepSteps: [], steps: [], wanted: true }
   const rowNames = () => screen.queryAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)
 
-  const chooseRecipe = (title: string) =>
+  /** Presses the Recipe's chip and waits for the route, which holds the filter, to change and the list to follow. */
+  const chooseRecipe = async (title: string) => {
+    const hash = window.location.hash
     fireEvent.click(within(screen.getByRole('group', { name: 'Filter by Recipe' })).getByRole('button', { name: title }))
+    await waitFor(() => expect(window.location.hash).not.toBe(hash))
+    await act(() => nextTask())
+  }
 
-  function renderFiltered() {
+  function renderFiltered(hash = '#/list') {
+    window.location.hash = hash
     watchRecipeIngredientShop.mockImplementation((_db: unknown, cb: (shopId: catalogue.ShopId) => void) => {
       cb(grocery.id)
       return vi.fn()
     })
     recipes = fakeRecipes([party, wash])
-    renderWith([candles, soap], [cleaning], [grocery, pharmacy])
+    return renderWith([candles, soap], [cleaning], [grocery, pharmacy])
   }
 
-  it('narrows each Shop group to the Recipe\'s linked Items and its own Recipe rows, hiding empty groups, and restores the list when cleared', () => {
+  it('narrows each Shop group to the Recipe\'s linked Items and its own Recipe rows, hiding empty groups, and restores the list when cleared', async () => {
     renderFiltered()
     expect(rowNames()).toEqual(['Candles', 'Sriracha', 'Rags', 'Soap'])
 
-    chooseRecipe('Wash')
+    await chooseRecipe('Wash')
     expect(rowNames()).toEqual(['Rags', 'Soap'])
     expect(screen.queryByRole('heading', { name: grocery.name })).not.toBeNull()
 
-    chooseRecipe('Wash')
+    await chooseRecipe('Wash')
     expect(rowNames()).toEqual(['Candles', 'Sriracha', 'Rags', 'Soap'])
   })
 
@@ -1247,7 +1257,7 @@ describe('ShoppingList filter by Recipe', () => {
     })
     exportShoppingList.mockResolvedValueOnce({ status: 'exported' })
     renderFiltered()
-    chooseRecipe('Wash')
+    await chooseRecipe('Wash')
 
     fireEvent.click(screen.getByRole('button', { name: 'Export to Calendar' }))
     fireEvent.input(screen.getByLabelText('Date'), { target: { value: '2026-03-05' } })
@@ -1262,21 +1272,43 @@ describe('ShoppingList filter by Recipe', () => {
     )
   })
 
-  it('hides a Shop group the Recipe has nothing in', () => {
+  it('hides a Shop group the Recipe has nothing in', async () => {
     renderFiltered()
     recipes.set([party, { ...wash, ingredients: [{ name: 'Soap', itemId: soap.id }] }])
 
-    chooseRecipe('Wash')
+    await chooseRecipe('Wash')
 
     expect(screen.queryByRole('heading', { name: grocery.name })).toBeNull()
     expect(rowNames()).toEqual(['Soap'])
   })
 
-  it('leaves the filter off when its Recipe is deleted', () => {
+  it('leaves the filter off when its Recipe is deleted', async () => {
     renderFiltered()
-    chooseRecipe('Wash')
+    await chooseRecipe('Wash')
     act(() => recipes.set([party]))
 
     expect(rowNames()).toEqual(['Candles', 'Sriracha', 'Soap'])
+  })
+
+  it('writes the chosen Recipe to the route, keeping other queries, and keeps it across Back and a reload', async () => {
+    const first = renderFiltered('#/list?x=1')
+    await chooseRecipe('Wash')
+    expect(window.location.hash).toBe('#/list?x=1&recipe=wash')
+
+    window.location.hash = '#/items'
+    await waitFor(() => expect(window.location.hash).toBe('#/items'))
+    window.history.back()
+    await waitFor(() => expect(window.location.hash).toBe('#/list?x=1&recipe=wash'))
+    first.unmount()
+
+    renderFiltered(window.location.hash)
+
+    expect(rowNames()).toEqual(['Rags', 'Soap'])
+  })
+
+  it('does not filter by a recipe id that names no live Recipe', () => {
+    renderFiltered('#/list?recipe=gone')
+
+    expect(rowNames()).toEqual(['Candles', 'Sriracha', 'Rags', 'Soap'])
   })
 })
