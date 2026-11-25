@@ -226,7 +226,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
       <CalendarExport groups={allGroups} recipesByItem={recipesByItem} />
       {error !== null && <p role="alert">{error}</p>}
       {scanWaiting && items === null && <p role="status">Items are still loading, scan again in a moment</p>}
-      {items !== null && recipes !== null && groups.length === 0 && <p>Nothing to buy — every Item is enough.</p>}
+      {items !== null && recipes !== null && groups.length === 0 && <p>{emptyMessage(selectedRecipe, items)}</p>}
       {groups.map(({ kind, name, shop, items: groupItems, recipeRows: groupRecipeRows }) => {
         const options = sortByAisle && shop !== undefined ? storesOfShop(stores, shop) : []
         const sortingStore = shop === undefined ? undefined : sortingStores.get(shop.id)
@@ -305,6 +305,13 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
       />
     </section>
   )
+}
+
+/** What an empty list says: a Recipe filter that matches nothing listed is named; Items not enough yet unlisted are optional ones no Wanted Recipe needs; otherwise every Item is enough. */
+function emptyMessage(selectedRecipe: RecipeRecord | undefined, items: readonly ItemRecord[]): string {
+  if (selectedRecipe !== undefined) return `Nothing on the list is for ${selectedRecipe.title}.`
+  if (items.some((item) => item.state !== 'enough' && item.necessity === 'optional')) return 'Nothing to buy — the Items left are optional and no Wanted Recipe needs them.'
+  return 'Nothing to buy — every Item is enough.'
 }
 
 interface ShoppingListRowProps {

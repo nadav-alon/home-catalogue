@@ -996,7 +996,8 @@ describe('ShoppingList optional Items', () => {
     renderWith([candles], [cleaning], [grocery])
 
     expect(screen.queryByText('Candles')).not.toBeInTheDocument()
-    expect(screen.getByText('Nothing to buy — every Item is enough.')).toBeInTheDocument()
+    expect(screen.getByText('Nothing to buy — the Items left are optional and no Wanted Recipe needs them.')).toBeInTheDocument()
+    expect(screen.queryByText(/every Item is enough/)).toBeNull()
   })
 
   it('lists it once a Recipe linking it becomes Wanted, and drops it when that Recipe stops being Wanted', () => {
@@ -1304,6 +1305,17 @@ describe('ShoppingList filter by Recipe', () => {
     renderFiltered(window.location.hash)
 
     expect(rowNames()).toEqual(['Rags', 'Soap'])
+  })
+
+  it('says nothing on the list is for the Recipe when the filter matches nothing listed, not that every Item is enough', async () => {
+    recipes = fakeRecipes([party, { ...wash, ingredients: [{ name: 'Soap', itemId: soap.id }] }])
+    window.location.hash = '#/list'
+    renderWith([candles, { ...soap, state: 'enough' }], [cleaning], [grocery, pharmacy])
+
+    await chooseRecipe('Wash')
+
+    expect(screen.getByText('Nothing on the list is for Wash.')).toBeInTheDocument()
+    expect(screen.queryByText(/every Item is enough/)).toBeNull()
   })
 
   it('does not filter by a recipe id that names no live Recipe', () => {
