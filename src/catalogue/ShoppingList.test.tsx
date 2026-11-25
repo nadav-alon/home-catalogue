@@ -1215,6 +1215,27 @@ describe('ShoppingList Recipe rows', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
+  it('offers no row for an Unlinked Ingredient whose name the Recipe also gives to an Assumed or linked one', () => {
+    recipes = fakeRecipes([recipeWith([{ name: 'Salt', assumed: true }, sriracha, { name: 'Salt' }, { name: 'Candles', itemId: core.itemId('candles') }, { name: 'Candles' }])])
+    renderWith([], [], [])
+
+    expect(rowNames()).toEqual(['Sriracha'])
+  })
+
+  it('sends Undo while the tick is still pending, as when offline, with no error', () => {
+    setIngredientBought.mockReturnValue(new Promise(() => {}))
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+    render(<SnackbarHost />)
+
+    fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(setIngredientBought).toHaveBeenCalledTimes(2)
+    expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 'Sriracha', false)
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('shows no "Not in the Catalogue" group until the Shop for Recipe Ingredients setting has loaded', () => {
     watchRecipeIngredientShop.mockImplementation(() => vi.fn())
     recipes = fakeRecipes([recipeWith([sriracha])])

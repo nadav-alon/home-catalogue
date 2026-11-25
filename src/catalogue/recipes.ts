@@ -95,15 +95,18 @@ export interface RecipeRow {
   name: string
 }
 
-/** The Recipe rows of the Wanted Recipes among `recipes`, in Recipe then Ingredient order; linked, Assumed and Bought Ingredients give none. */
+/**
+ * The Recipe rows of the Wanted Recipes among `recipes`, in Recipe then Ingredient order; linked, Assumed and Bought Ingredients give none,
+ * nor does an Unlinked Ingredient whose name the same Recipe gives to a linked or Assumed one: the platform refuses a Bought on such a name.
+ */
 export function recipeRowsOf(recipes: readonly RecipeRecord[]): RecipeRow[] {
-  return recipes.flatMap((recipe) =>
-    recipe.wanted !== true
-      ? []
-      : unlinkedIngredients(recipe).flatMap(({ ingredient, position }) =>
-          recipe.boughtIngredients?.[ingredient.name] !== true ? [{ recipe, position, name: ingredient.name }] : [],
-        ),
-  )
+  return recipes.flatMap((recipe) => {
+    if (recipe.wanted !== true) return []
+    const unbuyableNames = new Set(recipe.ingredients.filter((ingredient) => !isUnlinked(ingredient)).map((ingredient) => ingredient.name))
+    return unlinkedIngredients(recipe).flatMap(({ ingredient, position }) =>
+      recipe.boughtIngredients?.[ingredient.name] !== true && !unbuyableNames.has(ingredient.name) ? [{ recipe, position, name: ingredient.name }] : [],
+    )
+  })
 }
 
 /** The most Recipes a row names one by one; any more collapse into the first Recipe's chip, "for <A> +n". */
