@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import type { catalogue, core } from 'data-platform'
 import { setIngredientBought, watchRecipeIngredientShop } from 'data-platform/client'
@@ -42,9 +42,6 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   const [recipes, setRecipes] = useState<RecipeRecord[] | null>(null)
   /** The Household's Shop for Recipe Ingredients: `undefined` when unset or not live, `null` until the setting has loaded. */
   const [recipeShopId, setRecipeShopId] = useState<catalogue.ShopId | undefined | null>(null)
-  /** The latest Recipes, read when Undo is pressed rather than when the row was ticked. */
-  const latestRecipes = useRef<RecipeRecord[] | null>(null)
-  latestRecipes.current = recipes
   /** The Recipe the list is narrowed to, kept in the route as `recipe=<id>`; one that is deleted stops filtering. */
   const selectedRecipeId = useRecipeFilter()
   const [error, setError] = useState<string | null>(null)
@@ -104,14 +101,7 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
 
   async function handleSetBought(row: RecipeRow, bought: boolean) {
     try {
-      if (!bought) {
-        const current = latestRecipes.current?.find((recipe) => recipe.id === row.recipe.id)
-        if (current?.ingredients[row.position]?.name !== row.name) {
-          setError(`Could not undo: ${row.recipe.title} changed, so ${row.name} is still marked bought`)
-          return
-        }
-      }
-      await setIngredientBought(db, row.recipe.id, row.position, bought)
+      await setIngredientBought(db, row.recipe.id, row.name, bought)
       setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update the Ingredient')

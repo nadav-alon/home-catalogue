@@ -1166,9 +1166,9 @@ describe('ShoppingList Recipe rows', () => {
 
     fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
 
-    expect(setIngredientBought).toHaveBeenCalledWith(fakeDb, 'noodles', 1, true)
+    expect(setIngredientBought).toHaveBeenCalledWith(fakeDb, 'noodles', 'Sriracha', true)
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
-    expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 1, false)
+    expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 'Sriracha', false)
   })
 
   it('lists no linked, Assumed or Bought Ingredient, and none of a Recipe that is not Wanted', () => {
@@ -1191,17 +1191,28 @@ describe('ShoppingList Recipe rows', () => {
     expect(rowNames()).toEqual([])
   })
 
-  it('does not clear Bought on another Ingredient when Undo is pressed after the Recipe\'s Ingredients moved', () => {
+  it("Undo names the Ingredient even after the Recipe's Ingredients moved", () => {
     recipes = fakeRecipes([recipeWith([sriracha])])
     renderWith([], [], [])
     render(<SnackbarHost />)
 
     fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
-    act(() => recipes.set([recipeWith([{ name: 'Salt', assumed: true }, { ...sriracha, bought: true }])]))
+    act(() => recipes.set([recipeWith([{ name: 'Salt', assumed: true }, sriracha])]))
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
 
-    expect(setIngredientBought).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('alert').textContent).toMatch(/Could not undo/)
+    expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 'Sriracha', false)
+  })
+
+  it('shows no error while the tick waits on the server, as when offline', () => {
+    setIngredientBought.mockReturnValue(new Promise(() => {}))
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+    render(<SnackbarHost />)
+
+    fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
+
+    expect(screen.getByText('Marked Sriracha bought')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('shows no "Not in the Catalogue" group until the Shop for Recipe Ingredients setting has loaded', () => {
