@@ -63,6 +63,11 @@ export function unlinkedIngredientNames(recipe: recipes.Recipe): string[] {
   return [...new Set(names)]
 }
 
+/** The 0-based positions in `recipe.ingredients` of the Unlinked Ingredients named `name`, in order. */
+export function unlinkedPositions(recipe: recipes.Recipe, name: string): number[] {
+  return recipe.ingredients.flatMap((ingredient, position) => (isUnlinked(ingredient) && ingredient.name === name ? [position] : []))
+}
+
 /** The ids of the Items a Wanted Recipe among `recipes` links an Ingredient to; an Unlinked or assumed Ingredient names none. */
 export function itemIdsNeededBy(recipes: readonly RecipeRecord[]): Set<core.ItemId> {
   return new Set(wantedRecipesByItem(recipes).keys())
