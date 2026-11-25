@@ -2966,17 +2966,51 @@ describe('ItemsManager Recipe filter', () => {
     await waitFor(() => expect(screen.getByText('1 Ingredient not in the Catalogue: Honey')).toBeInTheDocument())
   })
 
-  it('starts every link even when none settles, as offline where the server has not answered', async () => {
-    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
+  it('starts every link once the previous shows in the Recipes, even when none settles, as offline where the server has not answered', async () => {
+    const fake = renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
     render(<SnackbarHost />)
+    await pressRecipe('Curry')
+    const newId = core.itemId('salt-item')
+    const linked: { name: string; itemId?: core.ItemId }[] = [{ name: 'Salt' }, { name: 'Salt' }]
+    linkIngredientToItem.mockImplementation((_db: unknown, _recipe: string, seen: { position: number }) => {
+      // Like data-platform: reads the Recipe as it is now, writes it whole into the cache, and never settles.
+      linked[seen.position] = { name: 'Salt', itemId: newId }
+      fake.set([recipe('curry', 'Curry', [...linked])])
+      return new Promise(() => {})
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Salt to Catalogue' }))
+    saveNewItem(createItem, newId, 'cleaning')
+
+    await waitFor(() => expect(linkIngredientToItem).toHaveBeenCalledTimes(2))
+    expect(linkIngredientToItem).toHaveBeenNthCalledWith(1, fakeDb, 'curry', { position: 0, name: 'Salt' }, newId)
+    expect(linkIngredientToItem).toHaveBeenNthCalledWith(2, fakeDb, 'curry', { position: 1, name: 'Salt' }, newId)
+    expect(screen.queryByText(/not linked/)).not.toBeInTheDocument()
+  })
+
+  it('does not start the next link until the previous has settled or shows in the Recipes', async () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
     await pressRecipe('Curry')
     linkIngredientToItem.mockReturnValue(new Promise(() => {}))
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Salt to Catalogue' }))
     saveNewItem(createItem, core.itemId('salt-item'), 'cleaning')
 
-    await waitFor(() => expect(linkIngredientToItem).toHaveBeenCalledTimes(2))
-    expect(screen.queryByText(/not linked/)).not.toBeInTheDocument()
+    await waitFor(() => expect(linkIngredientToItem).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(linkIngredientToItem).toHaveBeenCalledTimes(1)
+  })
+
+  it('says it was not linked when a link rejects long after the others were started', async () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Sriracha' }])])
+    render(<SnackbarHost />)
+    await pressRecipe('Curry')
+    linkIngredientToItem.mockReturnValue(new Promise((_, reject) => setTimeout(() => reject(new Error('denied')), 300)))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Sriracha to Catalogue' }))
+    saveNewItem(createItem, core.itemId('sriracha-item'), 'cleaning')
+
+    expect(await screen.findByText('Added to the Catalogue, but not linked to Curry', {}, { timeout: 2000 })).toBeInTheDocument()
   })
 
   it('tries every same-named Ingredient and says how many were not linked when only some failed', async () => {

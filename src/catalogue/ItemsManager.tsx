@@ -56,13 +56,6 @@ function toggledMember<Id extends string>(ids: readonly Id[], id: Id): readonly 
 }
 
 /** The Unlinked Ingredients of a Recipe that an Item added from its note links, as the note showed them. */
-/** How long a link has to reach the local cache before the next one reads the Recipe. */
-const LINK_APPLY_MS = 50
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 interface IngredientLink {
   recipe: RecipeRecord
   ingredients: readonly SeenIngredient[]
@@ -88,6 +81,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   categoriesRef.current = categories
   const shopsRef = useRef(shops)
   shopsRef.current = shops
+  // Linking several Ingredients waits for each write to show in the Recipes, which the watcher delivers outside any render.
+  const recipesRef = useRef<RecipeRecord[]>([])
+  const recipeListeners = useRef(new Set<() => void>())
   /**
    * `null` while the Item dialog is closed; otherwise editing `item`, restoring the deleted `item` with a live
    * Category and Shop, or adding an Item that may carry `barcode`.
@@ -193,6 +189,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   useEffect(
     () =>
       watchRecipes(db, (next) => {
+        recipesRef.current = next
+        for (const listener of [...recipeListeners.current]) listener()
         setRecipes(next)
         setRecipesLoaded(true)
       }),
@@ -263,9 +261,24 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     setCollapsedGroups(next)
   }
 
+  /** Resolves once the watched Recipes show the Ingredient at `position` of Recipe `recipeId` linked to `id`. */
+  function shownLinked(recipeId: string, position: number, id: core.ItemId): Promise<void> {
+    return new Promise((resolve) => {
+      const check = () => {
+        const linked = recipesRef.current.find((recipe) => recipe.id === recipeId)?.ingredients[position]?.itemId === id
+        if (linked) {
+          recipeListeners.current.delete(check)
+          resolve()
+        }
+        return linked
+      }
+      if (!check()) recipeListeners.current.add(check)
+    })
+  }
+
   /**
-   * Links the Recipe's Ingredients to the new Item `id`, each attempted even if another fails; the Item stays whatever happens, and the Member is told when any is not linked.
-   * A link settles only once the server has answered, so offline it is never awaited to the end: the next link starts once the previous has settled or had `LINK_APPLY_MS` to reach the local cache, since each reads the Recipe before writing it.
+   * Links the Recipe's Ingredients to the new Item `id`, each attempted even if another fails; the Item stays whatever happens, and the Member is told once all have settled if any is not linked.
+   * A link settles only once the server has answered, so offline it is never awaited to the end: the next link starts once the previous has settled or shows in the watched Recipes (its write reached the local cache), since each reads the Recipe before writing it.
    */
   async function linkIngredients({ recipe, ingredients }: IngredientLink, id: core.ItemId) {
     let failed = 0
@@ -278,9 +291,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         },
       )
       outcomes.push(outcome)
-      await Promise.race([outcome, delay(LINK_APPLY_MS)])
+      await Promise.race([outcome, shownLinked(recipe.id, seen.position, id)])
     }
-    await Promise.race([Promise.all(outcomes), delay(LINK_APPLY_MS)])
+    await Promise.all(outcomes)
     if (failed === 0) return
     const which = failed === ingredients.length ? 'not linked' : `${failed} of ${ingredients.length} Ingredients not linked`
     showSnackbar({ text: `Added to the Catalogue, but ${which} to ${recipe.title}` })
