@@ -90,6 +90,12 @@ vi.mock('./tags.ts', async (importOriginal) => ({
   createTag: (db: unknown, name: unknown) => createTag(db, name),
 }))
 
+const linkIngredientToItem = vi.fn()
+vi.mock('data-platform/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('data-platform/client')>()),
+  linkIngredientToItem: (...args: unknown[]) => linkIngredientToItem(...args),
+}))
+
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
 
 // Closing over unsaved edits asks; tests agree to discard unless they refuse.
@@ -101,6 +107,7 @@ beforeEach(() => {
   watchItems.mockReset()
   leaveTo.mockReset()
   createItem.mockReset().mockResolvedValue(undefined)
+  linkIngredientToItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
   softDeleteItem.mockReset().mockResolvedValue(undefined)
@@ -2927,5 +2934,48 @@ describe('ItemsManager Recipe filter', () => {
 
     expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
     expect(screen.getByLabelText('Name')).toHaveValue('Honey')
+  })
+
+  it('keeps the Item and says it was not linked when the link fails', async () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Sriracha' }])])
+    render(<SnackbarHost />)
+    await pressRecipe('Curry')
+    linkIngredientToItem.mockRejectedValue(new Error('changed'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Sriracha to Catalogue' }))
+    saveNewItem(createItem, core.itemId('sriracha-item'), 'cleaning')
+
+    expect(await screen.findByText('Added to the Catalogue, but not linked to Curry')).toBeInTheDocument()
+    expect(createItem).toHaveBeenCalledTimes(1)
+  })
+
+  it('links the Ingredient to the Item added from its note, and the note drops it at once', async () => {
+    const fake = renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Honey' }, { name: 'Sriracha' }])])
+    await pressRecipe('Curry')
+    const newId = core.itemId('sriracha-item')
+    linkIngredientToItem.mockImplementation(async () => {
+      fake.set([recipe('curry', 'Curry', [{ name: 'Honey' }, { name: 'Sriracha', itemId: newId }])])
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Sriracha to Catalogue' }))
+    saveNewItem(createItem, newId, 'cleaning')
+
+    await waitFor(() =>
+      expect(linkIngredientToItem).toHaveBeenCalledWith(fakeDb, 'curry', { position: 1, name: 'Sriracha' }, newId),
+    )
+    await waitFor(() => expect(screen.getByText('1 Ingredient not in the Catalogue: Honey')).toBeInTheDocument())
+  })
+
+  it('tries every same-named Ingredient and says how many were not linked when only some failed', async () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
+    render(<SnackbarHost />)
+    await pressRecipe('Curry')
+    linkIngredientToItem.mockRejectedValueOnce(new Error('changed')).mockResolvedValueOnce(undefined)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Salt to Catalogue' }))
+    saveNewItem(createItem, core.itemId('salt-item'), 'cleaning')
+
+    expect(await screen.findByText('Added to the Catalogue, but 1 of 2 Ingredients not linked to Curry')).toBeInTheDocument()
+    expect(linkIngredientToItem).toHaveBeenCalledTimes(2)
   })
 })

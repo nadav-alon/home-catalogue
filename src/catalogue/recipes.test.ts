@@ -144,3 +144,16 @@ describe('itemIdsNeededBy', () => {
     expect([...needed]).toEqual([core.itemId('flour')])
   })
 })
+
+describe('a Wanted Recipe once an Ingredient is linked', () => {
+  it('drops that Ingredient from the Recipe rows and gives the Item its "for <Recipe>" chip', async () => {
+    const { recipeRowsOf, wantedRecipesByItem } = await import('./recipes.ts')
+    const base = { id: recipes.recipeId('curry'), title: 'Curry', wanted: true as const, prepSteps: [], steps: [] }
+    const before = { ...base, ingredients: [{ name: 'Sriracha' }] }
+    const after = { ...base, ingredients: [{ name: 'Sriracha', itemId: core.itemId('sriracha') }] }
+
+    expect(recipeRowsOf([before]).map((row) => row.name)).toEqual(['Sriracha'])
+    expect(recipeRowsOf([after])).toEqual([])
+    expect(wantedRecipesByItem([after]).get(core.itemId('sriracha'))).toEqual([after])
+  })
+})
