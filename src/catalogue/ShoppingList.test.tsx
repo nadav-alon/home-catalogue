@@ -996,7 +996,8 @@ describe('ShoppingList optional Items', () => {
     renderWith([candles], [cleaning], [grocery])
 
     expect(screen.queryByText('Candles')).not.toBeInTheDocument()
-    expect(screen.getByText('Nothing to buy — every Item is enough.')).toBeInTheDocument()
+    expect(screen.getByText('Nothing to buy — the Items still low are optional and no Recipe needs them.')).toBeInTheDocument()
+    expect(screen.queryByText(/every Item is enough/)).toBeNull()
   })
 
   it('lists it once a Recipe linking it becomes Wanted, and drops it when that Recipe stops being Wanted', () => {
