@@ -81,6 +81,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   categoriesRef.current = categories
   const shopsRef = useRef(shops)
   shopsRef.current = shops
+  // Linking several Ingredients waits for each write to show in the Recipes, which the watcher delivers outside any render.
+  const recipesRef = useRef<RecipeRecord[]>([])
+  const recipeListeners = useRef(new Set<() => void>())
   /**
    * `null` while the Item dialog is closed; otherwise editing `item`, restoring the deleted `item` with a live
    * Category and Shop, or adding an Item that may carry `barcode`.
@@ -186,6 +189,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   useEffect(
     () =>
       watchRecipes(db, (next) => {
+        recipesRef.current = next
+        for (const listener of [...recipeListeners.current]) listener()
         setRecipes(next)
         setRecipesLoaded(true)
       }),
@@ -256,16 +261,39 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     setCollapsedGroups(next)
   }
 
-  /** Links the Recipe's Ingredients to the new Item `id`, each attempted even if another fails; the Item stays whatever happens, and the Member is told when any is not linked. */
+  /** Resolves once the watched Recipes show the Ingredient at `position` of Recipe `recipeId` linked to `id`. */
+  function shownLinked(recipeId: string, position: number, id: core.ItemId): Promise<void> {
+    return new Promise((resolve) => {
+      const check = () => {
+        const linked = recipesRef.current.find((recipe) => recipe.id === recipeId)?.ingredients[position]?.itemId === id
+        if (linked) {
+          recipeListeners.current.delete(check)
+          resolve()
+        }
+        return linked
+      }
+      if (!check()) recipeListeners.current.add(check)
+    })
+  }
+
+  /**
+   * Links the Recipe's Ingredients to the new Item `id`, each attempted even if another fails; the Item stays whatever happens, and the Member is told once all have settled if any is not linked.
+   * A link settles only once the server has answered, so offline it is never awaited to the end: the next link starts once the previous has settled or shows in the watched Recipes (its write reached the local cache), since each reads the Recipe before writing it.
+   */
   async function linkIngredients({ recipe, ingredients }: IngredientLink, id: core.ItemId) {
     let failed = 0
+    const outcomes: Promise<void>[] = []
     for (const seen of ingredients) {
-      try {
-        await linkIngredientToItem(db, recipe.id, seen, id)
-      } catch {
-        failed += 1
-      }
+      const outcome = linkIngredientToItem(db, recipe.id, seen, id).then(
+        () => undefined,
+        () => {
+          failed += 1
+        },
+      )
+      outcomes.push(outcome)
+      await Promise.race([outcome, shownLinked(recipe.id, seen.position, id)])
     }
+    await Promise.all(outcomes)
     if (failed === 0) return
     const which = failed === ingredients.length ? 'not linked' : `${failed} of ${ingredients.length} Ingredients not linked`
     showSnackbar({ text: `Added to the Catalogue, but ${which} to ${recipe.title}` })
