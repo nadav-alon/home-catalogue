@@ -2936,6 +2936,19 @@ describe('ItemsManager Recipe filter', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Honey')
   })
 
+  it('keeps the Item and says it was not linked when the Recipe changed meanwhile', async () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Sriracha' }])])
+    render(<SnackbarHost />)
+    await pressRecipe('Curry')
+    linkIngredientToItem.mockRejectedValue(new Error('changed'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Sriracha to Catalogue' }))
+    saveNewItem(createItem, core.itemId('sriracha-item'), 'cleaning')
+
+    expect(await screen.findByText('Added to the Catalogue, but not linked to Curry: the Recipe changed')).toBeInTheDocument()
+    expect(createItem).toHaveBeenCalledTimes(1)
+  })
+
   it('links the Ingredient to the Item added from its note, and the note drops it at once', async () => {
     const fake = renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Honey' }, { name: 'Sriracha' }])])
     await pressRecipe('Curry')
