@@ -1306,6 +1306,17 @@ describe('ShoppingList filter by Recipe', () => {
     expect(rowNames()).toEqual(['Rags', 'Soap'])
   })
 
+  it('says nothing on the list is for the Recipe when the filter matches nothing listed, not that every Item is enough', async () => {
+    recipes = fakeRecipes([party, { ...wash, ingredients: [{ name: 'Soap', itemId: soap.id }] }])
+    window.location.hash = '#/list'
+    renderWith([candles, { ...soap, state: 'enough' }], [cleaning], [grocery, pharmacy])
+
+    await chooseRecipe('Wash')
+
+    expect(screen.getByText('Nothing on the list is for Wash.')).toBeInTheDocument()
+    expect(screen.queryByText(/every Item is enough/)).toBeNull()
+  })
+
   it('does not filter by a recipe id that names no live Recipe', () => {
     renderFiltered('#/list?recipe=gone')
 
