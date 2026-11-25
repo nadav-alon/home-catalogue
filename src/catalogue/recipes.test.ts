@@ -32,14 +32,14 @@ describe('watchRecipes', () => {
     const ingredients = [
       { name: 'Flour', itemId: core.itemId('flour') },
       { name: 'Salt', assumed: true },
-      { name: 'Saffron', bought: true },
+      { name: 'Saffron' },
     ]
     onSnapshot.mockImplementation((_q: unknown, cb: (snapshot: unknown) => void) => {
       cb({
         docs: [
           {
             id: 'bread',
-            data: () => ({ title: 'Bread', ingredients, prepSteps: [], steps: [], wanted: true }),
+            data: () => ({ title: 'Bread', ingredients, prepSteps: [], steps: [], wanted: true, boughtIngredients: { Saffron: true } }),
           },
         ],
       })
@@ -51,7 +51,7 @@ describe('watchRecipes', () => {
     expect(collection).toHaveBeenCalledWith(fakeDb, recipes.RECIPES_COLLECTION)
     expect(orderBy).toHaveBeenCalledWith('title')
     expect(callback).toHaveBeenCalledWith([
-      { id: recipes.recipeId('bread'), title: 'Bread', ingredients, prepSteps: [], steps: [], wanted: true },
+      { id: recipes.recipeId('bread'), title: 'Bread', ingredients, prepSteps: [], steps: [], wanted: true, boughtIngredients: { Saffron: true } },
     ])
     expect(stop).toBe(unsubscribe)
   })
@@ -102,7 +102,7 @@ describe('Ingredient classification', () => {
       { name: 'Noodles', itemId: core.itemId('noodles') },
       { name: 'Salt', assumed: true },
       { name: 'Sriracha' },
-      { name: 'Honey', bought: true },
+      { name: 'Honey' },
     ],
     prepSteps: [],
     steps: [],

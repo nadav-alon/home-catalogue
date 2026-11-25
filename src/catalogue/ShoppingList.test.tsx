@@ -1126,8 +1126,8 @@ describe('ShoppingList Recipe rows', () => {
   afterEach(() => resetSnackbar())
 
   const sriracha = { name: 'Sriracha' }
-  function recipeWith(ingredients: recipesApi.Recipe['ingredients'], id = 'noodles', wanted = true): RecipeRecord {
-    return { id: recipesApi.recipeId(id), title: 'Noodles', ingredients, prepSteps: [], steps: [], ...(wanted ? { wanted: true } : {}) }
+  function recipeWith(ingredients: recipesApi.Recipe['ingredients'], { id = 'noodles', wanted = true, bought = [] }: { id?: string; wanted?: boolean; bought?: string[] } = {}): RecipeRecord {
+    return { id: recipesApi.recipeId(id), title: 'Noodles', ingredients, prepSteps: [], steps: [], ...(wanted ? { wanted: true } : {}), ...(bought.length > 0 ? { boughtIngredients: Object.fromEntries(bought.map((name) => [name, true as const])) } : {}) }
   }
   function rowNames() {
     return screen.queryAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)
@@ -1166,15 +1166,15 @@ describe('ShoppingList Recipe rows', () => {
 
     fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
 
-    expect(setIngredientBought).toHaveBeenCalledWith(fakeDb, 'noodles', 1, true)
+    expect(setIngredientBought).toHaveBeenCalledWith(fakeDb, 'noodles', 'Sriracha', true)
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
-    expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 1, false)
+    expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 'Sriracha', false)
   })
 
   it('lists no linked, Assumed or Bought Ingredient, and none of a Recipe that is not Wanted', () => {
     recipes = fakeRecipes([
-      recipeWith([{ name: 'Candles', itemId: core.itemId('candles') }, { name: 'Salt', assumed: true }, { name: 'Honey', bought: true }]),
-      recipeWith([sriracha], 'other', false),
+      recipeWith([{ name: 'Candles', itemId: core.itemId('candles') }, { name: 'Salt', assumed: true }, { name: 'Honey' }], { bought: ['Honey'] }),
+      recipeWith([sriracha], { id: 'other', wanted: false }),
     ])
     renderWith([], [], [])
 
@@ -1186,22 +1186,54 @@ describe('ShoppingList Recipe rows', () => {
     renderWith([], [], [])
 
     fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
-    act(() => recipes.set([recipeWith([{ ...sriracha, bought: true }])]))
+    act(() => recipes.set([recipeWith([sriracha], { bought: ['Sriracha'] })]))
 
     expect(rowNames()).toEqual([])
   })
 
-  it('does not clear Bought on another Ingredient when Undo is pressed after the Recipe\'s Ingredients moved', () => {
+  it("Undo names the Ingredient even after the Recipe's Ingredients moved", () => {
     recipes = fakeRecipes([recipeWith([sriracha])])
     renderWith([], [], [])
     render(<SnackbarHost />)
 
     fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
-    act(() => recipes.set([recipeWith([{ name: 'Salt', assumed: true }, { ...sriracha, bought: true }])]))
+    act(() => recipes.set([recipeWith([{ name: 'Salt', assumed: true }, sriracha])]))
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
 
-    expect(setIngredientBought).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('alert').textContent).toMatch(/Could not undo/)
+    expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 'Sriracha', false)
+  })
+
+  it('shows no error while the tick waits on the server, as when offline', () => {
+    setIngredientBought.mockReturnValue(new Promise(() => {}))
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+    render(<SnackbarHost />)
+
+    fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
+
+    expect(screen.getByText('Marked Sriracha bought')).toBeTruthy()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('offers no row for an Unlinked Ingredient whose name the Recipe also gives to an Assumed or linked one', () => {
+    recipes = fakeRecipes([recipeWith([{ name: 'Salt', assumed: true }, sriracha, { name: 'Salt' }, { name: 'Candles', itemId: core.itemId('candles') }, { name: 'Candles' }])])
+    renderWith([], [], [])
+
+    expect(rowNames()).toEqual(['Sriracha'])
+  })
+
+  it('sends Undo while the tick is still pending, as when offline, with no error', () => {
+    setIngredientBought.mockReturnValue(new Promise(() => {}))
+    recipes = fakeRecipes([recipeWith([sriracha])])
+    renderWith([], [], [])
+    render(<SnackbarHost />)
+
+    fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(setIngredientBought).toHaveBeenCalledTimes(2)
+    expect(setIngredientBought).toHaveBeenLastCalledWith(fakeDb, 'noodles', 'Sriracha', false)
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('shows no "Not in the Catalogue" group until the Shop for Recipe Ingredients setting has loaded', () => {
