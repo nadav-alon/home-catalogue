@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
 import { catalogue, core } from 'data-platform'
-import { linkIngredientToItem } from 'data-platform/client'
+import { linkIngredientToItem, type SeenIngredient } from 'data-platform/client'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, carriesAnyTag, matchesSearch, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
 import { createAisle, watchAisles, type AisleRecord } from './aisles.ts'
@@ -55,16 +55,15 @@ function toggledMember<Id extends string>(ids: readonly Id[], id: Id): readonly 
   return ids.includes(id) ? ids.filter((member) => member !== id) : [...ids, id]
 }
 
-function linkFor(recipe: RecipeRecord | undefined, name: string): IngredientLink | undefined {
-  if (recipe === undefined) return undefined
-  return { recipeId: recipe.id, recipeTitle: recipe.title, ingredients: unlinkedPositions(recipe, name).map((position) => ({ position, name })) }
-}
-
 /** The Unlinked Ingredients of a Recipe that an Item added from its note links, as the note showed them. */
 interface IngredientLink {
-  recipeId: RecipeRecord['id']
-  recipeTitle: string
-  ingredients: readonly { position: number; name: string }[]
+  recipe: RecipeRecord
+  ingredients: readonly SeenIngredient[]
+}
+
+function ingredientLinkFor(recipe: RecipeRecord | undefined, name: string): IngredientLink | undefined {
+  if (recipe === undefined) return undefined
+  return { recipe, ingredients: unlinkedPositions(recipe, name).map((position) => ({ position, name })) }
 }
 
 export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilterChange, handoff }: ItemsManagerProps) {
@@ -257,13 +256,19 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     setCollapsedGroups(next)
   }
 
-  /** Links the Recipe's Ingredients to the new Item `id`; the Item stays whatever happens, and the Member is told when a link is refused. */
-  async function linkIngredients(link: IngredientLink, id: core.ItemId) {
-    try {
-      for (const seen of link.ingredients) await linkIngredientToItem(db, link.recipeId, seen, id)
-    } catch {
-      showSnackbar({ text: `Added to the Catalogue, but not linked to ${link.recipeTitle}: the Recipe changed` })
+  /** Links the Recipe's Ingredients to the new Item `id`, each attempted even if another fails; the Item stays whatever happens, and the Member is told when any is not linked. */
+  async function linkIngredients({ recipe, ingredients }: IngredientLink, id: core.ItemId) {
+    let failed = 0
+    for (const seen of ingredients) {
+      try {
+        await linkIngredientToItem(db, recipe.id, seen, id)
+      } catch {
+        failed += 1
+      }
     }
+    if (failed === 0) return
+    const which = failed === ingredients.length ? 'not linked' : `${failed} of ${ingredients.length} Ingredients not linked`
+    showSnackbar({ text: `Added to the Catalogue, but ${which} to ${recipe.title}` })
   }
 
   function openDialog(item: ItemRecord | undefined) {
@@ -406,7 +411,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
           <ul>
             {unlinkedNames.map((name) => (
               <li key={name}>
-                <button type="button" aria-label={`Add ${name} to Catalogue`} onClick={() => setDialog({ kind: 'add', name, link: linkFor(activeRecipe, name) })}>
+                <button type="button" aria-label={`Add ${name} to Catalogue`} onClick={() => setDialog({ kind: 'add', name, link: ingredientLinkFor(activeRecipe, name) })}>
                   Add to Catalogue
                 </button>
               </li>

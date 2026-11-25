@@ -2936,7 +2936,7 @@ describe('ItemsManager Recipe filter', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Honey')
   })
 
-  it('keeps the Item and says it was not linked when the Recipe changed meanwhile', async () => {
+  it('keeps the Item and says it was not linked when the link fails', async () => {
     renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Sriracha' }])])
     render(<SnackbarHost />)
     await pressRecipe('Curry')
@@ -2945,7 +2945,7 @@ describe('ItemsManager Recipe filter', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add Sriracha to Catalogue' }))
     saveNewItem(createItem, core.itemId('sriracha-item'), 'cleaning')
 
-    expect(await screen.findByText('Added to the Catalogue, but not linked to Curry: the Recipe changed')).toBeInTheDocument()
+    expect(await screen.findByText('Added to the Catalogue, but not linked to Curry')).toBeInTheDocument()
     expect(createItem).toHaveBeenCalledTimes(1)
   })
 
@@ -2964,5 +2964,18 @@ describe('ItemsManager Recipe filter', () => {
       expect(linkIngredientToItem).toHaveBeenCalledWith(fakeDb, 'curry', { position: 1, name: 'Sriracha' }, newId),
     )
     await waitFor(() => expect(screen.getByText('1 Ingredient not in the Catalogue: Honey')).toBeInTheDocument())
+  })
+
+  it('tries every same-named Ingredient and says how many were not linked when only some failed', async () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
+    render(<SnackbarHost />)
+    await pressRecipe('Curry')
+    linkIngredientToItem.mockRejectedValueOnce(new Error('changed')).mockResolvedValueOnce(undefined)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Salt to Catalogue' }))
+    saveNewItem(createItem, core.itemId('salt-item'), 'cleaning')
+
+    expect(await screen.findByText('Added to the Catalogue, but 1 of 2 Ingredients not linked to Curry')).toBeInTheDocument()
+    expect(linkIngredientToItem).toHaveBeenCalledTimes(2)
   })
 })
