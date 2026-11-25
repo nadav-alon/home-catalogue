@@ -1126,8 +1126,8 @@ describe('ShoppingList Recipe rows', () => {
   afterEach(() => resetSnackbar())
 
   const sriracha = { name: 'Sriracha' }
-  function recipeWith(ingredients: recipesApi.Recipe['ingredients'], id = 'noodles', wanted = true): RecipeRecord {
-    return { id: recipesApi.recipeId(id), title: 'Noodles', ingredients, prepSteps: [], steps: [], ...(wanted ? { wanted: true } : {}) }
+  function recipeWith(ingredients: recipesApi.Recipe['ingredients'], id = 'noodles', wanted = true, bought: string[] = []): RecipeRecord {
+    return { id: recipesApi.recipeId(id), title: 'Noodles', ingredients, prepSteps: [], steps: [], ...(wanted ? { wanted: true } : {}), ...(bought.length > 0 ? { boughtIngredients: Object.fromEntries(bought.map((name) => [name, true as const])) } : {}) }
   }
   function rowNames() {
     return screen.queryAllByRole('listitem').map((row) => row.querySelector('.ui-list-row__headline')?.textContent)
@@ -1173,7 +1173,7 @@ describe('ShoppingList Recipe rows', () => {
 
   it('lists no linked, Assumed or Bought Ingredient, and none of a Recipe that is not Wanted', () => {
     recipes = fakeRecipes([
-      recipeWith([{ name: 'Candles', itemId: core.itemId('candles') }, { name: 'Salt', assumed: true }, { name: 'Honey', bought: true }]),
+      recipeWith([{ name: 'Candles', itemId: core.itemId('candles') }, { name: 'Salt', assumed: true }, { name: 'Honey' }], 'noodles', true, ['Honey']),
       recipeWith([sriracha], 'other', false),
     ])
     renderWith([], [], [])
@@ -1186,7 +1186,7 @@ describe('ShoppingList Recipe rows', () => {
     renderWith([], [], [])
 
     fireEvent.click(within(screen.getByText('Sriracha').closest('li')!).getByRole('checkbox'))
-    act(() => recipes.set([recipeWith([{ ...sriracha, bought: true }])]))
+    act(() => recipes.set([recipeWith([sriracha], 'noodles', true, ['Sriracha'])]))
 
     expect(rowNames()).toEqual([])
   })

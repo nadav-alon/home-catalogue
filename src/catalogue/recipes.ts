@@ -3,8 +3,8 @@ import { recipes, type core } from 'data-platform'
 
 /**
  * A live Recipe with its id. Each Ingredient is linked (`itemId`), assumed (`assumed`), or an
- * Unlinked Ingredient (neither); its position in `ingredients` is the position the platform's
- * `setIngredientBought` takes. `wanted` is `true` for a Wanted Recipe and absent otherwise.
+ * Unlinked Ingredient (neither); its name is what the platform's
+ * `setIngredientBought` takes to mark it Bought. `wanted` is `true` for a Wanted Recipe and absent otherwise.
  */
 export interface RecipeRecord extends recipes.Recipe {
   id: recipes.RecipeId
@@ -90,7 +90,7 @@ export function wantedRecipesByItem(recipes: readonly RecipeRecord[]): Map<core.
 /** An Unlinked Ingredient of a Wanted Recipe that is not yet Bought: one Recipe row of the Shopping list. */
 export interface RecipeRow {
   recipe: RecipeRecord
-  /** The Ingredient's 0-based position in `recipe.ingredients`, the position `setIngredientBought` takes. */
+  /** The Ingredient's 0-based position in `recipe.ingredients`; with the Recipe it identifies the row, as the Ingredient's name alone may repeat. */
   position: number
   name: string
 }
@@ -101,7 +101,7 @@ export function recipeRowsOf(recipes: readonly RecipeRecord[]): RecipeRow[] {
     recipe.wanted !== true
       ? []
       : unlinkedIngredients(recipe).flatMap(({ ingredient, position }) =>
-          ingredient.bought !== true ? [{ recipe, position, name: ingredient.name }] : [],
+          recipe.boughtIngredients?.[ingredient.name] !== true ? [{ recipe, position, name: ingredient.name }] : [],
         ),
   )
 }
