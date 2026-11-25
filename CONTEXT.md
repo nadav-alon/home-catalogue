@@ -45,7 +45,7 @@ An Unlinked Ingredient of a Wanted Recipe that is not Assumed and not Bought, sh
 An Ingredient of a Recipe that is not linked to an Item.
 
 **Bought**:
-A flag on a Recipe's Unlinked Ingredient: set by ticking its Recipe row, cleared by that tick's Undo. A Bought Ingredient is no longer a Recipe row.
+A flag on a Recipe's Unlinked Ingredient: set by ticking its Recipe row, cleared by that tick's Undo, and also when its Recipe stops being Wanted. A Bought Ingredient is no longer a Recipe row.
 
 **Wanted Recipe**:
 A Recipe the Household has marked as wanted; its Ingredients feed the Shopping list. Stored on the Recipe, so shared by the Household, and cleared only by hand.
