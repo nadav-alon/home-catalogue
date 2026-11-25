@@ -45,10 +45,10 @@ An Unlinked Ingredient of a Wanted Recipe that is not Assumed and not Bought, sh
 An Ingredient of a Recipe that is not linked to an Item.
 
 **Bought**:
-A flag on a Recipe's Unlinked Ingredient: set by ticking its Recipe row, cleared by that tick's Undo. A Bought Ingredient is no longer a Recipe row.
+A flag on a Recipe's Unlinked Ingredient: set by ticking its Recipe row, cleared by that tick's Undo, and also when its Recipe stops being Wanted. A Bought Ingredient is no longer a Recipe row.
 
 **Wanted Recipe**:
-A Recipe the Household has marked as wanted; its Ingredients feed the Shopping list.
+A Recipe the Household has marked as wanted; its Ingredients feed the Shopping list. Stored on the Recipe, so shared by the Household, and cleared only by hand.
 
 **Shop for Recipe Ingredients**:
 The Household-wide setting naming the Shop that Recipe rows belong to, picked in Settings. Optional: "None" clears it.
@@ -85,8 +85,7 @@ on the exported event) or **soon** (advisory banner).
 | optional          | —      | —           | —       |
 
 **Shopping list**:
-Live view of every Item at `running low` or `out`, grouped by Shop, `running low` rows
-flagged with their State. An `optional` Item is listed only while some Wanted Recipe links an Ingredient to it. Ticking an Item sets it `enough` and shows an Undo snackbar; so does scanning its Barcode, whether or not the Item was on the list; so does attaching an unknown Barcode to an Item through the chooser; an Item already `enough` is left as it is, with no Undo.
+Live view of every non-`optional` Item at `running low` or `out`, and of an `optional` one only while some Wanted Recipe links an Ingredient to it. Grouped by Shop, with `running low` rows flagged with their State. Ticking an Item sets it `enough` and shows an Undo snackbar; so does scanning its Barcode, whether or not the Item was on the list; so does attaching an unknown Barcode to an Item through the chooser; an Item already `enough` is left as it is, with no Undo.
 Every Recipe row of a Wanted Recipe is listed too, after the Items of its group; ticking one marks it Bought with an Undo snackbar.
 A "Sort by aisle" toggle, per device and off by default, sorts each Shop group by a Store's aisle order: Items sharing an Aisle by name, Items with no Aisle (or one the Store has not placed) at the bottom by name. A Shop with several Stores shows a Store dropdown at its group header, the choice remembered per device; one Store is used silently; none leaves plain name order.
 Canonical; works offline.
