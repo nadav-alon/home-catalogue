@@ -56,6 +56,13 @@ function toggledMember<Id extends string>(ids: readonly Id[], id: Id): readonly 
 }
 
 /** The Unlinked Ingredients of a Recipe that an Item added from its note links, as the note showed them. */
+/** How long a link has to reach the local cache before the next one reads the Recipe. */
+const LINK_APPLY_MS = 50
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 interface IngredientLink {
   recipe: RecipeRecord
   ingredients: readonly SeenIngredient[]
@@ -256,16 +263,24 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     setCollapsedGroups(next)
   }
 
-  /** Links the Recipe's Ingredients to the new Item `id`, each attempted even if another fails; the Item stays whatever happens, and the Member is told when any is not linked. */
+  /**
+   * Links the Recipe's Ingredients to the new Item `id`, each attempted even if another fails; the Item stays whatever happens, and the Member is told when any is not linked.
+   * A link settles only once the server has answered, so offline it is never awaited to the end: the next link starts once the previous has settled or had `LINK_APPLY_MS` to reach the local cache, since each reads the Recipe before writing it.
+   */
   async function linkIngredients({ recipe, ingredients }: IngredientLink, id: core.ItemId) {
     let failed = 0
+    const outcomes: Promise<void>[] = []
     for (const seen of ingredients) {
-      try {
-        await linkIngredientToItem(db, recipe.id, seen, id)
-      } catch {
-        failed += 1
-      }
+      const outcome = linkIngredientToItem(db, recipe.id, seen, id).then(
+        () => undefined,
+        () => {
+          failed += 1
+        },
+      )
+      outcomes.push(outcome)
+      await Promise.race([outcome, delay(LINK_APPLY_MS)])
     }
+    await Promise.race([Promise.all(outcomes), delay(LINK_APPLY_MS)])
     if (failed === 0) return
     const which = failed === ingredients.length ? 'not linked' : `${failed} of ${ingredients.length} Ingredients not linked`
     showSnackbar({ text: `Added to the Catalogue, but ${which} to ${recipe.title}` })

@@ -2966,6 +2966,19 @@ describe('ItemsManager Recipe filter', () => {
     await waitFor(() => expect(screen.getByText('1 Ingredient not in the Catalogue: Honey')).toBeInTheDocument())
   })
 
+  it('starts every link even when none settles, as offline where the server has not answered', async () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
+    render(<SnackbarHost />)
+    await pressRecipe('Curry')
+    linkIngredientToItem.mockReturnValue(new Promise(() => {}))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Salt to Catalogue' }))
+    saveNewItem(createItem, core.itemId('salt-item'), 'cleaning')
+
+    await waitFor(() => expect(linkIngredientToItem).toHaveBeenCalledTimes(2))
+    expect(screen.queryByText(/not linked/)).not.toBeInTheDocument()
+  })
+
   it('tries every same-named Ingredient and says how many were not linked when only some failed', async () => {
     renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
     render(<SnackbarHost />)
