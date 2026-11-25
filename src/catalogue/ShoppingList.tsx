@@ -307,10 +307,10 @@ export function ShoppingList({ db, watchRecipes = watchLiveRecipes }: ShoppingLi
   )
 }
 
-/** What an empty list says: a Recipe filter that matches nothing listed is named; Items still low yet unlisted are optional ones no Wanted Recipe needs; otherwise every Item is enough. */
+/** What an empty list says: a Recipe filter that matches nothing listed is named; Items not enough yet unlisted are optional ones no Wanted Recipe needs; otherwise every Item is enough. */
 function emptyMessage(selectedRecipe: RecipeRecord | undefined, items: readonly ItemRecord[]): string {
   if (selectedRecipe !== undefined) return `Nothing on the list is for ${selectedRecipe.title}.`
-  if (items.some((item) => item.state !== 'enough')) return 'Nothing to buy — the Items still low are optional and no Recipe needs them.'
+  if (items.some((item) => item.state !== 'enough' && item.necessity === 'optional')) return 'Nothing to buy — the Items left are optional and no Wanted Recipe needs them.'
   return 'Nothing to buy — every Item is enough.'
 }
 

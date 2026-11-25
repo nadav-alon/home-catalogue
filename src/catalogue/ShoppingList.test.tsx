@@ -996,7 +996,7 @@ describe('ShoppingList optional Items', () => {
     renderWith([candles], [cleaning], [grocery])
 
     expect(screen.queryByText('Candles')).not.toBeInTheDocument()
-    expect(screen.getByText('Nothing to buy — the Items still low are optional and no Recipe needs them.')).toBeInTheDocument()
+    expect(screen.getByText('Nothing to buy — the Items left are optional and no Wanted Recipe needs them.')).toBeInTheDocument()
     expect(screen.queryByText(/every Item is enough/)).toBeNull()
   })
 
