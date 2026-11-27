@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer } from 'vite'
 import { describe, expect, it } from 'vitest'
-import { iconVersion, manifest, versionedIconSrc } from './pwa-manifest'
+import { buildManifest, iconBytes, iconFileOf, isVersionedIconSrc, manifest, versionedIconSrc, workboxOptions, type VersionedIconSrc } from './pwa-manifest'
 import { themeColor } from './theme'
 import { appIcons } from './ui/appIcons'
 
@@ -52,7 +52,7 @@ describe('manifest', () => {
 
   it('points every icon at a PNG that exists at its declared size', () => {
     for (const icon of manifest.icons ?? []) {
-      const png = readFileSync(fromRepo(`public/${icon.src.split('?')[0]}`))
+      const png = readFileSync(fromRepo(`public/${iconFileOf(icon.src as VersionedIconSrc)}`))
       const [width, height] = [png.readUInt32BE(pngHeaderWidthOffset), png.readUInt32BE(pngHeaderHeightOffset)]
       expect(icon.sizes, icon.src).toBe(`${width}x${height}`)
     }
@@ -62,7 +62,7 @@ describe('manifest', () => {
     const srcs = (wanted: boolean) =>
       manifest.icons?.filter((icon) => purposesOf(icon.purpose).includes('maskable') === wanted).map((icon) => icon.src) ?? []
 
-    expect(srcs(true)).toContain(versionedIconSrc('pwa-maskable-512x512.png'))
+    expect(srcs(true)).toContain(versionedIconSrc('pwa-maskable-512x512.png', iconBytes('pwa-maskable-512x512.png')))
     for (const src of srcs(true)) expect(srcs(false)).not.toContain(src)
   })
 
@@ -86,11 +86,36 @@ describe('icon versioning', () => {
     expect(versionedIconSrc('a.png', bytes)).toMatch(/^a\.png\?v=[0-9a-f]{8}$/)
   })
 
-  it('versions every manifest icon from its file content', () => {
-    for (const icon of manifest.icons ?? []) {
-      const file = icon.src.split('?')[0]
-      expect(icon.src).toBe(`${file}?v=${iconVersion(readFileSync(fromRepo(`public/${file}`)))}`)
+  it('reads the icon file back out of a versioned URL', () => {
+    const src = versionedIconSrc('pwa-192x192.png', new Uint8Array([1]))
+    expect(isVersionedIconSrc(src)).toBe(true)
+    expect(isVersionedIconSrc('pwa-192x192.png')).toBe(false)
+    expect(iconFileOf(src)).toBe('pwa-192x192.png')
+  })
+
+  it('versions every manifest icon as <file>?v=<8 hex>', () => {
+    for (const icon of manifest.icons ?? []) expect(icon.src).toMatch(/^pwa-.+\.png\?v=[0-9a-f]{8}$/)
+  })
+
+  it('changes only the manifest URL of the icon whose bytes changed', () => {
+    const read = (changed?: string) => (file: string) =>
+      file === changed ? new Uint8Array([...iconBytes(file), 0]) : iconBytes(file)
+    const before = Object.fromEntries((buildManifest(read()).icons ?? []).map((icon) => [`${icon.sizes}${icon.purpose}`, icon.src]))
+    const changedFile = 'pwa-maskable-512x512.png'
+    const after = buildManifest(read(changedFile)).icons ?? []
+
+    for (const icon of after) {
+      const was = before[`${icon.sizes}${icon.purpose}`]
+      if (iconFileOf(icon.src as VersionedIconSrc) === changedFile) expect(icon.src).not.toBe(was)
+      else expect(icon.src).toBe(was)
     }
+  })
+})
+
+describe('offline precache', () => {
+  it('precaches the icon files and matches them when requested with ?v=', () => {
+    expect(workboxOptions.globPatterns?.some((glob) => glob.includes('png'))).toBe(true)
+    expect(workboxOptions.ignoreURLParametersMatching?.some((pattern) => pattern.test('v'))).toBe(true)
   })
 })
 
@@ -102,8 +127,17 @@ describe('browser tab icon', () => {
       const href = new DOMParser().parseFromString(html, 'text/html').querySelector('link[rel="icon"]')?.getAttribute('href')
       const file = appIcons.find((icon) => icon.purpose === 'any')!.output(192)
 
-      expect(href).toBe(`${server.config.base}${versionedIconSrc(file)}`)
+      expect(href).toBe(`${server.config.base}${versionedIconSrc(file, iconBytes(file))}`)
       expect(existsSync(fromRepo(`public/${file}`))).toBe(true)
+    } finally {
+      await server.close()
+    }
+  })
+
+  it('fails loudly when the favicon is not one of the app icons', async () => {
+    const server = await createServer({ configLoader: 'runner', configFile: fromRepo('vite.config.ts'), server: { middlewareMode: true }, appType: 'custom' })
+    try {
+      await expect(server.transformIndexHtml('/index.html', '<head><link href="/other.png" rel="icon" /></head>')).rejects.toThrow(/version-favicon/)
     } finally {
       await server.close()
     }
