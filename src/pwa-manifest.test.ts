@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createServer } from 'vite'
-import { describe, expect, it } from 'vitest'
+import { createServer, type ViteDevServer } from 'vite'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildManifest, iconBytes, iconFileOf, isVersionedIconSrc, manifest, versionedIconSrc, workboxOptions, type VersionedIconSrc } from './pwa-manifest'
 import { themeColor } from './theme'
 import { appIcons } from './ui/appIcons'
@@ -120,26 +120,24 @@ describe('offline precache', () => {
 })
 
 describe('browser tab icon', () => {
-  it('links the 192px app icon from public/ under the base', async () => {
-    const server = await createServer({ configLoader: 'runner', configFile: fromRepo('vite.config.ts'), server: { middlewareMode: true }, appType: 'custom' })
-    try {
-      const html = await server.transformIndexHtml('/index.html', readFileSync(fromRepo('index.html'), 'utf8'))
-      const href = new DOMParser().parseFromString(html, 'text/html').querySelector('link[rel="icon"]')?.getAttribute('href')
-      const file = appIcons.find((icon) => icon.purpose === 'any')!.output(192)
+  const serverTimeout = 60_000
+  let server: ViteDevServer
 
-      expect(href).toBe(`${server.config.base}${versionedIconSrc(file, iconBytes(file))}`)
-      expect(existsSync(fromRepo(`public/${file}`))).toBe(true)
-    } finally {
-      await server.close()
-    }
+  beforeAll(async () => {
+    server = await createServer({ configLoader: 'runner', configFile: fromRepo('vite.config.ts'), server: { middlewareMode: true }, appType: 'custom' })
+  }, serverTimeout)
+  afterAll(() => server.close())
+
+  it('links the 192px app icon from public/ under the base', async () => {
+    const html = await server.transformIndexHtml('/index.html', readFileSync(fromRepo('index.html'), 'utf8'))
+    const href = new DOMParser().parseFromString(html, 'text/html').querySelector('link[rel="icon"]')?.getAttribute('href')
+    const file = appIcons.find((icon) => icon.purpose === 'any')!.output(192)
+
+    expect(href).toBe(`${server.config.base}${versionedIconSrc(file, iconBytes(file))}`)
+    expect(existsSync(fromRepo(`public/${file}`))).toBe(true)
   })
 
   it('fails loudly when the favicon is not one of the app icons', async () => {
-    const server = await createServer({ configLoader: 'runner', configFile: fromRepo('vite.config.ts'), server: { middlewareMode: true }, appType: 'custom' })
-    try {
-      await expect(server.transformIndexHtml('/index.html', '<head><link href="/other.png" rel="icon" /></head>')).rejects.toThrow(/version-favicon/)
-    } finally {
-      await server.close()
-    }
+    await expect(server.transformIndexHtml('/index.html', '<head><link href="/other.png" rel="icon" /></head>')).rejects.toThrow(/version-favicon/)
   })
 })
