@@ -90,10 +90,10 @@ vi.mock('./tags.ts', async (importOriginal) => ({
   createTag: (db: unknown, name: unknown) => createTag(db, name),
 }))
 
-const linkIngredientToItem = vi.fn()
+const linkIngredientsToItem = vi.fn()
 vi.mock('data-platform/client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('data-platform/client')>()),
-  linkIngredientToItem: (...args: unknown[]) => linkIngredientToItem(...args),
+  linkIngredientsToItem: (...args: unknown[]) => linkIngredientsToItem(...args),
 }))
 
 const fakeDb = { name: 'fake-db' } as unknown as Firestore
@@ -107,7 +107,7 @@ beforeEach(() => {
   watchItems.mockReset()
   leaveTo.mockReset()
   createItem.mockReset().mockResolvedValue(undefined)
-  linkIngredientToItem.mockReset().mockResolvedValue(undefined)
+  linkIngredientsToItem.mockReset().mockResolvedValue(undefined)
   setItemState.mockReset().mockResolvedValue(undefined)
   updateItem.mockReset().mockResolvedValue(undefined)
   softDeleteItem.mockReset().mockResolvedValue(undefined)
@@ -2940,7 +2940,7 @@ describe('ItemsManager Recipe filter', () => {
     renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Sriracha' }])])
     render(<SnackbarHost />)
     await pressRecipe('Curry')
-    linkIngredientToItem.mockRejectedValue(new Error('changed'))
+    linkIngredientsToItem.mockRejectedValue(new Error('changed'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Sriracha to Catalogue' }))
     saveNewItem(createItem, core.itemId('sriracha-item'), 'cleaning')
@@ -2953,7 +2953,7 @@ describe('ItemsManager Recipe filter', () => {
     const fake = renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Honey' }, { name: 'Sriracha' }])])
     await pressRecipe('Curry')
     const newId = core.itemId('sriracha-item')
-    linkIngredientToItem.mockImplementation(async () => {
+    linkIngredientsToItem.mockImplementation(async () => {
       fake.set([recipe('curry', 'Curry', [{ name: 'Honey' }, { name: 'Sriracha', itemId: newId }])])
     })
 
@@ -2961,51 +2961,39 @@ describe('ItemsManager Recipe filter', () => {
     saveNewItem(createItem, newId, 'cleaning')
 
     await waitFor(() =>
-      expect(linkIngredientToItem).toHaveBeenCalledWith(fakeDb, 'curry', { position: 1, name: 'Sriracha' }, newId),
+      expect(linkIngredientsToItem).toHaveBeenCalledWith(fakeDb, 'curry', [{ position: 1, name: 'Sriracha' }], newId),
     )
     await waitFor(() => expect(screen.getByText('1 Ingredient not in the Catalogue: Honey')).toBeInTheDocument())
   })
 
-  it('starts every link once the previous shows in the Recipes, even when none settles, as offline where the server has not answered', async () => {
-    const fake = renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
+  it('links every same-named Ingredient with one call, even when it never settles, as offline', async () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
     render(<SnackbarHost />)
     await pressRecipe('Curry')
     const newId = core.itemId('salt-item')
-    const linked: { name: string; itemId?: core.ItemId }[] = [{ name: 'Salt' }, { name: 'Salt' }]
-    linkIngredientToItem.mockImplementation((_db: unknown, _recipe: string, seen: { position: number }) => {
-      // Like data-platform: reads the Recipe as it is now, writes it whole into the cache, and never settles.
-      linked[seen.position] = { name: 'Salt', itemId: newId }
-      fake.set([recipe('curry', 'Curry', [...linked])])
-      return new Promise(() => {})
-    })
+    linkIngredientsToItem.mockReturnValue(new Promise(() => {}))
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Salt to Catalogue' }))
     saveNewItem(createItem, newId, 'cleaning')
 
-    await waitFor(() => expect(linkIngredientToItem).toHaveBeenCalledTimes(2))
-    expect(linkIngredientToItem).toHaveBeenNthCalledWith(1, fakeDb, 'curry', { position: 0, name: 'Salt' }, newId)
-    expect(linkIngredientToItem).toHaveBeenNthCalledWith(2, fakeDb, 'curry', { position: 1, name: 'Salt' }, newId)
+    await waitFor(() => expect(linkIngredientsToItem).toHaveBeenCalledTimes(1))
+    expect(linkIngredientsToItem).toHaveBeenCalledWith(
+      fakeDb,
+      'curry',
+      [
+        { position: 0, name: 'Salt' },
+        { position: 1, name: 'Salt' },
+      ],
+      newId,
+    )
     expect(screen.queryByText(/not linked/)).not.toBeInTheDocument()
   })
 
-  it('does not start the next link until the previous has settled or shows in the Recipes', async () => {
-    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
-    await pressRecipe('Curry')
-    linkIngredientToItem.mockReturnValue(new Promise(() => {}))
-
-    fireEvent.click(screen.getByRole('button', { name: 'Add Salt to Catalogue' }))
-    saveNewItem(createItem, core.itemId('salt-item'), 'cleaning')
-
-    await waitFor(() => expect(linkIngredientToItem).toHaveBeenCalledTimes(1))
-    await new Promise((resolve) => setTimeout(resolve, 200))
-    expect(linkIngredientToItem).toHaveBeenCalledTimes(1)
-  })
-
-  it('says it was not linked when a link rejects long after the others were started', async () => {
+  it('says it was not linked when a link rejects long after it was made', async () => {
     renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Sriracha' }])])
     render(<SnackbarHost />)
     await pressRecipe('Curry')
-    linkIngredientToItem.mockReturnValue(new Promise((_, reject) => setTimeout(() => reject(new Error('denied')), 300)))
+    linkIngredientsToItem.mockReturnValue(new Promise((_, reject) => setTimeout(() => reject(new Error('denied')), 300)))
 
     fireEvent.click(screen.getByRole('button', { name: 'Add Sriracha to Catalogue' }))
     saveNewItem(createItem, core.itemId('sriracha-item'), 'cleaning')
@@ -3013,16 +3001,4 @@ describe('ItemsManager Recipe filter', () => {
     expect(await screen.findByText('Added to the Catalogue, but not linked to Curry', {}, { timeout: 2000 })).toBeInTheDocument()
   })
 
-  it('tries every same-named Ingredient and says how many were not linked when only some failed', async () => {
-    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Salt' }, { name: 'Salt' }])])
-    render(<SnackbarHost />)
-    await pressRecipe('Curry')
-    linkIngredientToItem.mockRejectedValueOnce(new Error('changed')).mockResolvedValueOnce(undefined)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Add Salt to Catalogue' }))
-    saveNewItem(createItem, core.itemId('salt-item'), 'cleaning')
-
-    expect(await screen.findByText('Added to the Catalogue, but 1 of 2 Ingredients not linked to Curry')).toBeInTheDocument()
-    expect(linkIngredientToItem).toHaveBeenCalledTimes(2)
-  })
 })
