@@ -258,7 +258,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
 
   /**
    * Links the Recipe's Ingredients to the new Item `id` in one write, all or nothing; the Item stays whatever happens, and the Member is told if the link is rejected, whenever that arrives.
-   * Offline the promise never settles, so nothing waits on it.
+   * Offline the write lands in the cache at once and the promise settles only when the server answers (or rejects at once if the Recipe is not cached), so callers must not await this.
    */
   async function linkIngredients({ recipe, ingredients }: IngredientLink, id: core.ItemId) {
     try {

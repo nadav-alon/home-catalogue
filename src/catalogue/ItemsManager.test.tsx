@@ -3000,5 +3000,4 @@ describe('ItemsManager Recipe filter', () => {
 
     expect(await screen.findByText('Added to the Catalogue, but not linked to Curry', {}, { timeout: 2000 })).toBeInTheDocument()
   })
-
 })
