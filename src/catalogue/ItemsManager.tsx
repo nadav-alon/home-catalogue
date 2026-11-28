@@ -354,6 +354,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const unlinkedNames = activeRecipe === undefined ? [] : unlinkedIngredientNames(activeRecipe)
   const chipFiltered =
     activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0 || activeRecipe !== undefined
+  const searchText = search.trim()
+  const searching = !scanFiltered && searchText !== ''
   const visibleItems = (scanFiltered ? candidateItems : candidateItems.filter((item) => matchesSearch(item, search, tags))).filter(
     (item) =>
       (activeCategoryId === undefined || item.categoryId === activeCategoryId) &&
@@ -364,8 +366,38 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
       (activeTagIds.length === 0 || carriesAnyTag(item, activeTagIds)) &&
       (recipeItemIds === undefined || recipeItemIds.has(item.id)),
   )
+  /** Why no Item is visible: the one cause both the message and the offered action follow. */
+  const emptyCause =
+    items?.length === 0
+      ? 'no-items'
+      : searching && chipFiltered
+        ? 'both'
+        : searching
+          ? 'search'
+          : chipFiltered
+            ? 'filters'
+            : 'scan'
+  const emptyMessage = {
+    'no-items': 'No Items yet.',
+    both: `No Items match "${searchText}" with these filters.`,
+    search: `No Items match "${searchText}".`,
+    filters: 'No Items match your filters.',
+    scan: 'No scanned Items found.',
+  }[emptyCause]
+  const clearSearch = () => setSearch('')
+  const clearFilters = () => {
+    clearSearch()
+    onFilterChange?.(NO_ITEMS_FILTER)
+  }
+  const emptyAction = {
+    'no-items': undefined,
+    both: { label: 'Clear filters', onClick: clearFilters },
+    filters: { label: 'Clear filters', onClick: clearFilters },
+    search: { label: 'Clear search', onClick: clearSearch },
+    scan: undefined,
+  }[emptyCause]
   // A search, scan or chip filter shows its matches whatever was collapsed; the remembered state is left alone for when it clears.
-  const filterActive = scanFiltered || search !== '' || chipFiltered
+  const filterActive = scanFiltered || searching || chipFiltered
   const groupToggle = (key: GroupKey) => ({
     collapsed: !filterActive && collapsedGroups.has(key),
     toggleDisabled: filterActive,
@@ -441,15 +473,14 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         </div>
       )}
       {items !== undefined && visibleItems.length === 0 && (
-        <p>
-          {items.length === 0
-            ? 'No Items yet.'
-            : chipFiltered
-              ? 'No Items match your filters.'
-              : scanFiltered
-                ? 'No scanned Items found.'
-                : 'No Items match your search.'}
-        </p>
+        <div class="items-manager__empty">
+          <p>{emptyMessage}</p>
+          {emptyAction !== undefined && (
+            <Button variant="tonal" onClick={emptyAction.onClick}>
+              {emptyAction.label}
+            </Button>
+          )}
+        </div>
       )}
       {groups.map(({ category, items: categoryItems }) => (
         <ItemGroup key={category.id} heading={category.name} {...groupToggle(category.id)} items={categoryItems} aisles={aisles} onSetState={handleSetState} onOpen={openDialog} />

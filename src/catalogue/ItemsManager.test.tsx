@@ -276,7 +276,7 @@ describe('ItemsManager', () => {
 
     expect(screen.getByText('No scanned Items found.')).toBeInTheDocument()
     expect(screen.getByText('Scanned: no Items')).toBeInTheDocument()
-    expect(screen.queryByText('No Items match your search.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^No Items match/)).not.toBeInTheDocument()
   })
 
   it('calls onClearFilter when the chip is dismissed', () => {
@@ -1156,7 +1156,7 @@ describe('the empty state', () => {
 
     fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'zzz' } })
 
-    expect(screen.getByText('No Items match your search.')).toBeInTheDocument()
+    expect(screen.getByText('No Items match "zzz".')).toBeInTheDocument()
     expect(screen.queryByText('No Items yet.')).not.toBeInTheDocument()
   })
 
@@ -2365,6 +2365,54 @@ describe('ItemsManager Category and Shop filter', () => {
     expect(screen.getByText('No Items match your filters.')).toBeInTheDocument()
   })
 
+  it('names the search and the filters when a search matching elsewhere meets a Category filter', () => {
+    renderFiltered({ categoryId: medicine.id })
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'soap' } })
+
+    expect(screen.getByText('No Items match "soap" with these filters.')).toBeInTheDocument()
+  })
+
+  it('offers Clear search when only the search matches nothing, and pressing it brings the Items back', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    const search = screen.getByRole('searchbox', { name: 'Search Items' })
+    fireEvent.input(search, { target: { value: 'zzz' } })
+
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }))
+
+    expect(search).toHaveValue('')
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+
+  it('offers Clear filters that clears the search and every chip filter', () => {
+    const onFilterChange = renderFiltered({ categoryId: cleaning.id, shopId: pharmacy.id })
+    const search = screen.getByRole('searchbox', { name: 'Search Items' })
+    fireEvent.input(search, { target: { value: 'zzz' } })
+
+    expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+
+    expect(search).toHaveValue('')
+    expect(onFilterChange).toHaveBeenCalledWith(NO_ITEMS_FILTER)
+  })
+
+  it('does not count a whitespace-only search as a search', () => {
+    renderFiltered({ categoryId: cleaning.id, shopId: pharmacy.id })
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: '   ' } })
+
+    expect(screen.getByText('No Items match your filters.')).toBeInTheDocument()
+  })
+
+  it('quotes the trimmed search', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'zzz ' } })
+
+    expect(screen.getByText('No Items match "zzz".')).toBeInTheDocument()
+  })
+
   it('reports the pressed Category, keeping the Shop', () => {
     const onFilterChange = renderFiltered({ shopId: grocery.id })
 
@@ -2641,6 +2689,18 @@ describe('ItemsManager Tag filter', () => {
     renderTagged([flour, honey], undefined, '#/items?tag=nonesuch')
 
     expect(tagChips().getByRole('button', { name: 'cooking', pressed: false })).toBeInTheDocument()
+    expect(screen.getByText('Flour')).toBeInTheDocument()
+    expect(screen.getByText('Honey')).toBeInTheDocument()
+  })
+
+  it('names the filters and offers Clear filters when a Tag and a Category match nothing together, and pressing it brings the Items back', async () => {
+    renderTagged([flour, honey], undefined, '#/items?tag=sweet&category=medicine')
+
+    expect(screen.getByText('No Items match your filters.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
+    await act(() => untilHashChange(() => fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))))
+
+    expect(window.location.hash).toBe('#/items')
     expect(screen.getByText('Flour')).toBeInTheDocument()
     expect(screen.getByText('Honey')).toBeInTheDocument()
   })
@@ -2983,6 +3043,18 @@ describe('ItemsManager Recipe filter', () => {
     await pressRecipe('Clean up')
 
     expect(window.location.hash).toBe('#/items?category=cleaning&recipe=clean-up')
+  })
+
+  it('names the filters and offers Clear filters when a Recipe and a Category match nothing together, and pressing it brings the Items back', async () => {
+    window.location.hash = '#/items?recipe=first-aid&category=cleaning'
+    renderWithRecipes([firstAid, cleanUp])
+
+    expect(screen.getByText('No Items match your filters.')).toBeInTheDocument()
+    await act(() => untilHashChange(() => fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))))
+
+    expect(window.location.hash).toBe('#/items')
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
   })
 
   it('keeps the chosen Recipe when the Scanned chip is dismissed', () => {
