@@ -2926,6 +2926,20 @@ describe('ItemsManager Recipe filter', () => {
     expect(screen.queryByText(/not in the Catalogue/)).not.toBeInTheDocument()
   })
 
+  it('gives each Unlinked Ingredient a row with its name and its own household-ui Add button', async () => {
+    renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Sriracha' }, { name: 'Honey' }])])
+    await pressRecipe('Curry')
+
+    const rows = within(screen.getByRole('status')).getAllByRole('listitem')
+    expect(rows).toHaveLength(2)
+    for (const [row, name] of [[rows[0]!, 'Sriracha'], [rows[1]!, 'Honey']] as const) {
+      expect(within(row).getByText(name)).toBeInTheDocument()
+      const button = within(row).getByRole('button', { name: `Add ${name} to Catalogue` })
+      expect(button).toHaveTextContent('Add to Catalogue')
+      expect(button).toHaveClass('ui-button')
+    }
+  })
+
   it('opens the add-Item dialog prefilled with the Unlinked Ingredient’s name', async () => {
     renderWithRecipes([recipe('curry', 'Curry', [{ name: 'Sriracha' }, { name: 'Honey' }])])
     await pressRecipe('Curry')

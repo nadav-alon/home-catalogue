@@ -18,6 +18,7 @@ import type { AddItemHandoff, ItemsFilter } from '../ui/route.ts'
 import { clearAddItemHandoff, leaveTo, navigateToItems } from '../ui/useRoute.ts'
 import { afterPendingPop } from 'household-ui/ui/pendingPop.ts'
 import { ItemDialog } from './ItemDialog.tsx'
+import { Button } from 'household-ui/ui/Button.tsx'
 import { Fab } from 'household-ui/ui/Fab.tsx'
 import { showSnackbar } from 'household-ui/ui/Snackbar.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
@@ -408,9 +409,10 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
           <ul>
             {unlinkedNames.map((name) => (
               <li key={name}>
-                <button type="button" aria-label={`Add ${name} to Catalogue`} onClick={() => setDialog({ kind: 'add', name, link: ingredientLinkFor(activeRecipe, name) })}>
+                <span>{name}</span>
+                <Button variant="tonal" aria-label={`Add ${name} to Catalogue`} onClick={() => setDialog({ kind: 'add', name, link: ingredientLinkFor(activeRecipe, name) })}>
                   Add to Catalogue
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
