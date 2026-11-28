@@ -41,6 +41,8 @@ const ITEM_ID_SEPARATOR = ','
 const CATEGORY_KEY = 'category'
 const SHOP_KEY = 'shop'
 const RECIPE_KEY = 'recipe'
+/** The query key of the Tag filter; its ids are separated like the `item` ids. */
+const TAG_KEY = 'tag'
 
 /** The value of the `key` query on the hash; undefined when there is none or it is empty. */
 function queryValueOf(hash: string, key: string): string | undefined {
@@ -50,13 +52,13 @@ function queryValueOf(hash: string, key: string): string | undefined {
 
 /**
  * `path` with `params` as its query. Each value is written as `encodeURIComponent` does, except that the separator
- * between the ids of the `item` value stays a literal comma, so the hash reads `item=a,b`.
+ * between the ids of the `item` and `tag` values stays a literal comma, so the hash reads `item=a,b`.
  */
 function hashWithQuery(path: string, params: URLSearchParams): string {
   const query = [...params]
     .map(([key, value]) => {
       const written =
-        key === ITEM_KEY ? value.split(ITEM_ID_SEPARATOR).map(encodeURIComponent).join(ITEM_ID_SEPARATOR) : encodeURIComponent(value)
+        key === ITEM_KEY || key === TAG_KEY ? value.split(ITEM_ID_SEPARATOR).map(encodeURIComponent).join(ITEM_ID_SEPARATOR) : encodeURIComponent(value)
       return `${encodeURIComponent(key)}=${written}`
     })
     .join('&')
@@ -102,11 +104,21 @@ export function recipeIdOf(hash: string): recipes.RecipeId | undefined {
   return id !== undefined && recipes.isRecipeId(id) ? id : undefined
 }
 
-/** The Category, Shop and Recipe an Items screen is narrowed to; undefined for each that is not. */
+/**
+ * The Tag ids a `tag=<id>[,<id>…]` query on the hash names, in order; empty when there is none.
+ * Says nothing about whether a Tag with that id exists.
+ */
+export function tagIdsOf(hash: string): catalogue.TagId[] {
+  const listed = queryValueOf(hash, TAG_KEY) ?? ''
+  return listed.split(ITEM_ID_SEPARATOR).filter(catalogue.isTagId)
+}
+
+/** The Category, Shop, Recipe and Tags an Items screen is narrowed to; undefined (or empty, for the Tags) for each that is not. */
 export interface ItemsFilter {
   categoryId: catalogue.CategoryId | undefined
   shopId: catalogue.ShopId | undefined
   recipeId: recipes.RecipeId | undefined
+  tagIds: readonly catalogue.TagId[]
 }
 
 /** `hash` with each query in `entries` set to its value (cleared when undefined); every other query is kept. */
@@ -120,9 +132,9 @@ function withQueries(hash: string, entries: readonly (readonly [string, string |
   return hashWithQuery(path, params)
 }
 
-/** `hash` with its Category, Shop and Recipe filters set to those given (cleared when undefined); every other query is kept. */
+/** `hash` with its Category, Shop, Recipe and Tag filters set to those given (cleared when undefined or empty); every other query is kept. */
 export function withItemsFilter(hash: string, filter: ItemsFilter): string {
-  return withQueries(hash, [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId], [RECIPE_KEY, filter.recipeId]])
+  return withQueries(hash, [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId], [RECIPE_KEY, filter.recipeId], [TAG_KEY, filter.tagIds.length > 0 ? filter.tagIds.join(ITEM_ID_SEPARATOR) : undefined]])
 }
 
 /** `hash` with its `recipe` query set to `id` (cleared when undefined); every other query is kept. */
