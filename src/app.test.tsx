@@ -211,7 +211,7 @@ describe('App', () => {
     })
 
     await act(async () => {
-      within(screen.getByRole('group', { name: 'Filter by Category' })).getByRole('button', { name: 'Cleaning' }).click()
+      within(screen.getByRole('group', { name: 'Category' })).getByRole('button', { name: 'Cleaning' }).click()
       await new Promise((resolve) => setTimeout(resolve, 50))
     })
 

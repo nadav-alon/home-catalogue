@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
+import type { ComponentChildren } from 'preact'
 import { core } from 'data-platform'
 import { linkIngredientsToItem, type SeenIngredient } from 'data-platform/client'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, carriesAnyTag, matchesSearch, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
@@ -50,6 +51,19 @@ export interface ItemsManagerProps {
    * the app goes there as the dialog closes, with the new Item's id appended if it was saved.
    */
   handoff?: AddItemHandoff
+}
+
+/** A row of filter chips of one kind: a group named by its visible label, scrolling sideways on a phone. */
+function FilterRow({ kind, children }: { kind: string; children: ComponentChildren }) {
+  const labelId = `items-filter-${kind.toLowerCase()}`
+  return (
+    <div role="group" aria-labelledby={labelId} class="items-manager__filter">
+      <span id={labelId} class="items-manager__filter-label">
+        {kind}
+      </span>
+      <div class="items-manager__chips">{children}</div>
+    </div>
+  )
 }
 
 /** `ids` without `id` when it holds it, else with `id` added: what pressing a chip of a many-at-once group selects. */
@@ -376,7 +390,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
           <Chip label={`Scanned: ${scannedLabel}`} dismissLabel="Clear scanned filter" onDismiss={() => onClearFilter?.(activeFilter)} />
         )
       )}
-      <div role="group" aria-label="Filter by Category" class="items-manager__chips">
+      <div class="items-manager__filters">
+      <FilterRow kind="Category">
         {categories.map((category) => (
           <FilterChip
             key={category.id}
@@ -385,8 +400,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             onToggle={() => onFilterChange?.({ ...activeFilter, categoryId: toggledSelection(activeCategoryId, category.id) })}
           />
         ))}
-      </div>
-      <div role="group" aria-label="Filter by Shop" class="items-manager__chips">
+      </FilterRow>
+      <FilterRow kind="Shop">
         {shops.map((shop) => (
           <FilterChip
             key={shop.id}
@@ -395,8 +410,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             onToggle={() => onFilterChange?.({ ...activeFilter, shopId: toggledSelection(activeShopId, shop.id) })}
           />
         ))}
-      </div>
-      <div role="group" aria-label="Filter by Tag" class="items-manager__chips">
+      </FilterRow>
+      <FilterRow kind="Tag">
         {offeredTags.map((tag) => (
           <FilterChip
             key={tag.id}
@@ -405,8 +420,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             onToggle={() => onFilterChange?.({ ...activeFilter, tagIds: toggledMember(filterTagIds, tag.id) })}
           />
         ))}
-      </div>
+      </FilterRow>
       <RecipeFilter recipes={recipes} selectedId={activeRecipe?.id} onChange={(next) => onFilterChange?.({ ...activeFilter, recipeId: next })} />
+      </div>
       {unlinkedNames.length > 0 && (
         <div role="status" class="items-manager__unlinked">
           <p>

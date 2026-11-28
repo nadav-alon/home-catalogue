@@ -20,7 +20,7 @@ import { choose } from '../testing/select.ts'
 import { nextTask } from '../testing/nextTask.ts'
 import { saveNewItem } from '../testing/saveItem.ts'
 import { resetPendingPop } from 'household-ui/ui/pendingPop.ts'
-import { declaration, tokenUsage } from '../testing/css.ts'
+import { declaration, mediaBlock, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
 import { stubModalDialog } from '../testing/dialog.ts'
 
 const leaveTo = vi.fn()
@@ -407,7 +407,7 @@ describe('adding an Item', () => {
 
     fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
     fireEvent.input(screen.getByLabelText('Brand note'), { target: { value: 'the waterproof ones' } })
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -436,7 +436,7 @@ describe('adding an Item', () => {
     openDialog()
 
     fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
     choose(screen.getByLabelText('State'), 'out')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -449,7 +449,7 @@ describe('adding an Item', () => {
     openDialog()
 
     fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -462,14 +462,14 @@ describe('adding an Item', () => {
     openDialog()
 
     fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the database')
     expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
     expect(screen.getByLabelText('Name')).toHaveValue('Bandages')
-    expect(screen.getByLabelText('Category')).toHaveValue(medicine.id)
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveValue(medicine.id)
     expect(screen.getByLabelText('Necessity')).toHaveValue('essential')
   })
 
@@ -478,7 +478,7 @@ describe('adding an Item', () => {
     openDialog()
 
     fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
     choose(screen.getByLabelText('Shop override'), grocery.id)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -498,7 +498,7 @@ describe('adding an Item', () => {
     renderWith([], [medicine], [pharmacy])
     openDialog()
 
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -513,7 +513,7 @@ describe('adding an Item', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByLabelText('Name')).toBeInvalid()
-    expect(screen.getByLabelText('Category')).toBeInvalid()
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toBeInvalid()
     expect(screen.getByLabelText('Necessity')).toBeInvalid()
     expect(screen.getByLabelText('Brand note')).toBeValid()
     expect(createItem).not.toHaveBeenCalled()
@@ -528,7 +528,7 @@ describe('adding an Item', () => {
     fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
 
     expect(screen.getByLabelText('Name')).toBeValid()
-    expect(screen.getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
   })
 
   it('refuses to add an Item without choosing a Category', () => {
@@ -539,7 +539,7 @@ describe('adding an Item', () => {
     choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
     expect(createItem).not.toHaveBeenCalled()
   })
 
@@ -548,10 +548,10 @@ describe('adding an Item', () => {
     openDialog()
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(screen.getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
-    choose(screen.getByLabelText('Category'), medicine.id)
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
 
-    expect(screen.getByLabelText('Category')).toBeValid()
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toBeValid()
     expect(screen.getByLabelText('Name')).toHaveAccessibleDescription('An Item needs a name.')
   })
 
@@ -572,7 +572,7 @@ describe('adding an Item', () => {
     openDialog()
 
     fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Bandages' } })
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByLabelText('Necessity')).toHaveAccessibleDescription('Choose a Necessity.')
@@ -595,7 +595,7 @@ describe('editing an Item', () => {
     expect(screen.getByRole('dialog', { name: 'Edit Item' })).toBeInTheDocument()
     expect(screen.getByLabelText('Name')).toHaveValue('Bandages')
     expect(screen.getByLabelText('Brand note')).toHaveValue('the waterproof ones')
-    expect(screen.getByLabelText('Category')).toHaveValue(medicine.id)
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveValue(medicine.id)
     expect(screen.getByLabelText('Necessity')).toHaveValue('essential')
     expect(screen.getByLabelText('Shop override')).toHaveValue(grocery.id)
   })
@@ -872,7 +872,7 @@ describe('leaving the Item dialog with unsaved edits', () => {
     renderWith([bandages], [medicine], [pharmacy])
     fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
     const option = screen.getByRole<HTMLOptionElement>('option', { name: '+ New Category' })
-    choose(screen.getByLabelText('Category'), option.value)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), option.value)
 
     expect(screen.getByLabelText('New Category name').closest('.item-form__group')).toBe(
       screen.getByLabelText('Default Shop').closest('.item-form__group'),
@@ -990,7 +990,7 @@ describe('leaving the Item dialog with unsaved edits', () => {
     confirmSpy.mockReturnValue(false)
     renderWith([bandages], [medicine], [pharmacy])
     fireEvent.click(screen.getByRole('button', { name: 'Bandages essential' }))
-    choose(screen.getByLabelText('Category'), '+new')
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), '+new')
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))
 
     expect(confirmSpy).toHaveBeenCalledOnce()
@@ -1189,7 +1189,7 @@ describe('adding a Category from the Item dialog', () => {
 
   function chooseNewCategory() {
     const option = screen.getByRole<HTMLOptionElement>('option', { name: '+ New Category' })
-    choose(screen.getByLabelText('Category'), option.value)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), option.value)
   }
 
   it('lists "+ New Category" in the Category picker', () => {
@@ -1197,7 +1197,7 @@ describe('adding a Category from the Item dialog', () => {
     openDialog()
 
     expect(
-      within(screen.getByLabelText('Category')).getByRole('option', { name: '+ New Category' }),
+      within(within(screen.getByRole('dialog')).getByLabelText('Category')).getByRole('option', { name: '+ New Category' }),
     ).toBeInTheDocument()
   })
 
@@ -1232,7 +1232,7 @@ describe('adding a Category from the Item dialog', () => {
     choose(screen.getByLabelText('Default Shop'), pharmacy.id)
     fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
 
-    await waitFor(() => expect(screen.getByLabelText('Category')).toHaveValue(created.id))
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveValue(created.id))
     expect(createCategory).toHaveBeenCalledWith(fakeDb, 'First aid', pharmacy.id)
     expect(screen.getByLabelText('Name')).toHaveValue('Plasters')
     expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
@@ -1254,13 +1254,13 @@ describe('adding a Category from the Item dialog', () => {
   it('shows "+ New Category" in the picker while the prompt is open and restores the previous selection when it is cancelled', () => {
     renderWith([], [medicine, cleaning], [pharmacy])
     openDialog()
-    choose(screen.getByLabelText('Category'), cleaning.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), cleaning.id)
 
     chooseNewCategory()
-    expect(screen.getByLabelText('Category')).toHaveValue('+new')
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveValue('+new')
     fireEvent.click(screen.getByRole('button', { name: 'Cancel new Category' }))
 
-    expect(screen.getByLabelText('Category')).toHaveValue(cleaning.id)
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveValue(cleaning.id)
     expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
     expect(createCategory).not.toHaveBeenCalled()
   })
@@ -1270,9 +1270,9 @@ describe('adding a Category from the Item dialog', () => {
     openDialog()
 
     chooseNewCategory()
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
 
-    expect(screen.getByLabelText('Category')).toHaveValue(medicine.id)
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveValue(medicine.id)
     expect(screen.queryByLabelText('New Category name')).not.toBeInTheDocument()
   })
 
@@ -1302,7 +1302,7 @@ describe('adding a Category from the Item dialog', () => {
     const notPrevented = fireEvent.keyDown(screen.getByLabelText('New Category name'), { key: 'Enter' })
 
     expect(notPrevented).toBe(false)
-    await waitFor(() => expect(screen.getByLabelText('Category')).toHaveValue(created.id))
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveValue(created.id))
     expect(createCategory).toHaveBeenCalledWith(fakeDb, 'First aid', pharmacy.id)
     expect(createItem).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog', { name: 'Add Item' })).toBeInTheDocument()
@@ -1320,12 +1320,12 @@ describe('adding a Category from the Item dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create Category' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(screen.getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveAccessibleDescription('Choose a Category.')
     act(() => publishCategories([medicine, created]))
     resolveCreate(created.id)
 
-    await waitFor(() => expect(screen.getByLabelText('Category')).toHaveValue(created.id))
-    expect(screen.getByLabelText('Category')).toBeValid()
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveValue(created.id))
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toBeValid()
   })
 
   it('ends on the new Category when the snapshot listing it arrives after createCategory resolves', async () => {
@@ -1341,7 +1341,7 @@ describe('adding a Category from the Item dialog', () => {
 
     act(() => publishCategories([medicine, created]))
 
-    expect(screen.getByLabelText('Category')).toHaveValue(created.id)
+    expect(within(screen.getByRole('dialog')).getByLabelText('Category')).toHaveValue(created.id)
   })
 
   it('refuses a blank name on the name field, without calling createCategory', () => {
@@ -1487,7 +1487,7 @@ describe('an add-Item hand-off', () => {
     renderHandoff()
     choose(screen.getByLabelText('State'), 'enough')
     createItem.mockResolvedValue(newId)
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -1523,7 +1523,7 @@ describe('an add-Item hand-off', () => {
   it('stays put when the save fails', async () => {
     createItem.mockRejectedValue(new Error('offline'))
     renderHandoff()
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -2303,8 +2303,8 @@ describe('ItemsManager Category and Shop filter', () => {
   it('offers a chip for every Category and every Shop, none pressed', () => {
     renderFiltered({})
 
-    const categories = within(screen.getByRole('group', { name: 'Filter by Category' }))
-    const shops = within(screen.getByRole('group', { name: 'Filter by Shop' }))
+    const categories = within(screen.getByRole('group', { name: 'Category' }))
+    const shops = within(screen.getByRole('group', { name: 'Shop' }))
     expect(categories.getByRole('button', { name: 'Medicine', pressed: false })).toBeInTheDocument()
     expect(categories.getByRole('button', { name: 'Cleaning', pressed: false })).toBeInTheDocument()
     expect(shops.getByRole('button', { name: 'Pharmacy', pressed: false })).toBeInTheDocument()
@@ -2368,7 +2368,7 @@ describe('ItemsManager Category and Shop filter', () => {
   it('reports the pressed Category, keeping the Shop', () => {
     const onFilterChange = renderFiltered({ shopId: grocery.id })
 
-    fireEvent.click(within(screen.getByRole('group', { name: 'Filter by Category' })).getByRole('button', { name: 'Cleaning' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Category' })).getByRole('button', { name: 'Cleaning' }))
 
     expect(onFilterChange).toHaveBeenCalledWith({ categoryId: cleaning.id, shopId: grocery.id, recipeId: undefined, tagIds: [] })
   })
@@ -2506,7 +2506,7 @@ describe('Tags in the Item dialog', () => {
     renderWithTags([sweet])
     fireEvent.click(screen.getByRole('button', { name: 'Add Item' }))
     fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Honey' } })
-    choose(screen.getByLabelText('Category'), medicine.id)
+    choose(within(screen.getByRole('dialog')).getByLabelText('Category'), medicine.id)
     choose(screen.getByLabelText('Necessity'), 'essential')
 
     addTag('sweet')
@@ -2545,7 +2545,7 @@ describe('ItemsManager Tag filter', () => {
     return renderWith(items, [medicine, cleaning], [pharmacy, grocery], undefined, undefined, { tags, routed: true })
   }
 
-  const tagChips = () => within(screen.getByRole('group', { name: 'Filter by Tag' }))
+  const tagChips = () => within(screen.getByRole('group', { name: 'Tag' }))
 
   /** Presses a Tag chip and waits for the hash change it makes, which is what the chips are read back from. */
   async function pressTag(name: string) {
@@ -2648,7 +2648,7 @@ describe('ItemsManager Tag filter', () => {
   it('is undone by Back like the Category filter: the Tag first, then the Category', async () => {
     renderTagged([flour, honey, gauze])
     const back = () => act(() => untilHashChange(() => window.history.back()))
-    const categoryChips = () => within(screen.getByRole('group', { name: 'Filter by Category' }))
+    const categoryChips = () => within(screen.getByRole('group', { name: 'Category' }))
     await act(() => untilHashChange(() => fireEvent.click(categoryChips().getByRole('button', { name: medicine.name }))))
     await pressTag('cooking')
 
@@ -2663,7 +2663,7 @@ describe('ItemsManager Tag filter', () => {
   it('keeps the tag in the hash when another filter is pressed before the Items load', async () => {
     renderTagged(undefined, undefined, '#/items?tag=cooking')
 
-    await act(() => untilHashChange(() => fireEvent.click(within(screen.getByRole('group', { name: 'Filter by Category' })).getByRole('button', { name: medicine.name }))))
+    await act(() => untilHashChange(() => fireEvent.click(within(screen.getByRole('group', { name: 'Category' })).getByRole('button', { name: medicine.name }))))
 
     expect(window.location.hash).toContain('tag=cooking')
   })
@@ -2927,7 +2927,7 @@ describe('ItemsManager Recipe filter', () => {
     window.location.hash = '#/items?recipe=clean-up'
     renderWithRecipes([firstAid, cleanUp])
 
-    fireEvent.click(within(screen.getByRole('group', { name: 'Filter by Category' })).getByRole('button', { name: 'Cleaning' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Category' })).getByRole('button', { name: 'Cleaning' }))
 
     await vi.waitFor(() => expect(window.location.hash).toBe('#/items?recipe=clean-up&category=cleaning'))
   })
@@ -3069,6 +3069,32 @@ describe('ItemsManager Recipe filter', () => {
     saveNewItem(createItem, core.itemId('sriracha-item'), 'cleaning')
 
     expect(await screen.findByText('Added to the Catalogue, but not linked to Curry', {}, { timeout: 2000 })).toBeInTheDocument()
+  })
+
+  it('names each of the Category, Shop and Tag rows by a visible label of its kind', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    for (const kind of ['Category', 'Shop', 'Tag']) {
+      const group = screen.getByRole('group', { name: kind })
+      expect(group).toHaveAttribute('aria-labelledby')
+      expect(within(group).getByText(kind)).toBeVisible()
+    }
+  })
+
+  describe('the filter rows stylesheet', () => {
+    const sheet = 'src/catalogue/ItemsManager.css'
+
+    it('puts 8dp between rows and 8dp above and below the block', () => {
+      expect(declaration(sheet, '.items-manager__filters', 'gap')).toBe('var(--md-sys-spacing-2)')
+      expect(declaration(sheet, '.items-manager__filters', 'padding-block')).toBe('var(--md-sys-spacing-2)')
+    })
+
+    it('keeps each row on one horizontally scrolling line on a phone, wrapping from 600px', () => {
+      const phone = outsideMediaBlock(sheet, '(min-width: 600px)')
+      expect(phone).toMatch(/\.items-manager__chips\s*{[^}]*flex-wrap:\s*nowrap/)
+      expect(phone).toMatch(/\.items-manager__chips\s*{[^}]*overflow-x:\s*auto/)
+      expect(mediaBlock(sheet, '(min-width: 600px)')).toMatch(/flex-wrap:\s*wrap/)
+    })
   })
 
   describe('the unlinked Ingredients banner stylesheet', () => {
