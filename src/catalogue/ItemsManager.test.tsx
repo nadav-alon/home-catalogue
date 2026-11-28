@@ -2397,6 +2397,22 @@ describe('ItemsManager Category and Shop filter', () => {
     expect(onFilterChange).toHaveBeenCalledWith(NO_ITEMS_FILTER)
   })
 
+  it('does not count a whitespace-only search as a search', () => {
+    renderFiltered({ categoryId: cleaning.id, shopId: pharmacy.id })
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: '   ' } })
+
+    expect(screen.getByText('No Items match your filters.')).toBeInTheDocument()
+  })
+
+  it('quotes the trimmed search', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'zzz ' } })
+
+    expect(screen.getByText('No Items match "zzz".')).toBeInTheDocument()
+  })
+
   it('reports the pressed Category, keeping the Shop', () => {
     const onFilterChange = renderFiltered({ shopId: grocery.id })
 
@@ -2673,6 +2689,18 @@ describe('ItemsManager Tag filter', () => {
     renderTagged([flour, honey], undefined, '#/items?tag=nonesuch')
 
     expect(tagChips().getByRole('button', { name: 'cooking', pressed: false })).toBeInTheDocument()
+    expect(screen.getByText('Flour')).toBeInTheDocument()
+    expect(screen.getByText('Honey')).toBeInTheDocument()
+  })
+
+  it('names the filters and offers Clear filters when a Tag and a Category match nothing together, and pressing it brings the Items back', async () => {
+    renderTagged([flour, honey], undefined, '#/items?tag=sweet&category=medicine')
+
+    expect(screen.getByText('No Items match your filters.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
+    await act(() => untilHashChange(() => fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))))
+
+    expect(window.location.hash).toBe('#/items')
     expect(screen.getByText('Flour')).toBeInTheDocument()
     expect(screen.getByText('Honey')).toBeInTheDocument()
   })
@@ -3015,6 +3043,18 @@ describe('ItemsManager Recipe filter', () => {
     await pressRecipe('Clean up')
 
     expect(window.location.hash).toBe('#/items?category=cleaning&recipe=clean-up')
+  })
+
+  it('names the filters and offers Clear filters when a Recipe and a Category match nothing together, and pressing it brings the Items back', async () => {
+    window.location.hash = '#/items?recipe=first-aid&category=cleaning'
+    renderWithRecipes([firstAid, cleanUp])
+
+    expect(screen.getByText('No Items match your filters.')).toBeInTheDocument()
+    await act(() => untilHashChange(() => fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))))
+
+    expect(window.location.hash).toBe('#/items')
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+    expect(screen.getByText('Dish soap')).toBeInTheDocument()
   })
 
   it('keeps the chosen Recipe when the Scanned chip is dismissed', () => {
