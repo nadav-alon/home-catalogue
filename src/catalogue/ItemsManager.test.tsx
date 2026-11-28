@@ -2373,6 +2373,30 @@ describe('ItemsManager Category and Shop filter', () => {
     expect(screen.getByText('No Items match "soap" with these filters.')).toBeInTheDocument()
   })
 
+  it('offers Clear search when only the search matches nothing, and pressing it brings the Items back', () => {
+    renderWith([bandages], [medicine], [pharmacy])
+    const search = screen.getByRole('searchbox', { name: 'Search Items' })
+    fireEvent.input(search, { target: { value: 'zzz' } })
+
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }))
+
+    expect(search).toHaveValue('')
+    expect(screen.getByText('Bandages')).toBeInTheDocument()
+  })
+
+  it('offers Clear filters that clears the search and every chip filter', () => {
+    const onFilterChange = renderFiltered({ categoryId: cleaning.id, shopId: pharmacy.id })
+    const search = screen.getByRole('searchbox', { name: 'Search Items' })
+    fireEvent.input(search, { target: { value: 'zzz' } })
+
+    expect(screen.queryByRole('button', { name: 'Clear search' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+
+    expect(search).toHaveValue('')
+    expect(onFilterChange).toHaveBeenCalledWith(NO_ITEMS_FILTER)
+  })
+
   it('reports the pressed Category, keeping the Shop', () => {
     const onFilterChange = renderFiltered({ shopId: grocery.id })
 

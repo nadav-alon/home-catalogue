@@ -455,6 +455,23 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
       {items !== undefined && visibleItems.length === 0 && (
         <div class="items-manager__empty">
           <p>{emptyMessage}</p>
+          {chipFiltered ? (
+            <Button
+              variant="tonal"
+              onClick={() => {
+                setSearch('')
+                onFilterChange?.(NO_ITEMS_FILTER)
+              }}
+            >
+              Clear filters
+            </Button>
+          ) : (
+            searching && (
+              <Button variant="tonal" onClick={() => setSearch('')}>
+                Clear search
+              </Button>
+            )
+          )}
         </div>
       )}
       {groups.map(({ category, items: categoryItems }) => (
