@@ -30,10 +30,34 @@
   cursor: default;
 }
 
+/* The block of filter rows: 8dp between rows, 8dp above and below the block. */
+.items-manager__filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-sys-spacing-2);
+  padding-block: var(--md-sys-spacing-2);
+}
+
+.items-manager__filter-label {
+  display: block;
+  margin-block-end: var(--md-sys-spacing-1);
+  font-size: var(--md-sys-typescale-label-size);
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* A phone shows each kind on one line that scrolls sideways; wider screens wrap. */
 .items-manager__chips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: var(--md-sys-spacing-2);
+}
+
+@media (min-width: 600px) {
+  .items-manager__chips {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
 }
 
 .items-manager__unlinked {
