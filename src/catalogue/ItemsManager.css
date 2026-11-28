@@ -35,3 +35,28 @@
   flex-wrap: wrap;
   gap: var(--md-sys-spacing-2);
 }
+
+.items-manager__unlinked {
+  margin-block: var(--md-sys-spacing-4);
+  padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.items-manager__unlinked p {
+  margin: 0;
+}
+
+.items-manager__unlinked ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.items-manager__unlinked li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--md-sys-spacing-2);
+}
