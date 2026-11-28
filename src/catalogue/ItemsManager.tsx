@@ -54,7 +54,7 @@ export interface ItemsManagerProps {
 }
 
 /** A row of filter chips of one kind: a group named by its visible label, scrolling sideways on a phone. */
-function FilterRow({ kind, children }: { kind: string; children: ComponentChildren }) {
+function FilterRow({ kind, children }: { kind: 'Category' | 'Shop' | 'Tag'; children: ComponentChildren }) {
   const labelId = `items-filter-${kind.toLowerCase()}`
   return (
     <div role="group" aria-labelledby={labelId} class="items-manager__filter">
@@ -421,7 +421,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
           />
         ))}
       </FilterRow>
-      <RecipePicker recipes={recipes} selected={activeRecipe} onChange={(next) => onFilterChange?.({ ...activeFilter, recipeId: next })} />
+      <RecipePicker recipes={recipes} selectedId={activeRecipeId} onChange={(next) => onFilterChange?.({ ...activeFilter, recipeId: next })} />
       </div>
       {unlinkedNames.length > 0 && (
         <div role="status" class="items-manager__unlinked">
