@@ -572,13 +572,12 @@ function ItemGroup({ heading, collapsed, toggleDisabled, onToggle, items, aisles
         </button>
       </h3>
       {!collapsed && (
-        <ul>
+        <ul class="item-group__items">
           {items.map((item) => (
             <ListRow
               key={item.id}
               headline={item.name}
               supporting={[item.brandNote, item.necessity, aisles.find((aisle) => aisle.id === item.aisleId)?.name].filter((part) => part !== undefined).join(' · ')}
-              stackTrailing
               onActivate={() => onOpen(item)}
               trailing={
                 <SegmentedButton

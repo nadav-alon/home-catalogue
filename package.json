@@ -19,7 +19,7 @@
   "dependencies": {
     "data-platform": "github:nadav-alon/data-platform#v0.30.0",
     "firebase": "^12.19.0",
-    "household-ui": "github:nadav-alon/household-ui#v0.5.1",
+    "household-ui": "github:nadav-alon/household-ui#v0.11.0",
     "preact": "^10.29.8",
     "qrcode": "^1.5.4"
   },

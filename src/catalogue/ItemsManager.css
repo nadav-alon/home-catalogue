@@ -7,6 +7,16 @@
   margin: 0;
 }
 
+/* A row wraps rather than squeezes: the name keeps its own width, so the State control shares its line when both fit and drops under it when they do not. */
+.item-group__items .ui-list-row {
+  flex-wrap: wrap;
+}
+
+.item-group__items .ui-list-row__text {
+  flex: 1 0 auto;
+  max-width: 100%;
+}
+
 .item-group__toggle {
   display: flex;
   align-items: center;
