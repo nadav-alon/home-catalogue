@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 import type { Firestore } from 'firebase/firestore'
-import { catalogue, core } from 'data-platform'
+import { core } from 'data-platform'
 import { linkIngredientsToItem, type SeenIngredient } from 'data-platform/client'
 import { attachBarcode, createItem, findBarcodeHolders, findDeletedItemByBarcode, softDeleteItem, itemsWithBarcode, carriesAnyTag, matchesSearch, isLiveReference, resolvedShopId, restoreItem, restoreItemWithEdit, setItemState, updateItem, watchItems, type BarcodeHolder, type CarriedBarcode, type ItemRecord } from './items.ts'
 import { createCategory, watchCategories, type CategoryRecord } from './categories.ts'
@@ -67,7 +67,7 @@ function ingredientLinkFor(recipe: RecipeRecord | undefined, name: string): Ingr
 }
 
 export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilterChange, handoff }: ItemsManagerProps) {
-  const { categoryId, shopId, recipeId } = filter ?? { categoryId: undefined, shopId: undefined, recipeId: undefined }
+  const { categoryId, shopId, recipeId, tagIds: selectedTagIds } = filter ?? { categoryId: undefined, shopId: undefined, recipeId: undefined, tagIds: [] }
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
@@ -99,8 +99,6 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   /** Set by a scan made before the Items arrived; shown only while they are still loading. */
   const [scanWaiting, setScanWaiting] = useState(false)
   const [search, setSearch] = useState('')
-  /** The Tags whose chips are pressed; an Item matches by carrying any of them. */
-  const [selectedTagIds, setSelectedTagIds] = useState<readonly catalogue.TagId[]>([])
   /** The groups collapsed on this device, remembered across reloads. */
   const [collapsedGroups, setCollapsedGroups] = useState(getCollapsedGroups)
   /** The scanned Barcode no Item carries, while the Member is choosing what to do with it. */
@@ -318,17 +316,14 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const categoriesById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories])
   // Only a Tag some live Item carries is offered, so a Tag nothing carries any more filters nothing.
   const offeredTags = tags.filter((tag) => (items ?? []).some((item) => carriesAnyTag(item, [tag.id])))
+  // The pressed Tags are the filter's; one that is not offered filters nothing, and is pressed again if it is offered again.
   const activeTagIds = selectedTagIds.filter((id) => offeredTags.some((tag) => tag.id === id))
-  // A Tag that stops being offered is dropped from the selection for good, so it is not pressed again if it comes back.
-  useEffect(() => {
-    if (activeTagIds.length !== selectedTagIds.length) setSelectedTagIds(activeTagIds)
-  }, [activeTagIds.length, selectedTagIds.length])
   // A Recipe that is deleted stops filtering (until restored), as a Category or Shop that names nothing live does.
   const chosen = useMemo(() => chosenRecipe(recipes, recipeId), [recipes, recipeId])
   const activeRecipe = chosen?.recipe
   const recipeItemIds = chosen?.itemIds
   const activeRecipeId = !recipesLoaded || isLiveReference(recipes, recipeId) ? recipeId : undefined
-  const activeFilter: ItemsFilter = { categoryId: activeCategoryId, shopId: activeShopId, recipeId: activeRecipeId }
+  const activeFilter: ItemsFilter = { categoryId: activeCategoryId, shopId: activeShopId, recipeId: activeRecipeId, tagIds: activeTagIds }
   const unlinkedNames = activeRecipe === undefined ? [] : unlinkedIngredientNames(activeRecipe)
   const chipFiltered =
     activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0 || activeRecipe !== undefined
@@ -394,7 +389,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             key={tag.id}
             label={tag.name}
             selected={activeTagIds.includes(tag.id)}
-            onToggle={() => setSelectedTagIds(toggledMember(activeTagIds, tag.id))}
+            onToggle={() => onFilterChange?.({ ...activeFilter, tagIds: toggledMember(activeTagIds, tag.id) })}
           />
         ))}
       </div>
