@@ -1,0 +1,19 @@
+.recipe-picker__list {
+  margin: var(--md-sys-spacing-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recipe-picker__option {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0 var(--md-sys-spacing-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}

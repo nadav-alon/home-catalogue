@@ -2811,18 +2811,33 @@ describe('ItemsManager Recipe filter', () => {
     renderWith([bandages, tape, soap], [medicine, cleaning], [pharmacy, grocery], undefined, undefined, { routed: true })
     return fake
   }
-  const recipeChips = () => within(screen.getByRole('group', { name: 'Filter by Recipe' }))
+  const recipeChip = (name: string) => screen.getByRole('button', { name })
   /** Presses a Recipe chip and waits for the hash change it makes, which is what the chips are read back from. */
   async function pressRecipe(name: string) {
-    await act(() => untilHashChange(() => fireEvent.click(recipeChips().getByRole('button', { name }))))
+    fireEvent.click(recipeChip('Recipe'))
+    await act(() => untilHashChange(() => fireEvent.click(within(screen.getByRole('list', { name: 'Recipes' })).getByRole('button', { name }))))
+  }
+  /** Taps the chip of the chosen Recipe, which clears the filter. */
+  async function clearRecipe(name: string) {
+    await act(() => untilHashChange(() => fireEvent.click(recipeChip(name))))
   }
 
-  it('offers a chip for every live Recipe by title, none pressed', () => {
+  it('collapses the Recipes behind one unpressed Recipe chip, however many there are', () => {
+    renderWithRecipes(Array.from({ length: 8 }, (_, n) => recipe(`r${n}`, `Recipe ${n}`, [])))
+
+    expect(screen.getByRole('button', { name: 'Recipe', pressed: false })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Recipe 0' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Recipes' })).not.toBeInTheDocument()
+  })
+
+  it('lists every live Recipe by title in the picker the chip opens', () => {
     renderWithRecipes([firstAid, cleanUp])
 
-    expect(recipeChips().getByRole('button', { name: 'First aid', pressed: false })).toBeInTheDocument()
-    expect(recipeChips().getByRole('button', { name: 'Clean up', pressed: false })).toBeInTheDocument()
-    expect(screen.getByText('Dish soap')).toBeInTheDocument()
+    fireEvent.click(recipeChip('Recipe'))
+
+    const picker = within(screen.getByRole('list', { name: 'Recipes' }))
+    expect(picker.getByRole('button', { name: 'First aid' })).toBeInTheDocument()
+    expect(picker.getByRole('button', { name: 'Clean up' })).toBeInTheDocument()
   })
 
   it("narrows the Items to those the chosen Recipe's Ingredients link", async () => {
@@ -2867,11 +2882,11 @@ describe('ItemsManager Recipe filter', () => {
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
   })
 
-  it('restores the list when the chosen Recipe is chosen again', async () => {
+  it('restores the list when the chosen Recipe chip is tapped again', async () => {
     renderWithRecipes([firstAid])
     await pressRecipe('First aid')
 
-    await pressRecipe('First aid')
+    await clearRecipe('First aid')
 
     expect(screen.getByText('Dish soap')).toBeInTheDocument()
     expect(screen.getByText('Tape')).toBeInTheDocument()
@@ -2894,7 +2909,7 @@ describe('ItemsManager Recipe filter', () => {
 
     act(() => fake.set([firstAid]))
 
-    expect(recipeChips().getByRole('button', { name: 'First aid', pressed: true })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'First aid', pressed: true })).toBeInTheDocument()
     expect(screen.getByText('Bandages')).toBeInTheDocument()
     expect(screen.queryByText('Tape')).not.toBeInTheDocument()
   })
@@ -2936,7 +2951,7 @@ describe('ItemsManager Recipe filter', () => {
     window.location.hash = '#/items?recipe=clean-up'
     renderWithRecipes([firstAid, cleanUp])
 
-    expect(recipeChips().getByRole('button', { name: 'Clean up', pressed: true })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Clean up', pressed: true })).toBeInTheDocument()
     expect(screen.getByText('Tape')).toBeInTheDocument()
     expect(screen.queryByText('Bandages')).not.toBeInTheDocument()
   })

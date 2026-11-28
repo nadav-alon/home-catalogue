@@ -12,7 +12,7 @@ import { RestoreDeletedItemOffer } from '../scan/RestoreDeletedItemOffer.tsx'
 import { UnknownBarcodeChooser } from '../scan/UnknownBarcodeChooser.tsx'
 import { getCollapsedGroups, saveCollapsedGroups, UNCATEGORISED, type GroupKey } from './collapsedCategories.ts'
 import { chosenRecipe, unlinkedIngredientNames, unlinkedPositions, watchRecipes, type RecipeRecord } from './recipes.ts'
-import { RecipeFilter } from './RecipeFilter.tsx'
+import { RecipePicker } from './RecipePicker.tsx'
 import { toggledSelection } from './selection.ts'
 import { watchShops, type ShopRecord } from './shops.ts'
 import { NO_ITEMS_FILTER } from '../ui/route.ts'
@@ -421,7 +421,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
           />
         ))}
       </FilterRow>
-      <RecipeFilter recipes={recipes} selectedId={activeRecipe?.id} onChange={(next) => onFilterChange?.({ ...activeFilter, recipeId: next })} />
+      <RecipePicker recipes={recipes} selected={activeRecipe} onChange={(next) => onFilterChange?.({ ...activeFilter, recipeId: next })} />
       </div>
       {unlinkedNames.length > 0 && (
         <div role="status" class="items-manager__unlinked">

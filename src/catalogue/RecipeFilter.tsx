@@ -11,7 +11,7 @@ export interface RecipeFilterProps {
   onChange: (recipeId: RecipeRecord['id'] | undefined) => void
 }
 
-/** The one-at-a-time "Filter by Recipe" chips shared by the Items list and the Shopping list. */
+/** The one-at-a-time "Filter by Recipe" chips of the Shopping list; the Items list collapses them into a `RecipePicker`. */
 export function RecipeFilter({ recipes, selectedId, onChange }: RecipeFilterProps) {
   return (
     <div role="group" aria-label="Filter by Recipe" class="recipe-filter">
