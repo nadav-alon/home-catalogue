@@ -20,7 +20,7 @@ import { choose } from '../testing/select.ts'
 import { nextTask } from '../testing/nextTask.ts'
 import { saveNewItem } from '../testing/saveItem.ts'
 import { resetPendingPop } from 'household-ui/ui/pendingPop.ts'
-import { tokenUsage } from '../testing/css.ts'
+import { declaration, tokenUsage } from '../testing/css.ts'
 import { stubModalDialog } from '../testing/dialog.ts'
 
 const leaveTo = vi.fn()
@@ -2898,7 +2898,7 @@ describe('ItemsManager Recipe filter', () => {
 
     await pressRecipe('Curry')
 
-    expect(screen.getByText('1 Ingredient not in the Catalogue: Salt')).toBeInTheDocument()
+    expect(screen.getByText('1 Ingredient not in the Catalogue')).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Add Salt to Catalogue' })).toHaveLength(1)
   })
 
@@ -2915,7 +2915,7 @@ describe('ItemsManager Recipe filter', () => {
 
     await pressRecipe('Curry')
 
-    expect(screen.getByText('2 Ingredients not in the Catalogue: Sriracha, Honey')).toBeInTheDocument()
+    expect(screen.getByText('2 Ingredients not in the Catalogue')).toBeInTheDocument()
   })
 
   it('says nothing when every Ingredient is in the Catalogue', async () => {
@@ -2977,7 +2977,7 @@ describe('ItemsManager Recipe filter', () => {
     await waitFor(() =>
       expect(linkIngredientsToItem).toHaveBeenCalledWith(fakeDb, 'curry', [{ position: 1, name: 'Sriracha' }], newId),
     )
-    await waitFor(() => expect(screen.getByText('1 Ingredient not in the Catalogue: Honey')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('1 Ingredient not in the Catalogue')).toBeInTheDocument())
   })
 
   it('links every same-named Ingredient with one call, even when it never settles, as offline', async () => {
@@ -3013,5 +3013,25 @@ describe('ItemsManager Recipe filter', () => {
     saveNewItem(createItem, core.itemId('sriracha-item'), 'cleaning')
 
     expect(await screen.findByText('Added to the Catalogue, but not linked to Curry', {}, { timeout: 2000 })).toBeInTheDocument()
+  })
+
+  describe('the unlinked Ingredients banner stylesheet', () => {
+    const sheet = 'src/catalogue/ItemsManager.css'
+    const banner = '.items-manager__unlinked'
+
+    it('sits on a container role with its on-colour and a shape corner', () => {
+      expect(declaration(sheet, banner, 'background')).toBe('var(--md-sys-color-secondary-container)')
+      expect(declaration(sheet, banner, 'color')).toBe('var(--md-sys-color-on-secondary-container)')
+      expect(declaration(sheet, banner, 'border-radius')).toBe('var(--md-sys-shape-corner-large)')
+      expect(declaration(sheet, banner, 'padding')).toBe('var(--md-sys-spacing-2) var(--md-sys-spacing-4)')
+    })
+
+    it('keeps clear of the chip rows above and the Item groups below', () => {
+      expect(declaration(sheet, banner, 'margin-block')).toBe('var(--md-sys-spacing-4)')
+    })
+
+    it('uses only defined tokens', () => {
+      expect(tokenUsage(sheet).undefinedTokens).toEqual([])
+    })
   })
 })

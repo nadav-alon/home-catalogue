@@ -39,7 +39,7 @@
 .items-manager__unlinked {
   margin-block: var(--md-sys-spacing-4);
   padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
-  border-radius: var(--md-sys-shape-corner-medium);
+  border-radius: var(--md-sys-shape-corner-large);
   background: var(--md-sys-color-secondary-container);
   color: var(--md-sys-color-on-secondary-container);
 }

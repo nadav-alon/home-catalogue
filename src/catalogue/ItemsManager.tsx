@@ -403,8 +403,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
       {unlinkedNames.length > 0 && (
         <div role="status" class="items-manager__unlinked">
           <p>
-            {unlinkedNames.length} {unlinkedNames.length === 1 ? 'Ingredient' : 'Ingredients'} not in the Catalogue:{' '}
-            {unlinkedNames.join(', ')}
+            {unlinkedNames.length} {unlinkedNames.length === 1 ? 'Ingredient' : 'Ingredients'} not in the Catalogue
           </p>
           <ul>
             {unlinkedNames.map((name) => (
