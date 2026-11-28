@@ -20,7 +20,7 @@ import { choose } from '../testing/select.ts'
 import { nextTask } from '../testing/nextTask.ts'
 import { dialogField, saveNewItem } from '../testing/saveItem.ts'
 import { resetPendingPop } from 'household-ui/ui/pendingPop.ts'
-import { declaration, mediaBlock, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
+import { declaration, mediaBlock, read, outsideMediaBlock, tokenUsage } from '../testing/css.ts'
 import { stubModalDialog } from '../testing/dialog.ts'
 
 const leaveTo = vi.fn()
@@ -328,10 +328,17 @@ describe('ItemsManager', () => {
     expect(screen.getByText('the waterproof ones · essential')).toBeInTheDocument()
   })
 
-  it('stacks the State control under the name on Item rows', () => {
+  it("leaves the State control on the name's line when it fits, wrapping under a long name, at every width", () => {
     renderWith([bandages], [medicine], [pharmacy])
+    const sheet = 'src/catalogue/ItemsManager.css'
 
-    expect(screen.getByRole('listitem')).toHaveClass('ui-list-row--stack-trailing')
+    expect(screen.getByRole('listitem')).not.toHaveClass('ui-list-row--stack-trailing')
+    expect(screen.getByRole('listitem').closest('.item-group__items')).not.toBeNull()
+    expect(declaration(sheet, '.item-group__items .ui-list-row', 'flex-wrap')).toBe('wrap')
+    expect(declaration(sheet, '.item-group__items .ui-list-row__text', 'flex')).toBe('1 0 auto')
+    expect(declaration(sheet, '.item-group__items .ui-list-row__text', 'max-width')).toBe('100%')
+    expect(read(sheet)).not.toMatch(/max-width:\s*599/)
+    expect(read(sheet)).not.toMatch(/flex-basis:\s*100%/)
   })
 
   it('has no inline edit form on a row', () => {
