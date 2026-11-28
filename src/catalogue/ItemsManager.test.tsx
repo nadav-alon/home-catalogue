@@ -276,7 +276,7 @@ describe('ItemsManager', () => {
 
     expect(screen.getByText('No scanned Items found.')).toBeInTheDocument()
     expect(screen.getByText('Scanned: no Items')).toBeInTheDocument()
-    expect(screen.queryByText('No Items match your search.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^No Items match/)).not.toBeInTheDocument()
   })
 
   it('calls onClearFilter when the chip is dismissed', () => {
@@ -1156,7 +1156,7 @@ describe('the empty state', () => {
 
     fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'zzz' } })
 
-    expect(screen.getByText('No Items match your search.')).toBeInTheDocument()
+    expect(screen.getByText('No Items match "zzz".')).toBeInTheDocument()
     expect(screen.queryByText('No Items yet.')).not.toBeInTheDocument()
   })
 
@@ -2363,6 +2363,14 @@ describe('ItemsManager Category and Shop filter', () => {
     renderFiltered({ categoryId: cleaning.id, shopId: pharmacy.id })
 
     expect(screen.getByText('No Items match your filters.')).toBeInTheDocument()
+  })
+
+  it('names the search and the filters when a search matching elsewhere meets a Category filter', () => {
+    renderFiltered({ categoryId: medicine.id })
+
+    fireEvent.input(screen.getByRole('searchbox', { name: 'Search Items' }), { target: { value: 'soap' } })
+
+    expect(screen.getByText('No Items match "soap" with these filters.')).toBeInTheDocument()
   })
 
   it('reports the pressed Category, keeping the Shop', () => {

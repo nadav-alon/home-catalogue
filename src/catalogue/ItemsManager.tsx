@@ -354,6 +354,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const unlinkedNames = activeRecipe === undefined ? [] : unlinkedIngredientNames(activeRecipe)
   const chipFiltered =
     activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0 || activeRecipe !== undefined
+  const searching = !scanFiltered && search !== ''
   const visibleItems = (scanFiltered ? candidateItems : candidateItems.filter((item) => matchesSearch(item, search, tags))).filter(
     (item) =>
       (activeCategoryId === undefined || item.categoryId === activeCategoryId) &&
@@ -364,6 +365,17 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
       (activeTagIds.length === 0 || carriesAnyTag(item, activeTagIds)) &&
       (recipeItemIds === undefined || recipeItemIds.has(item.id)),
   )
+  /** Why no Item is visible, naming the search, the filters, or both; the scan's own wording when only it applies. */
+  const emptyMessage =
+    items?.length === 0
+      ? 'No Items yet.'
+      : searching && chipFiltered
+        ? `No Items match "${search}" with these filters.`
+        : searching
+          ? `No Items match "${search}".`
+          : chipFiltered
+            ? 'No Items match your filters.'
+            : 'No scanned Items found.'
   // A search, scan or chip filter shows its matches whatever was collapsed; the remembered state is left alone for when it clears.
   const filterActive = scanFiltered || search !== '' || chipFiltered
   const groupToggle = (key: GroupKey) => ({
@@ -441,15 +453,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
         </div>
       )}
       {items !== undefined && visibleItems.length === 0 && (
-        <p>
-          {items.length === 0
-            ? 'No Items yet.'
-            : chipFiltered
-              ? 'No Items match your filters.'
-              : scanFiltered
-                ? 'No scanned Items found.'
-                : 'No Items match your search.'}
-        </p>
+        <div class="items-manager__empty">
+          <p>{emptyMessage}</p>
+        </div>
       )}
       {groups.map(({ category, items: categoryItems }) => (
         <ItemGroup key={category.id} heading={category.name} {...groupToggle(category.id)} items={categoryItems} aisles={aisles} onSetState={handleSetState} onOpen={openDialog} />
