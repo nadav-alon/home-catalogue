@@ -11,9 +11,9 @@ import type { AisleRecord } from './aisles.ts'
 import type { RecipeRecord } from './recipes.ts'
 import { fakeRecipes } from './recipesFake.ts'
 import type { TagRecord } from './tags.ts'
-import { returnUrl, type AddItemHandoff, type ItemsFilter } from '../ui/route.ts'
+import { NO_ITEMS_FILTER, returnUrl, type AddItemHandoff, type ItemsFilter } from '../ui/route.ts'
 import { setItemsFilter, useItemsFilter } from '../ui/useRoute.ts'
-import { resetHash } from '../testing/hash.ts'
+import { resetHash, untilHashChange } from '../testing/hash.ts'
 import { bandages, bandagesWithBarcodes, cleaning, grocery, medicine, pharmacy } from './testFixtures.ts'
 import { SnackbarHost, resetSnackbar } from 'household-ui/ui/Snackbar.tsx'
 import { choose } from '../testing/select.ts'
@@ -2400,7 +2400,7 @@ describe('ItemsManager Category and Shop filter', () => {
       cb([pharmacy, grocery])
       return vi.fn()
     })
-    render(<ItemsManager db={fakeDb} filter={{ categoryId: undefined, shopId: pharmacy.id, recipeId: undefined, tagIds: [] }} />)
+    render(<ItemsManager db={fakeDb} filter={{ ...NO_ITEMS_FILTER, shopId: pharmacy.id }} />)
 
     expect(screen.getByText('Bandages')).toBeInTheDocument()
     expect(screen.queryByText('No Items match your filters.')).not.toBeInTheDocument()
@@ -2540,7 +2540,7 @@ describe('ItemsManager Tag filter', () => {
   beforeEach(resetHash)
 
   /** The Items screen as the app mounts it, at `hash`, so the pressed Tags are read back from the URL hash. */
-  function renderTagged(items: ItemRecord[], tags: TagRecord[] = [cooking, sweet, unused], hash = '#/items') {
+  function renderTagged(items: ItemRecord[] | undefined, tags: TagRecord[] = [cooking, sweet, unused], hash = '#/items') {
     window.history.replaceState(null, '', hash)
     return renderWith(items, [medicine, cleaning], [pharmacy, grocery], undefined, undefined, { tags, routed: true })
   }
@@ -2549,14 +2549,10 @@ describe('ItemsManager Tag filter', () => {
 
   /** Presses a Tag chip and waits for the hash change it makes, which is what the chips are read back from. */
   async function pressTag(name: string) {
-    await act(async () => {
-      const changed = new Promise((resolve) => window.addEventListener('hashchange', resolve, { once: true }))
-      fireEvent.click(tagChips().getByRole('button', { name }))
-      await changed
-    })
+    await act(() => untilHashChange(() => fireEvent.click(tagChips().getByRole('button', { name }))))
   }
 
-  it('offers only the Tags a live Item carries', async () => {
+  it('offers only the Tags a live Item carries', () => {
     renderTagged([flour, honey], [cooking, sweet, unused])
 
     expect(tagChips().getByRole('button', { name: 'cooking', pressed: false })).toBeInTheDocument()
@@ -2564,7 +2560,7 @@ describe('ItemsManager Tag filter', () => {
     expect(tagChips().queryByRole('button', { name: 'unused' })).not.toBeInTheDocument()
   })
 
-  it('does not offer a deleted Tag still carried by an Item', async () => {
+  it('does not offer a deleted Tag still carried by an Item', () => {
     renderTagged([flour], [sweet])
 
     expect(screen.queryByRole('button', { name: 'cooking' })).not.toBeInTheDocument()
@@ -2651,18 +2647,9 @@ describe('ItemsManager Tag filter', () => {
 
   it('is undone by Back like the Category filter: the Tag first, then the Category', async () => {
     renderTagged([flour, honey, gauze])
-    const back = () =>
-      act(async () => {
-        const changed = new Promise((resolve) => window.addEventListener('hashchange', resolve, { once: true }))
-        window.history.back()
-        await changed
-      })
+    const back = () => act(() => untilHashChange(() => window.history.back()))
     const categoryChips = () => within(screen.getByRole('group', { name: 'Filter by Category' }))
-    await act(async () => {
-      const changed = new Promise((resolve) => window.addEventListener('hashchange', resolve, { once: true }))
-      fireEvent.click(categoryChips().getByRole('button', { name: medicine.name }))
-      await changed
-    })
+    await act(() => untilHashChange(() => fireEvent.click(categoryChips().getByRole('button', { name: medicine.name }))))
     await pressTag('cooking')
 
     await back()
@@ -2671,6 +2658,14 @@ describe('ItemsManager Tag filter', () => {
 
     await back()
     expect(categoryChips().getByRole('button', { name: medicine.name, pressed: false })).toBeInTheDocument()
+  })
+
+  it('keeps the tag in the hash when another filter is pressed before the Items load', async () => {
+    renderTagged(undefined, undefined, '#/items?tag=cooking')
+
+    await act(() => untilHashChange(() => fireEvent.click(within(screen.getByRole('group', { name: 'Filter by Category' })).getByRole('button', { name: medicine.name }))))
+
+    expect(window.location.hash).toContain('tag=cooking')
   })
 
   it('presses a Tag again when it is offered again after no live Item carried it, its id still being in the hash', async () => {
@@ -2819,11 +2814,7 @@ describe('ItemsManager Recipe filter', () => {
   const recipeChips = () => within(screen.getByRole('group', { name: 'Filter by Recipe' }))
   /** Presses a Recipe chip and waits for the hash change it makes, which is what the chips are read back from. */
   async function pressRecipe(name: string) {
-    await act(async () => {
-      const changed = new Promise((resolve) => window.addEventListener('hashchange', resolve, { once: true }))
-      fireEvent.click(recipeChips().getByRole('button', { name }))
-      await changed
-    })
+    await act(() => untilHashChange(() => fireEvent.click(recipeChips().getByRole('button', { name }))))
   }
 
   it('offers a chip for every live Recipe by title, none pressed', () => {
@@ -2924,12 +2915,12 @@ describe('ItemsManager Recipe filter', () => {
       return vi.fn()
     })
     renderWith([bandages, tape, soap], [medicine, cleaning], [pharmacy, grocery], [tape.id], onClearFilter, {
-      filter: { categoryId: undefined, shopId: undefined, recipeId: cleanUp.id, tagIds: [] },
+      filter: { ...NO_ITEMS_FILTER, recipeId: cleanUp.id },
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear scanned filter' }))
 
-    expect(onClearFilter).toHaveBeenCalledWith({ categoryId: undefined, shopId: undefined, recipeId: cleanUp.id, tagIds: [] })
+    expect(onClearFilter).toHaveBeenCalledWith({ ...NO_ITEMS_FILTER, recipeId: cleanUp.id })
   })
 
   it('keeps the chosen Recipe when a Category chip is pressed', async () => {

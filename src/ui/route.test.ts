@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { catalogue, core, recipes } from 'data-platform'
-import { addItemHandoffOf, returnUrl, returnUrlWithItem, categoryIdOf, DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, tagIdsOf, itemsHashOf, route, recipeIdOf, routeOf, shopIdOf, withItemsFilter, withRecipeId } from './route.ts'
+import { NO_ITEMS_FILTER, addItemHandoffOf, returnUrl, returnUrlWithItem, categoryIdOf, DEFAULT_ROUTE, hashOf, isRoute, itemIdsOf, tagIdsOf, itemsHashOf, route, recipeIdOf, routeOf, shopIdOf, withItemsFilter, withRecipeId } from './route.ts'
 
 const ROUTE_HASHES = ['#/list', '#/items', '#/settings', '#/settings/shops', '#/settings/categories', '#/settings/tags'] as const
 
@@ -97,12 +97,12 @@ describe('ItemsFilter in the hash', () => {
   })
 
   it('sets and clears the Recipe, keeping the Item filter', () => {
-    expect(withItemsFilter('#/items?item=a', { categoryId: undefined, shopId: undefined, recipeId: recipes.recipeId('pancakes'), tagIds: [] })).toBe('#/items?item=a&recipe=pancakes')
-    expect(withItemsFilter('#/items?item=a&recipe=pancakes', { categoryId: undefined, shopId: undefined, recipeId: undefined, tagIds: [] })).toBe('#/items?item=a')
+    expect(withItemsFilter('#/items?item=a', { ...NO_ITEMS_FILTER, recipeId: recipes.recipeId('pancakes') })).toBe('#/items?item=a&recipe=pancakes')
+    expect(withItemsFilter('#/items?item=a&recipe=pancakes', NO_ITEMS_FILTER)).toBe('#/items?item=a')
   })
 
   it('round-trips one Tag through a tag query', () => {
-    const hash = withItemsFilter('#/items', { categoryId: undefined, shopId: undefined, recipeId: undefined, tagIds: [catalogue.tagId('sweet')] })
+    const hash = withItemsFilter('#/items', { ...NO_ITEMS_FILTER, tagIds: [catalogue.tagId('sweet')] })
     expect(hash).toBe('#/items?tag=sweet')
     expect(tagIdsOf(hash)).toEqual([catalogue.tagId('sweet')])
   })
@@ -117,11 +117,11 @@ describe('ItemsFilter in the hash', () => {
 
   it('reads no Tags from a hash without a tag query, and clears the query when none are given', () => {
     expect(tagIdsOf('#/items?category=groceries')).toEqual([])
-    expect(withItemsFilter('#/items?tag=sweet,cooking', { categoryId: undefined, shopId: undefined, recipeId: undefined, tagIds: [] })).toBe('#/items')
+    expect(withItemsFilter('#/items?tag=sweet,cooking', NO_ITEMS_FILTER)).toBe('#/items')
   })
 
   it('names the bare Items screen once every filter is cleared', () => {
-    expect(withItemsFilter('#/items?category=a&shop=b', { categoryId: undefined, shopId: undefined, recipeId: undefined, tagIds: [] })).toBe('#/items')
+    expect(withItemsFilter('#/items?category=a&shop=b', NO_ITEMS_FILTER)).toBe('#/items')
   })
 })
 

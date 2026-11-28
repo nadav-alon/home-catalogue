@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks'
 import { act, render, renderHook } from '@testing-library/preact'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogue, core, recipes } from 'data-platform'
-import { DEFAULT_ROUTE, hashOf, returnUrl, route } from './route.ts'
+import { DEFAULT_ROUTE, NO_ITEMS_FILTER, hashOf, returnUrl, route } from './route.ts'
 import { clearAddItemHandoff, leaveTo, navigate, navigateToItems, useAddItemHandoff, setItemsFilter, useItemsFilter, useItemIds, useRoute } from './useRoute.ts'
 import { Dialog } from 'household-ui/ui/Dialog.tsx'
 import { stubModalDialog } from '../testing/dialog.ts'
@@ -237,10 +237,10 @@ describe('useItemsFilter and setItemsFilter', () => {
     await nextHashChange()
     const { result } = renderHook(() => useItemsFilter())
     await act(async () => {
-      setItemsFilter({ categoryId: undefined, shopId: pharmacy, recipeId: undefined, tagIds: [] })
+      setItemsFilter({ ...NO_ITEMS_FILTER, shopId: pharmacy })
       await nextHashChange()
     })
-    expect(result.current).toEqual({ categoryId: undefined, shopId: pharmacy, recipeId: undefined, tagIds: [] })
+    expect(result.current).toEqual({ ...NO_ITEMS_FILTER, shopId: pharmacy })
     await act(async () => {
       history.back()
       await vi.waitFor(() => expect(window.location.hash).toBe('#/items?category=groceries'))

@@ -35,14 +35,17 @@ function hashParts(hash: string): [path: string, query: string] {
   return at === -1 ? [body, ''] : [body.slice(0, at), body.slice(at + 1)]
 }
 
-/** The query key, and the separator between ids, of the Items screen's Item filter. */
+/** The separator between the ids of a list-valued query. */
+const ID_LIST_SEPARATOR = ','
+/** The query key of the Items screen's Item filter. */
 const ITEM_KEY = 'item'
-const ITEM_ID_SEPARATOR = ','
 const CATEGORY_KEY = 'category'
 const SHOP_KEY = 'shop'
 const RECIPE_KEY = 'recipe'
-/** The query key of the Tag filter; its ids are separated like the `item` ids. */
+/** The query key of the Tag filter. */
 const TAG_KEY = 'tag'
+/** The queries whose value is a list of ids joined by `ID_LIST_SEPARATOR`. */
+const LIST_KEYS: ReadonlySet<string> = new Set([ITEM_KEY, TAG_KEY])
 
 /** The value of the `key` query on the hash; undefined when there is none or it is empty. */
 function queryValueOf(hash: string, key: string): string | undefined {
@@ -52,13 +55,13 @@ function queryValueOf(hash: string, key: string): string | undefined {
 
 /**
  * `path` with `params` as its query. Each value is written as `encodeURIComponent` does, except that the separator
- * between the ids of the `item` and `tag` values stays a literal comma, so the hash reads `item=a,b`.
+ * between the ids of a list-valued query stays a literal comma, so the hash reads `item=a,b`.
  */
 function hashWithQuery(path: string, params: URLSearchParams): string {
   const query = [...params]
     .map(([key, value]) => {
       const written =
-        key === ITEM_KEY || key === TAG_KEY ? value.split(ITEM_ID_SEPARATOR).map(encodeURIComponent).join(ITEM_ID_SEPARATOR) : encodeURIComponent(value)
+        LIST_KEYS.has(key) ? value.split(ID_LIST_SEPARATOR).map(encodeURIComponent).join(ID_LIST_SEPARATOR) : encodeURIComponent(value)
       return `${encodeURIComponent(key)}=${written}`
     })
     .join('&')
@@ -71,7 +74,7 @@ function hashWithQuery(path: string, params: URLSearchParams): string {
  */
 export function itemIdsOf(hash: string): core.ItemId[] {
   const listed = queryValueOf(hash, ITEM_KEY) ?? ''
-  return listed.split(ITEM_ID_SEPARATOR).filter(core.isItemId)
+  return listed.split(ID_LIST_SEPARATOR).filter(core.isItemId)
 }
 
 /** The URL hash that names `value`. */
@@ -82,7 +85,7 @@ export function hashOf(value: Route): string {
 /** The URL hash of the Items screen filtered to `ids`; the unfiltered Items screen's when there are none. */
 export function itemsHashOf(ids: readonly core.ItemId[]): string {
   const params = new URLSearchParams()
-  if (ids.length > 0) params.set(ITEM_KEY, ids.join(ITEM_ID_SEPARATOR))
+  if (ids.length > 0) params.set(ITEM_KEY, ids.join(ID_LIST_SEPARATOR))
   return hashWithQuery(route('/items'), params)
 }
 
@@ -110,8 +113,11 @@ export function recipeIdOf(hash: string): recipes.RecipeId | undefined {
  */
 export function tagIdsOf(hash: string): catalogue.TagId[] {
   const listed = queryValueOf(hash, TAG_KEY) ?? ''
-  return listed.split(ITEM_ID_SEPARATOR).filter(catalogue.isTagId)
+  return listed.split(ID_LIST_SEPARATOR).filter(catalogue.isTagId)
 }
+
+/** The filter of an Items screen narrowed to nothing. */
+export const NO_ITEMS_FILTER: ItemsFilter = { categoryId: undefined, shopId: undefined, recipeId: undefined, tagIds: [] }
 
 /** The Category, Shop, Recipe and Tags an Items screen is narrowed to; undefined (or empty, for the Tags) for each that is not. */
 export interface ItemsFilter {
@@ -134,7 +140,7 @@ function withQueries(hash: string, entries: readonly (readonly [string, string |
 
 /** `hash` with its Category, Shop, Recipe and Tag filters set to those given (cleared when undefined or empty); every other query is kept. */
 export function withItemsFilter(hash: string, filter: ItemsFilter): string {
-  return withQueries(hash, [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId], [RECIPE_KEY, filter.recipeId], [TAG_KEY, filter.tagIds.length > 0 ? filter.tagIds.join(ITEM_ID_SEPARATOR) : undefined]])
+  return withQueries(hash, [[CATEGORY_KEY, filter.categoryId], [SHOP_KEY, filter.shopId], [RECIPE_KEY, filter.recipeId], [TAG_KEY, filter.tagIds.length > 0 ? filter.tagIds.join(ID_LIST_SEPARATOR) : undefined]])
 }
 
 /** `hash` with its `recipe` query set to `id` (cleared when undefined); every other query is kept. */

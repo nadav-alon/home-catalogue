@@ -14,6 +14,7 @@ import { chosenRecipe, unlinkedIngredientNames, unlinkedPositions, watchRecipes,
 import { RecipeFilter } from './RecipeFilter.tsx'
 import { toggledSelection } from './selection.ts'
 import { watchShops, type ShopRecord } from './shops.ts'
+import { NO_ITEMS_FILTER } from '../ui/route.ts'
 import type { AddItemHandoff, ItemsFilter } from '../ui/route.ts'
 import { clearAddItemHandoff, leaveTo, navigateToItems } from '../ui/useRoute.ts'
 import { afterPendingPop } from 'household-ui/ui/pendingPop.ts'
@@ -67,7 +68,7 @@ function ingredientLinkFor(recipe: RecipeRecord | undefined, name: string): Ingr
 }
 
 export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilterChange, handoff }: ItemsManagerProps) {
-  const { categoryId, shopId, recipeId, tagIds: selectedTagIds } = filter ?? { categoryId: undefined, shopId: undefined, recipeId: undefined, tagIds: [] }
+  const { categoryId, shopId, recipeId, tagIds: selectedTagIds } = filter ?? NO_ITEMS_FILTER
   const [items, setItems] = useState<ItemRecord[] | undefined>(undefined)
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [shops, setShops] = useState<ShopRecord[]>([])
@@ -76,6 +77,8 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const [recipes, setRecipes] = useState<RecipeRecord[]>([])
   /** Whether `watchRecipes` has delivered, so a missing chosen Recipe means deleted, not not-yet-loaded. */
   const [recipesLoaded, setRecipesLoaded] = useState(false)
+  /** Whether `watchTags` has delivered, so a Tag id in the filter is not judged against the empty list before it. */
+  const [tagsLoaded, setTagsLoaded] = useState(false)
   // Undo outlives the render that deleted the Item, so it reads the Categories and Shops as they are when it is pressed.
   const categoriesRef = useRef(categories)
   categoriesRef.current = categories
@@ -179,7 +182,14 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
     [db],
   )
 
-  useEffect(() => watchTags(db, setTags), [db])
+  useEffect(
+    () =>
+      watchTags(db, (next) => {
+        setTags(next)
+        setTagsLoaded(true)
+      }),
+    [db],
+  )
   useEffect(() => watchAisles(db, setAisles), [db])
   useEffect(
     () =>
@@ -323,7 +333,9 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
   const activeRecipe = chosen?.recipe
   const recipeItemIds = chosen?.itemIds
   const activeRecipeId = !recipesLoaded || isLiveReference(recipes, recipeId) ? recipeId : undefined
-  const activeFilter: ItemsFilter = { categoryId: activeCategoryId, shopId: activeShopId, recipeId: activeRecipeId, tagIds: activeTagIds }
+  // Until the Items and Tags have both loaded nothing is offered, so the pressed Tags are written back as they are, not wiped.
+  const filterTagIds = items === undefined || !tagsLoaded ? selectedTagIds : activeTagIds
+  const activeFilter: ItemsFilter = { categoryId: activeCategoryId, shopId: activeShopId, recipeId: activeRecipeId, tagIds: filterTagIds }
   const unlinkedNames = activeRecipe === undefined ? [] : unlinkedIngredientNames(activeRecipe)
   const chipFiltered =
     activeCategoryId !== undefined || activeShopId !== undefined || activeTagIds.length > 0 || activeRecipe !== undefined
@@ -389,7 +401,7 @@ export function ItemsManager({ db, itemIds = [], onClearFilter, filter, onFilter
             key={tag.id}
             label={tag.name}
             selected={activeTagIds.includes(tag.id)}
-            onToggle={() => onFilterChange?.({ ...activeFilter, tagIds: toggledMember(activeTagIds, tag.id) })}
+            onToggle={() => onFilterChange?.({ ...activeFilter, tagIds: toggledMember(filterTagIds, tag.id) })}
           />
         ))}
       </div>
